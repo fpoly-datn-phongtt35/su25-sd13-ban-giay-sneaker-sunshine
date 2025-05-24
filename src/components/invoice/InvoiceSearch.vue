@@ -11,43 +11,43 @@
 
     <select class="form-select w-auto" v-model="status" @change="onStatusChange">
       <option value="">Tất cả trạng thái</option>
-      <option value="0">Chưa thanh toán</option>
+      <option value="0">Chờ xử lý</option>
       <option value="1">Đã thanh toán</option>
-      <option value="2">Đơn hàng bị hủy</option>
+      <option value="2">Đã hủy</option>
     </select>
-
   </div>
 </template>
 
 <script setup>
 import { ref } from 'vue'
-import { defineEmits } from 'vue'
-
-const emits = defineEmits(['search', 'clear'])
 
 const keyword = ref('')
 const status = ref('')
 
-let debounceTimeout = null
+const emit = defineEmits(['search', 'clear'])
 
-const emitSearch = () => {
-  emits('search', { keyword: keyword.value.trim(), status: status.value })
+let debounceTimer = null
+
+function emitSearch() {
+  // Nếu status là chuỗi rỗng, gửi undefined để backend hiểu không lọc trạng thái
+  const statusValue = status.value === '' ? undefined : Number(status.value)
+  emit('search', { keyword: keyword.value.trim(), status: statusValue })
 }
 
-const onInput = () => {
-  clearTimeout(debounceTimeout)
-  debounceTimeout = setTimeout(() => {
+function onInput() {
+  clearTimeout(debounceTimer)
+  debounceTimer = setTimeout(() => {
     emitSearch()
   }, 300)
 }
 
-const onStatusChange = () => {
+function onStatusChange() {
   emitSearch()
 }
 
-const onClearClick = () => {
+function onClearClick() {
   keyword.value = ''
   status.value = ''
-  emits('clear')
+  emit('clear')
 }
 </script>

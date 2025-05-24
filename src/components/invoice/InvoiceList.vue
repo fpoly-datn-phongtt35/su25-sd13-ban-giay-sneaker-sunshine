@@ -134,8 +134,9 @@ const totalPages = ref(0)
 const isSearching = ref(false)
 const modalInstance = ref(null)
 const modalEl = ref(null)
+
 let currentKeyword = ''
-let currentStatus = null // sửa lại null để phân biệt với 0
+let currentStatus = null // null để không lọc trạng thái
 
 const getField = (inv, field) => inv[field] ?? inv?.invoice?.[field]
 
@@ -153,8 +154,8 @@ const fetchInvoices = async () => {
 
 const searchInvoices = async (keyword, status) => {
   isSearching.value = true
-  currentKeyword = keyword ?? ''
-  currentStatus = status
+  currentKeyword = keyword || ''
+  currentStatus = status == null || status === '' ? null : Number(status)
 
   try {
     const res = await axios.get('http://localhost:8080/api/invoices/search', {
@@ -213,9 +214,11 @@ const closeModal = () => {
 const changePage = async (newPage) => {
   if (newPage < 0 || newPage >= totalPages.value) return
   page.value = newPage
-  isSearching.value
-    ? await searchInvoices(currentKeyword, currentStatus)
-    : await fetchInvoices()
+  if (isSearching.value) {
+    await searchInvoices(currentKeyword, currentStatus)
+  } else {
+    await fetchInvoices()
+  }
 }
 
 const formatCurrency = (val) => {
@@ -226,31 +229,25 @@ const formatCurrency = (val) => {
 const formatDate = (val) => {
   if (!val) return '---'
   const d = new Date(val)
-  return d.toLocaleString('vi-VN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  })
+  return d.toLocaleDateString('vi-VN') + ' ' + d.toLocaleTimeString('vi-VN')
 }
 
-const statusClass = (s) => {
-  return {
-    0: 'badge bg-danger',
-    1: 'badge bg-success',
-    2: 'badge bg-secondary',
-  }[s] || 'badge bg-warning'
+const statusText = (status) => {
+  switch (status) {
+    case 0: return 'Chờ xử lý'
+    case 1: return 'Đã thanh toán'
+    case 2: return 'Đã hủy'
+    default: return 'Không xác định'
+  }
 }
 
-const statusText = (s) => {
-  return {
-    0: 'Chưa thanh toán',
-    1: 'Đã thanh toán',
-    2: 'Đơn hàng bị hủy',
-  }[s] || 'Không xác định'
+const statusClass = (status) => {
+  switch (status) {
+    case 0: return 'text-warning'
+    case 1: return 'text-success'
+    case 2: return 'text-danger'
+    default: return 'text-muted'
+  }
 }
 
 onMounted(() => {
@@ -258,3 +255,9 @@ onMounted(() => {
   fetchInvoices()
 })
 </script>
+
+<style scoped>
+.text-warning { color: orange; }
+.text-success { color: green; }
+.text-danger { color: red; }
+</style>

@@ -26,7 +26,7 @@ import InvoiceList from "@/components/invoice/InvoiceList.vue";
 const routes = [
   {
     path: "/",
-    redirect: "/login",
+    redirect: "/",
   },
   {
     path: "/login",

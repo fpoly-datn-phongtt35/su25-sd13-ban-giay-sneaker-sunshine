@@ -2,7 +2,7 @@
   <div class="container-fluid mt-4">
     <h3 class="mb-3">Danh sách hóa đơn</h3>
 
-    <!-- Gọi component tìm kiếm -->
+    <!-- Component tìm kiếm -->
     <InvoiceSearch @search="onSearch" @clear="onClear" />
 
     <div class="table-responsive" v-if="invoices.length > 0">
@@ -39,7 +39,6 @@
             <td>{{ formatDate(getField(inv, 'createdDate')) }}</td>
             <td>{{ getField(inv, 'description') || '---' }}</td>
             <td>
-              <!-- Sửa chỗ này: truyền đúng id từ getField -->
               <button class="btn btn-primary btn-sm" @click="viewInvoiceDetails(getField(inv, 'id'))">
                 Xem chi tiết
               </button>
@@ -59,7 +58,6 @@
         <li class="page-item" :class="{ disabled: page === 0 }" @click="changePage(page - 1)">
           <a class="page-link" href="#">Previous</a>
         </li>
-
         <li
           class="page-item"
           v-for="p in totalPages"
@@ -69,18 +67,13 @@
         >
           <a class="page-link" href="#">{{ p }}</a>
         </li>
-
-        <li
-          class="page-item"
-          :class="{ disabled: page === totalPages - 1 }"
-          @click="changePage(page + 1)"
-        >
+        <li class="page-item" :class="{ disabled: page === totalPages - 1 }" @click="changePage(page + 1)">
           <a class="page-link" href="#">Next</a>
         </li>
       </ul>
     </nav>
 
-    <!-- Modal chi tiết hóa đơn -->
+    <!-- Modal chi tiết -->
     <div class="modal fade" tabindex="-1" ref="modalEl" aria-hidden="true">
       <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -113,9 +106,7 @@
               </tbody>
             </table>
 
-            <p class="mt-3">
-              <strong>Tổng tiền:</strong> {{ formatCurrency(selectedInvoice.totalAmount) }}
-            </p>
+            <p class="mt-3"><strong>Tổng tiền:</strong> {{ formatCurrency(selectedInvoice.totalAmount) }}</p>
             <p><strong>Giảm giá:</strong> {{ formatCurrency(selectedInvoice.discountAmount) }}</p>
             <p><strong>Thành tiền:</strong> {{ formatCurrency(selectedInvoice.finalAmount) }}</p>
           </div>
@@ -137,23 +128,16 @@ import InvoiceSearch from './InvoiceSearch.vue'
 const invoices = ref([])
 const selectedInvoice = ref(null)
 const invoiceDetails = ref([])
-
 const page = ref(0)
 const size = ref(10)
 const totalPages = ref(0)
 const isSearching = ref(false)
-let currentKeyword = ''
-let currentStatus = ''  // trạng thái tìm kiếm
-
 const modalInstance = ref(null)
 const modalEl = ref(null)
+let currentKeyword = ''
+let currentStatus = null // sửa lại null để phân biệt với 0
 
-function getField(inv, field) {
-  if (inv.invoice && inv.invoice[field] !== undefined) {
-    return inv.invoice[field]
-  }
-  return inv[field]
-}
+const getField = (inv, field) => inv[field] ?? inv?.invoice?.[field]
 
 const fetchInvoices = async () => {
   try {
@@ -162,24 +146,15 @@ const fetchInvoices = async () => {
     })
     invoices.value = res.data.content
     totalPages.value = res.data.totalPages
-  } catch (error) {
-    console.error('Lỗi khi tải danh sách hóa đơn:', error)
+  } catch (err) {
+    console.error('Lỗi tải hóa đơn:', err)
   }
 }
 
-// Chỉnh sửa để nhận keyword và status
 const searchInvoices = async (keyword, status) => {
-  if ((!keyword || keyword.trim() === '') && !status) {
-    isSearching.value = false
-    page.value = 0
-    await fetchInvoices()
-    return
-  }
-
   isSearching.value = true
-  currentKeyword = keyword || ''
-  currentStatus = status || ''
-  page.value = 0
+  currentKeyword = keyword ?? ''
+  currentStatus = status
 
   try {
     const res = await axios.get('http://localhost:8080/api/invoices/search', {
@@ -192,31 +167,40 @@ const searchInvoices = async (keyword, status) => {
     })
     invoices.value = res.data.content
     totalPages.value = res.data.totalPages
-  } catch (error) {
-    console.error('Lỗi khi tìm kiếm hóa đơn:', error)
+  } catch (err) {
+    console.error('Lỗi tìm kiếm hóa đơn:', err)
+  }
+}
+
+const onSearch = ({ keyword, status }) => {
+  page.value = 0
+  if ((keyword === '' || keyword == null) && (status === '' || status == null)) {
+    isSearching.value = false
+    currentKeyword = ''
+    currentStatus = null
+    fetchInvoices()
+  } else {
+    searchInvoices(keyword, status)
   }
 }
 
 const onClear = () => {
   isSearching.value = false
   currentKeyword = ''
-  currentStatus = ''
+  currentStatus = null
   page.value = 0
   fetchInvoices()
 }
 
 const viewInvoiceDetails = async (invoiceId) => {
-  if (!invoiceId) {
-    console.error('Invoice ID is undefined or null!')
-    return
-  }
+  if (!invoiceId) return
   try {
     const res = await axios.get(`http://localhost:8080/api/invoices/${invoiceId}/detail`)
     selectedInvoice.value = res.data.invoice || res.data
     invoiceDetails.value = res.data.details || []
     modalInstance.value.show()
-  } catch (error) {
-    console.error('Lỗi khi tải chi tiết hóa đơn:', error)
+  } catch (err) {
+    console.error('Lỗi chi tiết hóa đơn:', err)
   }
 }
 
@@ -229,12 +213,9 @@ const closeModal = () => {
 const changePage = async (newPage) => {
   if (newPage < 0 || newPage >= totalPages.value) return
   page.value = newPage
-
-  if (isSearching.value) {
-    await searchInvoices(currentKeyword, currentStatus)
-  } else {
-    await fetchInvoices()
-  }
+  isSearching.value
+    ? await searchInvoices(currentKeyword, currentStatus)
+    : await fetchInvoices()
 }
 
 const formatCurrency = (val) => {
@@ -242,9 +223,9 @@ const formatCurrency = (val) => {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val)
 }
 
-const formatDate = (dateStr) => {
-  if (!dateStr) return '---'
-  const d = new Date(dateStr)
+const formatDate = (val) => {
+  if (!val) return '---'
+  const d = new Date(val)
   return d.toLocaleString('vi-VN', {
     year: 'numeric',
     month: '2-digit',
@@ -256,52 +237,24 @@ const formatDate = (dateStr) => {
   })
 }
 
-const statusClass = (status) => {
-  switch (status) {
-    case 0:
-      return 'badge bg-danger'
-    case 1:
-      return 'badge bg-success'
-    case 2:
-      return 'badge bg-secondary'
-    default:
-      return 'badge bg-warning'
-  }
+const statusClass = (s) => {
+  return {
+    0: 'badge bg-danger',
+    1: 'badge bg-success',
+    2: 'badge bg-secondary',
+  }[s] || 'badge bg-warning'
 }
 
-const statusText = (status) => {
-  switch (status) {
-    case 0:
-      return 'Chưa thanh toán'
-    case 1:
-      return 'Đã thanh toán'
-    case 2:
-      return 'Đơn hàng bị hủy'
-    default:
-      return 'Không xác định'
-  }
+const statusText = (s) => {
+  return {
+    0: 'Chưa thanh toán',
+    1: 'Đã thanh toán',
+    2: 'Đơn hàng bị hủy',
+  }[s] || 'Không xác định'
 }
 
 onMounted(() => {
   modalInstance.value = new Modal(modalEl.value)
   fetchInvoices()
 })
-
-// Sửa lại onSearch nhận 1 object { keyword, status }
-const onSearch = ({ keyword, status }) => {
-  if ((!keyword || keyword.trim() === '') && !status) {
-    isSearching.value = false
-    currentKeyword = ''
-    currentStatus = ''
-    page.value = 0
-    fetchInvoices()
-  } else {
-    isSearching.value = true
-    currentKeyword = keyword || ''
-    currentStatus = status || ''
-    page.value = 0
-    searchInvoices(currentKeyword, currentStatus)
-  }
-}
 </script>
-

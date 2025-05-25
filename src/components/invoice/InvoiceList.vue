@@ -1,15 +1,19 @@
 <template>
   <div class="container-fluid mt-4">
-    <h3 class="mb-3">Danh sách hóa đơn</h3>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h3 class="mb-0">Danh sách hóa đơn</h3>
+    </div>
 
     <!-- Component tìm kiếm -->
-    <InvoiceSearch @search="onSearch" @clear="onClear" />
+    <InvoiceSearch @search="onSearch" @clear="onClear" class="mb-3" />
 
+    <!-- Table -->
     <div class="table-responsive" v-if="invoices.length > 0">
-      <table class="table table-striped table-bordered">
-        <thead>
-          <tr>
-            <th>STT</th>
+      <table class="table table-hover table-borderless align-middle">
+        <thead class="table-light">
+          <tr class="align-middle text-center">
+            <th><input type="checkbox" v-model="selectAll" @change="toggleAll" /></th>
+            <th>#</th>
             <th>Mã hóa đơn</th>
             <th>Khách hàng</th>
             <th>Nhân viên</th>
@@ -23,7 +27,8 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(inv, index) in invoices" :key="getField(inv, 'id')">
+          <tr v-for="(inv, index) in invoices" :key="getField(inv, 'id')" class="text-center">
+            <td><input type="checkbox" v-model="inv.selected" /></td>
             <td>{{ page * size + index + 1 }}</td>
             <td>{{ getField(inv, 'invoiceCode') }}</td>
             <td>{{ getField(inv, 'customerName') || 'Khách lẻ' }}</td>
@@ -32,83 +37,109 @@
             <td>{{ formatCurrency(getField(inv, 'discountAmount')) }}</td>
             <td>{{ formatCurrency(getField(inv, 'finalAmount')) }}</td>
             <td>
-              <span :class="statusClass(getField(inv, 'status'))">
+              <span :class="['badge', statusClass(getField(inv, 'status'))]">
                 {{ statusText(getField(inv, 'status')) }}
               </span>
             </td>
             <td>{{ formatDate(getField(inv, 'createdDate')) }}</td>
             <td>{{ getField(inv, 'description') || '---' }}</td>
             <td>
-              <button class="btn btn-primary btn-sm" @click="viewInvoiceDetails(getField(inv, 'id'))">
-                Xem chi tiết
-              </button>
+              <div class="btn-group btn-group-sm">
+                <button
+                  class="btn btn-outline-primary"
+                  @click="viewInvoiceDetails(getField(inv, 'id'))"
+                  title="Xem chi tiết hóa đơn"
+                >
+                  <i class="bi bi-eye"></i>
+                </button>
+                <button
+                  class="btn btn-outline-success"
+                  @click="printInvoice(getField(inv, 'invoiceCode'))"
+                  title="In hóa đơn"
+                >
+                  <i class="bi bi-printer"></i>
+                </button>
+              </div>
             </td>
           </tr>
         </tbody>
       </table>
     </div>
 
+    <!-- Nếu không có hóa đơn -->
     <div v-else>
-      <p class="text-center">Không có hóa đơn nào để hiển thị.</p>
+      <p class="text-center text-muted mt-4">Không có hóa đơn nào để hiển thị.</p>
     </div>
 
     <!-- Pagination -->
-    <nav aria-label="Page navigation" v-if="totalPages > 1">
-      <ul class="pagination justify-content-center">
-        <li class="page-item" :class="{ disabled: page === 0 }" @click="changePage(page - 1)">
-          <a class="page-link" href="#">Previous</a>
-        </li>
-        <li
-          class="page-item"
-          v-for="p in totalPages"
-          :key="p"
-          :class="{ active: page === p - 1 }"
-          @click="changePage(p - 1)"
+    <nav
+      aria-label="Pagination"
+      v-if="totalPages > 0"
+      class="d-flex justify-content-between align-items-center mt-3"
+    >
+      <div class="ms-2 text-muted"><strong>Trang:</strong> {{ page + 1 }} / {{ totalPages }}</div>
+      <div class="btn-group">
+        <button
+          class="btn btn-outline-secondary"
+          :disabled="page === 0"
+          @click="changePage(page - 1)"
         >
-          <a class="page-link" href="#">{{ p }}</a>
-        </li>
-        <li class="page-item" :class="{ disabled: page === totalPages - 1 }" @click="changePage(page + 1)">
-          <a class="page-link" href="#">Next</a>
-        </li>
-      </ul>
+          ← Trước
+        </button>
+        <button
+          class="btn btn-outline-secondary"
+          :disabled="page >= totalPages - 1"
+          @click="changePage(page + 1)"
+        >
+          Tiếp →
+        </button>
+      </div>
     </nav>
 
     <!-- Modal chi tiết -->
     <div class="modal fade" tabindex="-1" ref="modalEl" aria-hidden="true">
-      <div class="modal-dialog modal-lg">
+      <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">Chi tiết hóa đơn #{{ selectedInvoice?.id }}</h5>
-            <button type="button" class="btn-close" @click="closeModal" aria-label="Close"></button>
+          <div class="modal-header bg-primary text-white">
+            <h5 class="modal-title">
+              🧾 Chi tiết hóa đơn #{{ selectedInvoice?.invoiceCode || selectedInvoice?.id }}
+            </h5>
+            <button type="button" class="btn-close btn-close-white" @click="closeModal"></button>
           </div>
           <div class="modal-body" v-if="selectedInvoice">
-            <p><strong>Khách hàng:</strong> {{ selectedInvoice.customerName || 'Khách lẻ' }}</p>
-            <p><strong>Nhân viên:</strong> {{ selectedInvoice.employeeName || '---' }}</p>
-            <p><strong>Ngày tạo:</strong> {{ formatDate(selectedInvoice.createdDate) }}</p>
-            <p><strong>Ghi chú:</strong> {{ selectedInvoice.description || '---' }}</p>
+            <div class="row mb-2">
+              <div class="col-md-6"><strong>Khách hàng:</strong> {{ selectedInvoice.customerName || 'Khách lẻ' }}</div>
+              <div class="col-md-6"><strong>Nhân viên:</strong> {{ selectedInvoice.employeeName || '---' }}</div>
+            </div>
+            <div class="row mb-2">
+              <div class="col-md-6"><strong>Ngày tạo:</strong> {{ formatDate(selectedInvoice.createdDate) }}</div>
+              <div class="col-md-6"><strong>Ghi chú:</strong> {{ selectedInvoice.description || '---' }}</div>
+            </div>
 
-            <table class="table table-bordered mt-3">
-              <thead>
+            <table class="table table-sm table-bordered mt-3">
+              <thead class="table-light">
                 <tr>
                   <th>Sản phẩm</th>
-                  <th>Số lượng</th>
-                  <th>Giá bán</th>
-                  <th>Thành tiền</th>
+                  <th class="text-end">Số lượng</th>
+                  <th class="text-end">Giá bán</th>
+                  <th class="text-end">Thành tiền</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-for="detail in invoiceDetails" :key="detail.id">
                   <td>{{ detail.productName }}</td>
-                  <td>{{ detail.quantity }}</td>
-                  <td>{{ formatCurrency(detail.price) }}</td>
-                  <td>{{ formatCurrency(detail.price * detail.quantity) }}</td>
+                  <td class="text-end">{{ detail.quantity }}</td>
+                  <td class="text-end">{{ formatCurrency(detail.price) }}</td>
+                  <td class="text-end">{{ formatCurrency(detail.price * detail.quantity) }}</td>
                 </tr>
               </tbody>
             </table>
 
-            <p class="mt-3"><strong>Tổng tiền:</strong> {{ formatCurrency(selectedInvoice.totalAmount) }}</p>
-            <p><strong>Giảm giá:</strong> {{ formatCurrency(selectedInvoice.discountAmount) }}</p>
-            <p><strong>Thành tiền:</strong> {{ formatCurrency(selectedInvoice.finalAmount) }}</p>
+            <div class="mt-4 text-end">
+              <p><strong>Tổng tiền:</strong> {{ formatCurrency(selectedInvoice.totalAmount) }}</p>
+              <p><strong>Giảm giá:</strong> {{ formatCurrency(selectedInvoice.discountAmount) }}</p>
+              <p><strong>Thành tiền:</strong> {{ formatCurrency(selectedInvoice.finalAmount) }}</p>
+            </div>
           </div>
           <div class="modal-footer">
             <button class="btn btn-secondary" @click="closeModal">Đóng</button>
@@ -120,7 +151,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import axios from 'axios'
 import { Modal } from 'bootstrap'
 import InvoiceSearch from './InvoiceSearch.vue'
@@ -135,53 +166,93 @@ const isSearching = ref(false)
 const modalInstance = ref(null)
 const modalEl = ref(null)
 
+const selectAll = ref(false)
+
+// Theo dõi khi selectAll thay đổi để cập nhật tất cả checkbox
+const toggleAll = () => {
+  invoices.value.forEach((inv) => {
+    inv.selected = selectAll.value
+  })
+}
+
+// Tự động cập nhật trạng thái của checkbox "select all"
+watch(
+  invoices,
+  (newVal) => {
+    if (!newVal.length) {
+      selectAll.value = false
+      return
+    }
+    selectAll.value = newVal.every((inv) => inv.selected)
+  },
+  { deep: true },
+)
+
+// Lưu giữ giá trị tìm kiếm hiện tại (để phân trang vẫn giữ filter)
 let currentKeyword = ''
-let currentStatus = null // null để không lọc trạng thái
+let currentStatus = null
+let currentCreatedDate = null
 
 const getField = (inv, field) => inv[field] ?? inv?.invoice?.[field]
+
+const formatDateToYYYYMMDD = (date) => {
+  if (!date) return null
+  if (typeof date === 'string') return date
+  const year = date.getFullYear()
+  const month = (date.getMonth() + 1).toString().padStart(2, '0')
+  const day = date.getDate().toString().padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
 
 const fetchInvoices = async () => {
   try {
     const res = await axios.get('http://localhost:8080/api/invoices', {
       params: { page: page.value, size: size.value },
     })
-    invoices.value = res.data.content
+    invoices.value = res.data.content.map((inv) => ({ ...inv, selected: false }))
     totalPages.value = res.data.totalPages
   } catch (err) {
     console.error('Lỗi tải hóa đơn:', err)
   }
 }
 
-const searchInvoices = async (keyword, status) => {
+const searchInvoices = async (keyword, status, createdDate) => {
   isSearching.value = true
   currentKeyword = keyword || ''
   currentStatus = status == null || status === '' ? null : Number(status)
+  currentCreatedDate = createdDate ? formatDateToYYYYMMDD(createdDate) : null
 
   try {
     const res = await axios.get('http://localhost:8080/api/invoices/search', {
       params: {
-        keyword: currentKeyword,
-        status: currentStatus,
+        keyword: currentKeyword || undefined,
+        status: currentStatus !== null ? currentStatus : undefined,
+        createdDate: currentCreatedDate || undefined,
         page: page.value,
         size: size.value,
       },
     })
-    invoices.value = res.data.content
+    invoices.value = res.data.content.map((inv) => ({ ...inv, selected: false }))
     totalPages.value = res.data.totalPages
   } catch (err) {
     console.error('Lỗi tìm kiếm hóa đơn:', err)
   }
 }
 
-const onSearch = ({ keyword, status }) => {
+const onSearch = ({ keyword, status, createdDate }) => {
   page.value = 0
-  if ((keyword === '' || keyword == null) && (status === '' || status == null)) {
+  if (
+    (!keyword || keyword.trim() === '') &&
+    (status === '' || status === null || status === undefined) &&
+    (!createdDate || createdDate === null)
+  ) {
     isSearching.value = false
     currentKeyword = ''
     currentStatus = null
+    currentCreatedDate = null
     fetchInvoices()
   } else {
-    searchInvoices(keyword, status)
+    searchInvoices(keyword, status, createdDate)
   }
 }
 
@@ -189,6 +260,7 @@ const onClear = () => {
   isSearching.value = false
   currentKeyword = ''
   currentStatus = null
+  currentCreatedDate = null
   page.value = 0
   fetchInvoices()
 }
@@ -205,6 +277,15 @@ const viewInvoiceDetails = async (invoiceId) => {
   }
 }
 
+const printInvoice = (invoiceCode) => {
+  if (!invoiceCode) {
+    console.warn('Invoice code is required để in hóa đơn.')
+    return
+  }
+  const printUrl = `http://localhost:8080/api/invoices/${invoiceCode}/export`
+  window.open(printUrl, '_blank', 'noopener,noreferrer')
+}
+
 const closeModal = () => {
   modalInstance.value.hide()
   selectedInvoice.value = null
@@ -215,7 +296,7 @@ const changePage = async (newPage) => {
   if (newPage < 0 || newPage >= totalPages.value) return
   page.value = newPage
   if (isSearching.value) {
-    await searchInvoices(currentKeyword, currentStatus)
+    await searchInvoices(currentKeyword, currentStatus, currentCreatedDate)
   } else {
     await fetchInvoices()
   }
@@ -234,19 +315,27 @@ const formatDate = (val) => {
 
 const statusText = (status) => {
   switch (status) {
-    case 0: return 'Chờ xử lý'
-    case 1: return 'Đã thanh toán'
-    case 2: return 'Đã hủy'
-    default: return 'Không xác định'
+    case 0:
+      return 'Chờ xử lý'
+    case 1:
+      return 'Đã thanh toán'
+    case 2:
+      return 'Đã hủy'
+    default:
+      return 'Không xác định'
   }
 }
 
 const statusClass = (status) => {
   switch (status) {
-    case 0: return 'text-warning'
-    case 1: return 'text-success'
-    case 2: return 'text-danger'
-    default: return 'text-muted'
+    case 0:
+      return 'text-warning'
+    case 1:
+      return 'text-success'
+    case 2:
+      return 'text-danger'
+    default:
+      return 'text-muted'
   }
 }
 
@@ -255,9 +344,3 @@ onMounted(() => {
   fetchInvoices()
 })
 </script>
-
-<style scoped>
-.text-warning { color: orange; }
-.text-success { color: green; }
-.text-danger { color: red; }
-</style>

@@ -2,9 +2,9 @@
   <nav class="d-flex flex-column bg-white p-3 min-vh-100 border-end" style="width: 250px;">
     <!-- Logo Section -->
     <div class="d-flex align-items-center mb-4">
-      <div class="bg-primary p-3 rounded-circle me-3">
+      <!-- <div class="bg-primary p-3 rounded-circle me-3">
         <i class="bi bi-house-door-fill text-white"></i>
-      </div>
+      </div> -->
       <span class="h4 text-dark">Clothing Store</span>
     </div>
 

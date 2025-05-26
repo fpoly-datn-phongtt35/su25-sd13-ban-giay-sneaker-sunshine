@@ -26,7 +26,6 @@ public class ProductRequest {
     private BigDecimal originPrice;
     private BigDecimal sellPrice;
     private BigDecimal weight;
-    private Integer quantity;
     private String description;
     private Integer status;
     private Date createdDate;
@@ -38,3 +37,4 @@ public class ProductRequest {
     private List<Long> oldImageIds;
     private List<ProductDetailRequest> productDetails;
 }
+

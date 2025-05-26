@@ -12,4 +12,5 @@ import java.util.List;
 public interface BrandRepository extends JpaRepository<Brand,Long> {
     @Query("SELECT p FROM Brand p where p.status = 1 order by p.createdDate desc ")
     List<Brand> findByStatus();
+
 }

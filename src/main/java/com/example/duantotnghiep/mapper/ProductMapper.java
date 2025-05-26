@@ -11,16 +11,20 @@ import com.example.duantotnghiep.model.ProductCategory;
 import com.example.duantotnghiep.model.Sole;
 import com.example.duantotnghiep.model.Style;
 import com.example.duantotnghiep.model.Supplier;
+import com.example.duantotnghiep.model.Sole;
+import com.example.duantotnghiep.model.Style;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 import org.mapstruct.NullValuePropertyMappingStrategy;
 import org.mapstruct.ReportingPolicy;
 
+
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import java.util.List;
 @Mapper(
         componentModel = "spring",
         uses = {CategoryMapper.class, ProductImageMapper.class, ProductDetailMapper.class},
@@ -33,8 +37,10 @@ public interface ProductMapper {
     @Mapping(target = "styleName", source = "style.styleName")
     @Mapping(target = "genderName", source = "gender.genderName")
     @Mapping(target = "soleName", source = "sole.soleName")
+
     @Mapping(target = "supplierName", source = "supplier.supplierName")
     @Mapping(target = "categoryNames", source = "productCategories")
+
     ProductResponse toResponse(Product product);
 
     @Mapping(target = "material.id", source = "materialId")
@@ -42,7 +48,9 @@ public interface ProductMapper {
     @Mapping(target = "style.id", source = "styleId")
     @Mapping(target = "gender.id", source = "genderId")
     @Mapping(target = "sole.id", source = "soleId")
+
     @Mapping(target = "supplier.id", source = "supplierId")
+
     @Mapping(target = "productImages", ignore = true)
     @Mapping(target = "productCategories", ignore = true)
     @Mapping(target = "productDetails", ignore = true)
@@ -58,12 +66,17 @@ public interface ProductMapper {
     @Mapping(target = "categoryNames", source = "productCategories")
     ProductSearchResponse toResponseSearch(Product product);
 
+    List<ProductResponse> toResponseList(List<Product> products);
+
+
     @Mapping(target = "material", source = "materialId")
     @Mapping(target = "brand", source = "brandId")
     @Mapping(target = "style", source = "styleId")
     @Mapping(target = "gender", source = "genderId")
     @Mapping(target = "sole", source = "soleId")
+
     @Mapping(target = "supplier", source = "supplierId")
+
     void updateEntityFromRequest(ProductRequest request, @MappingTarget Product product);
 
     // Helper method chuyển Long -> Material

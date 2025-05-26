@@ -83,6 +83,7 @@ public class Product {
     private BigDecimal weight;
 
     @NotNull
+
     @Column(name = "quantity", nullable = false)
     private Integer quantity;
 

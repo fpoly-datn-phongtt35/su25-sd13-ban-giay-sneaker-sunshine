@@ -18,6 +18,7 @@ public class ProductImageResponse {
     private String status;
     private byte[] image;
 
+
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "Asia/Ho_Chi_Minh")
     private Date createdDate;
 

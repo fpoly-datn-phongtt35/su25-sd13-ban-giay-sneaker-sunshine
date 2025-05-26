@@ -12,4 +12,5 @@ import java.util.List;
 public interface MaterialRepository extends JpaRepository<Material,Long> {
     @Query("SELECT p FROM Material p where p.status = 1 order by p.createdDate desc ")
     List<Material> findByStatus();
+
 }

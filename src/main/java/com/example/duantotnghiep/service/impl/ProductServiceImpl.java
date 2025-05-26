@@ -7,6 +7,8 @@ import com.example.duantotnghiep.dto.response.CategoryResponse;
 import com.example.duantotnghiep.dto.response.PaginationDTO;
 import com.example.duantotnghiep.dto.response.ProductResponse;
 import com.example.duantotnghiep.dto.response.ProductSearchResponse;
+import com.example.duantotnghiep.dto.response.CategoryResponse;
+import com.example.duantotnghiep.dto.response.ProductResponse;
 import com.example.duantotnghiep.mapper.CategoryMapper;
 import com.example.duantotnghiep.mapper.ProductDetailMapper;
 import com.example.duantotnghiep.mapper.ProductImageMapper;
@@ -30,6 +32,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import com.example.duantotnghiep.service.ProductService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -37,6 +43,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -59,12 +66,18 @@ public class ProductServiceImpl implements ProductService {
     private final CategoryRepository categoryRepository;
     private final ProductDetailMapper productDetailMapper;
     private final CategoryMapper categoryMapper;
+
     private final ProductSearchRepository productSearchRepository;
 
     @Transactional(rollbackFor = Throwable.class)
     @Override
     public ProductResponse createProduct(ProductRequest request) {
-        // 1. Convert request -> entity (MapStruct, chưa xử lý ảnh và category)
+        // Validate input
+        if (request.getCategoryIds() == null || request.getCategoryIds().isEmpty()) {
+            throw new IllegalArgumentException("Category IDs cannot be empty");
+        }
+
+        // Create product entity
         Product product = productMapper.toEntity(request);
         product.setProductCode(generateProductCode());
         product.setStatus(1);
@@ -72,10 +85,10 @@ public class ProductServiceImpl implements ProductService {
         product.setUpdatedBy("admin");
         product.setCreatedBy("admin");
 
-        // 2. Lưu Product trước để có ID
+        // Save product to generate ID
         Product savedProduct = productRepository.save(product);
 
-        // 3. Xử lý ảnh (nếu có)
+        // Handle product images
         if (request.getProductImages() != null && !request.getProductImages().isEmpty()) {
             List<ProductImage> imageList = request.getProductImages().stream().map(file -> {
                 try {
@@ -86,22 +99,20 @@ public class ProductServiceImpl implements ProductService {
                     image.setCreatedDate(new Date());
                     image.setCreatedBy("admin");
                     image.setUpdatedBy("admin");
-                    image.setProduct(savedProduct); // set product sau khi lưu
+                    image.setProduct(savedProduct);
                     return image;
                 } catch (IOException e) {
-                    throw new RuntimeException("Lỗi xử lý ảnh: " + e.getMessage(), e);
+                    throw new RuntimeException("Failed to process image: " + e.getMessage(), e);
                 }
             }).collect(Collectors.toList());
-
             productImageRepository.saveAll(imageList);
         }
 
-        // 4. Xử lý ProductDetail (nếu có)
+        // Handle product details
         if (request.getProductDetails() != null && !request.getProductDetails().isEmpty()) {
             List<ProductDetail> details = productDetailMapper.mapProductDetailRequests(request.getProductDetails());
-
             details.forEach(detail -> {
-                detail.setProduct(savedProduct); // set product sau khi lưu
+                detail.setProduct(savedProduct);
                 detail.setProductDetailCode(generateProductDetailCode());
                 detail.setStatus(1);
                 detail.setCreatedBy("admin");
@@ -109,17 +120,16 @@ public class ProductServiceImpl implements ProductService {
                 detail.setUpdatedBy("admin");
                 detail.setUpdatedDate(new Date());
             });
-
             productDetailRepository.saveAll(details);
+            savedProduct.setProductDetails(details);
         }
 
-        // 5. Lấy danh sách Category
+        // Handle categories
         List<Category> categories = categoryRepository.findAllByIdInAndStatus(request.getCategoryIds(), 1);
         if (categories.size() != request.getCategoryIds().size()) {
-            throw new RuntimeException("Không tìm thấy đủ danh mục hợp lệ.");
+            throw new IllegalArgumentException("Invalid or inactive categories provided");
         }
 
-        // 6. Tạo danh sách ProductCategory
         List<ProductCategory> productCategories = categories.stream().map(category -> {
             ProductCategory pc = new ProductCategory();
             pc.setId(new ProductCategoryId(savedProduct.getId(), category.getId()));
@@ -128,25 +138,18 @@ public class ProductServiceImpl implements ProductService {
             pc.setStatus(1);
             pc.setCreatedBy("admin");
             pc.setCreatedDate(new Date());
+            pc.setUpdatedBy("admin");
             pc.setUpdatedDate(new Date());
             return pc;
         }).collect(Collectors.toList());
-
         productCategoryRepository.saveAll(productCategories);
 
-        // 7. Trả về response
+        // Prepare response
         ProductResponse response = productMapper.toResponse(savedProduct);
-        response.setCategoryNames(
-                categories.stream()
-                        .map(Category::getCategoryName)
-                        .collect(Collectors.toList())
-        );
-        response.setProductDetails(
-                productDetailRepository.findByProductIdAndStatus(savedProduct.getId(),1)
-                        .stream().map(productDetailMapper::toResponse)
-                        .collect(Collectors.toList())
-        );
-
+        response.setCategories(categories.stream().map(categoryMapper::toResponse).collect(Collectors.toList()));
+        response.setProductDetails(savedProduct.getProductDetails().stream()
+                .map(productDetailMapper::toResponse)
+                .collect(Collectors.toList()));
         return response;
     }
 
@@ -228,6 +231,7 @@ public class ProductServiceImpl implements ProductService {
         System.out.println("Product saved with ID: " + updatedProduct.getId());
 
         // 5. Xử lý ảnh cũ (ProductImage)
+        // 5. Xử lý ảnh cũ (ProductImage)
         if (request.getOldImageIds() != null && !request.getOldImageIds().isEmpty()) {
             // Tìm tất cả ảnh theo danh sách id cũ và trạng thái 1 (active)
             List<ProductImage> allImages = productImageRepository.findAllByIdAndStatus(request.getOldImageIds(), 1);
@@ -289,8 +293,6 @@ public class ProductServiceImpl implements ProductService {
         updatedProduct = productRepository.save(existingProduct);
         System.out.println("Product saved again with ID: " + updatedProduct.getId());
 
-
-        // Lấy danh sách categoryId mới từ request
         List<Long> newCategoryIds = request.getCategoryIds();
 
         if (newCategoryIds != null && !newCategoryIds.isEmpty()) {
@@ -364,6 +366,7 @@ public class ProductServiceImpl implements ProductService {
                 .collect(Collectors.toList());
         response.setCategoryNames(categoryNames);
 
+
         return response;
 
     }
@@ -425,8 +428,16 @@ public class ProductServiceImpl implements ProductService {
     @Override
     public ProductResponse getProductById(Long id) {
         Product product = productRepository.getOneByStatus(id)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm với id: " + id));
-        return productMapper.toResponse(product);
+                .orElseThrow(() -> new IllegalArgumentException("Product not found: " + id));
+        ProductResponse response = productMapper.toResponse(product);
+        List<ProductCategory> categories = productCategoryRepository.getAllByProductAndStatus(id);
+        response.setCategories(categories.stream()
+                .map(pc -> categoryMapper.toResponse(pc.getCategory()))
+                .collect(Collectors.toList()));
+        response.setProductDetails(product.getProductDetails().stream()
+                .map(productDetailMapper::toResponse)
+                .collect(Collectors.toList()));
+        return response;
     }
 
     @Override
@@ -442,36 +453,34 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public void exportProductToExcel(ProductSearchRequest dto, OutputStream outputStream) throws IOException {
-        try {
-            // Lấy danh sách sản phẩm không phân trang
-            List<ProductSearchResponse> products = productSearchRepository.searchProductWithoutPaging(dto);
-
-            // Xuất danh sách sản phẩm sang Excel và ghi vào OutputStream
-            try (ByteArrayInputStream excelInputStream = ProductExcelExporter.exportProductToExcel(products)) {
-                byte[] buffer = new byte[1024];
-                int bytesRead;
-                while ((bytesRead = excelInputStream.read(buffer)) != -1) {
-                    outputStream.write(buffer, 0, bytesRead);
-                }
+        List<ProductSearchResponse> products = productSearchRepository.searchProductWithoutPaging(dto);
+        try (ByteArrayInputStream excelStream = ProductExcelExporter.exportProductToExcel(products)) {
+            byte[] buffer = new byte[1024];
+            int bytesRead;
+            while ((bytesRead = excelStream.read(buffer)) != -1) {
+                outputStream.write(buffer, 0, bytesRead);
             }
         } catch (IOException e) {
-            throw new IOException("Lỗi khi xuất file Excel: " + e.getMessage(), e);
+            throw new IOException("Failed to export Excel: " + e.getMessage(), e);
         }
     }
 
+    @Override
+    public List<ProductResponse> getAllProducts() {
+        return null;
+    }
+
     private String generateProductCode() {
-        // Logic để tạo mã sản phẩm, ví dụ: P-YYYYMMDD-XXXX
         String prefix = "P-";
         String datePart = new SimpleDateFormat("yyyyMMdd").format(new Date());
-        String randomPart = String.valueOf((int) (Math.random() * 10000)); // Sinh ngẫu nhiên từ 0000 đến 9999
+        String randomPart = String.format("%04d", (int) (Math.random() * 10000));
         return prefix + datePart + "-" + randomPart;
     }
 
     private String generateProductDetailCode() {
-        // Logic để tạo mã chi tiết sản phẩm, ví dụ: PD-YYYYMMDD-XXXX
         String prefix = "PD-";
         String datePart = new SimpleDateFormat("yyyyMMdd").format(new Date());
-        String randomPart = String.valueOf((int) (Math.random() * 10000)); // Sinh ngẫu nhiên từ 0000 đến 9999
+        String randomPart = String.format("%04d", (int) (Math.random() * 10000));
         return prefix + datePart + "-" + randomPart;
     }
 }

@@ -2,6 +2,7 @@ package com.example.duantotnghiep.repository;
 
 import com.example.duantotnghiep.model.Category;
 import com.example.duantotnghiep.model.Size;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -18,4 +19,5 @@ public interface CategoryRepository extends JpaRepository<Category,Long> {
 
     @Query("SELECT p FROM Category p where p.status = 1 order by p.createdDate desc ")
     List<Category> findByStatus();
+
 }

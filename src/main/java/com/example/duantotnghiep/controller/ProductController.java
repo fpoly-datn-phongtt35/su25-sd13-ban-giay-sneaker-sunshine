@@ -11,13 +11,18 @@ import com.google.zxing.MultiFormatWriter;
 import com.google.zxing.client.j2se.MatrixToImageWriter;
 import com.google.zxing.common.BitMatrix;
 import jakarta.servlet.http.HttpServletResponse;
+
+import com.example.duantotnghiep.dto.response.ProductResponse;
+import com.example.duantotnghiep.service.ProductService;
 import jakarta.validation.Validator;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
+
 import org.springframework.data.domain.Page;
+
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -57,6 +62,7 @@ public class ProductController {
         return ResponseEntity.ok(productResponses);
     }
 
+
     // GET BY ID
     @GetMapping("/{id}")
     public ResponseEntity<ProductResponse> getProductById(@PathVariable Long id) {
@@ -66,6 +72,7 @@ public class ProductController {
     // CREATE
     @PostMapping
     public ResponseEntity<ProductResponse> createProduct( @ModelAttribute ProductRequest request) {
+
         return ResponseEntity.ok(productService.createProduct(request));
     }
 

@@ -6,6 +6,7 @@ import com.example.duantotnghiep.dto.response.PaginationDTO;
 import com.example.duantotnghiep.dto.response.ProductResponse;
 import com.example.duantotnghiep.dto.response.ProductSearchResponse;
 import org.springframework.data.domain.Page;
+import com.example.duantotnghiep.dto.response.ProductResponse;
 import org.springframework.data.domain.Pageable;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,5 +28,6 @@ public interface ProductService {
     PaginationDTO<ProductSearchResponse> phanTrang(ProductSearchRequest request, Pageable pageable);
 
     void exportProductToExcel(ProductSearchRequest dto, OutputStream outputStream) throws IOException;
+    List<ProductResponse> getAllProducts();
 
 }

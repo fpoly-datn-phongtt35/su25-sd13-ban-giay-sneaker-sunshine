@@ -15,6 +15,7 @@ import org.mapstruct.MappingTarget;
 public interface CategoryMapper {
     CategoryResponse toResponse(Category category);
 
+
     @Mapping(target = "id", ignore = true)
     Category toEntity(CategoryRequest categoryRequest);
 

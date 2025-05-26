@@ -6,80 +6,60 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-import lombok.Getter;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.Nationalized;
 
-import java.math.BigDecimal;
 import java.time.Instant;
-
-import java.util.Date;
 
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
 @Setter
 @Entity
-@Table(name = "employee")
-public class Employee {
+@Table(name = "customer")
+public class Customer {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
     private Long id;
 
     @Size(max = 50)
-    @NotNull
-    @Column(name = "employee_code", nullable = false, length = 50)
-    private String employeeCode;
+    @Column(name = "customer_code", length = 50)
+    private String customerCode;
 
-    @Size(max = 250)
-    @NotNull
+    @Size(max = 255)
     @Nationalized
-    @Column(name = "employee_name", nullable = false, length = 250)
-    private String employeeName;
+    @Column(name = "customer_name")
+    private String customerName;
 
-    @NotNull
-    @Column(name = "date_of_birth", nullable = false)
-    private Date dateOfBirth;
-
-
-    @NotNull
-    @Column(name = "gender", nullable = false)
-    private Integer gender;
-
-    @Size(max = 50)
-    @NotNull
-    @Column(name = "phone", nullable = false, length = 50)
-    private String phone;
-
-    @Size(max = 250)
-    @NotNull
+    @Size(max = 255)
     @Nationalized
-    @Column(name = "email", nullable = false, length = 250)
+    @Column(name = "email")
     private String email;
 
-    @NotNull
-    @Column(name = "salary", nullable = false, precision = 18, scale = 3)
-    private BigDecimal salary;
-
-    @NotNull
-    @Column(name = "hire_date", nullable = false)
-    private Instant hireDate;
-
-    @Size(max = 200)
-    @NotNull
+    @Size(max = 250)
     @Nationalized
-    @Column(name = "pass_word", nullable = false, length = 200)
+    @Column(name = "pass_word", length = 250)
     private String passWord;
 
     @Size(max = 50)
     @Nationalized
-    @Column(name = "country", length = 50)
+    @Column(name = "phone", length = 50)
+    private String phone;
+
+    @Column(name = "gender")
+    private Integer gender;
+
+    @Column(name = "date_of_birth")
+    private Instant dateOfBirth;
+
+    @Size(max = 100)
+    @Nationalized
+    @Column(name = "country", length = 100)
     private String country;
 
     @Size(max = 100)

@@ -41,6 +41,9 @@ public interface InvoiceMapper {
     List<InvoiceDetailResponse> toInvoiceDetailResponseList(List<InvoiceDetail> details);
     List<ProductAttributeResponse> toProductAttributeResponseList(List<ProductDetail> details);
 
+    CustomerResponse toCustomerResponse(Customer customer);
+
+
     // ================= Helper method =================
     @Named("getFirstCategoryName")
     static String getFirstCategoryName(List<?> categories) {

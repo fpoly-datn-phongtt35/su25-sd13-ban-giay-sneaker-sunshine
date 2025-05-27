@@ -1,6 +1,8 @@
 package com.example.duantotnghiep.controller;
 
+import com.example.duantotnghiep.dto.PaymentSummary;
 import com.example.duantotnghiep.dto.request.CreateInvoiceRequest;
+import com.example.duantotnghiep.dto.response.CustomerResponse;
 import com.example.duantotnghiep.dto.response.InvoiceDetailResponse;
 import com.example.duantotnghiep.dto.response.InvoiceResponse;
 import com.example.duantotnghiep.dto.response.ProductAttributeResponse;
@@ -22,6 +24,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
@@ -32,66 +35,70 @@ public class CounterSalesController {
 
     private final InvoiceServiceImpl invoiceService;
 
-    // Tạo hóa đơn mới
-    @PostMapping("/invoices")
-    public ResponseEntity<InvoiceResponse> createInvoice(@RequestBody @Valid CreateInvoiceRequest request) {
-        InvoiceResponse invoiceResponse = invoiceService.createInvoice(request.getCustomerId(), request.getEmployeeId());
-        return ResponseEntity.status(HttpStatus.CREATED).body(invoiceResponse);
+    /**
+     * Tạo hóa đơn rỗng (bán tại quầy)
+     */
+    @PostMapping("/create-empty")
+    public ResponseEntity<InvoiceResponse> createEmptyInvoice(@RequestParam Long employeeId) {
+        InvoiceResponse response = invoiceService.createEmptyInvoice(employeeId);
+        return ResponseEntity.ok(response);
     }
 
-    // Lấy danh sách hóa đơn active (status = 1)
-    @GetMapping("/invoices")
-    public ResponseEntity<List<InvoiceResponse>> getActiveInvoices() {
-        List<InvoiceResponse> invoices = invoiceService.getAllActiveInvoices();
-        return ResponseEntity.ok(invoices);
+    /**
+     * Thêm sản phẩm vào hóa đơn
+     */
+    @PostMapping("/{invoiceId}/add-product")
+    public ResponseEntity<InvoiceDetailResponse> addProductToInvoice(
+            @PathVariable Long invoiceId,
+            @RequestParam Long productDetailId,
+            @RequestParam int quantity) {
+        InvoiceDetailResponse response = invoiceService.addProductToInvoice(invoiceId, productDetailId, quantity);
+        return ResponseEntity.ok(response);
     }
 
-    // Lấy chi tiết hóa đơn theo invoiceId
-    @GetMapping("/invoices/{invoiceId}/details")
-    public ResponseEntity<List<InvoiceDetailResponse>> getInvoiceDetails(@PathVariable @Positive Long invoiceId) {
-        List<InvoiceDetailResponse> details = invoiceService.getInvoiceDetails(invoiceId);
-        return ResponseEntity.ok(details);
+    /**
+     * Tìm hoặc tạo mới nhanh khách hàng theo số điện thoại
+     */
+    @PostMapping("/assign-customer-to-invoice")
+    public ResponseEntity<CustomerResponse> assignCustomerToInvoice(
+            @RequestParam Long invoiceId,
+            @RequestParam String phone,
+            @RequestParam(required = false) String name) {
+
+        CustomerResponse response = invoiceService.findOrCreateQuickCustomer(invoiceId, phone, name != null ? name : "Khách lẻ");
+        return ResponseEntity.ok(response);
     }
 
-    // Lấy thuộc tính sản phẩm theo productId
-    @GetMapping("/products/{productId}/attributes")
-    public ResponseEntity<List<ProductAttributeResponse>> getProductAttributes(@PathVariable @Positive Long productId) {
-        List<ProductAttributeResponse> attributes = invoiceService.getProductAttributes(productId);
-        return ResponseEntity.ok(attributes);
+    /**
+     * Tính tiền cần trả và tiền thừa
+     */
+    @GetMapping("/{invoiceId}/calculate-payment")
+    public ResponseEntity<PaymentSummary> calculatePayment(
+            @PathVariable Long invoiceId,
+            @RequestParam BigDecimal amountGiven) {
+        PaymentSummary summary = invoiceService.calculatePayment(invoiceId, amountGiven);
+        return ResponseEntity.ok(summary);
     }
 
-
-    // Thêm sản phẩm vào giỏ hàng (invoice)
-    @PostMapping("/invoices/{invoiceId}/cart")
-    public ResponseEntity<Void> addToCart(
-            @PathVariable @Positive Long invoiceId,
-            @RequestParam @Positive Long productDetailId,
-            @RequestParam @Positive Integer quantity) {
-        invoiceService.addToCart(invoiceId, productDetailId, quantity);
-        return ResponseEntity.ok().build();
+    /**
+     * Thanh toán hóa đơn
+     */
+    @PostMapping("/{invoiceId}/checkout")
+    public ResponseEntity<?> checkoutInvoice(
+            @PathVariable Long invoiceId,
+            @RequestParam(required = false) Long customerId,
+            @RequestParam(defaultValue = "0") BigDecimal discountAmount) {
+        invoiceService.checkout(invoiceId, customerId, discountAmount);
+        return ResponseEntity.ok("Thanh toán thành công");
     }
 
-    // Xóa sản phẩm trong giỏ hàng theo invoiceDetailId
-    @DeleteMapping("/cart/{invoiceDetailId}")
-    public ResponseEntity<Void> removeCartItem(@PathVariable @Positive Long invoiceDetailId) {
-        invoiceService.removeCartItem(invoiceDetailId);
-        return ResponseEntity.noContent().build();
-    }
-
-    // Thanh toán hóa đơn
-    @PostMapping("/invoices/{invoiceId}/checkout")
-    public ResponseEntity<Void> checkout(
-            @PathVariable @Positive Long invoiceId,
-            @RequestParam @Positive Long paymentMethodId) {
-        invoiceService.checkout(invoiceId, paymentMethodId);
-        return ResponseEntity.ok().build();
-    }
-
-    // Hủy hóa đơn
-    @PostMapping("/invoices/{invoiceId}/cancel")
-    public ResponseEntity<Void> cancelInvoice(@PathVariable @Positive Long invoiceId) {
-        invoiceService.cancelInvoice(invoiceId);
-        return ResponseEntity.ok().build();
+    /**
+     * Xóa giỏ hàng (hóa đơn) theo ID
+     */
+    @DeleteMapping("/{invoiceId}/clear-cart")
+    public ResponseEntity<?> clearCart(@PathVariable Long invoiceId) {
+        invoiceService.clearCart(invoiceId);
+        return ResponseEntity.ok("Giỏ hàng đã được xóa");
     }
 }
 

@@ -2,9 +2,12 @@ package com.example.duantotnghiep.model;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
@@ -14,6 +17,7 @@ import lombok.Setter;
 import org.hibernate.annotations.Nationalized;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 
 @AllArgsConstructor
 @NoArgsConstructor
@@ -55,7 +59,7 @@ public class Customer {
     private Integer gender;
 
     @Column(name = "date_of_birth")
-    private Instant dateOfBirth;
+    private LocalDateTime dateOfBirth;
 
     @Size(max = 100)
     @Nationalized
@@ -86,10 +90,10 @@ public class Customer {
     private Integer status;
 
     @Column(name = "created_date")
-    private Instant createdDate;
+    private LocalDateTime createdDate;
 
     @Column(name = "updated_date")
-    private Instant updatedDate;
+    private LocalDateTime updatedDate;
 
     @Size(max = 50)
     @Column(name = "created_by", length = 50)
@@ -98,5 +102,9 @@ public class Customer {
     @Size(max = 50)
     @Column(name = "updated_by", length = 50)
     private String updatedBy;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "role_id")
+    private Role role;
 
 }

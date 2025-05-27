@@ -1,9 +1,10 @@
 package com.example.duantotnghiep.service.impl;
 
+import com.example.duantotnghiep.dto.PaymentSummary;
+import com.example.duantotnghiep.dto.response.CustomerResponse;
 import com.example.duantotnghiep.dto.response.InvoiceDetailResponse;
 import com.example.duantotnghiep.dto.response.InvoiceDisplayResponse;
 import com.example.duantotnghiep.dto.response.InvoiceResponse;
-import com.example.duantotnghiep.dto.response.ProductAttributeResponse;
 import com.example.duantotnghiep.mapper.InvoiceMapper;
 import com.example.duantotnghiep.model.*;
 import com.example.duantotnghiep.repository.*;
@@ -18,9 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -39,177 +38,187 @@ public class InvoiceServiceImpl implements InvoiceService {
 
     @Transactional
     @Override
-    public InvoiceResponse createInvoice(Long customerId, Long employeeId) {
-        Invoice invoice = new Invoice();
-
-        if (customerId != null) {
-            Customer customer = customerRepository.findById(customerId)
-                    .orElseThrow(() -> new RuntimeException("Customer not found"));
-            invoice.setCustomer(customer);
-        } else {
-            invoice.setCustomer(null); // Khách lẻ
-        }
-
+    public InvoiceResponse createEmptyInvoice(Long employeeId) {
         Employee employee = employeeRepository.findById(employeeId)
-                .orElseThrow(() -> new RuntimeException("Employee not found"));
-        invoice.setEmployee(employee);
+                .orElseThrow(() -> new RuntimeException("Nhân viên không tồn tại"));
 
+        Invoice invoice = new Invoice();
+        invoice.setInvoiceCode(generateInvoiceCode());
+        invoice.setEmployee(employee);
         invoice.setCreatedDate(LocalDateTime.now());
-        invoice.setStatus(0); // Active
+        invoice.setStatus(0);
         invoice.setTotalAmount(BigDecimal.ZERO);
-        invoice.setDiscountAmount(BigDecimal.ZERO);
         invoice.setFinalAmount(BigDecimal.ZERO);
         invoice.setCreatedBy(DEFAULT_USER);
-        invoice.setInvoiceDetails(new ArrayList<>());
-        invoice.setDescription("Hóa đơn mua tại cửa hàng");
-        invoice.setOrderType(1); // 0: cửa hàng, 1: online
-
-        // ✅ Tạo mã hóa đơn tự động
-        long count = invoiceRepository.count() + 1;
-        String invoiceCode = String.format("INV-%04d", count);
-        invoice.setInvoiceCode(invoiceCode);
+        invoice.setDescription("Hóa đơn bán tại quầy");
+        invoice.setOrderType(0); // 0: tại quầy
 
         invoiceRepository.save(invoice);
         return invoiceMapper.toInvoiceResponse(invoice);
     }
 
-    @Override
-    public List<InvoiceResponse> getAllActiveInvoices() {
-        List<Invoice> invoices = invoiceRepository.findByStatus(0);
-        return invoiceMapper.toInvoiceResponseList(invoices);
-    }
-
-    @Override
-    public List<InvoiceDetailResponse> getInvoiceDetails(Long invoiceId) {
-        List<InvoiceDetail> details = invoiceDetailRepository.findByInvoiceId(invoiceId);
-        return invoiceMapper.toInvoiceDetailResponseList(details);
-    }
-
-    @Override
-    public List<ProductAttributeResponse> getProductAttributes(Long productId) {
-        List<ProductDetail> details = productDetailRepository.findByProductId(productId);
-        return invoiceMapper.toProductAttributeResponseList(details);
+    private String generateInvoiceCode() {
+        long count = invoiceRepository.count() + 1;
+        return String.format("INV-%04d", count);
     }
 
     @Transactional
     @Override
-    public void addToCart(Long invoiceId, Long productDetailId, Integer quantity) {
+    public InvoiceDetailResponse addProductToInvoice(Long invoiceId, Long productDetailId, int quantity) {
         Invoice invoice = invoiceRepository.findById(invoiceId)
-                .orElseThrow(() -> new RuntimeException("Invoice not found"));
+                .orElseThrow(() -> new RuntimeException("Hóa đơn không tồn tại"));
 
         ProductDetail productDetail = productDetailRepository.findById(productDetailId)
-                .orElseThrow(() -> new RuntimeException("Product detail not found"));
+                .orElseThrow(() -> new RuntimeException("Chi tiết sản phẩm không tồn tại"));
 
         if (productDetail.getQuantity() < quantity) {
-            throw new RuntimeException("Số lượng tồn kho không đủ");
+            throw new RuntimeException("Không đủ hàng tồn kho");
         }
 
-        // Load invoice details trực tiếp từ repository để chắc chắn dữ liệu đồng bộ
-        List<InvoiceDetail> invoiceDetails = invoiceDetailRepository.findByInvoiceId(invoiceId);
+        InvoiceDetail invoiceDetail = invoiceDetailRepository.findByInvoiceIdAndProductDetailId(invoiceId, productDetailId)
+                .orElseGet(() -> {
+                    InvoiceDetail newInvoiceDetail = new InvoiceDetail();
+                    newInvoiceDetail.setInvoice(invoice);
+                    newInvoiceDetail.setProductDetail(productDetail);
+                    newInvoiceDetail.setQuantity(0);
 
-        Optional<InvoiceDetail> optionalDetail = invoiceDetails.stream()
-                .filter(d -> d.getProductDetail().getId().equals(productDetailId))
-                .findFirst();
+                    // Tự động sinh mã dựa trên số lượng bản ghi hiện tại + 1
+                    long count = invoiceDetailRepository.count() + 1;
+                    String invoiceDetailCode = String.format("INV-D-%04d", count);
+                    newInvoiceDetail.setInvoiceCodeDetail(invoiceDetailCode);
 
-        InvoiceDetail invoiceDetail;
-        if (optionalDetail.isPresent()) {
-            invoiceDetail = optionalDetail.get();
-            invoiceDetail.setQuantity(invoiceDetail.getQuantity() + quantity);
-            invoice.setCreatedDate(LocalDateTime.now());
-            invoiceDetail.setUpdatedBy(DEFAULT_USER);
-        } else {
-            invoiceDetail = new InvoiceDetail();
-            invoiceDetail.setInvoice(invoice);
-            invoiceDetail.setProductDetail(productDetail);
-            invoiceDetail.setQuantity(quantity);
-            invoice.setCreatedDate(LocalDateTime.now());
-            invoiceDetail.setCreatedBy(DEFAULT_USER);
-            invoiceDetail.setStatus(1);  // <-- Thêm dòng này để set trạng thái mặc định
-        }
+                    return newInvoiceDetail;
+                });
 
+        invoiceDetail.setQuantity(invoiceDetail.getQuantity() + quantity);
+        invoiceDetail.setCreatedBy(DEFAULT_USER);
+        invoiceDetail.setStatus(1);
+        invoiceDetail.setCreatedDate(LocalDateTime.now());
         invoiceDetailRepository.save(invoiceDetail);
 
         productDetail.setQuantity(productDetail.getQuantity() - quantity);
         productDetailRepository.save(productDetail);
 
-        updateInvoiceTotalPrice(invoice);
+        updateInvoiceTotal(invoice);
+        return invoiceMapper.toInvoiceDetailResponse(invoiceDetail);
+    }
+
+
+    private void updateInvoiceTotal(Invoice invoice) {
+        List<InvoiceDetail> details = invoiceDetailRepository.findByInvoiceId(invoice.getId());
+        BigDecimal total = details.stream()
+                .map(d -> d.getProductDetail().getSellPrice().multiply(BigDecimal.valueOf(d.getQuantity())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        invoice.setTotalAmount(total);
+        invoice.setFinalAmount(total); // mặc định chưa giảm giá
+        invoiceRepository.save(invoice);
     }
 
     @Transactional
     @Override
-    public void removeCartItem(Long invoiceDetailId) {
-        InvoiceDetail detail = invoiceDetailRepository.findById(invoiceDetailId)
-                .orElseThrow(() -> new RuntimeException("Invoice detail not found"));
+    public CustomerResponse findOrCreateQuickCustomer(Long invoiceId, String phone, String name) {
+        // Tìm hoặc tạo khách hàng
+        Customer customer = customerRepository.findByPhone(phone)
+                .orElseGet(() -> {
+                    Customer newCustomer = new Customer();
+                    newCustomer.setCustomerName(name);
+                    newCustomer.setPhone(phone);
 
-        ProductDetail productDetail = detail.getProductDetail();
-        productDetail.setQuantity(productDetail.getQuantity() + detail.getQuantity());
-        productDetailRepository.save(productDetail);
+                    long count = customerRepository.count() + 1;
+                    String customerCode = String.format("CUS%02d", count);
+                    newCustomer.setCustomerCode(customerCode);
 
-        Invoice invoice = detail.getInvoice();
-        invoice.getInvoiceDetails().remove(detail);
+                    Role role = new Role();
+                    role.setId(2L);
+                    newCustomer.setRole(role);
 
-        invoiceDetailRepository.delete(detail);
+                    newCustomer.setCountry("Việt Nam");
+                    newCustomer.setStatus(1);
+                    newCustomer.setCreatedDate(LocalDateTime.now());
+                    newCustomer.setCreatedBy(DEFAULT_USER);
 
-        updateInvoiceTotalPrice(invoice);
-    }
+                    return customerRepository.save(newCustomer);
+                });
 
-    @Transactional
-    @Override
-    public void checkout(Long invoiceId, Long paymentMethodId) {
+        // Gán khách hàng vào hóa đơn
         Invoice invoice = invoiceRepository.findById(invoiceId)
-                .orElseThrow(() -> new RuntimeException("Invoice not found"));
-
-        // TODO: xử lý paymentMethod nếu có
-
-        BigDecimal discount = invoice.getDiscountAmount() != null ? invoice.getDiscountAmount() : BigDecimal.ZERO;
-        BigDecimal total = invoice.getTotalAmount() != null ? invoice.getTotalAmount() : BigDecimal.ZERO;
-
-        invoice.setFinalAmount(total.subtract(discount));
-        invoice.setStatus(1); // trạng thái đã thanh toán
-        invoice.setCreatedDate(LocalDateTime.now());
+                .orElseThrow(() -> new RuntimeException("Hóa đơn không tồn tại"));
+        invoice.setCustomer(customer);
         invoice.setUpdatedBy(DEFAULT_USER);
+        invoice.setUpdatedDate(LocalDateTime.now());
+        invoiceRepository.save(invoice);
+
+        return invoiceMapper.toCustomerResponse(customer);
+    }
+
+
+    @Override
+    public PaymentSummary calculatePayment(Long invoiceId, BigDecimal amountGiven) {
+        Invoice invoice = invoiceRepository.findById(invoiceId)
+                .orElseThrow(() -> new RuntimeException("Hóa đơn không tồn tại"));
+
+        BigDecimal finalAmount = invoice.getFinalAmount();
+        if (amountGiven.compareTo(finalAmount) < 0) {
+            throw new RuntimeException("Số tiền đưa không đủ");
+        }
+
+        BigDecimal change = amountGiven.subtract(finalAmount);
+        return new PaymentSummary(finalAmount, amountGiven, change);
+    }
+
+    @Transactional
+    @Override
+    public void checkout(Long invoiceId, Long customerId, BigDecimal discountAmount) {
+        Invoice invoice = invoiceRepository.findById(invoiceId)
+                .orElseThrow(() -> new RuntimeException("Hóa đơn không tồn tại"));
+
+        if (customerId != null) {
+            Customer customer = customerRepository.findById(customerId)
+                    .orElseThrow(() -> new RuntimeException("Khách hàng không tồn tại"));
+            invoice.setCustomer(customer);
+        }
+
+        invoice.setDiscountAmount(discountAmount);
+        BigDecimal finalAmount = invoice.getTotalAmount().subtract(discountAmount);
+        invoice.setFinalAmount(finalAmount);
+        invoice.setStatus(1);
+        invoice.setOrderType(1);
+        invoice.setUpdatedBy(DEFAULT_USER);
+        invoice.setCreatedDate(LocalDateTime.now());
 
         invoiceRepository.save(invoice);
     }
 
     @Transactional
     @Override
-    public void cancelInvoice(Long invoiceId) {
+    public void clearCart(Long invoiceId) {
         Invoice invoice = invoiceRepository.findById(invoiceId)
                 .orElseThrow(() -> new RuntimeException("Invoice not found"));
 
-        // Trả lại tồn kho cho các sản phẩm trong hóa đơn
+        // Trả lại tồn kho cho từng sản phẩm trong giỏ
         for (InvoiceDetail detail : invoice.getInvoiceDetails()) {
             ProductDetail productDetail = detail.getProductDetail();
             productDetail.setQuantity(productDetail.getQuantity() + detail.getQuantity());
             productDetailRepository.save(productDetail);
         }
 
-        invoice.setStatus(2); // trạng thái đã hủy
-        invoice.setCreatedDate(LocalDateTime.now());
-        invoice.setUpdatedBy("admin");
+        // Xóa tất cả chi tiết hóa đơn
+        invoiceDetailRepository.deleteAll(invoice.getInvoiceDetails());
 
+        // Làm trống danh sách chi tiết
+        invoice.getInvoiceDetails().clear();
+
+        // Reset tổng tiền về 0
+        invoice.setTotalAmount(BigDecimal.ZERO);
+        invoice.setDiscountAmount(BigDecimal.ZERO);
+        invoice.setFinalAmount(BigDecimal.ZERO);
         invoiceRepository.save(invoice);
     }
 
-    private void updateInvoiceTotalPrice(Invoice invoice) {
-        BigDecimal total = invoice.getInvoiceDetails().stream()
-                .map(d -> d.getProductDetail().getSellPrice().multiply(BigDecimal.valueOf(d.getQuantity())))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        invoice.setTotalAmount(total);
-
-        if (invoice.getDiscountAmount() == null) {
-            invoice.setDiscountAmount(BigDecimal.ZERO);
-        }
-
-        invoice.setFinalAmount(invoice.getTotalAmount().subtract(invoice.getDiscountAmount()));
-
-        invoice.setCreatedDate(LocalDateTime.now());
-        invoice.setUpdatedBy(DEFAULT_USER);
-
-        invoiceRepository.save(invoice);
-    }
+    /**
+     * Tạo hóa đơn(bán tại quầy)
+     */
 
     @Override
     public InvoiceDisplayResponse getInvoiceWithDetails(Long invoiceId) {
@@ -218,17 +227,6 @@ public class InvoiceServiceImpl implements InvoiceService {
         List<InvoiceDetail> details = invoiceDetailRepository.findByInvoiceId(invoiceId);
 
         return invoiceMapper.toInvoiceDisplayResponse(invoice, details);
-    }
-
-    public List<InvoiceResponse> getAllInvoices() {
-        List<Invoice> invoices = invoiceRepository.findAllByOrderByCreatedDateDesc();
-
-        // Giả sử bạn có phương thức chuyển Invoice -> InvoiceResponse
-        List<InvoiceResponse> responses = invoices.stream()
-                .map(this::convertToResponse)
-                .collect(Collectors.toList());
-
-        return responses;
     }
 
     @Override
@@ -318,7 +316,6 @@ public class InvoiceServiceImpl implements InvoiceService {
     public Invoice findByInvoiceCode(String code) {
         return invoiceRepository.findByInvoiceCode(code);
     }
-
 
     @Override
     public List<InvoiceDisplayResponse> getAllInvoicesWithDetails() {

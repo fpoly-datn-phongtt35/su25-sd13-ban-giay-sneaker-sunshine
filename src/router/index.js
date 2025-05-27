@@ -64,7 +64,7 @@ const routes = [
 
       { path: "brand", name: "Brand", component: BrandList },
 
-      { path: "invoice", name: "InvoiceList", component: InvoiceList },
+      { path: "invoices", name: "InvoiceList", component: InvoiceList },
 
       { path: "color", name: "Color", component: ColorList }, 
 

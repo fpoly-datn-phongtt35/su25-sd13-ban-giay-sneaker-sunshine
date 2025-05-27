@@ -194,14 +194,28 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 
 const selected = ref('home');
+
+// Đọc menu đã lưu trong localStorage khi component được mount
+onMounted(() => {
+  const savedMenu = localStorage.getItem('selectedMenu');
+  if (savedMenu) {
+    selected.value = savedMenu;
+  }
+});
+
+// Khi menu thay đổi thì lưu vào localStorage
+watch(selected, (newValue) => {
+  localStorage.setItem('selectedMenu', newValue);
+});
 
 const selectMenu = (menu) => {
   selected.value = menu;
 };
 </script>
+
 
 <style scoped>
 nav {

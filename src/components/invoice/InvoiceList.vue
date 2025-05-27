@@ -155,6 +155,7 @@ import { ref, onMounted, watch } from 'vue'
 import axios from 'axios'
 import { Modal } from 'bootstrap'
 import InvoiceSearch from './InvoiceSearch.vue'
+import Swal from 'sweetalert2'
 
 const invoices = ref([])
 const selectedInvoice = ref(null)
@@ -282,8 +283,19 @@ const printInvoice = (invoiceCode) => {
     console.warn('Invoice code is required để in hóa đơn.')
     return
   }
-  const printUrl = `http://localhost:8080/api/invoices/${invoiceCode}/export`
-  window.open(printUrl, '_blank', 'noopener,noreferrer')
+
+  Swal.fire({
+    title: 'Bạn có chắc muốn in hóa đơn?',
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonText: 'Có',
+    cancelButtonText: 'Hủy',
+  }).then((result) => {
+    if (result.isConfirmed) {
+      const printUrl = `http://localhost:8080/api/invoices/${invoiceCode}/export`
+      window.open(printUrl, '_blank', 'noopener,noreferrer')
+    }
+  })
 }
 
 const closeModal = () => {

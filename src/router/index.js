@@ -22,6 +22,7 @@ import VoucherList from "@/components/Voucher/VoucherList.vue";
 import CustomerList from "@/components/Customer/CustomerList.vue";
 import ColorList from "@/components/Color/ColorList.vue";
 import InvoiceList from "@/components/invoice/InvoiceList.vue";
+import CounterSales from "@/components/CounterSales/CounterSales.vue";
 
 const routes = [
   {
@@ -56,7 +57,8 @@ const routes = [
       { path: "product/update/:id", name: "UpdateProduct", component: UpdateProduct },
       { path: "product/detail/:id", name: "DetailProduct", component: DetailProduct },
 
-      { path: "sales-counter", name: "CounterSalesDisplay", component: CounterSalesDisplay },
+      { path: '/sales-counter/list', name: 'CounterSales', component: CounterSales },
+      { path: '/sales-counter/:id', name: 'CounterSalesDisplay', component: CounterSalesDisplay, props: true },
 
       { path: "sales-online", name: "OnlineSaleDisplay", component: OnlineSale },
 

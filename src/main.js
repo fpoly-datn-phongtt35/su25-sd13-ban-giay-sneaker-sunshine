@@ -1,15 +1,22 @@
-import 'bootstrap/dist/css/bootstrap.css'
-import 'bootstrap/dist/js/bootstrap.bundle.min.js';
-import '@fortawesome/fontawesome-free/css/all.min.css';
-import 'bootstrap/dist/css/bootstrap.min.css'
-import 'bootstrap'
-import 'bootstrap-icons/font/bootstrap-icons.css'
-
-
-import { createApp } from 'vue' 
+import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router'
 
+// CSS
+import 'bootstrap/dist/css/bootstrap.css' // hoặc .min.css, chỉ một cái!
+import 'bootstrap-icons/font/bootstrap-icons.css'
+import '@fortawesome/fontawesome-free/css/all.min.css'
+import 'vue-toastification/dist/index.css'
+
+// JS
+import 'bootstrap/dist/js/bootstrap.bundle.min.js'  // đảm bảo có popper.js
+import 'bootstrap'
+
+// Toastification
+import Toast from 'vue-toastification'
+
+// Tạo App
 const app = createApp(App)
 app.use(router)
+app.use(Toast)
 app.mount('#app')

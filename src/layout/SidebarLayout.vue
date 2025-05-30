@@ -32,7 +32,7 @@
             <RouterLink
               class="nav-link py-2"
               :class="{ active: selected === 'sales-counter' }"
-              to="/sales-counter"
+              to="/sales-counter/list"
               @click="selectMenu('sales-counter')"
             >
               <i class="bi bi-cash me-2"></i> Bán hàng tại quầy
@@ -152,7 +152,7 @@
             <RouterLink
               class="nav-link py-2"
               :class="{ active: selected === 'invoices' }"
-              to="/invoice"
+              to="/invoices"
               @click="selectMenu('invoices')"
             >
               <i class="bi bi-file-earmark me-2"></i> Hóa đơn

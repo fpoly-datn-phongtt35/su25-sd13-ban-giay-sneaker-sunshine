@@ -1,56 +1,63 @@
 <template>
-  <!-- Dialog chỉ chứa form -->
-  <dialog ref="dialogRef" class="p-4" style="max-width: 500px; border-radius: 8px;">
-    <form @submit.prevent="submitForm" novalidate>
-      <h3 class="mb-4">Nhập thông tin khách hàng</h3>
+  <dialog ref="dialogRef" class="p-0 customer-dialog shadow-lg">
+    <div class="p-4"> <form @submit.prevent="submitForm" novalidate>
+        <h3 class="mb-4 text-center fw-bold">Thông tin Khách hàng Mới</h3>
 
-      <div class="mb-3">
-        <label for="phoneInput" class="form-label">Số điện thoại (bắt buộc):</label>
-        <input
-          id="phoneInput"
-          v-model="phone"
-          type="text"
-          class="form-control"
-          :class="{ 'is-invalid': error && !phone.trim() }"
-          required
-          autocomplete="off"
-        />
-        <div class="invalid-feedback" v-if="error && !phone.trim()">
-          Số điện thoại là bắt buộc.
+        <div class="mb-3">
+          <label for="phoneInput" class="form-label">
+            Số điện thoại <span class="text-danger">*</span>
+          </label>
+          <input
+            id="phoneInput"
+            v-model.trim="phone" type="tel" class="form-control form-control-lg" :class="{ 'is-invalid': error && !phone }"
+            placeholder="Ví dụ: 09xxxxxxxx"
+            required
+            autocomplete="tel"
+          />
+          <div class="invalid-feedback" v-if="error && !phone">
+            Số điện thoại không được để trống.
+          </div>
         </div>
-      </div>
 
-      <div class="mb-3">
-        <label for="nameInput" class="form-label">Tên khách (tùy chọn):</label>
-        <input
-          id="nameInput"
-          v-model="name"
-          type="text"
-          class="form-control"
-          autocomplete="off"
-        />
-      </div>
+        <div class="mb-3">
+          <label for="nameInput" class="form-label">Tên khách hàng (tùy chọn)</label>
+          <input
+            id="nameInput"
+            v-model="name"
+            type="text"
+            class="form-control form-control-lg"
+            placeholder="Nhập tên khách hàng"
+            autocomplete="name"
+          />
+        </div>
 
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <button type="submit" class="btn btn-primary" :disabled="loading">
-          <span v-if="loading" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-          {{ loading ? 'Đang gửi...' : 'Tạo' }}
-        </button>
-        <button type="button" class="btn btn-secondary" @click="closeDialog" :disabled="loading">Hủy</button>
-      </div>
+        <div v-if="error && phone" class="alert alert-danger py-2 mb-3">
+          {{ error }}
+        </div>
 
-      <div v-if="error && phone.trim()" class="alert alert-danger py-2">
-        {{ error }}
-      </div>
-    </form>
+        <div class="d-flex justify-content-end gap-2 mt-4">
+          <button type="button" class="btn btn-secondary" @click="closeDialog" :disabled="loading">
+            <i class="fas fa-times me-1"></i>Hủy
+          </button>
+          <button type="submit" class="btn btn-primary" :disabled="loading">
+            <span v-if="loading" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+            <i v-else class="fas fa-save me-1"></i>
+            {{ loading ? 'Đang xử lý...' : 'Lưu Khách Hàng' }}
+          </button>
+        </div>
+      </form>
+    </div>
   </dialog>
 
-  <!-- Phần hiển thị khách hàng mới tạo bên ngoài dialog -->
-  <div v-if="createdCustomer" class="mt-4 p-3 border rounded" style="max-width: 500px;">
-    <h5>Khách hàng mới tạo:</h5>
-    <p><strong>Số điện thoại:</strong> {{ createdCustomer.phone }}</p>
-    <p><strong>Tên khách:</strong> {{ createdCustomer.customerName || '(Chưa có tên)' }}</p>
-    <button class="btn btn-success" @click="selectCreatedCustomer">Chọn khách hàng này</button>
+<div v-if="createdCustomer" class="mt-4 p-3 border rounded created-customer-info bg-light shadow-sm">
+    <div class="d-flex align-items-center text-success mb-2">
+      <i class="fas fa-check-circle me-2"></i> <span class="fw-semibold">Khách hàng đã được tạo:</span>
+    </div>
+    <p class="mb-1">Số điện thoại: {{ createdCustomer.phone }}</p>
+    <p class="mb-3">Tên khách hàng: {{ createdCustomer.customerName || '(Chưa cung cấp tên)' }}</p>
+    <button class="btn btn-success" @click="selectCreatedCustomer">
+      <i class="fas fa-user-check me-2"></i> Sử dụng khách hàng này
+    </button>
   </div>
 </template>
 
@@ -125,6 +132,31 @@ button.btn-primary, button.btn-secondary {
   line-height: 1.5;
   padding: 0 1rem;
   font-size: 1rem;
+}
+
+.customer-dialog {
+  max-width: 500px;
+  width: 90%; /* Chiếm 90% chiều rộng cho màn hình nhỏ */
+  border-radius: 0.5rem; /* Tăng border-radius */
+  border: none; /* Loại bỏ border mặc định của dialog HTML */
+}
+
+/* Tùy chọn: Thêm backdrop mờ khi dialog hiển thị (nếu bạn không dùng showModal()) */
+dialog::backdrop {
+  background-color: rgba(0, 0, 0, 0.4);
+}
+
+.created-customer-info {
+  max-width: 500px;
+  margin-left: auto; /* Căn giữa nếu container cha không giới hạn chiều rộng */
+  margin-right: auto;
+}
+
+/* Làm cho input lớn hơn một chút để dễ tương tác hơn trên mobile */
+.form-control-lg {
+  min-height: calc(1.5em + 1rem + 2px);
+  padding: 0.5rem 1rem;
+  font-size: 1.1rem; /* Điều chỉnh kích thước font */
 }
 </style>
 

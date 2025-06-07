@@ -33,7 +33,7 @@
               class="nav-link py-2"
               :class="{ active: selected === 'sales-counter' }"
               to="/sales-counter/list"
-              @click="selectMenu('sales-counter')"
+              @click="selectMenu('sales-counter/list')"
             >
               <i class="bi bi-cash me-2"></i> Bán hàng tại quầy
             </RouterLink>
@@ -42,9 +42,9 @@
           <li class="nav-item">
             <RouterLink
               class="nav-link py-2"
-              :class="{ active: selected === 'sales-online' }"
-              to="/sales-online"
-              @click="selectMenu('sales-online')"
+              :class="{ active: selected === '' }"
+              to="/"
+              @click="selectMenu('')"
             >
               <i class="bi bi-laptop me-2"></i> Bán hàng online
             </RouterLink>
@@ -170,9 +170,9 @@
           <li class="nav-item">
             <RouterLink
               class="nav-link py-2"
-              :class="{ active: selected === 'statistics-counter' }"
-              to="/statistics/counter"
-              @click="selectMenu('statistics-counter')"
+              :class="{ active: selected === '' }"
+              to="/"
+              @click="selectMenu('')"
             >
               <i class="bi bi-bar-chart me-2"></i> Tại quầy
             </RouterLink>
@@ -180,9 +180,9 @@
           <li class="nav-item">
             <RouterLink
               class="nav-link py-2"
-              :class="{ active: selected === 'statistics-online' }"
-              to="/statistics/online"
-              @click="selectMenu('statistics-online')"
+              :class="{ active: selected === '' }"
+              to=""
+              @click="selectMenu('')"
             >
               <i class="bi bi-bar-chart-line me-2"></i> Online
             </RouterLink>

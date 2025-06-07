@@ -15,7 +15,6 @@ import ProductList from "@/components/Product/ProductList.vue";
 import UpdateProduct from "@/components/Product/UpdateProduct.vue";
 import Dashboard from "@/layout/Dashboard.vue";
 import CounterSalesDisplay from "@/components/CounterSales/CounterSalesDisplay.vue";
-import OnlineSale from "@/components/OnlineSale/OnlineSale.vue";
 import NhaCungCap from "@/components/NhaCungCap/NhaCungCap.vue";
 import BrandList from "@/components/Brand/BrandList.vue";
 import VoucherList from "@/components/Voucher/VoucherList.vue";
@@ -60,7 +59,7 @@ const routes = [
       { path: '/sales-counter/list', name: 'CounterSales', component: CounterSales },
       { path: '/sales-counter/:id', name: 'CounterSalesDisplay', component: CounterSalesDisplay, props: true },
 
-      { path: "sales-online", name: "OnlineSaleDisplay", component: OnlineSale },
+      // { path: "sales-online", name: "OnlineSaleDisplay", component: OnlineSale },
 
       { path: "nha-cung-cap", name: "NhaCungCap", component: NhaCungCap },
 

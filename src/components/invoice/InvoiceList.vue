@@ -5,7 +5,9 @@
     </div>
 
     <!-- Component tìm kiếm -->
-    <InvoiceSearch @search="onSearch" @clear="onClear" class="mb-3" />
+    <div class="mb-3">
+      <InvoiceSearch @search="onSearch" @clear="onClear" />
+    </div>
 
     <!-- Table -->
     <div class="table-responsive" v-if="invoices.length > 0">
@@ -108,12 +110,20 @@
           </div>
           <div class="modal-body" v-if="selectedInvoice">
             <div class="row mb-2">
-              <div class="col-md-6"><strong>Khách hàng:</strong> {{ selectedInvoice.customerName || 'Khách lẻ' }}</div>
-              <div class="col-md-6"><strong>Nhân viên:</strong> {{ selectedInvoice.employeeName || '---' }}</div>
+              <div class="col-md-6">
+                <strong>Khách hàng:</strong> {{ selectedInvoice.customerName || 'Khách lẻ' }}
+              </div>
+              <div class="col-md-6">
+                <strong>Nhân viên:</strong> {{ selectedInvoice.employeeName || '---' }}
+              </div>
             </div>
             <div class="row mb-2">
-              <div class="col-md-6"><strong>Ngày tạo:</strong> {{ formatDate(selectedInvoice.createdDate) }}</div>
-              <div class="col-md-6"><strong>Ghi chú:</strong> {{ selectedInvoice.description || '---' }}</div>
+              <div class="col-md-6">
+                <strong>Ngày tạo:</strong> {{ formatDate(selectedInvoice.createdDate) }}
+              </div>
+              <div class="col-md-6">
+                <strong>Ghi chú:</strong> {{ selectedInvoice.description || '---' }}
+              </div>
             </div>
 
             <table class="table table-sm table-bordered mt-3">
@@ -211,7 +221,10 @@ const fetchInvoices = async () => {
       params: { page: page.value, size: size.value },
     })
     invoices.value = res.data.content.map((inv) => ({ ...inv, selected: false }))
-    totalPages.value = res.data.totalPages
+    // Cập nhật lại phân trang từ response.page
+    totalPages.value = res.data.page.totalPages
+    page.value = res.data.page.number
+    size.value = res.data.page.size
   } catch (err) {
     console.error('Lỗi tải hóa đơn:', err)
   }
@@ -234,7 +247,10 @@ const searchInvoices = async (keyword, status, createdDate) => {
       },
     })
     invoices.value = res.data.content.map((inv) => ({ ...inv, selected: false }))
-    totalPages.value = res.data.totalPages
+    // Cập nhật phân trang
+    totalPages.value = res.data.page.totalPages
+    page.value = res.data.page.number
+    size.value = res.data.page.size
   } catch (err) {
     console.error('Lỗi tìm kiếm hóa đơn:', err)
   }

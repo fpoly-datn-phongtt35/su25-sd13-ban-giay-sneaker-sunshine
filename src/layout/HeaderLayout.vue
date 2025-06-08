@@ -24,28 +24,5 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
 
-// Khai báo router
-const router = useRouter();
-const userName = ref('');
-
-// Lấy thông tin người dùng từ localStorage khi trang được tải
-onMounted(() => {
-  const storedName = localStorage.getItem('name'); 
-  if (!storedName) {
-    router.push('/login'); // Nếu không có dữ liệu => quay lại login
-    return;
-  }
-  userName.value = storedName;
-});
-
-// Hàm đăng xuất
-const logout = () => {
-  localStorage.removeItem('jwtToken');
-  localStorage.removeItem('name');
-  router.push('/login');
-  window.location.reload();
-};
 </script>

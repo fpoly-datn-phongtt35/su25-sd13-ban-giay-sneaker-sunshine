@@ -1,16 +1,24 @@
 package com.example.duantotnghiep.controller;
 
 import com.example.duantotnghiep.dto.PaymentSummary;
+import com.example.duantotnghiep.dto.request.AddToCartRequest;
+import com.example.duantotnghiep.dto.request.AssignCustomerRequest;
 import com.example.duantotnghiep.dto.request.CreateInvoiceRequest;
 import com.example.duantotnghiep.dto.response.CustomerResponse;
+import com.example.duantotnghiep.dto.response.InvoiceCheckoutResponse;
 import com.example.duantotnghiep.dto.response.InvoiceDetailResponse;
+import com.example.duantotnghiep.dto.response.InvoiceDisplayResponse;
 import com.example.duantotnghiep.dto.response.InvoiceResponse;
 import com.example.duantotnghiep.dto.response.ProductAttributeResponse;
 import com.example.duantotnghiep.dto.response.ProductResponse;
+import com.example.duantotnghiep.dto.response.VoucherResponse;
+import com.example.duantotnghiep.mapper.VoucherMapper;
+import com.example.duantotnghiep.model.Invoice;
 import com.example.duantotnghiep.service.impl.InvoiceServiceImpl;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -26,6 +34,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/counter-sales")
@@ -34,6 +43,44 @@ import java.util.List;
 public class CounterSalesController {
 
     private final InvoiceServiceImpl invoiceService;
+    private final VoucherMapper voucherMapper;
+
+
+    @GetMapping("/invoices")
+    public ResponseEntity<Page<InvoiceResponse>> getInvoicesByStatus(
+            @RequestParam int status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "5") int size) {
+        Page<InvoiceResponse> result = invoiceService.getInvoicesByStatus(status, page, size);
+        return ResponseEntity.ok(result);
+    }
+
+    @GetMapping("/{invoiceId}/details")
+    public ResponseEntity<InvoiceDisplayResponse> getInvoiceDetails(@PathVariable Long invoiceId) {
+        InvoiceDisplayResponse response = invoiceService.getInvoiceWithDetails(invoiceId);
+        System.out.println("Customer ID in invoice: " + response.getInvoice().getCustomerId());
+        return ResponseEntity.ok(response);
+    }
+
+    // API thêm chi tiết hóa đơn (POST)
+    @PostMapping("/{invoiceId}/details")
+    public ResponseEntity<?> addInvoiceDetail(
+            @PathVariable Long invoiceId,
+            @RequestBody AddToCartRequest request) {
+        try {
+            invoiceService.addInvoiceDetails(invoiceId, request.getProductDetailId(), request.getQuantity());
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("Thêm sản phẩm vào hóa đơn thất bại: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/{productId}/attributes")
+    public ResponseEntity<List<ProductAttributeResponse>> getProductAttributes(@PathVariable Long productId) {
+        List<ProductAttributeResponse> response = invoiceService.getProductAttributesByProductId(productId);
+        return ResponseEntity.ok(response);
+    }
 
     /**
      * Tạo hóa đơn rỗng (bán tại quầy)
@@ -45,52 +92,86 @@ public class CounterSalesController {
     }
 
     /**
-     * Thêm sản phẩm vào hóa đơn
-     */
-    @PostMapping("/{invoiceId}/add-product")
-    public ResponseEntity<InvoiceDetailResponse> addProductToInvoice(
-            @PathVariable Long invoiceId,
-            @RequestParam Long productDetailId,
-            @RequestParam int quantity) {
-        InvoiceDetailResponse response = invoiceService.addProductToInvoice(invoiceId, productDetailId, quantity);
-        return ResponseEntity.ok(response);
-    }
-
-    /**
      * Tìm hoặc tạo mới nhanh khách hàng theo số điện thoại
      */
-    @PostMapping("/assign-customer-to-invoice")
-    public ResponseEntity<CustomerResponse> assignCustomerToInvoice(
-            @RequestParam Long invoiceId,
+    @GetMapping("/search-by-phone-prefix")
+    public ResponseEntity<List<CustomerResponse>> searchByPhonePrefix(@RequestParam String phone) {
+        List<CustomerResponse> list = invoiceService.findCustomersByPhonePrefix(phone);
+        return ResponseEntity.ok(list);
+    }
+
+    @PostMapping("/quick-create-customer")
+    public ResponseEntity<CustomerResponse> createQuickCustomer(
             @RequestParam String phone,
             @RequestParam(required = false) String name) {
 
-        CustomerResponse response = invoiceService.findOrCreateQuickCustomer(invoiceId, phone, name != null ? name : "Khách lẻ");
+        CustomerResponse response = invoiceService.createQuickCustomer(phone, name);
         return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/{invoiceId}/assign-customer")
+    public ResponseEntity<?> assignCustomerToInvoice(
+            @PathVariable Long invoiceId,
+            @RequestBody AssignCustomerRequest request) {
+
+        try {
+            invoiceService.assignCustomer(invoiceId, request.getCustomerId());
+            return ResponseEntity.ok("Gán khách hàng thành công");
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Lỗi server khi gán khách hàng");
+        }
     }
 
     /**
      * Tính tiền cần trả và tiền thừa
      */
     @GetMapping("/{invoiceId}/calculate-payment")
-    public ResponseEntity<PaymentSummary> calculatePayment(
+    public ResponseEntity<?> calculatePayment(
             @PathVariable Long invoiceId,
             @RequestParam BigDecimal amountGiven) {
-        PaymentSummary summary = invoiceService.calculatePayment(invoiceId, amountGiven);
-        return ResponseEntity.ok(summary);
+        try {
+            PaymentSummary summary = invoiceService.calculatePayment(invoiceId, amountGiven);
+            return ResponseEntity.ok(summary);
+        } catch (RuntimeException e) {
+            // Kiểm tra nếu lỗi do tiền đưa không đủ
+            if ("Số tiền đưa không đủ".equals(e.getMessage())) {
+                return ResponseEntity
+                        .status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("error", e.getMessage()));
+            }
+            // Các lỗi khác trả 500
+            e.printStackTrace();
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Lỗi máy chủ, vui lòng thử lại"));
+        }
     }
 
     /**
-     * Thanh toán hóa đơn
+     * Thanh toán và hủy hóa đơn
      */
+    @PostMapping("/{invoiceId}/cancel")
+    public ResponseEntity<String> cancelInvoice(@PathVariable Long invoiceId) {
+        try {
+            invoiceService.cancelInvoice(invoiceId);
+            return ResponseEntity.ok("Hủy hóa đơn thành công");
+        } catch (RuntimeException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi server");
+        }
+    }
+
     @PostMapping("/{invoiceId}/checkout")
-    public ResponseEntity<?> checkoutInvoice(
-            @PathVariable Long invoiceId,
-            @RequestParam(required = false) Long customerId,
-            @RequestParam(defaultValue = "0") BigDecimal discountAmount) {
-        invoiceService.checkout(invoiceId, customerId, discountAmount);
+    public ResponseEntity<?> checkoutInvoice(@PathVariable Long invoiceId) {
+        invoiceService.checkout(invoiceId);
         return ResponseEntity.ok("Thanh toán thành công");
     }
+
 
     /**
      * Xóa giỏ hàng (hóa đơn) theo ID
@@ -100,5 +181,35 @@ public class CounterSalesController {
         invoiceService.clearCart(invoiceId);
         return ResponseEntity.ok("Giỏ hàng đã được xóa");
     }
+
+    @DeleteMapping("/cart-item/{invoiceDetailId}")
+    public ResponseEntity<?> deleteCartItem(@PathVariable Long invoiceDetailId) {
+        invoiceService.deleteCartItemById(invoiceDetailId);
+        return ResponseEntity.ok("Đã xóa sản phẩm trong giỏ");
+    }
+
+    @PostMapping("/{invoiceId}/apply-voucher")
+    public ResponseEntity<?> applyVoucher(
+            @PathVariable Long invoiceId,
+            @RequestParam String voucherCode) {
+        try {
+            Invoice updatedInvoice = invoiceService.applyVoucherToInvoice(invoiceId, voucherCode);
+
+            if (updatedInvoice.getVoucher() == null) {
+                return ResponseEntity.badRequest().body("Không thể áp dụng voucher.");
+            }
+
+            VoucherResponse response = voucherMapper.toVoucherResponse(updatedInvoice.getVoucher());
+            return ResponseEntity.ok(response);
+
+        } catch (RuntimeException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("Lỗi áp dụng voucher: " + ex.getMessage());
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Đã xảy ra lỗi hệ thống khi áp dụng voucher.");
+        }
+    }
+
 }
 

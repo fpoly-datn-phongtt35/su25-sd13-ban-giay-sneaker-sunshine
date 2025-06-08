@@ -2,6 +2,7 @@ package com.example.duantotnghiep.service;
 
 import com.example.duantotnghiep.dto.PaymentSummary;
 import com.example.duantotnghiep.dto.response.CustomerResponse;
+import com.example.duantotnghiep.dto.response.InvoiceCheckoutResponse;
 import com.example.duantotnghiep.dto.response.InvoiceDetailResponse;
 import com.example.duantotnghiep.dto.response.InvoiceDisplayResponse;
 import com.example.duantotnghiep.dto.response.InvoiceResponse;
@@ -18,20 +19,18 @@ import java.util.List;
 
 public interface InvoiceService {
 
-
     @Transactional
     InvoiceResponse createEmptyInvoice(Long employeeId);
 
-    @Transactional
-    InvoiceDetailResponse addProductToInvoice(Long invoiceId, Long productDetailId, int quantity);
+    List<CustomerResponse> findCustomersByPhonePrefix(String phonePrefix);
 
     @Transactional
-    CustomerResponse findOrCreateQuickCustomer(Long invoiceId, String phone, String name);
+    CustomerResponse createQuickCustomer(String phone, String name);
 
     PaymentSummary calculatePayment(Long invoiceId, BigDecimal amountGiven);
 
     @Transactional
-    void checkout(Long invoiceId, Long customerId, BigDecimal discountAmount);
+    void checkout(Long invoiceId);
 
     @Transactional
     void clearCart(Long invoiceId);
@@ -47,4 +46,6 @@ public interface InvoiceService {
     Invoice findByInvoiceCode(String code);
 
     List<InvoiceDisplayResponse> getAllInvoicesWithDetails();
+
+    Invoice findById(Long id);
 }

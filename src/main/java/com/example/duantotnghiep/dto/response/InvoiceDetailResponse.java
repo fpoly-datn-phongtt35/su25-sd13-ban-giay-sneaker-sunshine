@@ -22,4 +22,6 @@ public class InvoiceDetailResponse {
     private Integer quantity;
     private String invoiceCodeDetail;
     private String phone;
+    private BigDecimal totalPrice;
+    private String customerName;
 }

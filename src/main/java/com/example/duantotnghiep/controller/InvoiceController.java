@@ -104,6 +104,22 @@ public class InvoiceController {
         invoiceExportService.exportInvoice(response, invoice, details);
     }
 
+    @GetMapping("/{id}/export-id")
+    public void exportInvoiceById(
+            @PathVariable Long id,
+            HttpServletResponse response) throws IOException, DocumentException {
+
+        Invoice invoice = invoiceService.findById(id); // Giả sử bạn có phương thức này trong service
+        if (invoice == null) {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND, "Invoice not found");
+            return;
+        }
+
+        List<InvoiceDetail> details = invoiceDetailRepository.findByInvoiceId(invoice.getId());
+        invoiceExportService.exportInvoice(response, invoice, details);
+    }
+
+
     @GetMapping("/export-all-excel")
     public void exportAllInvoicesToExcel(HttpServletResponse response) throws IOException {
         List<InvoiceDisplayResponse> allInvoices = invoiceService.getAllInvoicesWithDetails();

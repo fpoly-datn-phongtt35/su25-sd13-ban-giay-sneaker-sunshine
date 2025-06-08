@@ -1,44 +1,46 @@
 package com.example.duantotnghiep.dto.response;
 
-import com.example.duantotnghiep.model.Customer;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import lombok.Value;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.LocalDateTime;
 
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
 @Setter
-public class InvoiceResponse {
+public class VoucherResponse {
     Long id;
-    BigDecimal totalAmount;
-    BigDecimal discountAmount;
-    BigDecimal finalAmount;
+    @NotNull
+    @Size(max = 150)
+    String voucherCode;
+    @Size(max = 250)
+    String voucherName;
+    BigDecimal discountPercentage;
+    @NotNull
+    Integer discountAmount;
+    @NotNull
+    BigDecimal minOrderValue;
+    BigDecimal maxDiscountValue;
+    @NotNull
+    LocalDateTime startDate;
+    @NotNull
+    LocalDateTime endDate;
+    Integer status;
     @Size(max = 250)
     String description;
-    Integer orderType;
-    Integer status;
     LocalDateTime createdDate;
     LocalDateTime updatedDate;
     @Size(max = 50)
     String createdBy;
     @Size(max = 50)
     String updatedBy;
-
-    private String customerName;
-
-    private String employeeName;
-
-    private String phone;
-
-    private String invoiceCode;
-
-    private Long customerId; // <-- Thêm dòng này
-
+    Integer orderType;
 }

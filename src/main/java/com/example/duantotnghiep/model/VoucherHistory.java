@@ -11,42 +11,41 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
 
-@AllArgsConstructor
-@NoArgsConstructor
 @Getter
 @Setter
 @Entity
-@Table(name = "invoice_details")
-public class InvoiceDetail {
+@Table(name = "voucher_history")
+public class VoucherHistory {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
     private Long id;
 
-    @Column(name = "invoice_detail_code", length = 100, unique = true)
-    private String invoiceCodeDetail;
-
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "voucher_id", nullable = false)
+    private Voucher voucher;
+
+    @ManyToOne
     @JoinColumn(name = "invoice_id", nullable = false)
     private Invoice invoice;
 
-    @NotNull
     @ManyToOne
-    @JoinColumn(name = "product_detail_id", nullable = false)
-    private ProductDetail productDetail;
+    @JoinColumn(name = "customer_id", nullable = false)
+    private Customer customer;
 
-    @NotNull
-    @Column(name = "quantity", nullable = false)
-    private Integer quantity;
+    @Column(name = "used_at")
+    private LocalDateTime usedAt;
+
+    @Column(name = "discount_value_applied", precision = 18, scale = 3)
+    private BigDecimal discountValueApplied;
 
     @Column(name = "status")
     private Integer status;

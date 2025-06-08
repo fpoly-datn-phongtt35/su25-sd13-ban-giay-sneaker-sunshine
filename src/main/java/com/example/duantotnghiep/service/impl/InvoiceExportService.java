@@ -23,26 +23,29 @@ public class InvoiceExportService {
         response.setContentType("application/pdf");
         response.setHeader("Content-Disposition", "attachment; filename=invoice_" + invoice.getInvoiceCode() + ".pdf");
 
-        Rectangle smallPage = new Rectangle(226, 800); // 226pt ~ 58mm
+        // Kích thước giấy nhỏ (khoảng 58mm x 800pt)
+        Rectangle smallPage = new Rectangle(226, 800);
         Document document = new Document(smallPage, 10, 10, 10, 10);
         PdfWriter.getInstance(document, response.getOutputStream());
         document.open();
 
-        // Load Unicode font hỗ trợ tiếng Việt
+        // Load font Unicode hỗ trợ tiếng Việt
         String fontPath = "C:/Users/ADMIN/Downloads/Be_Vietnam_Pro/BeVietnamPro-Bold.ttf";
         BaseFont baseFont = BaseFont.createFont(fontPath, BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
         Font fontTitle = new Font(baseFont, 12, Font.BOLD);
         Font fontNormal = new Font(baseFont, 9);
         Font fontBold = new Font(baseFont, 9, Font.BOLD);
 
-        // Tiêu đề
+        // Thông tin cửa hàng
         Paragraph storeName = new Paragraph("SunShine Sneaker Store", fontBold);
         storeName.setAlignment(Element.ALIGN_CENTER);
         document.add(storeName);
+
         document.add(new Paragraph("ĐC: Cầu Giấy, Hà Nội", fontNormal));
         document.add(new Paragraph("Mã số: 0105458483 - 0907.123.321", fontNormal));
         document.add(Chunk.NEWLINE);
 
+        // Tiêu đề hóa đơn
         Paragraph title = new Paragraph("HÓA ĐƠN BÁN HÀNG", fontBold);
         title.setAlignment(Element.ALIGN_CENTER);
         document.add(title);
@@ -55,10 +58,11 @@ public class InvoiceExportService {
                 ? invoice.getCustomer().getCustomerName() : "Khách lẻ"), fontNormal));
         document.add(Chunk.NEWLINE);
 
-        // Bảng sản phẩm
-        document.add(new Paragraph("Mặt hàng         SL ĐVT   Giá     T.Tiền", fontBold));
-        document.add(new Paragraph("--------------------------------------", fontNormal));
+        // Tiêu đề bảng sản phẩm (không có dòng "Mặt hàng SL ĐVT Giá T.Tiền" theo yêu cầu)
+        // document.add(new Paragraph("Mặt hàng         SL ĐVT   Giá     T.Tiền", fontBold));
+        // document.add(new Paragraph("--------------------------------------", fontNormal));
 
+        // In danh sách sản phẩm, căn chỉnh tên, số lượng, đơn vị, giá, thành tiền
         for (InvoiceDetail detail : details) {
             String name = detail.getProductDetail().getProduct().getProductName();
             int qty = detail.getQuantity();
@@ -66,8 +70,8 @@ public class InvoiceExportService {
             BigDecimal price = detail.getProductDetail().getSellPrice();
             BigDecimal total = price.multiply(BigDecimal.valueOf(qty));
 
-            String line = String.format("%-14s %2d %-3s %6s %7s",
-                    truncate(name, 14),
+            String line = String.format("%-22s %3d %-5s %10s %12s",
+                    truncate(name, 22),
                     qty,
                     unit,
                     formatCurrency(price),
@@ -75,14 +79,23 @@ public class InvoiceExportService {
             document.add(new Paragraph(line, fontNormal));
         }
 
-        document.add(new Paragraph("--------------------------------------", fontNormal));
+        document.add(new Paragraph("---------------------------------------------", fontNormal));
 
-        // Tổng tiền
-        Paragraph total = new Paragraph("Tổng cộng: " + formatCurrency(invoice.getTotalAmount()), fontBold);
+        // Hiển thị giảm giá nếu có
+        if (invoice.getDiscountAmount() != null && invoice.getDiscountAmount().compareTo(BigDecimal.ZERO) > 0) {
+            Paragraph discount = new Paragraph("Giảm giá: " + formatCurrency(invoice.getDiscountAmount()), fontNormal);
+            discount.setAlignment(Element.ALIGN_RIGHT);
+            document.add(discount);
+        }
+
+        // Tổng tiền sau giảm
+        Paragraph total = new Paragraph("Tổng cộng: " + formatCurrency(invoice.getFinalAmount()), fontBold);
         total.setAlignment(Element.ALIGN_RIGHT);
         document.add(total);
+
+        // Bằng chữ
         document.add(new Paragraph("Bằng chữ: " +
-                NumberToVietnameseWords.convert(invoice.getTotalAmount()) + " đồng.", fontNormal));
+                NumberToVietnameseWords.convert(invoice.getFinalAmount()) + " đồng.", fontNormal));
 
         document.add(Chunk.NEWLINE);
 
@@ -110,5 +123,6 @@ public class InvoiceExportService {
         return str.length() > maxLength ? str.substring(0, maxLength - 1) + "…" : str;
     }
 }
+
 
 

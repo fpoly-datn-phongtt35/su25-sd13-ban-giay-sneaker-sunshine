@@ -52,7 +52,7 @@ public class ProductController {
     private final ProductService productService;
 
     // GET ALL
-    @GetMapping("/hien-thi")
+    @GetMapping("")
     public ResponseEntity<Page<ProductResponse>> getAllProducts(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "5") int size
@@ -110,13 +110,10 @@ public class ProductController {
     public ResponseEntity<PaginationDTO<ProductSearchResponse>> searchProducts(
             @RequestBody ProductSearchRequest request) {
 
-        int page = request.getPage() != null ? request.getPage() : 0;
-        int size = request.getSize() != null ? request.getSize() : 5;
+        int page = (request.getPage() != null && request.getPage() >= 0) ? request.getPage() : 0;
+        int size = (request.getSize() != null && request.getSize() > 0) ? request.getSize() : 5;
 
-        // Tạo Pageable
         Pageable pageable = PageRequest.of(page, size);
-
-        // Gọi service
         PaginationDTO<ProductSearchResponse> result = productService.phanTrang(request, pageable);
 
         return ResponseEntity.ok(result);

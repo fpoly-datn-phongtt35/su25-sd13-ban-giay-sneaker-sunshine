@@ -79,7 +79,7 @@ public class InvoiceController {
 
         try {
             if (createdDate != null && !createdDate.trim().isEmpty()) {
-                parsedDate = LocalDate.parse(createdDate); // mặc định ISO yyyy-MM-dd
+                parsedDate = LocalDate.parse(createdDate);
             }
         } catch (DateTimeParseException e) {
             return ResponseEntity.badRequest().body(null);

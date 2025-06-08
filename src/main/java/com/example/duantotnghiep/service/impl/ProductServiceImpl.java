@@ -5,6 +5,8 @@ import com.example.duantotnghiep.dto.request.ProductRequest;
 import com.example.duantotnghiep.dto.request.ProductSearchRequest;
 import com.example.duantotnghiep.dto.response.CategoryResponse;
 import com.example.duantotnghiep.dto.response.PaginationDTO;
+import com.example.duantotnghiep.dto.response.ProductDetailResponse;
+import com.example.duantotnghiep.dto.response.ProductImageResponse;
 import com.example.duantotnghiep.dto.response.ProductResponse;
 import com.example.duantotnghiep.dto.response.ProductSearchResponse;
 import com.example.duantotnghiep.dto.response.CategoryResponse;
@@ -48,10 +50,12 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -63,6 +67,7 @@ public class ProductServiceImpl implements ProductService {
     private final ProductImageRepository productImageRepository;
     private final ProductCategoryRepository productCategoryRepository;
     private final ProductMapper productMapper;
+    private final ProductImageMapper productImageMapper;
     private final CategoryRepository categoryRepository;
     private final ProductDetailMapper productDetailMapper;
     private final CategoryMapper categoryMapper;
@@ -157,7 +162,7 @@ public class ProductServiceImpl implements ProductService {
     @Override
     public ProductResponse updateProduct(Long id, ProductRequest request) {
         // 1. Kiểm tra sản phẩm có tồn tại không
-        Product existingProduct = productRepository.getOneByStatus(id)
+        Product existingProduct = productRepository.findByStatus(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm với id: " + id));
 
         System.out.println("product: " + existingProduct.getId());
@@ -172,35 +177,37 @@ public class ProductServiceImpl implements ProductService {
 
 
         if (request.getProductDetails() != null && !request.getProductDetails().isEmpty()) {
-            // Lấy danh sách chi tiết sản phẩm cũ (status = 1)
             List<ProductDetail> oldDetails = productDetailRepository.findByProductIdAndStatus(existingProduct.getId(), 1);
-
-            // Danh sách ProductDetail request (mới hoặc update)
             List<ProductDetailRequest> newDetailRequests = request.getProductDetails();
-
-            // Dùng để lưu chi tiết mới / cập nhật
             List<ProductDetail> updatedDetails = new ArrayList<>();
 
-            // 1. Duyệt qua danh sách cũ, kiểm tra xem còn tồn tại trong request không
+            // 1. Xử lý cập nhật số lượng hoặc xóa mềm
             for (ProductDetail oldDetail : oldDetails) {
-                boolean existsInRequest = newDetailRequests.stream().anyMatch(req ->
-                        Objects.equals(req.getColorId(), oldDetail.getColor()) &&
-                                Objects.equals(req.getSizeId(), oldDetail.getSize())
-                );
+                Optional<ProductDetailRequest> matchingRequestOpt = newDetailRequests.stream()
+                        .filter(req -> Objects.equals(req.getColorId(), oldDetail.getColor()) &&
+                                Objects.equals(req.getSizeId(), oldDetail.getSize()))
+                        .findFirst();
 
-                if (!existsInRequest) {
-                    // Nếu chi tiết cũ không còn trong request, set status = 0 (xóa mềm)
+                if (matchingRequestOpt.isPresent()) {
+                    ProductDetailRequest matchingRequest = matchingRequestOpt.get();
+                    // Cập nhật số lượng nếu có thay đổi
+                    if (!Objects.equals(oldDetail.getQuantity(), matchingRequest.getQuantity())) {
+                        oldDetail.setQuantity(matchingRequest.getQuantity());
+                        oldDetail.setUpdatedBy("admin");
+                        oldDetail.setUpdatedDate(new Date());
+                        productDetailRepository.save(oldDetail);
+                    }
+                    updatedDetails.add(oldDetail);
+                } else {
+                    // Không còn trong request ⇒ xóa mềm
                     oldDetail.setStatus(0);
                     oldDetail.setUpdatedBy("admin");
                     oldDetail.setUpdatedDate(new Date());
                     productDetailRepository.save(oldDetail);
-                } else {
-                    // Nếu vẫn còn trong request, giữ nguyên hoặc update thông tin nếu cần
-                    updatedDetails.add(oldDetail);
                 }
             }
 
-            // 2. Duyệt danh sách request, thêm mới những chi tiết chưa tồn tại trong DB
+            // 2. Thêm mới những chi tiết chưa tồn tại trong DB
             for (ProductDetailRequest detailRequest : newDetailRequests) {
                 boolean existsInOld = oldDetails.stream().anyMatch(oldDetail ->
                         Objects.equals(oldDetail.getColor(), detailRequest.getColorId()) &&
@@ -208,7 +215,6 @@ public class ProductServiceImpl implements ProductService {
                 );
 
                 if (!existsInOld) {
-                    // Thêm mới ProductDetail
                     ProductDetail newDetail = productDetailMapper.fromRequest(detailRequest);
                     newDetail.setProduct(existingProduct);
                     newDetail.setStatus(1);
@@ -222,15 +228,15 @@ public class ProductServiceImpl implements ProductService {
                 }
             }
 
-            // 3. Cập nhật lại danh sách chi tiết cho sản phẩm (nếu cần)
+            // Gán lại danh sách vào product nếu cần
             existingProduct.setProductDetails(updatedDetails);
         }
+
 
         // Lưu lại Product (không còn cascade với productDetails)
         Product updatedProduct1 = productRepository.save(existingProduct);
         System.out.println("Product saved with ID: " + updatedProduct.getId());
 
-        // 5. Xử lý ảnh cũ (ProductImage)
         // 5. Xử lý ảnh cũ (ProductImage)
         if (request.getOldImageIds() != null && !request.getOldImageIds().isEmpty()) {
             // Tìm tất cả ảnh theo danh sách id cũ và trạng thái 1 (active)
@@ -374,34 +380,38 @@ public class ProductServiceImpl implements ProductService {
     @Transactional(rollbackFor = Throwable.class)
     @Override
     public void deleteProduct(Long id) {
-        // 1. Lấy sản phẩm từ DB với productImages và productCategories
-        Product product = productRepository.getOneByStatus(id)
-                .orElseThrow(() -> new RuntimeException("Lỗi không tìm thấy sản phẩm: " + id));
-        // 2. Set status = "0" cho product
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm: " + id));
+
+        if (product.getStatus() == 0) {
+            throw new RuntimeException("Sản phẩm đã bị xóa rồi: " + id);
+        }
+
         product.setStatus(0);
         product.setUpdatedDate(new Date());
         product.setUpdatedBy("admin");
 
-        // 3. Set status = "0" cho tất cả ảnh sản phẩm
+        // ảnh
         List<ProductImage> productImages = product.getProductImages();
         if (productImages != null && !productImages.isEmpty()) {
-            productImages.forEach(image -> {
-                image.setStatus(0);
-                image.setUpdatedDate(new Date());
-                image.setUpdatedBy("admin");
+            productImages.forEach(img -> {
+                img.setStatus(0);
+                img.setUpdatedDate(new Date());
+                img.setUpdatedBy("admin");
             });
         }
 
-        // 4. Set status = "0" cho tất cả chi tiết sản phẩm
+        // chi tiết
         List<ProductDetail> productDetails = product.getProductDetails();
         if (productDetails != null && !productDetails.isEmpty()) {
-            productDetails.forEach(detail -> {
-                detail.setStatus(0);
-                detail.setUpdatedDate(new Date());
-                detail.setUpdatedBy("admin");
+            productDetails.forEach(d -> {
+                d.setStatus(0);
+                d.setUpdatedDate(new Date());
+                d.setUpdatedBy("admin");
             });
         }
 
+        // danh mục
         List<ProductCategory> productCategories = productCategoryRepository.getAllByProductAndStatus(id);
         if (!productCategories.isEmpty()) {
             productCategories.forEach(pc -> {
@@ -411,33 +421,57 @@ public class ProductServiceImpl implements ProductService {
             });
         }
 
-        // 6. Lưu tất cả thay đổi
         productRepository.save(product);
-        if (productImages != null && !productImages.isEmpty()) {
-            productImageRepository.saveAll(productImages);
-        }
-        if (productDetails != null && !productDetails.isEmpty()) {
-            productDetailRepository.saveAll(productDetails);
-        }
-        if (!productCategories.isEmpty()) {
-            productCategoryRepository.saveAll(productCategories);
-        }
-
+        if (productImages != null) productImageRepository.saveAll(productImages);
+        if (productDetails != null) productDetailRepository.saveAll(productDetails);
+        if (!productCategories.isEmpty()) productCategoryRepository.saveAll(productCategories);
     }
+
 
     @Override
     public ProductResponse getProductById(Long id) {
-        Product product = productRepository.getOneByStatus(id)
+        // Gọi các phương thức fetch riêng để tránh MultipleBagFetchException
+        Product productWithDetails = productRepository.findByIdWithProductDetails(id)
                 .orElseThrow(() -> new IllegalArgumentException("Product not found: " + id));
-        ProductResponse response = productMapper.toResponse(product);
+
+        Product productWithImages = productRepository.findByIdWithProductImages(id)
+                .orElse(null); // không cần throw vì chỉ để fetch ảnh
+
+        Product productWithCategories = productRepository.findByIdWithCategories(id)
+                .orElse(null); // không cần throw vì chỉ để fetch category
+
+        // Sau khi fetch đầy đủ, map sang DTO
+        ProductResponse response = productMapper.toResponse(productWithDetails);
+
+        // Lấy danh mục (status = 1)
         List<ProductCategory> categories = productCategoryRepository.getAllByProductAndStatus(id);
         response.setCategories(categories.stream()
                 .map(pc -> categoryMapper.toResponse(pc.getCategory()))
                 .collect(Collectors.toList()));
-        response.setProductDetails(product.getProductDetails().stream()
+
+        // Lấy productDetails (status = 1)
+        List<ProductDetailResponse> productDetailResponses = productWithDetails.getProductDetails().stream()
+                .filter(pd -> pd.getStatus() == 1)
                 .map(productDetailMapper::toResponse)
-                .collect(Collectors.toList()));
+                .collect(Collectors.toList());
+        response.setProductDetails(productDetailResponses);
+
+        // Lấy productImages (status = 1) nếu có
+        if (productWithImages != null) {
+            List<ProductImageResponse> productImageResponses = productWithImages.getProductImages().stream()
+                    .filter(pi -> pi.getStatus() == 1)
+                    .map(productImageMapper::toResponse)
+                    .collect(Collectors.toList());
+            response.setProductImages(productImageResponses);
+        }
+
         return response;
+    }
+
+    @Override
+    public List<ProductDetailResponse> getProductDetailById(Long productId) {
+        List<ProductDetail> responses = productDetailRepository.findByProductIdAndStatus(productId,1);
+        return responses.stream().map(productDetailMapper::toResponse).collect(Collectors.toList());
     }
 
     @Override
@@ -466,8 +500,55 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public List<ProductResponse> getAllProducts() {
-        return null;
+    public void exportProductToExcelByIds(List<Long> productIds, OutputStream outputStream) throws IOException {
+        // Kiểm tra danh sách productIds
+        if (productIds == null || productIds.isEmpty()) {
+            throw new IllegalArgumentException("Danh sách ID sản phẩm không được rỗng");
+        }
+
+        // Lấy sản phẩm với productCategories
+        List<Product> productsWithCategories = productRepository.findByIdsWithCategories(productIds);
+
+        // Lấy sản phẩm với productDetails
+        List<Product> productsWithDetails = productRepository.findByIdsWithDetails(productIds);
+
+        // Hợp nhất dữ liệu
+        Map<Long, Product> productMap = new HashMap<>();
+        for (Product p : productsWithCategories) {
+            productMap.put(p.getId(), p);
+        }
+        for (Product p : productsWithDetails) {
+            Product existing = productMap.get(p.getId());
+            if (existing != null) {
+                // Gán productDetails từ truy vấn thứ hai vào đối tượng hiện có
+                existing.setProductDetails(p.getProductDetails());
+            } else {
+                productMap.put(p.getId(), p);
+            }
+        }
+
+        List<Product> products = new ArrayList<>(productMap.values());
+
+        // Ánh xạ sang ProductSearchResponse
+        List<ProductSearchResponse> productResponses = products.stream()
+                .map(productMapper::toResponseSearch)
+                .collect(Collectors.toList());
+
+        // Xuất Excel
+        try (ByteArrayInputStream excelStream = ProductExcelExporter.exportProductToExcel(productResponses)) {
+            byte[] buffer = new byte[1024];
+            int bytesRead;
+            while ((bytesRead = excelStream.read(buffer)) != -1) {
+                outputStream.write(buffer, 0, bytesRead);
+            }
+        } catch (IOException e) {
+            throw new IOException("Không thể xuất Excel theo ID: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public PaginationDTO<ProductSearchResponse> getProductRemoved(ProductSearchRequest request, Pageable pageable) {
+        return productSearchRepository.getProductRemoved(request,pageable);
     }
 
     private String generateProductCode() {

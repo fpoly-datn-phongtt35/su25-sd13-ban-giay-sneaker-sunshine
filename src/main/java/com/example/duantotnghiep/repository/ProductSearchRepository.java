@@ -8,6 +8,7 @@ import com.example.duantotnghiep.mapper.ProductMapper;
 import com.example.duantotnghiep.model.Category;
 import com.example.duantotnghiep.model.Product;
 import com.example.duantotnghiep.model.ProductCategory;
+import com.example.duantotnghiep.model.ProductDetail;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.TypedQuery;
@@ -36,61 +37,82 @@ public class ProductSearchRepository {
     @Autowired
     private PaginationMapper paginationMapper;
 
-    public PaginationDTO<ProductSearchResponse> searchProducts(ProductSearchRequest request, Pageable pageable){
+    public PaginationDTO<ProductSearchResponse> searchProducts(ProductSearchRequest request, Pageable pageable) {
         String baseSql = "FROM Product p WHERE 1=1";
-        StringBuilder whereClause = new StringBuilder(" And p.status = :status");
-        Map<String,Object> params = new HashMap<>();
-        params.put("status",1);
+        StringBuilder whereClause = new StringBuilder(" AND p.status = :status");
+        Map<String, Object> params = new HashMap<>();
+        params.put("status", 1);
 
-        if (request.getKeyword() != null && !request.getKeyword().isEmpty()) {
+        // Filter keyword
+        String keyword = request.getKeyword() != null ? request.getKeyword().trim() : null;
+        if (keyword != null && !keyword.isEmpty()) {
             whereClause.append(" AND (LOWER(p.productName) LIKE LOWER(:keyword) OR LOWER(p.productCode) LIKE LOWER(:keyword))");
-            params.put("keyword", "%" + request.getKeyword() + "%");
+            params.put("keyword", "%" + keyword + "%");
         }
 
+        // Các filter khác
         if (request.getBrandId() != null) {
             whereClause.append(" AND (p.brand.id IS NULL OR p.brand.id = :brandId)");
             params.put("brandId", request.getBrandId());
         }
-
         if (request.getGenderId() != null) {
             whereClause.append(" AND (p.gender.id IS NULL OR p.gender.id = :genderId)");
             params.put("genderId", request.getGenderId());
         }
-
         if (request.getStyleId() != null) {
             whereClause.append(" AND (p.style.id IS NULL OR p.style.id = :styleId)");
             params.put("styleId", request.getStyleId());
         }
-
         if (request.getSoleId() != null) {
             whereClause.append(" AND (p.sole.id IS NULL OR p.sole.id = :soleId)");
             params.put("soleId", request.getSoleId());
         }
-
         if (request.getMaterialId() != null) {
             whereClause.append(" AND (p.material.id IS NULL OR p.material.id = :materialId)");
             params.put("materialId", request.getMaterialId());
         }
-
         if (request.getCreatedFrom() != null) {
             whereClause.append(" AND (p.createdDate IS NULL OR p.createdDate >= :createdFrom)");
             params.put("createdFrom", request.getCreatedFrom());
         }
-
         if (request.getCreatedTo() != null) {
             whereClause.append(" AND (p.createdDate IS NULL OR p.createdDate <= :createdTo)");
             params.put("createdTo", request.getCreatedTo());
         }
+        if (request.getPriceMin() != null) {
+            whereClause.append(" AND (p.sellPrice IS NULL OR p.sellPrice >= :priceMin)");
+            params.put("priceMin", request.getPriceMin());
+        }
+        if (request.getPriceMax() != null) {
+            whereClause.append(" AND (p.sellPrice IS NULL OR p.sellPrice <= :priceMax)");
+            params.put("priceMax", request.getPriceMax());
+        }
 
+        // Filter theo danh mục
         if (request.getCategoryIds() != null && !request.getCategoryIds().isEmpty()) {
             whereClause.append(" AND EXISTS (SELECT 1 FROM ProductCategory pc WHERE pc.product = p AND (pc.category.id IS NULL OR pc.category.id IN :categoryIds) AND pc.status = 1)");
             params.put("categoryIds", request.getCategoryIds());
         }
 
-        String dataSql = "SELECT p " + baseSql + whereClause + " ORDER BY p.id DESC";
-        TypedQuery<Product> query = entityManager.createQuery(dataSql, Product.class);
+        // Filter colorId và sizeId bằng EXISTS trong ProductDetail (lọc Product)
+        if (request.getColorId() != null || request.getSizeId() != null) {
+            whereClause.append(" AND EXISTS (SELECT 1 FROM ProductDetail pd WHERE pd.product = p AND pd.status = 1");
+            if (request.getColorId() != null) {
+                whereClause.append(" AND pd.color.id = :colorId");
+                params.put("colorId", request.getColorId());
+            }
+            if (request.getSizeId() != null) {
+                whereClause.append(" AND pd.size.id = :sizeId");
+                params.put("sizeId", request.getSizeId());
+            }
+            whereClause.append(")");
+        }
 
+        // Query lấy Product có phân trang
+        String dataSql = "SELECT DISTINCT p " + baseSql + whereClause + " ORDER BY p.id DESC";
+        TypedQuery<Product> query = entityManager.createQuery(dataSql, Product.class);
         params.forEach(query::setParameter);
+
         if (pageable.isPaged()) {
             query.setFirstResult((int) pageable.getOffset());
             query.setMaxResults(pageable.getPageSize());
@@ -99,43 +121,113 @@ public class ProductSearchRepository {
         List<Product> products = query.getResultList();
 
         if (!products.isEmpty()) {
-            Set<Long> productIds = products.stream()
-                    .map(Product::getId)
-                    .collect(Collectors.toSet());
+            Set<Long> productIds = products.stream().map(Product::getId).collect(Collectors.toSet());
 
-            // Truy vấn ProductCategory với JOIN FETCH để lấy Category
+            // Lấy ProductCategory kèm Category
             String productCategorySql = "SELECT pc FROM ProductCategory pc " +
-                    "LEFT JOIN FETCH pc.category c " +
+                    "LEFT JOIN FETCH pc.category " +
                     "WHERE pc.product.id IN :productIds AND pc.status = 1";
-            TypedQuery<ProductCategory> productCategoryQuery = entityManager.createQuery(productCategorySql, ProductCategory.class);
-            productCategoryQuery.setParameter("productIds", productIds);
-            List<ProductCategory> productCategories;
-            try {
-                productCategories = productCategoryQuery.getResultList();
-            } catch (Exception e) {
-                throw new RuntimeException("Lỗi khi lấy ProductCategory: " + e.getMessage(), e);
-            }
-
-            Map<Long, List<ProductCategory>> productCategoriesMap = productCategories.stream()
+            TypedQuery<ProductCategory> pcQuery = entityManager.createQuery(productCategorySql, ProductCategory.class);
+            pcQuery.setParameter("productIds", productIds);
+            List<ProductCategory> productCategories = pcQuery.getResultList();
+            Map<Long, List<ProductCategory>> categoryMap = productCategories.stream()
                     .collect(Collectors.groupingBy(pc -> pc.getProduct().getId()));
 
-            products.forEach(p -> p.setProductCategories(productCategoriesMap.getOrDefault(p.getId(), new ArrayList<>())));
+            // Lấy ProductDetail kèm Color, Size, có lọc theo colorId & sizeId nếu có
+            StringBuilder productDetailSql = new StringBuilder(
+                    "SELECT pd FROM ProductDetail pd " +
+                            "LEFT JOIN FETCH pd.color " +
+                            "LEFT JOIN FETCH pd.size " +
+                            "WHERE pd.product.id IN :productIds AND pd.status = 1"
+            );
+
+            if (request.getColorId() != null) {
+                productDetailSql.append(" AND pd.color.id = :colorId");
+            }
+            if (request.getSizeId() != null) {
+                productDetailSql.append(" AND pd.size.id = :sizeId");
+            }
+
+            TypedQuery<ProductDetail> detailQuery = entityManager.createQuery(productDetailSql.toString(), ProductDetail.class);
+            detailQuery.setParameter("productIds", productIds);
+            if (request.getColorId() != null) {
+                detailQuery.setParameter("colorId", request.getColorId());
+            }
+            if (request.getSizeId() != null) {
+                detailQuery.setParameter("sizeId", request.getSizeId());
+            }
+            List<ProductDetail> productDetails = detailQuery.getResultList();
+            Map<Long, List<ProductDetail>> detailMap = productDetails.stream()
+                    .collect(Collectors.groupingBy(pd -> pd.getProduct().getId()));
+
+            // Gán data vào Product
+            for (Product p : products) {
+                p.setProductCategories(categoryMap.getOrDefault(p.getId(), new ArrayList<>()));
+                p.setProductDetails(detailMap.getOrDefault(p.getId(), new ArrayList<>()));
+            }
         }
 
+        // Count tổng sản phẩm thỏa điều kiện
         String countSql = "SELECT COUNT(DISTINCT p) " + baseSql + whereClause;
         TypedQuery<Long> countQuery = entityManager.createQuery(countSql, Long.class);
         params.forEach(countQuery::setParameter);
         Long total = countQuery.getSingleResult();
 
+        // Chuyển đổi sang DTO và trả về PaginationDTO
+        List<ProductSearchResponse> productResponses = products.stream()
+                .map(productMapper::toResponseSearch)
+                .collect(Collectors.toList());
+        Page<ProductSearchResponse> page = new PageImpl<>(productResponses, pageable, total);
 
-        // Chuyển đổi sang DTO
+        return paginationMapper.toPaginationDTO(page);
+    }
+
+    public PaginationDTO<ProductSearchResponse> getProductRemoved(ProductSearchRequest request, Pageable pageable) {
+        String baseSql = "FROM Product p WHERE p.status = :status";
+        Map<String, Object> params = new HashMap<>();
+        params.put("status", 0);
+
+        // Filter keyword: tìm theo productName hoặc productCode
+        String keyword = request.getKeyword() != null ? request.getKeyword().trim() : null;
+        if (keyword != null && !keyword.isEmpty()) {
+            baseSql += " AND (LOWER(p.productName) LIKE LOWER(:keyword) OR LOWER(p.productCode) LIKE LOWER(:keyword))";
+            params.put("keyword", "%" + keyword + "%");
+        }
+
+        // Filter theo khoảng giá sellPrice
+        if (request.getPriceMin() != null) {
+            baseSql += " AND p.sellPrice >= :priceMin";
+            params.put("priceMin", request.getPriceMin());
+        }
+        if (request.getPriceMax() != null) {
+            baseSql += " AND p.sellPrice <= :priceMax";
+            params.put("priceMax", request.getPriceMax());
+        }
+
+        // Query lấy Product có phân trang, sắp xếp theo id giảm dần
+        String dataSql = "SELECT p " + baseSql + " ORDER BY p.id DESC";
+        TypedQuery<Product> query = entityManager.createQuery(dataSql, Product.class);
+        params.forEach(query::setParameter);
+
+        if (pageable.isPaged()) {
+            query.setFirstResult((int) pageable.getOffset());
+            query.setMaxResults(pageable.getPageSize());
+        }
+
+        List<Product> products = query.getResultList();
+
+        // Đếm tổng số sản phẩm thỏa mãn
+        String countSql = "SELECT COUNT(p) " + baseSql;
+        TypedQuery<Long> countQuery = entityManager.createQuery(countSql, Long.class);
+        params.forEach(countQuery::setParameter);
+        Long total = countQuery.getSingleResult();
+
+        // Chuyển đổi sang DTO và trả về PaginationDTO
         List<ProductSearchResponse> productResponses = products.stream()
                 .map(productMapper::toResponseSearch)
                 .collect(Collectors.toList());
 
-        // Tạo Page để sử dụng PaginationMapper
         Page<ProductSearchResponse> page = new PageImpl<>(productResponses, pageable, total);
-
         return paginationMapper.toPaginationDTO(page);
     }
 

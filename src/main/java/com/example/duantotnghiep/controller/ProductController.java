@@ -1,8 +1,10 @@
 package com.example.duantotnghiep.controller;
 
+import com.example.duantotnghiep.dto.request.ExportProductRequest;
 import com.example.duantotnghiep.dto.request.ProductRequest;
 import com.example.duantotnghiep.dto.request.ProductSearchRequest;
 import com.example.duantotnghiep.dto.response.PaginationDTO;
+import com.example.duantotnghiep.dto.response.ProductDetailResponse;
 import com.example.duantotnghiep.dto.response.ProductResponse;
 import com.example.duantotnghiep.dto.response.ProductSearchResponse;
 import com.example.duantotnghiep.service.ProductService;
@@ -62,11 +64,15 @@ public class ProductController {
         return ResponseEntity.ok(productResponses);
     }
 
-
     // GET BY ID
     @GetMapping("/{id}")
     public ResponseEntity<ProductResponse> getProductById(@PathVariable Long id) {
         return ResponseEntity.ok(productService.getProductById(id));
+    }
+
+    @GetMapping("/product-detail/{idProduct}")
+    public ResponseEntity<List<ProductDetailResponse>> getProductDetailById(@PathVariable Long idProduct) {
+        return ResponseEntity.ok(productService.getProductDetailById(idProduct));
     }
 
     // CREATE
@@ -87,12 +93,9 @@ public class ProductController {
     // DELETE
     @DeleteMapping("/{id}")
     public ResponseEntity<String> deleteProduct(@PathVariable Long id) {
-       try {
-           productService.deleteProduct(id);
-           return ResponseEntity.ok("Xóa thành công");
-       }catch (Exception e){
-           throw new RuntimeException("Lỗi xóa");
-       }
+
+        productService.deleteProduct(id);
+        return ResponseEntity.ok("Xóa thành công");
     }
 
     @GetMapping("/qrcode/{code}")
@@ -110,8 +113,11 @@ public class ProductController {
     public ResponseEntity<PaginationDTO<ProductSearchResponse>> searchProducts(
             @RequestBody ProductSearchRequest request) {
 
+        System.out.println("from: "+request.getCreatedFrom());
+        System.out.println("To: "+request.getCreatedTo());
+
         int page = request.getPage() != null ? request.getPage() : 0;
-        int size = request.getSize() != null ? request.getSize() : 5;
+        int size = request.getSize() != null ? request.getSize() : 8;
 
         // Tạo Pageable
         Pageable pageable = PageRequest.of(page, size);
@@ -122,16 +128,51 @@ public class ProductController {
         return ResponseEntity.ok(result);
     }
 
-    @PostMapping ("/export")
-    public void exportExcel(@RequestBody ProductSearchRequest dto, HttpServletResponse response) {
+    @PostMapping("/inactive")
+    public ResponseEntity<PaginationDTO<ProductSearchResponse>> getProductRemoved(
+            @RequestBody ProductSearchRequest request) {
+
+        int page = request.getPage() != null ? request.getPage() : 0;
+        int size = request.getSize() != null ? request.getSize() : 8;
+
+        // Tạo Pageable
+        Pageable pageable = PageRequest.of(page, size);
+
+        // Gọi service
+        PaginationDTO<ProductSearchResponse> result = productService.getProductRemoved(request, pageable);
+
+        return ResponseEntity.ok(result);
+    }
+
+    // Xuất Excel theo danh sách productIds
+    @PostMapping("/export-excel/by-ids")
+    public void exportExcelByIds(@RequestBody List<Long> productIds, HttpServletResponse response) {
         try {
             response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-            response.setHeader("Content-Disposition", "attachment; filename=categories.xlsx");
-            productService.exportProductToExcel(dto, response.getOutputStream());
+            response.setHeader("Content-Disposition", "attachment; filename=products-by-ids.xlsx");
+
+            productService.exportProductToExcelByIds(productIds, response.getOutputStream());
+
             response.flushBuffer();
         } catch (IOException e) {
-            System.out.println("Xuất Excel thất bại: {}");
-            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR); // status 500
+            System.err.println("Xuất Excel theo IDs thất bại: " + e.getMessage());
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    // Xuất Excel theo filter tìm kiếm
+    @PostMapping("/export-excel/by-filter")
+    public void exportExcelByFilter(@RequestBody ProductSearchRequest filter, HttpServletResponse response) {
+        try {
+            response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            response.setHeader("Content-Disposition", "attachment; filename=products-by-filter.xlsx");
+
+            productService.exportProductToExcel(filter, response.getOutputStream());
+
+            response.flushBuffer();
+        } catch (IOException e) {
+            System.err.println("Xuất Excel theo filter thất bại: " + e.getMessage());
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         }
     }
 

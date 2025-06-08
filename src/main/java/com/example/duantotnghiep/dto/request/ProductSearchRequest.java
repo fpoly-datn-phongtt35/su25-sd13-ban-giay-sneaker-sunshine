@@ -1,5 +1,6 @@
 package com.example.duantotnghiep.dto.request;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.annotation.Nullable;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -23,11 +24,13 @@ public class ProductSearchRequest {
     private String keyword;
 
     @Nullable
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "Asia/Ho_Chi_Minh")
     private Date createdFrom;
 
     @Nullable
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "Asia/Ho_Chi_Minh")
     private Date createdTo;
-
+    
     @Nullable
     private Long brandId;
 
@@ -48,6 +51,12 @@ public class ProductSearchRequest {
 
     @Nullable
     private BigDecimal priceMax;
+
+    @Nullable
+    private Long colorId;
+
+    @Nullable
+    private Long sizeId;
 
     @Nullable
     private Integer page;

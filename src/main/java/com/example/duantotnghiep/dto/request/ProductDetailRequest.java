@@ -13,6 +13,7 @@ import java.util.Date;
 @Getter
 @Setter
 public class ProductDetailRequest {
+    private Long id;
     private Long sizeId;
     private Long colorId;
     private String productDetailCode;

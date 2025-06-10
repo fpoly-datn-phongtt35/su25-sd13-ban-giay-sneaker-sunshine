@@ -32,6 +32,7 @@ public class SupplierServiceImpl implements SupplierService {
     public SupplierResponse them(SupplierRequest request) {
         Supplier supplier = supplierMapper.toEntity(request);
         supplier.setSupplierCode(generateCode());
+        supplier.setSupplierStatus(1);
         supplier.setCreatedDate(new Date());
         supplier.setCreatedBy("admin"); // Hoặc lấy từ thông tin người dùng hiện tại
         Supplier savedSupplier = supplierRepository.save(supplier);

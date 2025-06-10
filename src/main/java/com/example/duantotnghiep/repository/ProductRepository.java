@@ -30,7 +30,7 @@ public interface ProductRepository extends JpaRepository<Product,Long> {
     Optional<Product> findByIdWithCategories(@Param("id") Long id);
 
     @Query("SELECT p FROM Product p where p.status = 1 order by p.createdDate desc ")
-    Page<Product> findAllWithJPQL(Pageable pageable);
+    List<Product> findAllWithJPQL();
 
     @Query("SELECT DISTINCT p FROM Product p " +
             "LEFT JOIN FETCH p.material " +

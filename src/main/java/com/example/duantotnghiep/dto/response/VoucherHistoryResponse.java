@@ -1,28 +1,27 @@
 package com.example.duantotnghiep.dto.response;
 
-import com.example.duantotnghiep.model.Customer;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import lombok.Value;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.LocalDateTime;
 
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
 @Setter
-public class InvoiceResponse {
+public class VoucherHistoryResponse{
     Long id;
-    BigDecimal totalAmount;
-    BigDecimal discountAmount;
-    BigDecimal finalAmount;
-    @Size(max = 250)
-    String description;
-    Integer orderType;
+    @NotNull
+    VoucherResponse voucher;
+    LocalDateTime usedAt;
+    BigDecimal discountValueApplied;
     Integer status;
     LocalDateTime createdDate;
     LocalDateTime updatedDate;
@@ -30,15 +29,4 @@ public class InvoiceResponse {
     String createdBy;
     @Size(max = 50)
     String updatedBy;
-
-    private String customerName;
-
-    private String employeeName;
-
-    private String phone;
-
-    private String invoiceCode;
-
-    private Long customerId; // <-- Thêm dòng này
-
 }

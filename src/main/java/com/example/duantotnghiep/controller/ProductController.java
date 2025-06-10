@@ -55,12 +55,8 @@ public class ProductController {
 
     // GET ALL
     @GetMapping("/hien-thi")
-    public ResponseEntity<Page<ProductResponse>> getAllProducts(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "5") int size
-    ) {
-        Pageable pageable = PageRequest.of(page, size);
-        Page<ProductResponse> productResponses = productService.getAllProducts(pageable);
+    public ResponseEntity<List<ProductResponse>> getAllProducts() {
+        List<ProductResponse> productResponses = productService.getAllProducts();
         return ResponseEntity.ok(productResponses);
     }
 
@@ -108,21 +104,16 @@ public class ProductController {
         MatrixToImageWriter.writeToStream(bitMatrix, "PNG", response.getOutputStream());
     }
 
-
     @PostMapping("/search")
     public ResponseEntity<PaginationDTO<ProductSearchResponse>> searchProducts(
             @RequestBody ProductSearchRequest request) {
-
         System.out.println("from: "+request.getCreatedFrom());
         System.out.println("To: "+request.getCreatedTo());
 
-        int page = request.getPage() != null ? request.getPage() : 0;
-        int size = request.getSize() != null ? request.getSize() : 8;
+        int page = (request.getPage() != null && request.getPage() >= 0) ? request.getPage() : 0;
+        int size = (request.getSize() != null && request.getSize() > 0) ? request.getSize() : 5;
 
-        // Tạo Pageable
         Pageable pageable = PageRequest.of(page, size);
-
-        // Gọi service
         PaginationDTO<ProductSearchResponse> result = productService.phanTrang(request, pageable);
 
         return ResponseEntity.ok(result);

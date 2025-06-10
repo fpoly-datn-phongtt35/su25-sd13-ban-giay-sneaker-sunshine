@@ -13,8 +13,6 @@ import java.util.Optional;
 public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
     List<Invoice> findByStatus(int status);
 
-    List<Invoice> findAllByOrderByCreatedDateDesc();
-
     @Query("SELECT i FROM Invoice i LEFT JOIN i.customer c " +
             "WHERE (:keyword IS NULL OR " +
             "LOWER(i.invoiceCode) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
@@ -22,7 +20,8 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
             "LOWER(c.phone) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
             "AND (:status IS NULL OR i.status = :status) " +
             "AND (:startOfDay IS NULL OR i.createdDate >= :startOfDay) " +
-            "AND (:startOfNextDay IS NULL OR i.createdDate < :startOfNextDay)")
+            "AND (:startOfNextDay IS NULL OR i.createdDate < :startOfNextDay) " +
+            "ORDER BY i.createdDate DESC")
     Page<Invoice> searchByKeywordStatusAndCreatedDate(
             @Param("keyword") String keyword,
             @Param("status") Integer status,
@@ -30,11 +29,17 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
             @Param("startOfNextDay") LocalDateTime startOfNextDay,
             Pageable pageable);
 
-
     Invoice findByInvoiceCode(String invoiceCode);
-
 
     @Query("SELECT i FROM Invoice i WHERE i.invoiceCode = :invoiceCode")
     Optional<Invoice> findByInvoiceCodeQR(@Param("invoiceCode") String invoiceCode);
+
+    Page<Invoice> findByStatus(int status, Pageable pageable);
+
+    List<Invoice> findByStatusAndCreatedDateBefore(int status, LocalDateTime time);
+
+    boolean existsByCustomer_IdAndStatus(Long customerId, int status);
+
+    Optional<Invoice> findById(Long id);
 
 }

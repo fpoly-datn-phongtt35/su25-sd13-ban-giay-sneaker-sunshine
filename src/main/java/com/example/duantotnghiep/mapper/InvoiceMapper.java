@@ -12,6 +12,7 @@ import java.util.List;
 public interface InvoiceMapper {
 
     // ================= Invoice -> InvoiceResponse =================
+    @Mapping(target = "customerId", expression = "java(invoice.getCustomer() != null ? invoice.getCustomer().getId() : null)")
     @Mapping(target = "customerName", expression = "java(invoice.getCustomer() != null ? invoice.getCustomer().getCustomerName() : \"Khách lẻ\")")
     @Mapping(target = "employeeName", source = "employee.employeeName")
     InvoiceResponse toInvoiceResponse(Invoice invoice);
@@ -20,10 +21,12 @@ public interface InvoiceMapper {
     @Mapping(target = "productName", source = "productDetail.product.productName")
     @Mapping(target = "productCode", source = "productDetail.product.productCode")
     @Mapping(target = "categoryName", source = "productDetail.product.productCategories", qualifiedByName = "getFirstCategoryName")
-    @Mapping(target = "size", source = "productDetail.size")   // dùng sub-mapper SizeMapper
-    @Mapping(target = "color", source = "productDetail.color") // dùng sub-mapper ColorMapper
+    @Mapping(target = "size", source = "productDetail.size")
+    @Mapping(target = "color", source = "productDetail.color")
     @Mapping(target = "price", expression = "java(invoiceDetail.getProductDetail().getSellPrice())")
     @Mapping(target = "quantity", source = "quantity")
+// Thêm dòng này để tính totalPrice = price * quantity
+    @Mapping(target = "totalPrice", expression = "java(invoiceDetail.getProductDetail().getSellPrice().multiply(java.math.BigDecimal.valueOf(invoiceDetail.getQuantity())))")
     InvoiceDetailResponse toInvoiceDetailResponse(InvoiceDetail invoiceDetail);
 
     // ================= ProductDetail -> ProductAttributeResponse =================
@@ -40,6 +43,9 @@ public interface InvoiceMapper {
     List<InvoiceResponse> toInvoiceResponseList(List<Invoice> invoices);
     List<InvoiceDetailResponse> toInvoiceDetailResponseList(List<InvoiceDetail> details);
     List<ProductAttributeResponse> toProductAttributeResponseList(List<ProductDetail> details);
+
+    CustomerResponse toCustomerResponse(Customer customer);
+
 
     // ================= Helper method =================
     @Named("getFirstCategoryName")
@@ -62,5 +68,6 @@ public interface InvoiceMapper {
         List<InvoiceDetailResponse> detailResponses = toInvoiceDetailResponseList(details);
         return new InvoiceDisplayResponse(invoiceResponse, detailResponses);
     }
+
 
 }

@@ -16,7 +16,7 @@ public class ProductAttributeResponse {
     private String productName;
     private String productCode;
     private String categoryName;
-    private SizeResponse size;   // không phải Size entity
+    private SizeResponse size;
     private ColorResponse color;
     private BigDecimal price;
     private Integer quantity;

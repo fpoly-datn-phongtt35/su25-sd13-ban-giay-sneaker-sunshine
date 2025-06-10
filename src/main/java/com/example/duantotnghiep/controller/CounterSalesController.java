@@ -1,14 +1,24 @@
 package com.example.duantotnghiep.controller;
 
+import com.example.duantotnghiep.dto.PaymentSummary;
+import com.example.duantotnghiep.dto.request.AddToCartRequest;
+import com.example.duantotnghiep.dto.request.AssignCustomerRequest;
 import com.example.duantotnghiep.dto.request.CreateInvoiceRequest;
+import com.example.duantotnghiep.dto.response.CustomerResponse;
+import com.example.duantotnghiep.dto.response.InvoiceCheckoutResponse;
 import com.example.duantotnghiep.dto.response.InvoiceDetailResponse;
+import com.example.duantotnghiep.dto.response.InvoiceDisplayResponse;
 import com.example.duantotnghiep.dto.response.InvoiceResponse;
 import com.example.duantotnghiep.dto.response.ProductAttributeResponse;
 import com.example.duantotnghiep.dto.response.ProductResponse;
+import com.example.duantotnghiep.dto.response.VoucherResponse;
+import com.example.duantotnghiep.mapper.VoucherMapper;
+import com.example.duantotnghiep.model.Invoice;
 import com.example.duantotnghiep.service.impl.InvoiceServiceImpl;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -22,7 +32,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/counter-sales")
@@ -31,67 +43,173 @@ import java.util.List;
 public class CounterSalesController {
 
     private final InvoiceServiceImpl invoiceService;
+    private final VoucherMapper voucherMapper;
 
-    // Tạo hóa đơn mới
-    @PostMapping("/invoices")
-    public ResponseEntity<InvoiceResponse> createInvoice(@RequestBody @Valid CreateInvoiceRequest request) {
-        InvoiceResponse invoiceResponse = invoiceService.createInvoice(request.getCustomerId(), request.getEmployeeId());
-        return ResponseEntity.status(HttpStatus.CREATED).body(invoiceResponse);
-    }
 
-    // Lấy danh sách hóa đơn active (status = 1)
     @GetMapping("/invoices")
-    public ResponseEntity<List<InvoiceResponse>> getActiveInvoices() {
-        List<InvoiceResponse> invoices = invoiceService.getAllActiveInvoices();
-        return ResponseEntity.ok(invoices);
+    public ResponseEntity<Page<InvoiceResponse>> getInvoicesByStatus(
+            @RequestParam int status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "5") int size) {
+        Page<InvoiceResponse> result = invoiceService.getInvoicesByStatus(status, page, size);
+        return ResponseEntity.ok(result);
     }
 
-    // Lấy chi tiết hóa đơn theo invoiceId
-    @GetMapping("/invoices/{invoiceId}/details")
-    public ResponseEntity<List<InvoiceDetailResponse>> getInvoiceDetails(@PathVariable @Positive Long invoiceId) {
-        List<InvoiceDetailResponse> details = invoiceService.getInvoiceDetails(invoiceId);
-        return ResponseEntity.ok(details);
+    @GetMapping("/{invoiceId}/details")
+    public ResponseEntity<InvoiceDisplayResponse> getInvoiceDetails(@PathVariable Long invoiceId) {
+        InvoiceDisplayResponse response = invoiceService.getInvoiceWithDetails(invoiceId);
+        System.out.println("Customer ID in invoice: " + response.getInvoice().getCustomerId());
+        return ResponseEntity.ok(response);
     }
 
-    // Lấy thuộc tính sản phẩm theo productId
-    @GetMapping("/products/{productId}/attributes")
-    public ResponseEntity<List<ProductAttributeResponse>> getProductAttributes(@PathVariable @Positive Long productId) {
-        List<ProductAttributeResponse> attributes = invoiceService.getProductAttributes(productId);
-        return ResponseEntity.ok(attributes);
+    // API thêm chi tiết hóa đơn (POST)
+    @PostMapping("/{invoiceId}/details")
+    public ResponseEntity<?> addInvoiceDetail(
+            @PathVariable Long invoiceId,
+            @RequestBody AddToCartRequest request) {
+        try {
+            invoiceService.addInvoiceDetails(invoiceId, request.getProductDetailId(), request.getQuantity());
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("Thêm sản phẩm vào hóa đơn thất bại: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/{productId}/attributes")
+    public ResponseEntity<List<ProductAttributeResponse>> getProductAttributes(@PathVariable Long productId) {
+        List<ProductAttributeResponse> response = invoiceService.getProductAttributesByProductId(productId);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Tạo hóa đơn rỗng (bán tại quầy)
+     */
+    @PostMapping("/create-empty")
+    public ResponseEntity<InvoiceResponse> createEmptyInvoice(@RequestParam Long employeeId) {
+        InvoiceResponse response = invoiceService.createEmptyInvoice(employeeId);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Tìm hoặc tạo mới nhanh khách hàng theo số điện thoại
+     */
+    @GetMapping("/search-by-phone-prefix")
+    public ResponseEntity<List<CustomerResponse>> searchByPhonePrefix(@RequestParam String phone) {
+        List<CustomerResponse> list = invoiceService.findCustomersByPhonePrefix(phone);
+        return ResponseEntity.ok(list);
+    }
+
+    @PostMapping("/quick-create-customer")
+    public ResponseEntity<CustomerResponse> createQuickCustomer(
+            @RequestParam String phone,
+            @RequestParam(required = false) String name) {
+
+        CustomerResponse response = invoiceService.createQuickCustomer(phone, name);
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/{invoiceId}/assign-customer")
+    public ResponseEntity<?> assignCustomerToInvoice(
+            @PathVariable Long invoiceId,
+            @RequestBody AssignCustomerRequest request) {
+
+        try {
+            invoiceService.assignCustomer(invoiceId, request.getCustomerId());
+            return ResponseEntity.ok("Gán khách hàng thành công");
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Lỗi server khi gán khách hàng");
+        }
+    }
+
+    /**
+     * Tính tiền cần trả và tiền thừa
+     */
+    @GetMapping("/{invoiceId}/calculate-payment")
+    public ResponseEntity<?> calculatePayment(
+            @PathVariable Long invoiceId,
+            @RequestParam BigDecimal amountGiven) {
+        try {
+            PaymentSummary summary = invoiceService.calculatePayment(invoiceId, amountGiven);
+            return ResponseEntity.ok(summary);
+        } catch (RuntimeException e) {
+            // Kiểm tra nếu lỗi do tiền đưa không đủ
+            if ("Số tiền đưa không đủ".equals(e.getMessage())) {
+                return ResponseEntity
+                        .status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("error", e.getMessage()));
+            }
+            // Các lỗi khác trả 500
+            e.printStackTrace();
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Lỗi máy chủ, vui lòng thử lại"));
+        }
+    }
+
+    /**
+     * Thanh toán và hủy hóa đơn
+     */
+    @PostMapping("/{invoiceId}/cancel")
+    public ResponseEntity<String> cancelInvoice(@PathVariable Long invoiceId) {
+        try {
+            invoiceService.cancelInvoice(invoiceId);
+            return ResponseEntity.ok("Hủy hóa đơn thành công");
+        } catch (RuntimeException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi server");
+        }
+    }
+
+    @PostMapping("/{invoiceId}/checkout")
+    public ResponseEntity<?> checkoutInvoice(@PathVariable Long invoiceId) {
+        invoiceService.checkout(invoiceId);
+        return ResponseEntity.ok("Thanh toán thành công");
     }
 
 
-    // Thêm sản phẩm vào giỏ hàng (invoice)
-    @PostMapping("/invoices/{invoiceId}/cart")
-    public ResponseEntity<Void> addToCart(
-            @PathVariable @Positive Long invoiceId,
-            @RequestParam @Positive Long productDetailId,
-            @RequestParam @Positive Integer quantity) {
-        invoiceService.addToCart(invoiceId, productDetailId, quantity);
-        return ResponseEntity.ok().build();
+    /**
+     * Xóa giỏ hàng (hóa đơn) theo ID
+     */
+    @DeleteMapping("/{invoiceId}/clear-cart")
+    public ResponseEntity<?> clearCart(@PathVariable Long invoiceId) {
+        invoiceService.clearCart(invoiceId);
+        return ResponseEntity.ok("Giỏ hàng đã được xóa");
     }
 
-    // Xóa sản phẩm trong giỏ hàng theo invoiceDetailId
-    @DeleteMapping("/cart/{invoiceDetailId}")
-    public ResponseEntity<Void> removeCartItem(@PathVariable @Positive Long invoiceDetailId) {
-        invoiceService.removeCartItem(invoiceDetailId);
-        return ResponseEntity.noContent().build();
+    @DeleteMapping("/cart-item/{invoiceDetailId}")
+    public ResponseEntity<?> deleteCartItem(@PathVariable Long invoiceDetailId) {
+        invoiceService.deleteCartItemById(invoiceDetailId);
+        return ResponseEntity.ok("Đã xóa sản phẩm trong giỏ");
     }
 
-    // Thanh toán hóa đơn
-    @PostMapping("/invoices/{invoiceId}/checkout")
-    public ResponseEntity<Void> checkout(
-            @PathVariable @Positive Long invoiceId,
-            @RequestParam @Positive Long paymentMethodId) {
-        invoiceService.checkout(invoiceId, paymentMethodId);
-        return ResponseEntity.ok().build();
+    @PostMapping("/{invoiceId}/apply-voucher")
+    public ResponseEntity<?> applyVoucher(
+            @PathVariable Long invoiceId,
+            @RequestParam String voucherCode) {
+        try {
+            Invoice updatedInvoice = invoiceService.applyVoucherToInvoice(invoiceId, voucherCode);
+
+            if (updatedInvoice.getVoucher() == null) {
+                return ResponseEntity.badRequest().body("Không thể áp dụng voucher.");
+            }
+
+            VoucherResponse response = voucherMapper.toDto(updatedInvoice.getVoucher());
+            return ResponseEntity.ok(response);
+
+        } catch (RuntimeException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("Lỗi áp dụng voucher: " + ex.getMessage());
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Đã xảy ra lỗi hệ thống khi áp dụng voucher.");
+        }
     }
 
-    // Hủy hóa đơn
-    @PostMapping("/invoices/{invoiceId}/cancel")
-    public ResponseEntity<Void> cancelInvoice(@PathVariable @Positive Long invoiceId) {
-        invoiceService.cancelInvoice(invoiceId);
-        return ResponseEntity.ok().build();
-    }
 }
 

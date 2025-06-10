@@ -28,7 +28,7 @@ public interface ProductService {
     List<ProductDetailResponse> getProductDetailById(Long productId);
 
 
-    Page<ProductResponse> getAllProducts(Pageable pageable);
+    List<ProductResponse> getAllProducts();
 
     PaginationDTO<ProductSearchResponse> phanTrang(ProductSearchRequest request, Pageable pageable);
 

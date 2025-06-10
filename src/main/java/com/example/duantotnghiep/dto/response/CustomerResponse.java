@@ -1,13 +1,11 @@
 package com.example.duantotnghiep.dto.response;
 
-import com.example.duantotnghiep.model.Customer;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
 
@@ -15,14 +13,30 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @Getter
 @Setter
-public class InvoiceResponse {
+public class CustomerResponse {
     Long id;
-    BigDecimal totalAmount;
-    BigDecimal discountAmount;
-    BigDecimal finalAmount;
+    @Size(max = 50)
+    String customerCode;
+    @Size(max = 255)
+    String customerName;
+    @Size(max = 255)
+    String email;
     @Size(max = 250)
-    String description;
-    Integer orderType;
+    String passWord;
+    @Size(max = 50)
+    String phone;
+    Integer gender;
+    LocalDateTime dateOfBirth;
+    @Size(max = 100)
+    String country;
+    @Size(max = 100)
+    String province;
+    @Size(max = 100)
+    String district;
+    @Size(max = 100)
+    String ward;
+    @Size(max = 250)
+    String houseName;
     Integer status;
     LocalDateTime createdDate;
     LocalDateTime updatedDate;
@@ -30,15 +44,4 @@ public class InvoiceResponse {
     String createdBy;
     @Size(max = 50)
     String updatedBy;
-
-    private String customerName;
-
-    private String employeeName;
-
-    private String phone;
-
-    private String invoiceCode;
-
-    private Long customerId; // <-- Thêm dòng này
-
 }

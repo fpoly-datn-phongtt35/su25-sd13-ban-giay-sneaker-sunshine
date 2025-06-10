@@ -475,9 +475,9 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public Page<ProductResponse> getAllProducts(Pageable pageable) {
-        Page<Product> products = productRepository.findAllWithJPQL(pageable);
-        return products.map(productMapper::toResponse);
+    public List<ProductResponse> getAllProducts() {
+        List<Product> products = productRepository.findAllWithJPQL();
+        return products.stream().map(productMapper::toResponse).collect(Collectors.toList());
     }
 
     @Override

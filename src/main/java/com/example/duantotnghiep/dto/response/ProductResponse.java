@@ -21,11 +21,17 @@ public class ProductResponse {
     private String productCode;
     private String productName;
     private String materialName;
+    private String materialId;
     private String brandName;
+    private String brandId;
     private String styleName;
+    private String styleId;
     private String genderName;
+    private String genderId;
     private String soleName;
+    private String soleId;
     private String supplierName;
+    private String supplierId;
     private BigDecimal originPrice;
     private BigDecimal sellPrice;
     private Integer quantity;
@@ -46,6 +52,4 @@ public class ProductResponse {
     private List<ProductImageResponse> productImages;
     private List<CategoryResponse> categories;
 
-    public ProductResponse(Long id, @Size(max = 250) String productName, @NotNull BigDecimal sellPrice) {
-    }
 }

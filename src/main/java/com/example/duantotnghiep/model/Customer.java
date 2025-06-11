@@ -69,4 +69,8 @@ public class Customer {
     @Column(name = "updated_by", length = 50)
     private String updatedBy;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "default_address_id")
+    private AddressCustomer defaultAddress;
+
 }

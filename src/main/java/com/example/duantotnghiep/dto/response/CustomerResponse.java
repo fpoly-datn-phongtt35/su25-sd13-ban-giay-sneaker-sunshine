@@ -14,34 +14,26 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 public class CustomerResponse {
-    Long id;
-    @Size(max = 50)
-    String customerCode;
-    @Size(max = 255)
-    String customerName;
-    @Size(max = 255)
-    String email;
-    @Size(max = 250)
-    String passWord;
-    @Size(max = 50)
-    String phone;
-    Integer gender;
-    LocalDateTime dateOfBirth;
-    @Size(max = 100)
-    String country;
-    @Size(max = 100)
-    String province;
-    @Size(max = 100)
-    String district;
-    @Size(max = 100)
-    String ward;
-    @Size(max = 250)
-    String houseName;
-    Integer status;
-    LocalDateTime createdDate;
-    LocalDateTime updatedDate;
-    @Size(max = 50)
-    String createdBy;
-    @Size(max = 50)
-    String updatedBy;
+    private Long id;
+    private String customerCode;
+    private String customerName;
+    private String username;
+    private String password;
+    private String email;
+    private String phone;
+    private Integer gender;
+    private LocalDateTime dateOfBirth;
+    private String country;
+    private String provinceCode;
+    private String provinceName;
+    private String districtCode;
+    private String districtName;
+    private String wardCode;
+    private String wardName;
+    private String houseName;
+    private String createdBy;
+    private String updatedBy;
+    private Integer role;
+    private LocalDateTime createdDate;
+    private LocalDateTime updatedDate;
 }

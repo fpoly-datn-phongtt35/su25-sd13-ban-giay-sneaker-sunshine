@@ -10,6 +10,12 @@ import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
+import jakarta.persistence.Table;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.Nationalized;
 
@@ -19,6 +25,11 @@ import java.time.LocalDate;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
+
+import java.util.Date;
+
+@AllArgsConstructor
+@NoArgsConstructor
 @Getter
 @Setter
 @Entity
@@ -42,7 +53,7 @@ public class Employee {
 
     @NotNull
     @Column(name = "date_of_birth", nullable = false)
-    private LocalDate dateOfBirth;
+    private Date dateOfBirth;
 
     @NotNull
     @Column(name = "gender", nullable = false)
@@ -65,22 +76,41 @@ public class Employee {
 
     @NotNull
     @Column(name = "hire_date", nullable = false)
-    private LocalDate hireDate;
+    private Date hireDate;
 
-    @Size(max = 200)
-    @NotNull
+    @Size(max = 50)
     @Nationalized
-    @Column(name = "pass_word", nullable = false, length = 200)
-    private String passWord;
+    @Column(name = "country", length = 50)
+    private String country;
+
+    @Size(max = 100)
+    @Nationalized
+    @Column(name = "province", length = 100)
+    private String province;
+
+    @Size(max = 100)
+    @Nationalized
+    @Column(name = "district", length = 100)
+    private String district;
+
+    @Size(max = 100)
+    @Nationalized
+    @Column(name = "ward", length = 100)
+    private String ward;
+
+    @Size(max = 250)
+    @Nationalized
+    @Column(name = "house_name", length = 250)
+    private String houseName;
 
     @Column(name = "status")
     private Integer status;
 
     @Column(name = "created_date")
-    private LocalDate createdDate;
+    private Date createdDate;
 
     @Column(name = "updated_date")
-    private LocalDate updatedDate;
+    private Date updatedDate;
 
     @Size(max = 50)
     @Column(name = "created_by", length = 50)
@@ -89,14 +119,5 @@ public class Employee {
     @Size(max = 50)
     @Column(name = "updated_by", length = 50)
     private String updatedBy;
-
-    @OneToMany(mappedBy = "employee")
-    private Set<Invoice> invoices = new LinkedHashSet<>();
-
-    @OneToMany(mappedBy = "employee")
-    private Set<User> users = new LinkedHashSet<>();
-
-    @OneToMany(mappedBy = "employee")
-    private Set<Voucher> vouchers = new LinkedHashSet<>();
 
 }

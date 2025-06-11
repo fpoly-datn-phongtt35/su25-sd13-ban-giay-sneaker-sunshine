@@ -18,12 +18,13 @@ import lombok.Setter;
 import org.hibernate.annotations.Nationalized;
 
 import java.time.Instant;
+import java.util.Date;
 
+@AllArgsConstructor
+@NoArgsConstructor
 @Getter
 @Setter
 @Entity
-@AllArgsConstructor
-@NoArgsConstructor
 @Table(name = "users")
 public class User {
     @Id
@@ -44,7 +45,7 @@ public class User {
     private String password;
 
     @Column(name = "created_at")
-    private Instant createdAt;
+    private Date createdAt;
 
     @Size(max = 100)
     @Nationalized
@@ -52,7 +53,7 @@ public class User {
     private String createdBy;
 
     @Column(name = "updated_at")
-    private Instant updatedAt;
+    private Date updatedAt;
 
     @Size(max = 100)
     @Nationalized

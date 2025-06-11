@@ -31,4 +31,6 @@ public class WebConfig { // Bạn có thể đặt tên file là WebConfig hoặ
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
+
 }
+

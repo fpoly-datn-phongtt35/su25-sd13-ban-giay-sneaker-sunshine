@@ -199,7 +199,7 @@ public class CounterSalesController {
                 return ResponseEntity.badRequest().body("Không thể áp dụng voucher.");
             }
 
-            VoucherResponse response = voucherMapper.toVoucherResponse(updatedInvoice.getVoucher());
+            VoucherResponse response = voucherMapper.toDto(updatedInvoice.getVoucher());
             return ResponseEntity.ok(response);
 
         } catch (RuntimeException ex) {

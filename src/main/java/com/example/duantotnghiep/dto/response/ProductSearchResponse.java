@@ -37,4 +37,5 @@ public class ProductSearchResponse {
     private String createdBy;
     private String updatedBy;
     private List<String> categoryNames;
+    private List<ProductDetailResponse> productDetails;
 }

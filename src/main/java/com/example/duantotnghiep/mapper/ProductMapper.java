@@ -37,10 +37,14 @@ public interface ProductMapper {
     @Mapping(target = "styleName", source = "style.styleName")
     @Mapping(target = "genderName", source = "gender.genderName")
     @Mapping(target = "soleName", source = "sole.soleName")
-
+    @Mapping(target = "materialId", source = "material.id")
+    @Mapping(target = "brandId", source = "brand.id")
+    @Mapping(target = "styleId", source = "style.id")
+    @Mapping(target = "genderId", source = "gender.id")
+    @Mapping(target = "soleId", source = "sole.id")
     @Mapping(target = "supplierName", source = "supplier.supplierName")
+    @Mapping(target = "supplierId", source = "supplier.id")
     @Mapping(target = "categoryNames", source = "productCategories")
-
     ProductResponse toResponse(Product product);
 
     @Mapping(target = "material.id", source = "materialId")
@@ -48,14 +52,11 @@ public interface ProductMapper {
     @Mapping(target = "style.id", source = "styleId")
     @Mapping(target = "gender.id", source = "genderId")
     @Mapping(target = "sole.id", source = "soleId")
-
     @Mapping(target = "supplier.id", source = "supplierId")
-
     @Mapping(target = "productImages", ignore = true)
     @Mapping(target = "productCategories", ignore = true)
     @Mapping(target = "productDetails", ignore = true)
     Product toEntity(ProductRequest request);
-
 
     @Mapping(target = "materialName", source = "material.materialName")
     @Mapping(target = "brandName", source = "brand.brandName")
@@ -64,9 +65,8 @@ public interface ProductMapper {
     @Mapping(target = "soleName", source = "sole.soleName")
     @Mapping(target = "supplierName", source = "supplier.supplierName")
     @Mapping(target = "categoryNames", source = "productCategories")
+    @Mapping(target = "productDetails", source = "productDetails")
     ProductSearchResponse toResponseSearch(Product product);
-
-    List<ProductResponse> toResponseList(List<Product> products);
 
 
     @Mapping(target = "material", source = "materialId")

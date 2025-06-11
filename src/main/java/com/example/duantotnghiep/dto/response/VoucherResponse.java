@@ -17,30 +17,29 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 public class VoucherResponse {
-    Long id;
-    @NotNull
-    @Size(max = 150)
-    String voucherCode;
-    @Size(max = 250)
-    String voucherName;
-    BigDecimal discountPercentage;
-    @NotNull
-    Integer discountAmount;
-    @NotNull
-    BigDecimal minOrderValue;
-    BigDecimal maxDiscountValue;
-    @NotNull
-    LocalDateTime startDate;
-    @NotNull
-    LocalDateTime endDate;
-    Integer status;
-    @Size(max = 250)
-    String description;
-    LocalDateTime createdDate;
-    LocalDateTime updatedDate;
-    @Size(max = 50)
-    String createdBy;
-    @Size(max = 50)
-    String updatedBy;
-    Integer orderType;
+    private Long id;
+    private String voucherCode;
+    private String voucherName;
+    private BigDecimal discountPercentage;
+    private Integer discountAmount;
+    private BigDecimal minOrderValue;
+    private BigDecimal maxDiscountValue;
+    private LocalDateTime startDate;
+    private LocalDateTime endDate;
+    private Integer status;
+    private String description;
+    private LocalDateTime createdDate;
+    private LocalDateTime updatedDate;
+    private String createdBy;
+    private String updatedBy;
+    private Integer orderType;
+    private Integer voucherType;
+    private String customerName;
+    private String customerId;
+    private String employeeName;
+    private String employeeId;
+    private String productName;
+    private String productId;
+    private String categoryName;
+    private String categoryId;
 }

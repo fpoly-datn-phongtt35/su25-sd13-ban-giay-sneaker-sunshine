@@ -3,8 +3,10 @@ package com.example.duantotnghiep.service;
 import com.example.duantotnghiep.dto.request.ProductRequest;
 import com.example.duantotnghiep.dto.request.ProductSearchRequest;
 import com.example.duantotnghiep.dto.response.PaginationDTO;
+import com.example.duantotnghiep.dto.response.ProductDetailResponse;
 import com.example.duantotnghiep.dto.response.ProductResponse;
 import com.example.duantotnghiep.dto.response.ProductSearchResponse;
+import com.example.duantotnghiep.model.Product;
 import org.springframework.data.domain.Page;
 import com.example.duantotnghiep.dto.response.ProductResponse;
 import org.springframework.data.domain.Pageable;
@@ -23,11 +25,15 @@ public interface ProductService {
 
     ProductResponse getProductById(Long id);
 
-    Page<ProductResponse> getAllProducts(Pageable pageable);
+    List<ProductDetailResponse> getProductDetailById(Long productId);
+
+
+    List<ProductResponse> getAllProducts();
 
     PaginationDTO<ProductSearchResponse> phanTrang(ProductSearchRequest request, Pageable pageable);
 
     void exportProductToExcel(ProductSearchRequest dto, OutputStream outputStream) throws IOException;
-    List<ProductResponse> getAllProducts();
+    void exportProductToExcelByIds(List<Long> productIds, OutputStream outputStream) throws IOException;
 
+    PaginationDTO<ProductSearchResponse> getProductRemoved(ProductSearchRequest request, Pageable pageable);
 }

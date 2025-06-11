@@ -12,7 +12,9 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.Nationalized;
 
@@ -22,6 +24,8 @@ import java.time.LocalDateTime;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
+@AllArgsConstructor
+@NoArgsConstructor
 @Getter
 @Setter
 @Entity
@@ -51,18 +55,18 @@ public class Voucher {
     @Column(name = "voucher_name", length = 250)
     private String voucherName;
 
-    @Column(name = "discount_percentage", precision = 5, scale = 2)
+    @Column(name = "discount_percentage")
     private BigDecimal discountPercentage;
 
-    @NotNull
+
     @Column(name = "discount_amount", nullable = false)
     private Integer discountAmount;
 
     @NotNull
-    @Column(name = "min_order_value", nullable = false, precision = 18, scale = 2)
+    @Column(name = "min_order_value", nullable = false)
     private BigDecimal minOrderValue;
 
-    @Column(name = "max_discount_value", precision = 10, scale = 2)
+    @Column(name = "max_discount_value")
     private BigDecimal maxDiscountValue;
 
     @NotNull
@@ -98,8 +102,19 @@ public class Voucher {
     @Column(name = "order_type")
     private Integer orderType;
 
+    @Column(name = "voucher_type")
+    private Integer voucherType;
+
     @OneToMany(mappedBy = "voucher")
     private Set<Invoice> invoices = new LinkedHashSet<>();
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "product_id")
+    private Product product;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private Category category;
 
     @OneToMany(mappedBy = "voucher")
     private Set<com.example.duantotnghiep.model.VoucherHistory> voucherHistories = new LinkedHashSet<>();

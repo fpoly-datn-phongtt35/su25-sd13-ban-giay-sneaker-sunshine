@@ -1,18 +1,31 @@
 package com.example.duantotnghiep.service.impl;
 
+import com.example.duantotnghiep.dto.request.VoucherRequest;
+import com.example.duantotnghiep.dto.request.VoucherSearchRequest;
+import com.example.duantotnghiep.dto.response.PaginationDTO;
 import com.example.duantotnghiep.dto.response.VoucherResponse;
 import com.example.duantotnghiep.mapper.VoucherMapper;
 import com.example.duantotnghiep.model.Invoice;
 import com.example.duantotnghiep.model.Voucher;
+import com.example.duantotnghiep.repository.CategoryRepository;
+import com.example.duantotnghiep.repository.CustomerRepository;
+import com.example.duantotnghiep.repository.EmployeeRepository;
 import com.example.duantotnghiep.repository.InvoiceRepository;
+import com.example.duantotnghiep.repository.ProductRepository;
 import com.example.duantotnghiep.repository.VoucherHistoryRepository;
 import com.example.duantotnghiep.repository.VoucherRepository;
+import com.example.duantotnghiep.repository.VoucherSearchRepository;
 import com.example.duantotnghiep.service.VoucherService;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
+import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -23,35 +36,20 @@ public class VoucherServiceIpml implements VoucherService {
     private final VoucherHistoryRepository voucherHistoryRepository;
     private final VoucherMapper voucherMapper;
     private final InvoiceRepository invoiceRepository;
+    private final VoucherSearchRepository voucherSearchRepository;
+    private final ProductRepository productRepository;
+    private final CategoryRepository categoryRepository;
+    private final EmployeeRepository employeeRepository;
+    private final CustomerRepository customerRepository;
 
     public List<VoucherResponse> getValidVouchers() {
         LocalDateTime now = LocalDateTime.now();
         List<Voucher> vouchers = voucherRepository.findValidVouchers(now);
 
         return vouchers.stream()
-                .map(voucherMapper::toVoucherResponse)
+                .map(voucherMapper::toDto)
                 .collect(Collectors.toList());
     }
-
-//    public List<VoucherResponse> getVoucherResponsesByCustomerId(Long customerId) {
-//        LocalDateTime now = LocalDateTime.now();
-//        List<Voucher> vouchers = voucherRepository.findValidVouchersByCustomerId(now, customerId);
-//        return vouchers.stream()
-//                .map(voucherMapper::toVoucherResponse)
-//                .collect(Collectors.toList());
-//    }
-//
-//    public VoucherResponse getVoucherByInvoiceId(Long invoiceId) {
-//        Invoice invoice = invoiceRepository.findById(invoiceId)
-//                .orElseThrow(() -> new RuntimeException("Không tìm thấy hóa đơn với ID: " + invoiceId));
-//
-//        Voucher voucher = invoice.getVoucher();
-//        if (voucher == null) {
-//            throw new RuntimeException("Hóa đơn không có voucher nào.");
-//        }
-//
-//        return voucherMapper.toVoucherResponse(voucher);
-//    }
 
     public List<VoucherResponse> getVouchersByCustomerInInvoice(Long invoiceId) {
         Invoice invoice = invoiceRepository.findById(invoiceId)
@@ -82,9 +80,110 @@ public class VoucherServiceIpml implements VoucherService {
                 .collect(Collectors.toList());
 
         return availableVouchers.stream()
-                .map(voucherMapper::toVoucherResponse)
+                .map(voucherMapper::toDto)
                 .toList();
     }
 
+    @Override
+    public VoucherResponse themMoi(VoucherRequest voucherRequest) {
+
+        Voucher voucher = voucherMapper.toEntity(voucherRequest);
+
+        if (voucherRequest.getCustomerId() != null) {
+            voucher.setCustomer(customerRepository.findById(voucherRequest.getCustomerId())
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy khách hàng")));
+        }
+
+        if (voucherRequest.getEmployeeId() != null) {
+            voucher.setEmployee(employeeRepository.findById(voucherRequest.getEmployeeId())
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy nhân viên")));
+        }
+
+        if (voucherRequest.getProductId() != null) {
+            voucher.setProduct(productRepository.findById(voucherRequest.getProductId())
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm")));
+        }
+
+        if (voucherRequest.getCategoryId() != null) {
+            voucher.setCategory(categoryRepository.findById(voucherRequest.getCategoryId())
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy danh mục")));
+        }
+
+        voucher.setVoucherCode(generateVoucherCode());
+        voucher.setCreatedDate(LocalDateTime.now());
+        voucher.setCreatedBy("admin");
+        return voucherMapper.toDto(voucherRepository.save(voucher));
+    }
+
+    @Override
+    public VoucherResponse capNhat(Long id, VoucherRequest voucherRequest) {
+        Voucher voucher = voucherRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Voucher không tồn tại"));
+
+        voucherMapper.updateVoucherFromDto(voucherRequest,voucher);
+
+        if (voucherRequest.getCustomerId() != null) {
+            voucher.setCustomer(customerRepository.findById(voucherRequest.getCustomerId())
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy khách hàng")));
+        } else {
+            voucher.setCustomer(null);
+        }
+
+        if (voucherRequest.getEmployeeId() != null) {
+            voucher.setEmployee(employeeRepository.findById(voucherRequest.getEmployeeId())
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy nhân viên")));
+        } else {
+            voucher.setEmployee(null);
+        }
+
+        if (voucherRequest.getProductId() != null) {
+            voucher.setProduct(productRepository.findById(voucherRequest.getProductId())
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm")));
+        } else {
+            voucher.setProduct(null);
+        }
+
+        if (voucherRequest.getCategoryId() != null) {
+            voucher.setCategory(categoryRepository.findById(voucherRequest.getCategoryId())
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy danh mục")));
+        } else {
+            voucher.setCategory(null);
+        }
+
+        voucher.setUpdatedDate(LocalDateTime.now());
+        voucher.setUpdatedBy("admin");
+        return voucherMapper.toDto(voucherRepository.save(voucher));
+    }
+
+    @Override
+    public Optional<VoucherResponse> getOne(Long id) {
+        return voucherRepository.findById(id)
+                .map(voucherMapper::toDto);
+    }
+
+    @Override
+    public void deteleVoucherById(Long id) {
+        Optional<Voucher> optionalVoucher = voucherRepository.findById(id);
+        if (optionalVoucher.isPresent()) {
+            Voucher voucher = optionalVoucher.get();
+            voucher.setStatus(0); // Set status = 0 để đánh dấu là đã xóa
+            voucherRepository.save(voucher);
+        } else {
+            throw new EntityNotFoundException("Không tìm thấy voucher với ID: " + id);
+        }
+    }
+
+
+    @Override
+    public PaginationDTO<VoucherResponse> phanTrangHienThi(VoucherSearchRequest request, Pageable pageable) {
+        return voucherSearchRepository.searchVouchers(request,pageable);
+    }
+
+    private String generateVoucherCode() {
+        String prefix = "VOUCHER-";
+        String datePart = new SimpleDateFormat("yyyyMMdd").format(new Date());
+        String randomPart = String.format("%04d", (int) (Math.random() * 10000));
+        return prefix + datePart + "-" + randomPart;
+    }
 
 }

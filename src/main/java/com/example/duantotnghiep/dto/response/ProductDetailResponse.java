@@ -8,6 +8,7 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.util.Date;
+import java.util.List;
 
 @AllArgsConstructor
 @NoArgsConstructor
@@ -35,4 +36,5 @@ public class ProductDetailResponse {
 
     // Thêm trường này để dùng làm barcode
     private String barcode;
+
 }

@@ -2,29 +2,23 @@ package com.example.duantotnghiep.model;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.Nationalized;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
-import java.util.Date;
-
-@AllArgsConstructor
-@NoArgsConstructor
 @Getter
 @Setter
 @Entity
@@ -48,8 +42,7 @@ public class Employee {
 
     @NotNull
     @Column(name = "date_of_birth", nullable = false)
-    private Date dateOfBirth;
-
+    private LocalDate dateOfBirth;
 
     @NotNull
     @Column(name = "gender", nullable = false)
@@ -72,7 +65,7 @@ public class Employee {
 
     @NotNull
     @Column(name = "hire_date", nullable = false)
-    private Instant hireDate;
+    private LocalDate hireDate;
 
     @Size(max = 200)
     @NotNull
@@ -80,39 +73,14 @@ public class Employee {
     @Column(name = "pass_word", nullable = false, length = 200)
     private String passWord;
 
-    @Size(max = 50)
-    @Nationalized
-    @Column(name = "country", length = 50)
-    private String country;
-
-    @Size(max = 100)
-    @Nationalized
-    @Column(name = "province", length = 100)
-    private String province;
-
-    @Size(max = 100)
-    @Nationalized
-    @Column(name = "district", length = 100)
-    private String district;
-
-    @Size(max = 100)
-    @Nationalized
-    @Column(name = "ward", length = 100)
-    private String ward;
-
-    @Size(max = 250)
-    @Nationalized
-    @Column(name = "house_name", length = 250)
-    private String houseName;
-
     @Column(name = "status")
     private Integer status;
 
     @Column(name = "created_date")
-    private Instant createdDate;
+    private LocalDate createdDate;
 
     @Column(name = "updated_date")
-    private Instant updatedDate;
+    private LocalDate updatedDate;
 
     @Size(max = 50)
     @Column(name = "created_by", length = 50)
@@ -122,9 +90,13 @@ public class Employee {
     @Column(name = "updated_by", length = 50)
     private String updatedBy;
 
-    @NotNull
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "role_id", nullable = false)
-    private Role role;
+    @OneToMany(mappedBy = "employee")
+    private Set<Invoice> invoices = new LinkedHashSet<>();
+
+    @OneToMany(mappedBy = "employee")
+    private Set<User> users = new LinkedHashSet<>();
+
+    @OneToMany(mappedBy = "employee")
+    private Set<Voucher> vouchers = new LinkedHashSet<>();
 
 }

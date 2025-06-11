@@ -37,7 +37,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/counter-sales")
+@RequestMapping("/api/admin/counter-sales")
 @RequiredArgsConstructor
 @Validated
 public class CounterSalesController {

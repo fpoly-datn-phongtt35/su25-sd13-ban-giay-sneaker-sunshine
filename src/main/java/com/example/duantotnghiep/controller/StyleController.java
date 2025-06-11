@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/style")
+@RequestMapping("/api/admin/style")
 public class StyleController {
     @Autowired
     private StyleService styleService;

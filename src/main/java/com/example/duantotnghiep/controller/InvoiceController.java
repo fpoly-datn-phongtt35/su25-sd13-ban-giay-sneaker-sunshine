@@ -44,7 +44,7 @@ import java.util.List;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/invoices")
+@RequestMapping("/api/admin/invoices")
 @RequiredArgsConstructor
 public class InvoiceController {
 
@@ -119,17 +119,31 @@ public class InvoiceController {
         invoiceExportService.exportInvoice(response, invoice, details);
     }
 
+    @GetMapping("/export-excel")
+    public void exportInvoicesToExcel(
+            @RequestParam(value = "invoiceIds", required = false) List<Long> invoiceIds,
+            HttpServletResponse response) throws IOException {
 
-    @GetMapping("/export-all-excel")
-    public void exportAllInvoicesToExcel(HttpServletResponse response) throws IOException {
-        List<InvoiceDisplayResponse> allInvoices = invoiceService.getAllInvoicesWithDetails();
+        // Lấy danh sách hóa đơn theo ID hoặc tất cả nếu không truyền
+        List<InvoiceDisplayResponse> invoices = (invoiceIds != null && !invoiceIds.isEmpty())
+                ? invoiceService.getInvoicesWithDetailsByIds(invoiceIds)
+                : invoiceService.getAllInvoicesWithDetails();
 
+        // Nếu không có dữ liệu, trả lỗi 404
+        if (invoices == null || invoices.isEmpty()) {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND, "Không tìm thấy hóa đơn nào phù hợp");
+            return;
+        }
+
+        // Thiết lập header cho file Excel trả về
         response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-        response.setHeader("Content-Disposition", "attachment; filename=\"danh_sach_hoa_don.xlsx\"");
+        response.setHeader("Content-Disposition", "attachment; filename=\"hoa_don.xlsx\"");
 
-        ByteArrayInputStream excelStream = excelExportService.exportInvoicesToExcel(allInvoices);
-        IOUtils.copy(excelStream, response.getOutputStream());
-        response.flushBuffer();
+        // Ghi file Excel ra response output stream
+        try (ByteArrayInputStream excelStream = excelExportService.exportInvoicesToExcel(invoices)) {
+            IOUtils.copy(excelStream, response.getOutputStream());
+            response.flushBuffer();
+        }
     }
 
     @PostMapping("/qr-scan")

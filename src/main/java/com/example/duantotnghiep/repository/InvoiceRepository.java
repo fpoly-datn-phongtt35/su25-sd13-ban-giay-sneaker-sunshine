@@ -1,6 +1,7 @@
 package com.example.duantotnghiep.repository;
 
 import com.example.duantotnghiep.model.Invoice;
+import com.example.duantotnghiep.model.InvoiceDetail;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -41,5 +42,10 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
     boolean existsByCustomer_IdAndStatus(Long customerId, int status);
 
     Optional<Invoice> findById(Long id);
+
+    @Query("SELECT d FROM InvoiceDetail d WHERE d.invoice.id IN :ids")
+    List<InvoiceDetail> findByInvoiceIdIn(@Param("ids") List<Long> ids);
+
+
 
 }

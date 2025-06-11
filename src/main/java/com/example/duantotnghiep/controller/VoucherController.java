@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/vouchers")
+@RequestMapping("/api/admin/vouchers")
 public class VoucherController {
 
     private final VoucherService voucherService;

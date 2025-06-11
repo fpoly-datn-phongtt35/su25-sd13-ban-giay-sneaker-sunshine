@@ -1,6 +1,5 @@
 package com.example.duantotnghiep.dto.response;
 
-import com.example.duantotnghiep.model.Customer;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -8,7 +7,6 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.LocalDateTime;
 
 @AllArgsConstructor

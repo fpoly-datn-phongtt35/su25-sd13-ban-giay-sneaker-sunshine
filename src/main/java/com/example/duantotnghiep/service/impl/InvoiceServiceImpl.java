@@ -22,7 +22,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -101,11 +103,6 @@ public class InvoiceServiceImpl implements InvoiceService {
 
         long count = customerRepository.count() + 1;
         newCustomer.setCustomerCode(String.format("CUS%02d", count));
-
-        Role role = new Role();
-        role.setId(2L);
-        newCustomer.setRole(role);
-        newCustomer.setCountry("Việt Nam");
         newCustomer.setStatus(1);
         newCustomer.setCreatedDate(LocalDateTime.now());
         newCustomer.setCreatedBy(DEFAULT_USER);
@@ -531,6 +528,26 @@ public class InvoiceServiceImpl implements InvoiceService {
     @Override
     public Invoice findById(Long id) {
         return invoiceRepository.findById(id).orElse(null);
+    }
+
+    @Override
+    public List<InvoiceDisplayResponse> getInvoicesWithDetailsByIds(List<Long> ids) {
+        List<Invoice> invoices = invoiceRepository.findAllById(ids);
+
+        // Lấy toàn bộ chi tiết hóa đơn theo danh sách ID hóa đơn
+        List<InvoiceDetail> allDetails = invoiceDetailRepository.findByInvoiceIdIn(ids);
+
+        // Gộp các chi tiết theo invoiceId để ghép đúng hóa đơn
+        Map<Long, List<InvoiceDetail>> detailMap = allDetails.stream()
+                .collect(Collectors.groupingBy(detail -> detail.getInvoice().getId()));
+
+        // Map từng hóa đơn với danh sách chi tiết tương ứng
+        return invoices.stream()
+                .map(invoice -> {
+                    List<InvoiceDetail> details = detailMap.getOrDefault(invoice.getId(), new ArrayList<>());
+                    return invoiceMapper.toInvoiceDisplayResponse(invoice, details);
+                })
+                .collect(Collectors.toList());
     }
 
 }

@@ -130,12 +130,12 @@ const handleSubmit = () => {
     loading.value = true
     try {
       if (isEditing.value) {
-        await axios.put(`http://localhost:8080/api/style/${form.value.id}`, null, {
+        await axios.put(`http://localhost:8080/api/admin/style/${form.value.id}`, null, {
           params: { name: form.value.styleName }
         })
         ElMessage.success('Cập nhật thành công')
       } else {
-        await axios.post('http://localhost:8080/api/style', null, {
+        await axios.post('http://localhost:8080/api/admin/style', null, {
           params: { name: form.value.styleName }
         })
         ElMessage.success('Thêm mới thành công')
@@ -160,7 +160,7 @@ const deleteStyle = async (id) => {
     await ElMessageBox.confirm('Bạn có chắc muốn xóa kiểu dáng này?', 'Xác nhận', {
       type: 'warning'
     })
-    await axios.delete(`http://localhost:8080/api/style/${id}`)
+    await axios.delete(`http://localhost:8080/api/admin/style/${id}`)
     ElMessage.success('Xóa thành công')
     await fetchStyles()
   } catch (err) {

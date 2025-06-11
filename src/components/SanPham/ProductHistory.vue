@@ -2,6 +2,8 @@
   <div class="container mt-4">
     <h2 class="mb-3">Danh sách sản phẩm đã xóa</h2>
 
+    <button class="btn btn-outline-secondary mb-3" @click="goBack">← Quay lại</button>
+
     <table class="table table-striped">
       <thead class="table-dark">
         <tr>
@@ -56,11 +58,17 @@
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
 
 const products = ref([])
 const page = ref(0)
-const size = 8
+const size = ref(8)
 const totalPages = ref(0)
+const goBack = () => {
+  router.push('/product')
+}
 
 const fetchData = async () => {
   try {
@@ -74,6 +82,8 @@ const fetchData = async () => {
         'Content-Type': 'application/json'
       }
     })
+
+    console.log(res.data.data);
 
     products.value = response.data.data
     totalPages.value = response.data.totalPages

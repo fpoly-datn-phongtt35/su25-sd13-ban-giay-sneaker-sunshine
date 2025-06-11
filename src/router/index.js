@@ -1,4 +1,6 @@
-import { createRouter, createWebHistory } from 'vue-router'
+
+
+import { createRouter, createWebHistory } from "vue-router";
 
 import MaterialList from '@/components/ChatLieu/MaterialList.vue'
 import StyleList from '@/components/CoGiay/StyleList.vue'
@@ -20,6 +22,11 @@ import ProductList from '@/components/SanPham/ProductList.vue'
 import UpdateProduct from '@/components/SanPham/UpdateProduct.vue'
 import BrandList from '@/components/ThuongHieu/BrandList.vue'
 import Dashboard from '@/layout/Dashboard.vue'
+import AddVoucher from "@/components/MaGiamGia/AddVoucher.vue";
+import UpdateVoucher from "@/components/MaGiamGia/UpdateVoucher.vue";
+import EmployeeList from "@/components/NhanVien/EmployeeList.vue";
+import AddEmployee from "@/components/NhanVien/AddEmployee.vue";
+import UpdateEmployee from "@/components/NhanVien/UpdateEmployee.vue";
 
 const routes = [
   {
@@ -49,11 +56,17 @@ const routes = [
       // { path: "employee/update/:id", name: "UpdateEmployee", component: UpdateEmployee },
       // { path: "employee/detail/:id", name: "DetailEmployee", component: DetailEmployee },
 
-      { path: 'product', name: 'ProductList', component: ProductList },
-      { path: 'product/add', name: 'AddProduct', component: AddProduct },
-      { path: 'product/update/:id', name: 'UpdateProduct', component: UpdateProduct },
-      { path: 'product/detail/:id', name: 'DetailProduct', component: DetailProduct },
-      { path: 'product/history', name: 'ProductHistory', component: ProductHistory },
+
+      
+      { path: "voucher", name: "VoucherList", component: VoucherList },
+      { path: "voucher/add", name: "AddVoucher", component: AddVoucher },
+      { path: "voucher/update/:id", name: "UpdateVoucher", component: UpdateVoucher },
+
+      { path: "product", name: "ProductList", component: ProductList },
+      { path: "product/add", name: "AddProduct", component: AddProduct },
+      { path: "product/update/:id", name: "UpdateProduct", component: UpdateProduct },
+      { path: "product/detail/:id", name: "DetailProduct", component: DetailProduct },
+      { path: "product/history", name: "ProductHistory", component: ProductHistory },
 
       // Những route này có dấu / ở đầu vì không thuộc route con Dashboard (tách riêng)
       { path: '/sales-counter/list', name: 'CounterSales', component: CounterSales },
@@ -78,6 +91,10 @@ const routes = [
 
       { path: 'voucher', name: 'Voucher', component: VoucherList },
       // { path: "customer", name: "Customer", component: CustomerList },
+
+      { path: "employee", name: "Employee", component: EmployeeList },
+      { path: "employee/add", name: "AddEmployee", component: AddEmployee },
+      { path: "employee/update/:id", name: "UpdateEmployee", component: UpdateEmployee },
     ],
   },
 ]
@@ -103,3 +120,4 @@ router.beforeEach((to, from, next) => {
 })
 
 export default router
+

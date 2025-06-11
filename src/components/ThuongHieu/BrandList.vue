@@ -130,12 +130,12 @@ const handleSubmit = () => {
     loading.value = true
     try {
       if (isEditing.value) {
-        await axios.put(`http://localhost:8080/api/brand/${form.value.id}`, null, {
+        await axios.put(`http://localhost:8080/api/admin/brand/${form.value.id}`, null, {
           params: { name: form.value.brandName }
         })
         ElMessage.success('Cập nhật thành công')
       } else {
-        await axios.post('http://localhost:8080/api/brand', null, {
+        await axios.post('http://localhost:8080/api/admin/brand', null, {
           params: { name: form.value.brandName }
         })
         ElMessage.success('Thêm mới thành công')
@@ -160,7 +160,7 @@ const deleteBrand = async (id) => {
     await ElMessageBox.confirm('Bạn có chắc muốn xóa thương hiệu này?', 'Xác nhận', {
       type: 'warning'
     })
-    await axios.delete(`http://localhost:8080/api/brand/${id}`)
+    await axios.delete(`http://localhost:8080/api/admin/brand/${id}`)
     ElMessage.success('Xóa thành công')
     await fetchBrands()
   } catch (err) {

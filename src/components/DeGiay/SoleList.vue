@@ -93,7 +93,7 @@ const handleSubmit = async () => {
   try {
     if (isEditing.value) {
       // Trường hợp cập nhật, không cần confirm
-      await axios.put(`http://localhost:8080/api/sole/${form.value.id}`, null, {
+      await axios.put(`http://localhost:8080/api/admin/sole/${form.value.id}`, null, {
         params: { name: form.value.name },
       })
       ElMessage.success('Cập nhật thành công')
@@ -107,7 +107,7 @@ const handleSubmit = async () => {
         type: 'info',
       })
         .then(async () => {
-          await axios.post('http://localhost:8080/api/sole', null, {
+          await axios.post('http://localhost:8080/api/admin/sole', null, {
             params: { name: form.value.name },
           })
           ElMessage.success('Thêm mới thành công')
@@ -142,7 +142,7 @@ const confirmDelete = (id) => {
     type: 'warning',
   })
     .then(async () => {
-      await axios.delete(`http://localhost:8080/api/sole/${id}`)
+      await axios.delete(`http://localhost:8080/api/admin/sole/${id}`)
       ElMessage.success('Đã xóa thành công')
       await fetchSoles()
     })

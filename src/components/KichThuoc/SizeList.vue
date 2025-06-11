@@ -92,7 +92,7 @@ const handleSubmit = async () => {
 
   try {
     if (isEditing.value) {
-      await axios.put(`http://localhost:8080/api/size/${form.value.id}`, null, {
+      await axios.put(`http://localhost:8080/api/admin/size/${form.value.id}`, null, {
         params: { name: form.value.name },
       })
       ElMessage.success('Cập nhật thành công')
@@ -105,7 +105,7 @@ const handleSubmit = async () => {
         type: 'info',
       })
         .then(async () => {
-          await axios.post('http://localhost:8080/api/size', null, {
+          await axios.post('http://localhost:8080/api/admin/size', null, {
             params: { name: form.value.name },
           })
           ElMessage.success('Thêm mới thành công')
@@ -139,7 +139,7 @@ const confirmDelete = (id) => {
     type: 'warning',
   })
     .then(async () => {
-      await axios.delete(`http://localhost:8080/api/size/${id}`)
+      await axios.delete(`http://localhost:8080/api/admin/size/${id}`)
       ElMessage.success('Đã xóa thành công')
       await fetchSizes()
     })

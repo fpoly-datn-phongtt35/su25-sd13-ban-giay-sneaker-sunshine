@@ -1,21 +1,18 @@
-package com.example.duantotnghiep.dto.response;
+package com.example.duantotnghiep.dto.request;
 
-import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.Date;
 
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
 @Setter
-public class CustomerResponse {
-    private Long id;
-    private String customerCode;
+public class CustomerRequest {
     private String customerName;
     private String username;
     private String password;
@@ -34,6 +31,5 @@ public class CustomerResponse {
     private String createdBy;
     private String updatedBy;
     private Integer role;
-    private LocalDateTime createdDate;
-    private LocalDateTime updatedDate;
+
 }

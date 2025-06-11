@@ -1,39 +1,38 @@
 package com.example.duantotnghiep.dto.response;
 
-import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.Instant;
-import java.time.LocalDateTime;
+import java.math.BigDecimal;
+import java.util.Date;
 
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
 @Setter
-public class CustomerResponse {
+public class EmployeeResponse {
     private Long id;
-    private String customerCode;
-    private String customerName;
+    private String employeeCode;
+
+    private String employeeName;
     private String username;
     private String password;
     private String email;
     private String phone;
     private Integer gender;
-    private LocalDateTime dateOfBirth;
+    private Date dateOfBirth;
+    private Date hireDate;
+    private BigDecimal salary;
     private String country;
-    private String provinceCode;
-    private String provinceName;
-    private String districtCode;
-    private String districtName;
-    private String wardCode;
-    private String wardName;
+    private String province;
+    private String district;
+    private String ward;
     private String houseName;
     private String createdBy;
+    private Date createdDate;
     private String updatedBy;
+    private Date updatedDate;
     private Integer role;
-    private LocalDateTime createdDate;
-    private LocalDateTime updatedDate;
 }

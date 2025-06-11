@@ -102,10 +102,6 @@ public class InvoiceServiceImpl implements InvoiceService {
         long count = customerRepository.count() + 1;
         newCustomer.setCustomerCode(String.format("CUS%02d", count));
 
-        Role role = new Role();
-        role.setId(2L);
-        newCustomer.setRole(role);
-        newCustomer.setCountry("Việt Nam");
         newCustomer.setStatus(1);
         newCustomer.setCreatedDate(LocalDateTime.now());
         newCustomer.setCreatedBy(DEFAULT_USER);

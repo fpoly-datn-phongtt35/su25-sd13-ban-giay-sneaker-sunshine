@@ -7,9 +7,14 @@ import SoleList from "@/components/DeGiay/SoleList.vue";
 import TrangChu from "@/components/Home/TrangChu.vue";
 import InvoiceList from "@/components/invoice/InvoiceList.vue";
 import SizeList from "@/components/KichThuoc/SizeList.vue";
+import AddVoucher from "@/components/MaGiamGia/AddVoucher.vue";
+import UpdateVoucher from "@/components/MaGiamGia/UpdateVoucher.vue";
 import VoucherList from "@/components/MaGiamGia/VoucherList.vue";
 import ColorList from "@/components/MauSac/ColorList.vue";
 import SupplierList from "@/components/NhaCungCap/SupplierList.vue";
+import AddEmployee from "@/components/NhanVien/AddEmployee.vue";
+import EmployeeList from "@/components/NhanVien/EmployeeList.vue";
+import UpdateEmployee from "@/components/NhanVien/UpdateEmployee.vue";
 import AddProduct from "@/components/SanPham/AddProduct.vue";
 import DetailProduct from "@/components/SanPham/DetailProduct.vue";
 import ProductHistory from "@/components/SanPham/ProductHistory.vue";
@@ -49,6 +54,11 @@ const routes = [
       // { path: "employee/update/:id", name: "UpdateEmployee", component: UpdateEmployee },
       // { path: "employee/detail/:id", name: "DetailEmployee", component: DetailEmployee },
 
+      
+      { path: "voucher", name: "VoucherList", component: VoucherList },
+      { path: "voucher/add", name: "AddVoucher", component: AddVoucher },
+      { path: "voucher/update/:id", name: "UpdateVoucher", component: UpdateVoucher },
+
       { path: "product", name: "ProductList", component: ProductList },
       { path: "product/add", name: "AddProduct", component: AddProduct },
       { path: "product/update/:id", name: "UpdateProduct", component: UpdateProduct },
@@ -77,6 +87,10 @@ const routes = [
 
       { path: "voucher", name: "Voucher", component: VoucherList },
       // { path: "customer", name: "Customer", component: CustomerList },
+
+      { path: "employee", name: "Employee", component: EmployeeList },
+      { path: "employee/add", name: "AddEmployee", component: AddEmployee },
+      { path: "employee/update/:id", name: "UpdateEmployee", component: UpdateEmployee },
     ],
   },
 ];
@@ -85,19 +99,5 @@ const router = createRouter({
   history: createWebHistory(),
   routes,
 });
-
-// router.beforeEach((to, from, next) => {
-//   const token = localStorage.getItem("jwtToken");
-
-//   if (to.path === "/login" && token) {
-//     next("/home"); // Không cho phép quay lại trang login
-//   } else if (to.meta.requiresAuth && !token) {
-//     next("/login");
-//   } else {
-//     next();
-//   }
-// });
-
-
 
 export default router;

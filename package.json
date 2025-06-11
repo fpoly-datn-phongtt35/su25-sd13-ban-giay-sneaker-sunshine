@@ -11,6 +11,7 @@
     "format": "prettier --write src/"
   },
   "dependencies": {
+    "@element-plus/icons-vue": "^2.3.1",
     "@fortawesome/fontawesome-free": "^6.7.2",
     "axios": "^1.7.9",
     "bootstrap": "^5.3.3",

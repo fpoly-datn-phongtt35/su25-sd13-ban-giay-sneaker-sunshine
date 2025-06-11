@@ -101,7 +101,7 @@ const rules = {
 
 const fetchBrands = async () => {
   try {
-    const res = await axios.get('http://localhost:8080/api/brand/hien-thi')
+    const res = await axios.get('http://localhost:8080/api/admin/brand/hien-thi')
     brands.value = res.data
   } catch (err) {
     ElMessage.error('Không thể tải danh sách thương hiệu')

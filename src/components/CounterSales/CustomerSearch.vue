@@ -1,91 +1,116 @@
 <template>
   <div>
-    <h4>Tìm kiếm khách hàng</h4>
-    <div class="input-group">
-      <input 
-        v-model="searchPhone" 
-        class="form-control" 
-        placeholder="Nhập số điện thoại..." 
-        @input="onInputChange"
-      />
-      <button @click="searchCustomers" class="btn btn-primary">Tìm kiếm</button>
-    </div>
-
-    <!-- Danh sách khách hàng tìm được -->
-    <div v-if="customers.length" class="mt-3">
-      <div
-        v-for="cus in customers"
-        :key="cus.id"
-        class="border p-2 rounded bg-light mb-2"
-        style="cursor: pointer;"
-        @click="handleSelectCustomer(cus)"
-      >
-        <p><strong>Tên:</strong> {{ cus.customerName }}</p>
-        <p><strong>SĐT:</strong> {{ cus.phone }}</p>
-      </div>
-    </div>
-
-    <!-- Nếu không tìm thấy -->
-    <div v-else-if="searched" class="mt-2 text-danger">
-      Không tìm thấy khách hàng nào.
-    </div>
+    <h4 class="mb-3">Tìm kiếm khách hàng</h4>
+    <el-autocomplete
+      v-model="searchPhone"
+      :fetch-suggestions="searchCustomers"
+      placeholder="Nhập SĐT khách hàng để tìm..."
+      :trigger-on-focus="false"
+      @select="handleSelectCustomer"
+      class="w-100"
+      size="large"
+      clearable
+    >
+      <template #prefix>
+        <el-icon><Search /></el-icon>
+      </template>
+      <template #default="{ item }">
+        <div>
+          <div class="fw-bold">{{ item.customerName || 'Khách lẻ' }}</div>
+          <span class="text-muted small">{{ item.phone }}</span>
+        </div>
+      </template>
+      <template #empty>
+         <div class="p-3 text-muted">Không tìm thấy khách hàng nào.</div>
+      </template>
+    </el-autocomplete>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import axios from 'axios'
-import { useToast } from 'vue-toastification'
+import { ref, defineEmits } from 'vue';
+// KHÔNG import axios trực tiếp ở đây nữa
 
-const toast = useToast()
-const searchPhone = ref('')
-const customers = ref([])
-const searched = ref(false)
+// THAY ĐỔI: Import instance apiClient đã được cấu hình sẵn
+// Hãy đảm bảo đường dẫn này chính xác với cấu trúc project của bạn
+import apiClient from '../../utils/axiosInstance.js';
 
-// Tạo emit để gửi sự kiện lên cha
-const emit = defineEmits(['select-customer'])
+import { ElMessage, ElAutocomplete, ElIcon } from 'element-plus';
+import { Search } from '@element-plus/icons-vue';
 
-const searchCustomers = async () => {
-  const trimmed = searchPhone.value.trim()
-  searched.value = false
-  customers.value = []
+// --- State ---
+const searchPhone = ref('');
 
-  if (!trimmed) {
-    toast.warning('Vui lòng nhập số điện thoại.')
-    return
-  }
+// --- Emits ---
+const emit = defineEmits(['select-customer']);
 
-  if (trimmed.length < 6) {
-    toast.warning('Vui lòng nhập ít nhất 6 chữ số để tìm kiếm.')
-    return
+/**
+ * Debounce function to delay execution.
+ * @param {Function} func - The function to debounce.
+ * @param {number} delay - The delay in milliseconds.
+ * @returns {Function} - The debounced function.
+ */
+const debounce = (func, delay) => {
+  let timeout;
+  return (...args) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(this, args), delay);
+  };
+};
+
+/**
+ * Fetches customer suggestions from the API based on the query string.
+ * This is used by the el-autocomplete component.
+ * @param {string} queryString - The phone number prefix to search for.
+ * @param {Function} cb - The callback function to return the suggestions.
+ */
+const searchCustomers = debounce(async (queryString, cb) => {
+  if (!queryString || queryString.trim().length < 4) {
+    cb([]); // Return empty if query is too short
+    return;
   }
 
   try {
-    const response = await axios.get(`http://localhost:8080/api/counter-sales/search-by-phone-prefix?phone=${trimmed}`)
-    customers.value = response.data || []
-    searched.value = true
+    // THAY ĐỔI: Sử dụng apiClient và rút gọn URL
+    const response = await apiClient.get(`/admin/counter-sales/search-by-phone-prefix?phone=${queryString.trim()}`);
+    cb(response.data || []); // Pass the results to the autocomplete callback
   } catch (error) {
-    customers.value = []
-    searched.value = true
-    toast.error('Không thể lấy dữ liệu khách hàng.')
+    console.error("Error fetching customers:", error);
+    ElMessage.error('Không thể tải danh sách khách hàng.');
+    cb([]); // Return empty on error
   }
-}
+}, 300); // 300ms delay
 
-
-// Hàm gọi khi click chọn khách hàng
-const handleSelectCustomer = (cus) => {
-  toast.success(`Đã chọn khách hàng: ${cus.customerName} - ${cus.phone}`)
-  emit('select-customer', cus)
-
-  // Ẩn danh sách sau khi chọn
-  customers.value = []
-  searched.value = false
-}
-
-const onInputChange = () => {
-  if (!searchPhone.value.trim()) {
-    customers.value = []
-    searched.value = false
+/**
+ * Handles the selection of a customer from the autocomplete list.
+ * @param {object} customer - The selected customer object.
+ */
+const handleSelectCustomer = (customer) => {
+  if (customer) {
+    ElMessage.success(`Đã chọn khách hàng: ${customer.customerName || customer.phone}`);
+    emit('select-customer', customer);
+    searchPhone.value = ''; // Clear input after selection
   }
-}
+};
 </script>
+
+<style scoped>
+.w-100 {
+  width: 100%;
+}
+.mb-3 {
+  margin-bottom: 1rem;
+}
+.p-3 {
+    padding: 1rem;
+}
+.fw-bold {
+    font-weight: 600;
+}
+.text-muted {
+    color: var(--el-text-color-secondary);
+}
+.small {
+    font-size: 0.875em;
+}
+</style>

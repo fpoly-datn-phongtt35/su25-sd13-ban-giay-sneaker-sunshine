@@ -101,7 +101,7 @@ const rules = {
 
 const fetchColors = async () => {
   try {
-    const res = await axios.get('http://localhost:8080/api/color/hien-thi')
+    const res = await axios.get('http://localhost:8080/api/admin/color/hien-thi')
     colors.value = res.data
   } catch (err) {
     ElMessage.error('Không thể tải danh sách màu')

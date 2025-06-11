@@ -77,7 +77,7 @@ const formatDateTime = (dateStr) => {
 
 const fetchSoles = async () => {
   try {
-    const response = await axios.get('http://localhost:8080/api/sole/hien-thi')
+    const response = await axios.get('http://localhost:8080/api/admin/sole/hien-thi')
     soles.value = response.data
   } catch (error) {
     ElMessage.error('Lỗi khi tải dữ liệu')

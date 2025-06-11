@@ -101,7 +101,7 @@ const rules = {
 
 const fetchStyles = async () => {
   try {
-    const res = await axios.get('http://localhost:8080/api/style/hien-thi')
+    const res = await axios.get('http://localhost:8080/api/admin/style/hien-thi')
     styles.value = res.data
   } catch (err) {
     ElMessage.error('Không thể tải danh sách kiểu dáng')

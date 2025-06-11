@@ -190,7 +190,7 @@
         <RouterLink
           class="nav-link py-3"
           :class="{ active: selected === 'customers' }"
-          to="/customer"
+          to="/"
           @click="selectMenu('customers')"
         >
           <i class="bi bi-person-fill me-2"></i> Quản lý khách hàng
@@ -202,7 +202,7 @@
         <RouterLink
           class="nav-link py-3"
           :class="{ active: selected === 'invoices' }"
-          to="/invoice"
+          to="/invoices"
           @click="selectMenu('invoices')"
         >
           <i class="bi bi-file-earmark me-2"></i> Quản lý hóa đơn
@@ -213,7 +213,7 @@
       <li class="nav-item">
         <div
           class="nav-link py-3 d-flex justify-content-between align-items-center"
-          @click="toggleCollapse('statistics')"
+          @click="toggleCollapse('')"
         >
           <span><i class="bi bi-graph-up me-2"></i> Thống kê</span>
           <i class="bi" :class="isStatisticsOpen ? 'bi-chevron-up' : 'bi-chevron-down'"></i>
@@ -222,9 +222,9 @@
           <li class="nav-item">
             <RouterLink
               class="nav-link py-2"
-              :class="{ active: selected === 'statistics-counter' }"
-              to="/statistics/counter"
-              @click="selectMenu('statistics-counter')"
+              :class="{ active: selected === '' }"
+              to=""
+              @click="selectMenu('')"
             >
               <i class="bi bi-bar-chart me-2"></i> Tại quầy
             </RouterLink>
@@ -232,9 +232,9 @@
           <li class="nav-item">
             <RouterLink
               class="nav-link py-2"
-              :class="{ active: selected === 'statistics-online' }"
-              to="/statistics/online"
-              @click="selectMenu('statistics-online')"
+              :class="{ active: selected === '' }"
+              to=""
+              @click="selectMenu('')"
             >
               <i class="bi bi-bar-chart-line me-2"></i> Online
             </RouterLink>

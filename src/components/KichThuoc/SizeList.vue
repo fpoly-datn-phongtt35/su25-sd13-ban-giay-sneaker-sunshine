@@ -77,7 +77,7 @@ const formatDateTime = (dateStr) => {
 
 const fetchSizes = async () => {
   try {
-    const response = await axios.get('http://localhost:8080/api/size/hien-thi')
+    const response = await axios.get('http://localhost:8080/api/admin/size/hien-thi')
     sizes.value = response.data
   } catch (error) {
     ElMessage.error('Lỗi khi tải dữ liệu kích thước')

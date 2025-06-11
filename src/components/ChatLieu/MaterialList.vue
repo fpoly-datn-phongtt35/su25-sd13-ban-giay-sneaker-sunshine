@@ -77,7 +77,7 @@ const formatDateTime = (dateStr) => {
 
 const fetchMaterials = async () => {
   try {
-    const response = await axios.get('http://localhost:8080/api/material/hien-thi')
+    const response = await axios.get('http://localhost:8080/api/admin/material/hien-thi')
     materials.value = response.data
   } catch (error) {
     ElMessage.error('Lỗi khi tải danh sách vật liệu')
@@ -92,7 +92,7 @@ const handleSubmit = async () => {
 
   try {
     if (isEditing.value) {
-      await axios.put(`http://localhost:8080/api/material/${form.value.id}`, null, {
+      await axios.put(`http://localhost:8080/api/admin/material/${form.value.id}`, null, {
         params: { name: form.value.name },
       })
       ElMessage.success('Cập nhật thành công')
@@ -105,7 +105,7 @@ const handleSubmit = async () => {
         type: 'info',
       })
         .then(async () => {
-          await axios.post('http://localhost:8080/api/material', null, {
+          await axios.post('http://localhost:8080/api/admin/material', null, {
             params: { name: form.value.name },
           })
           ElMessage.success('Thêm mới thành công')
@@ -139,7 +139,7 @@ const confirmDelete = (id) => {
     type: 'warning',
   })
     .then(async () => {
-      await axios.delete(`http://localhost:8080/api/material/${id}`)
+      await axios.delete(`http://localhost:8080/api/admin/material/${id}`)
       ElMessage.success('Xóa thành công')
       await fetchMaterials()
     })

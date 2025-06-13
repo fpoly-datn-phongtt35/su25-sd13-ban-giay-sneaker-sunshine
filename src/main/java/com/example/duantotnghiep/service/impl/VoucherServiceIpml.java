@@ -6,11 +6,15 @@ import com.example.duantotnghiep.dto.response.PaginationDTO;
 import com.example.duantotnghiep.dto.response.VoucherResponse;
 import com.example.duantotnghiep.mapper.VoucherMapper;
 import com.example.duantotnghiep.model.Invoice;
+import com.example.duantotnghiep.model.InvoiceDetail;
+import com.example.duantotnghiep.model.Product;
+import com.example.duantotnghiep.model.ProductCategory;
 import com.example.duantotnghiep.model.Voucher;
 import com.example.duantotnghiep.repository.CategoryRepository;
 import com.example.duantotnghiep.repository.CustomerRepository;
 import com.example.duantotnghiep.repository.EmployeeRepository;
 import com.example.duantotnghiep.repository.InvoiceRepository;
+import com.example.duantotnghiep.repository.ProductCategoryRepository;
 import com.example.duantotnghiep.repository.ProductRepository;
 import com.example.duantotnghiep.repository.VoucherHistoryRepository;
 import com.example.duantotnghiep.repository.VoucherRepository;
@@ -23,7 +27,9 @@ import org.springframework.stereotype.Service;
 
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -41,6 +47,8 @@ public class VoucherServiceIpml implements VoucherService {
     private final CategoryRepository categoryRepository;
     private final EmployeeRepository employeeRepository;
     private final CustomerRepository customerRepository;
+    private final ProductCategoryRepository productCategoryRepository;
+
 
     public List<VoucherResponse> getValidVouchers() {
         LocalDateTime now = LocalDateTime.now();
@@ -62,19 +70,37 @@ public class VoucherServiceIpml implements VoucherService {
         Long customerId = invoice.getCustomer().getId();
         LocalDateTime now = LocalDateTime.now();
 
-        // Lấy danh sách voucher hợp lệ theo logic hiện có
-        List<Voucher> vouchers = voucherRepository.findValidVouchersForCustomer(now, customerId);
+        // Tập hợp các productId và categoryId
+        Set<String> productIds = new HashSet<>();
+        Set<String> categoryIds = new HashSet<>();
 
-        if (vouchers.isEmpty()) {
-            throw new RuntimeException("Không tìm thấy voucher hợp lệ cho khách hàng có ID: " + customerId);
+        for (InvoiceDetail detail : invoice.getInvoiceDetails()) {
+            Product product = detail.getProductDetail().getProduct();
+            if (product != null) {
+                productIds.add(String.valueOf(product.getId()));
+
+                // Lấy danh sách category từ bảng product_category
+                List<ProductCategory> productCategories = productCategoryRepository.findByProduct(product);
+                for (ProductCategory pc : productCategories) {
+                    if (pc.getCategory() != null) {
+                        categoryIds.add(String.valueOf(pc.getCategory().getId()));
+                    }
+                }
+            }
         }
 
-        // Lấy voucherId đã dùng của khách hàng
-        Set<Long> usedVoucherIds = voucherHistoryRepository.findByCustomerId(customerId).stream()
+        // Truy vấn voucher phù hợp với customerId, productIds và categoryIds
+        List<Voucher> vouchers = voucherRepository.findValidVouchers(
+                now, customerId, productIds, categoryIds
+        );
+
+        // Bỏ voucher đã dùng
+        Set<Long> usedVoucherIds = voucherHistoryRepository
+                .findByCustomerIdAndStatus(customerId, 1)
+                .stream()
                 .map(vh -> vh.getVoucher().getId())
                 .collect(Collectors.toSet());
 
-        // Lọc voucher để loại bỏ voucher đã dùng
         List<Voucher> availableVouchers = vouchers.stream()
                 .filter(v -> !usedVoucherIds.contains(v.getId()))
                 .collect(Collectors.toList());
@@ -83,6 +109,7 @@ public class VoucherServiceIpml implements VoucherService {
                 .map(voucherMapper::toDto)
                 .toList();
     }
+
 
     @Override
     public VoucherResponse themMoi(VoucherRequest voucherRequest) {

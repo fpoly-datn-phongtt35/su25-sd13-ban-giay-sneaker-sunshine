@@ -34,7 +34,6 @@ public class AuthService {
             String username = request.getUsername();
             String rawPassword = request.getPassword();
 
-            // Kiểm tra đầu vào
             if (username == null || username.isBlank()) {
                 throw new RuntimeException("❌ Tên đăng nhập không được để trống");
             }
@@ -43,24 +42,20 @@ public class AuthService {
                 throw new RuntimeException("❌ Mật khẩu không được để trống");
             }
 
-            // Tìm người dùng
             User user = userRepository.findByUsername(username)
                     .orElseThrow(() -> new UsernameNotFoundException("Không tìm thấy người dùng"));
 
-            // So sánh mật khẩu
-            if (!passwordEncoder.matches(rawPassword, user.getPassword())) {
+            // So sánh mật khẩu không mã hóa
+            if (!rawPassword.equals(user.getPassword())) {
                 throw new BadCredentialsException("Sai mật khẩu");
             }
 
-            // Xác thực Spring Security
             Authentication auth = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(username, rawPassword)
             );
 
-            // Tạo JWT token
             String token = jwtUtil.generateToken((UserDetails) auth.getPrincipal());
 
-            // Trả DTO
             UserDTO userDTO = userMapper.toDto(user);
             String employeeName = userDTO.getEmployee() != null ? userDTO.getEmployee().getEmployeeName() : null;
             return new LoginResponse(token, employeeName);

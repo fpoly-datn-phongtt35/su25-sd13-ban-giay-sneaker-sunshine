@@ -42,6 +42,7 @@ public class EmployeeController {
     // Create new employee
     @PostMapping
     public EmployeeResponse createEmployee(@RequestBody EmployeeRequest request) {
+        System.out.println("pass:" +request.getPassword());
         return employeeService.createUser(request);
     }
 

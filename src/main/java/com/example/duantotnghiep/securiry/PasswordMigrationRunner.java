@@ -21,22 +21,12 @@ public class PasswordMigrationRunner implements CommandLineRunner {
     private final PasswordEncoder passwordEncoder;
 
     @Override
-    public void run(String... args) throws Exception {
-        List<User> users = userRepository.findAll();
-
-        for (User user : users) {
-            String password = user.getPassword();
-
-            // Kiểm tra nếu mật khẩu chưa được mã hóa (không bắt đầu bằng $2a$ hoặc $2b$)
-            if (!password.startsWith("$2a$") && !password.startsWith("$2b$")) {
-                user.setPassword(passwordEncoder.encode(password));
-            }
-        }
-
-        userRepository.saveAll(users);
-        System.out.println("✅ Đã mã hóa mật khẩu cho các user cũ.");
+    public void run(String... args) {
+        // KHÔNG thực hiện gì cả
+        System.out.println("⚠️ Đã tắt mã hóa mật khẩu do đang sử dụng NoOpPasswordEncoder.");
     }
 }
+
 
 
 

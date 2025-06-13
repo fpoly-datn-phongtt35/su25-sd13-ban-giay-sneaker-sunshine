@@ -115,6 +115,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 
         User user = userMapper.toUserEntity(employeeRequest);
         user.setEmployee(employee);
+        user.setPassword(employeeRequest.getPassword());
         user.setCreatedAt(new Date());
         user.setCreatedBy("admin");
         user = userRepository.save(user);

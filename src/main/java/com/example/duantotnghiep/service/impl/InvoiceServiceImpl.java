@@ -181,15 +181,36 @@ public class InvoiceServiceImpl implements InvoiceService {
     @Transactional
     @Override
     public void checkout(Long invoiceId) {
+        // 1. Tìm hóa đơn theo ID
         Invoice invoice = invoiceRepository.findById(invoiceId)
-                .orElseThrow(() -> new RuntimeException("Hóa đơn không tồn tại"));
+                .orElseThrow(() -> new RuntimeException("Hóa đơn không tồn tại với ID: " + invoiceId));
 
-        invoice.setStatus(1);  // Đặt trạng thái thành 1 - đã thanh toán
-        invoice.setOrderType(1);
+        // 2. Cập nhật trạng thái hóa đơn
+        invoice.setStatus(1); // Đã thanh toán
+        invoice.setOrderType(1); // Loại đơn hàng
         invoice.setUpdatedDate(LocalDateTime.now());
-        invoice.setUpdatedBy(DEFAULT_USER);
+        invoice.setUpdatedBy(DEFAULT_USER); // Hoặc người đăng nhập
 
-        invoiceRepository.save(invoice);  // Lưu lại thay đổi
+        // 3. Cập nhật lại VoucherHistory nếu có voucher
+        if (invoice.getVoucher() != null) {
+            Voucher voucher = invoice.getVoucher();
+
+            // Tìm tất cả lịch sử voucher chưa sử dụng cho hóa đơn này
+            List<VoucherHistory> histories = voucherHistoryRepository
+                    .findByInvoiceAndVoucherAndStatus(invoice, voucher, 0);
+
+            for (VoucherHistory history : histories) {
+                history.setStatus(1); // Đánh dấu đã sử dụng
+                history.setUpdatedDate(LocalDateTime.now());
+                history.setUpdatedBy(DEFAULT_USER);
+            }
+
+            // Lưu lại tất cả bản ghi
+            voucherHistoryRepository.saveAll(histories);
+        }
+
+        // 4. Lưu lại hóa đơn
+        invoiceRepository.save(invoice);
     }
 
     @Transactional
@@ -373,10 +394,8 @@ public class InvoiceServiceImpl implements InvoiceService {
         history.setCustomer(invoice.getCustomer());
         history.setUsedAt(now);
         history.setDiscountValueApplied(discount);
-        history.setStatus(1);
-        history.setCreatedDate(now);
-        history.setCreatedBy("admin");
-        history.setUpdatedBy("admin");
+        history.setStatus(0);
+
 
         voucherHistoryRepository.save(history);
 

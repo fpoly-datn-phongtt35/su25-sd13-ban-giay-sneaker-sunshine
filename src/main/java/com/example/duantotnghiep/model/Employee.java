@@ -40,6 +40,9 @@ public class Employee {
     @Column(name = "id", nullable = false)
     private Long id;
 
+    @Column(name = "pass_word", nullable = false)
+    private String password;
+
     @Size(max = 50)
     @NotNull
     @Column(name = "employee_code", nullable = false, length = 50)

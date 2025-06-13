@@ -15,6 +15,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.NoOpPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -27,47 +28,47 @@ public class SecurityConfig {
     private final JwtFilter jwtFilter;
     private final CustomUserDetailsService userDetailsService;
 
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http
-                .csrf(csrf -> csrf.disable())
-                .authorizeHttpRequests(auth -> auth
-                        // Cho phép mọi người truy cập login
-                        .requestMatchers("/api/auth/login").permitAll()
-                        // Chỉ ADMIN mới truy cập được đường dẫn này
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        // ADMIN và STAFF đều được truy cập các API này
-                        .requestMatchers("/api/nhanvien/**").hasAnyRole("ADMIN", "STAFF")
-                        // Các request còn lại cần xác thực
-                        .anyRequest().authenticated()
-                )
-                .sessionManagement(sess -> sess
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                )
-                .authenticationProvider(authenticationProvider());
-
-        // Thêm filter JWT trước filter xử lý username/password của Spring Security
-        http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
-
-        return http.build();
-    }
-
 //    @Bean
 //    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 //        http
 //                .csrf(csrf -> csrf.disable())
 //                .authorizeHttpRequests(auth -> auth
-//                        .anyRequest().permitAll()  // Mở tất cả các đường dẫn
+//                        // Cho phép mọi người truy cập login
+//                        .requestMatchers("/api/auth/login").permitAll()
+//                        // Chỉ ADMIN mới truy cập được đường dẫn này
+//                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+//                        // ADMIN và STAFF đều được truy cập các API này
+//                        .requestMatchers("/api/nhanvien/**").hasAnyRole("ADMIN", "STAFF")
+//                        // Các request còn lại cần xác thực
+//                        .anyRequest().authenticated()
 //                )
 //                .sessionManagement(sess -> sess
 //                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
 //                )
 //                .authenticationProvider(authenticationProvider());
 //
+//        // Thêm filter JWT trước filter xử lý username/password của Spring Security
 //        http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 //
 //        return http.build();
 //    }
+
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http
+                .csrf(csrf -> csrf.disable())
+                .authorizeHttpRequests(auth -> auth
+                        .anyRequest().permitAll()  // Mở tất cả các đường dẫn
+                )
+                .sessionManagement(sess -> sess
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
+                .authenticationProvider(authenticationProvider());
+
+        http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+
+        return http.build();
+    }
 
 
     @Bean
@@ -85,7 +86,7 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+        return NoOpPasswordEncoder.getInstance(); // ✅ Dùng cho mật khẩu plain text
     }
 }
 

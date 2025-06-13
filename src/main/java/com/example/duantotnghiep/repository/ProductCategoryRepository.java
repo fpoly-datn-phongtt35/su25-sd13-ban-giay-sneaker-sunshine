@@ -1,5 +1,6 @@
 package com.example.duantotnghiep.repository;
 
+import com.example.duantotnghiep.model.Product;
 import com.example.duantotnghiep.model.ProductCategory;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -15,5 +16,6 @@ public interface ProductCategoryRepository extends JpaRepository<ProductCategory
 """)
     List<ProductCategory> getAllByProductAndStatus(@Param("productId") Long productId);
 
+    List<ProductCategory> findByProduct(Product product);
 
 }

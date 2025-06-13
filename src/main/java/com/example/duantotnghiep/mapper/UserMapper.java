@@ -1,7 +1,10 @@
 package com.example.duantotnghiep.mapper;
 
+import com.example.duantotnghiep.dto.request.CustomerRequest;
 import com.example.duantotnghiep.dto.request.EmployeeRequest;
+import com.example.duantotnghiep.dto.response.CustomerResponse;
 import com.example.duantotnghiep.dto.response.EmployeeResponse;
+import com.example.duantotnghiep.model.Customer;
 import com.example.duantotnghiep.model.Employee;
 import com.example.duantotnghiep.model.User;
 import org.mapstruct.BeanMapping;
@@ -30,10 +33,30 @@ public interface UserMapper {
     @Mapping(target = "ward", source = "employee.ward")
     @Mapping(target = "houseName", source = "employee.houseName")
     @Mapping(target = "createdBy", source = "employee.createdBy")
+    @Mapping(target = "status", source = "employee.status")
     @Mapping(target = "createdDate", source = "employee.createdDate")
     @Mapping(target = "updatedBy", source = "employee.updatedBy")
     @Mapping(target = "updatedDate", source = "employee.updatedDate")
     EmployeeResponse toEmployeeResponse(User user);
+
+    @Mapping(target = "username", source = "username")
+    @Mapping(target = "password", source = "password")
+    @Mapping(target = "id", source = "customer.id")
+    @Mapping(target = "customerCode", source = "customer.customerCode")
+    @Mapping(target = "customerName", source = "customer.customerName")
+    @Mapping(target = "email", source = "customer.email")
+    @Mapping(target = "phone", source = "customer.phone")
+    @Mapping(target = "gender", source = "customer.gender")
+    @Mapping(target = "dateOfBirth", source = "customer.dateOfBirth")
+    @Mapping(target = "createdBy", source = "customer.createdBy")
+    @Mapping(target = "createdDate", source = "customer.createdDate")
+    @Mapping(target = "updatedBy", source = "customer.updatedBy")
+    @Mapping(target = "status", source = "customer.status")
+    @Mapping(target = "updatedDate", source = "customer.updatedDate")
+    CustomerResponse toCustomerResponse(User user);
+
+    Customer toCustomerEntity(CustomerRequest request);
+    User toCustomerUserEntity(CustomerRequest customerRequest);
 
     Employee toEmployeeEntity(EmployeeRequest request);
 
@@ -41,4 +64,7 @@ public interface UserMapper {
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     void updateEmployeeFromRequest(EmployeeRequest request, @MappingTarget Employee employee);
+
+    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+    void updateCustomerFromRequest(CustomerRequest request, @MappingTarget Customer customer);
 }

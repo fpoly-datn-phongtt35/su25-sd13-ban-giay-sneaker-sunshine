@@ -15,5 +15,10 @@ public interface ProductCategoryRepository extends JpaRepository<ProductCategory
 """)
     List<ProductCategory> getAllByProductAndStatus(@Param("productId") Long productId);
 
+    @Query("""
+    select pc from ProductCategory pc where pc.product.id =:productId and pc.status = 0
+""")
+    List<ProductCategory> getAllByProductAndStatusRemoved(@Param("productId") Long productId);
+
 
 }

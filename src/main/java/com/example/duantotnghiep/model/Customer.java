@@ -16,6 +16,7 @@ import org.hibernate.annotations.Nationalized;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.Date;
 
 @Getter
 @Setter
@@ -50,7 +51,7 @@ public class Customer {
     private Integer gender;
 
     @Column(name = "date_of_birth")
-    private LocalDateTime dateOfBirth;
+    private Date dateOfBirth;
 
     @Column(name = "status")
     private Integer status;
@@ -68,9 +69,5 @@ public class Customer {
     @Size(max = 50)
     @Column(name = "updated_by", length = 50)
     private String updatedBy;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "default_address_id")
-    private AddressCustomer defaultAddress;
 
 }

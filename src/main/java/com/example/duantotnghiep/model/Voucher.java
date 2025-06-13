@@ -58,6 +58,8 @@ public class Voucher {
     @Column(name = "discount_percentage")
     private BigDecimal discountPercentage;
 
+    @Column(name = "quantity")
+    private Integer quantity;
 
     @Column(name = "discount_amount", nullable = false)
     private Integer discountAmount;

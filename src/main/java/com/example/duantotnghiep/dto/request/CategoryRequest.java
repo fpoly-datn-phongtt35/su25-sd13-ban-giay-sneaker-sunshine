@@ -13,17 +13,7 @@ import java.util.Date;
 @Getter
 @Setter
 public class CategoryRequest {
-
     private String categoryName;
-    private String categoryCode;
     private String description;
-    private String status;
-
-    private Date createdDate;
-
-    private Date updatedDate;
-
-    private String createdBy;
-    private String updatedBy;
 
 }

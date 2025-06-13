@@ -12,7 +12,7 @@ import org.mapstruct.Mapping;
 @Mapper(componentModel = "spring")
 public interface CustomerMapper {
 
-    EmployeeResponse toDto(Employee employee);
+    CustomerResponse toDto(Customer customer);
 
     Customer toDto(CustomerRequest customerRequest);
 }

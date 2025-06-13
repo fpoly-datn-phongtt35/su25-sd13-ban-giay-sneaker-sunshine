@@ -13,6 +13,9 @@ public interface ProductDetailRepository extends JpaRepository<ProductDetail,Lon
     @Query("SELECT pd FROM ProductDetail pd WHERE pd.product.id = :productId AND pd.status = :status")
     List<ProductDetail> findByProductIdAndStatus(@Param("productId") Long productId, @Param("status") Integer status);
 
+    @Query("SELECT pd FROM ProductDetail pd WHERE pd.product.id = :productId AND pd.status = :status")
+    List<ProductDetail> findByProductIdAndStatusRemoved(@Param("productId") Long productId, @Param("status") Integer status);
+
     List<ProductDetail> findByProductId(Long productId);
 
 }

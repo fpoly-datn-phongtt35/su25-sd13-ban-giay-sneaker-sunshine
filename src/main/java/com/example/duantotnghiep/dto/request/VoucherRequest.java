@@ -22,7 +22,7 @@ public class VoucherRequest {
     private Integer discountAmount;
     private BigDecimal minOrderValue;
     private BigDecimal maxDiscountValue;
-
+    private Integer quantity;
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime startDate;
 

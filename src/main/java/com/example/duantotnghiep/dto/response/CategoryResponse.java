@@ -22,7 +22,6 @@ public class CategoryResponse {
     private Date createdDate;
 
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "Asia/Ho_Chi_Minh")
-
     private Date updatedDate;
 
     private String createdBy;

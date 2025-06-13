@@ -35,4 +35,5 @@ public class EmployeeResponse {
     private String updatedBy;
     private Date updatedDate;
     private Integer role;
+    private Integer status;
 }

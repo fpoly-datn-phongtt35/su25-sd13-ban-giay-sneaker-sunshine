@@ -204,8 +204,7 @@ public class ProductSearchRepository {
             params.put("priceMax", request.getPriceMax());
         }
 
-        // Query lấy Product có phân trang, sắp xếp theo id giảm dần
-        String dataSql = "SELECT p " + baseSql + " ORDER BY p.id DESC";
+        String dataSql = "SELECT p " + baseSql + " ORDER BY p.updatedDate DESC";
         TypedQuery<Product> query = entityManager.createQuery(dataSql, Product.class);
         params.forEach(query::setParameter);
 

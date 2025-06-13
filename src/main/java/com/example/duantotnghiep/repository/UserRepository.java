@@ -19,6 +19,9 @@ public interface UserRepository extends JpaRepository<User,Long> {
     @Query("SELECT u FROM User u WHERE u.employee.status = 1")
     Page<User> findAllByEmployeeIsNotNullAndStatusIsOne(Pageable pageable);
 
+    @Query("SELECT u FROM User u JOIN FETCH u.customer c WHERE c.id = :customerId and c.status = 1")
+    Optional<User> findByCustomerId(@Param("customerId") Long customerId);
+
     @Query("SELECT u FROM User u JOIN FETCH u.employee e WHERE e.id = :employeeId AND e.status = 1")
     Optional<User> findByEmployeeId(@Param("employeeId") Long employeeId);
 
@@ -33,5 +36,7 @@ public interface UserRepository extends JpaRepository<User,Long> {
     @Transactional
     @Query("UPDATE Employee e SET e.status = 0 WHERE e.id =:employeeId")
     void deleteByEmployeeId(@Param("employeeId") Long employeeId);
+
+
 
 }

@@ -82,7 +82,6 @@ public class ProductServiceImpl implements ProductService {
             throw new IllegalArgumentException("Category IDs cannot be empty");
         }
 
-        // Create product entity
         Product product = productMapper.toEntity(request);
         product.setProductCode(generateProductCode());
         product.setStatus(1);
@@ -90,10 +89,8 @@ public class ProductServiceImpl implements ProductService {
         product.setUpdatedBy("admin");
         product.setCreatedBy("admin");
 
-        // Save product to generate ID
         Product savedProduct = productRepository.save(product);
 
-        // Handle product images
         if (request.getProductImages() != null && !request.getProductImages().isEmpty()) {
             List<ProductImage> imageList = request.getProductImages().stream().map(file -> {
                 try {
@@ -199,7 +196,6 @@ public class ProductServiceImpl implements ProductService {
                     }
                     updatedDetails.add(oldDetail);
                 } else {
-                    // Không còn trong request ⇒ xóa mềm
                     oldDetail.setStatus(0);
                     oldDetail.setUpdatedBy("admin");
                     oldDetail.setUpdatedDate(new Date());
@@ -207,7 +203,6 @@ public class ProductServiceImpl implements ProductService {
                 }
             }
 
-            // 2. Thêm mới những chi tiết chưa tồn tại trong DB
             for (ProductDetailRequest detailRequest : newDetailRequests) {
                 boolean existsInOld = oldDetails.stream().anyMatch(oldDetail ->
                         Objects.equals(oldDetail.getColor(), detailRequest.getColorId()) &&
@@ -302,12 +297,10 @@ public class ProductServiceImpl implements ProductService {
         List<Long> newCategoryIds = request.getCategoryIds();
 
         if (newCategoryIds != null && !newCategoryIds.isEmpty()) {
-            // Lấy danh sách ProductCategory hiện tại (status = 1)
             List<ProductCategory> existingProductCategories = productCategoryRepository.getAllByProductAndStatus(id);
             Map<Long, ProductCategory> existingMap = existingProductCategories.stream()
                     .collect(Collectors.toMap(pc -> pc.getCategory().getId(), pc -> pc));
 
-            // Set để kiểm tra category cũ có trong mới không
             Set<Long> newCategoryIdSet = new HashSet<>(newCategoryIds);
 
             // Danh sách ProductCategory cần cập nhật hoặc tạo mới
@@ -328,13 +321,11 @@ public class ProductServiceImpl implements ProductService {
                 if (existingMap.containsKey(categoryId)) {
                     ProductCategory existingPC = existingMap.get(categoryId);
                     if (existingPC.getStatus() == 0) {
-                        // Nếu đã bị xóa mềm, set lại status = 1
                         existingPC.setStatus(1);
                         existingPC.setUpdatedBy("admin");
                         existingPC.setUpdatedDate(new Date());
                         categoriesToUpdateOrCreate.add(existingPC);
                     }
-                    // Nếu đã active (status=1) thì không làm gì
                 } else {
                     // Thêm mới ProductCategory
                     Category category = categoryRepository.findById(categoryId)
@@ -354,13 +345,10 @@ public class ProductServiceImpl implements ProductService {
                 }
             }
 
-            // Lưu tất cả các thay đổi
             if (!categoriesToUpdateOrCreate.isEmpty()) {
                 productCategoryRepository.saveAll(categoriesToUpdateOrCreate);
             }
         } else {
-            // Nếu newCategoryIds là null hoặc rỗng, giữ nguyên danh sách category hiện tại, không thay đổi
-            // Không làm gì ở đây
             System.out.println("Không sửa category đâu");
         }
 
@@ -372,9 +360,161 @@ public class ProductServiceImpl implements ProductService {
                 .collect(Collectors.toList());
         response.setCategoryNames(categoryNames);
 
+        return response;
+    }
+
+    @Transactional(rollbackFor = Throwable.class)
+    @Override
+    public ProductResponse restoreProduct(Long id, ProductRequest request) {
+        // 1. Kiểm tra sản phẩm có tồn tại không
+        Product existingProduct = productRepository.findByStatusRemoved(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm với id: " + id));
+
+        // 2. Cập nhật thông tin sản phẩm
+        productMapper.updateEntityFromRequest(request, existingProduct);
+        existingProduct.setStatus(1); // Khôi phục trạng thái hoạt động
+        existingProduct.setUpdatedBy("admin");
+        existingProduct.setUpdatedDate(new Date());
+
+        // 3. Lưu sản phẩm để cập nhật
+        Product updatedProduct = productRepository.save(existingProduct);
+
+        // 4. Xử lý Product Details
+        if (request.getProductDetails() != null && !request.getProductDetails().isEmpty()) {
+            List<ProductDetail> oldDetails = productDetailRepository.findByProductIdAndStatusRemoved(updatedProduct.getId(), 0);
+            List<ProductDetailRequest> newDetailRequests = request.getProductDetails();
+            List<ProductDetail> updatedDetails = new ArrayList<>();
+
+            for (ProductDetail oldDetail : oldDetails) {
+                boolean found = false;
+                for (ProductDetailRequest newDetail : newDetailRequests) {
+                    if (Objects.equals(oldDetail.getColor().getId(), newDetail.getColorId()) &&
+                            Objects.equals(oldDetail.getSize().getId(), newDetail.getSizeId())) {
+                        found = true;
+                        if (!Objects.equals(oldDetail.getQuantity(), newDetail.getQuantity()) ||
+                                !Objects.equals(oldDetail.getSellPrice(), newDetail.getSellPrice())) {
+                            oldDetail.setQuantity(newDetail.getQuantity());
+                            oldDetail.setSellPrice(newDetail.getSellPrice());
+                            oldDetail.setStatus(1);
+                            oldDetail.setUpdatedBy("admin");
+                            oldDetail.setUpdatedDate(new Date());
+                            productDetailRepository.save(oldDetail);
+                        }
+                        updatedDetails.add(oldDetail);
+                        break;
+                    }
+                }
+                if (!found) {
+                    oldDetail.setStatus(0);
+                    oldDetail.setUpdatedBy("admin");
+                    oldDetail.setUpdatedDate(new Date());
+                    productDetailRepository.save(oldDetail);
+                }
+            }
+
+            for (ProductDetailRequest newDetail : newDetailRequests) {
+                boolean exists = oldDetails.stream().anyMatch(old ->
+                        Objects.equals(old.getColor().getId(), newDetail.getColorId()) &&
+                                Objects.equals(old.getSize().getId(), newDetail.getSizeId()));
+                if (!exists) {
+                    ProductDetail newEntity = productDetailMapper.fromRequest(newDetail);
+                    newEntity.setProduct(updatedProduct);
+                    newEntity.setStatus(1);
+                    newEntity.setCreatedBy("admin");
+                    newEntity.setCreatedDate(new Date());
+                    newEntity.setUpdatedBy("admin");
+                    newEntity.setUpdatedDate(new Date());
+                    productDetailRepository.save(newEntity);
+                    updatedDetails.add(newEntity);
+                }
+            }
+
+            existingProduct.setProductDetails(updatedDetails);
+        } else {
+            List<ProductDetail> oldDetails = productDetailRepository.findByProductIdAndStatusRemoved(updatedProduct.getId(), 0);
+            for (ProductDetail oldDetail : oldDetails) {
+                oldDetail.setStatus(0);
+                oldDetail.setUpdatedBy("admin");
+                oldDetail.setUpdatedDate(new Date());
+                productDetailRepository.save(oldDetail);
+            }
+            existingProduct.setProductDetails(new ArrayList<>());
+        }
+
+        // 5. Xử lý ảnh sản phẩm
+        List<ProductImage> existingImages = productImageRepository.findByProduct(existingProduct);
+        boolean hasNewImages = request.getProductImages() != null && !request.getProductImages().isEmpty();
+        boolean hasOldImageIdsToDelete = request.getOldImageIds() != null && !request.getOldImageIds().isEmpty();
+
+        if (!hasNewImages && !hasOldImageIdsToDelete) {
+            for (ProductImage image : existingImages) {
+                if (image.getStatus() == 0) {
+                    image.setStatus(1);
+                    image.setUpdatedDate(new Date());
+                    image.setUpdatedBy("admin");
+                    productImageRepository.save(image);
+                }
+            }
+        } else {
+            if (hasOldImageIdsToDelete) {
+                for (Long idToDelete : request.getOldImageIds()) {
+                    existingImages.stream()
+                            .filter(img -> img.getId().equals(idToDelete) && img.getStatus() == 1)
+                            .findFirst()
+                            .ifPresent(img -> {
+                                img.setStatus(0);
+                                img.setUpdatedBy("admin");
+                                img.setUpdatedDate(new Date());
+                                productImageRepository.save(img);
+                            });
+                }
+            }
+
+            for (ProductImage image : existingImages) {
+                if (image.getStatus() == 0 && (request.getOldImageIds() == null || !request.getOldImageIds().contains(image.getId()))) {
+                    image.setStatus(1);
+                    image.setUpdatedBy("admin");
+                    image.setUpdatedDate(new Date());
+                    productImageRepository.save(image);
+                }
+            }
+
+            if (hasNewImages) {
+                for (MultipartFile file : request.getProductImages()) {
+                    try {
+                        ProductImage newImage = new ProductImage();
+                        newImage.setImage(file.getBytes());
+                        newImage.setImageName(file.getOriginalFilename());
+                        newImage.setStatus(1);
+                        newImage.setCreatedDate(new Date());
+                        newImage.setCreatedBy("admin");
+                        newImage.setUpdatedBy("admin");
+                        newImage.setProduct(updatedProduct);
+                        productImageRepository.save(newImage);
+                        existingProduct.getProductImages().add(newImage);
+                    } catch (IOException e) {
+                        throw new RuntimeException("Lỗi khi xử lý ảnh: " + e.getMessage());
+                    }
+                }
+            }
+        }
+
+        // 6. Tạo response
+        Product finalProduct = productRepository.findById(updatedProduct.getId()).orElseThrow();
+        ProductResponse response = productMapper.toResponse(finalProduct);
+
+        // Danh sách ảnh
+        List<ProductImage> activeImages = productImageRepository.findByProductIdAndStatus(finalProduct.getId(), 1);
+        List<ProductImageResponse> imageResponses = activeImages.stream().map(img -> {
+            ProductImageResponse dto = new ProductImageResponse();
+            dto.setId(img.getId());
+            dto.setImageName(img.getImageName());
+            dto.setImage(img.getImage());
+            return dto;
+        }).collect(Collectors.toList());
+        response.setProductImages(imageResponses);
 
         return response;
-
     }
 
     @Transactional(rollbackFor = Throwable.class)
@@ -391,16 +531,6 @@ public class ProductServiceImpl implements ProductService {
         product.setUpdatedDate(new Date());
         product.setUpdatedBy("admin");
 
-        // ảnh
-        List<ProductImage> productImages = product.getProductImages();
-        if (productImages != null && !productImages.isEmpty()) {
-            productImages.forEach(img -> {
-                img.setStatus(0);
-                img.setUpdatedDate(new Date());
-                img.setUpdatedBy("admin");
-            });
-        }
-
         // chi tiết
         List<ProductDetail> productDetails = product.getProductDetails();
         if (productDetails != null && !productDetails.isEmpty()) {
@@ -411,22 +541,9 @@ public class ProductServiceImpl implements ProductService {
             });
         }
 
-        // danh mục
-        List<ProductCategory> productCategories = productCategoryRepository.getAllByProductAndStatus(id);
-        if (!productCategories.isEmpty()) {
-            productCategories.forEach(pc -> {
-                pc.setStatus(0);
-                pc.setUpdatedDate(new Date());
-                pc.setUpdatedBy("admin");
-            });
-        }
-
         productRepository.save(product);
-        if (productImages != null) productImageRepository.saveAll(productImages);
         if (productDetails != null) productDetailRepository.saveAll(productDetails);
-        if (!productCategories.isEmpty()) productCategoryRepository.saveAll(productCategories);
     }
-
 
     @Override
     public ProductResponse getProductById(Long id) {

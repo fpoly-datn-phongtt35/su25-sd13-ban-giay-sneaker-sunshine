@@ -8,6 +8,7 @@ import lombok.Setter;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.Date;
 
 @AllArgsConstructor
 @NoArgsConstructor
@@ -22,7 +23,7 @@ public class CustomerResponse {
     private String email;
     private String phone;
     private Integer gender;
-    private LocalDateTime dateOfBirth;
+    private Date dateOfBirth;
     private String country;
     private String provinceCode;
     private String provinceName;
@@ -34,6 +35,7 @@ public class CustomerResponse {
     private String createdBy;
     private String updatedBy;
     private Integer role;
+    private Integer status;
     private LocalDateTime createdDate;
     private LocalDateTime updatedDate;
 }

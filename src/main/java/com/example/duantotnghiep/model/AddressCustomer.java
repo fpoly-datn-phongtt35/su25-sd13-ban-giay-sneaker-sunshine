@@ -15,6 +15,7 @@ import lombok.Setter;
 import org.hibernate.annotations.Nationalized;
 
 import java.time.Instant;
+import java.util.Date;
 
 @Getter
 @Setter
@@ -71,10 +72,10 @@ public class AddressCustomer {
     private String houseName;
 
     @Column(name = "created_date")
-    private Instant createdDate;
+    private Date createdDate;
 
     @Column(name = "updated_date")
-    private Instant updatedDate;
+    private Date updatedDate;
 
     @Size(max = 50)
     @Column(name = "created_by", length = 50)
@@ -83,5 +84,12 @@ public class AddressCustomer {
     @Size(max = 50)
     @Column(name = "updated_by", length = 50)
     private String updatedBy;
+
+    @Column(name = "status")
+    private Integer status;
+
+    @Column(name = "default_address")
+    private Boolean defaultAddress;
+
 
 }

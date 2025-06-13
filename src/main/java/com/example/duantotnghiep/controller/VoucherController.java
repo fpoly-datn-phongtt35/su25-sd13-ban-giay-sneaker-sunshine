@@ -26,7 +26,7 @@ import java.util.Map;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/api/vouchers")
+@RequestMapping("/api/admin/vouchers")
 public class VoucherController {
 
     private final VoucherService voucherService;

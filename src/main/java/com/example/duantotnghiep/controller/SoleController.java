@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/sole")
+@RequestMapping("/api/admin/sole")
 public class SoleController {
     @Autowired
     private SoleService service;

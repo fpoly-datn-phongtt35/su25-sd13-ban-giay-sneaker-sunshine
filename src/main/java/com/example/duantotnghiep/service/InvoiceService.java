@@ -48,4 +48,6 @@ public interface InvoiceService {
     List<InvoiceDisplayResponse> getAllInvoicesWithDetails();
 
     Invoice findById(Long id);
+
+    List<InvoiceDisplayResponse> getInvoicesWithDetailsByIds(List<Long> ids);
 }

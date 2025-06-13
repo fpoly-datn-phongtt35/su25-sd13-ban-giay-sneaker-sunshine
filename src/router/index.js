@@ -1,6 +1,7 @@
 
-
 import { createRouter, createWebHistory } from "vue-router";
+import CustomerList from "@/components/KhachHang/CustomerList.vue";
+import UpdateCustomer from "@/components/KhachHang/UpdateCustomer.vue";
 
 import MaterialList from '@/components/ChatLieu/MaterialList.vue'
 import StyleList from '@/components/CoGiay/StyleList.vue'
@@ -27,6 +28,7 @@ import UpdateVoucher from "@/components/MaGiamGia/UpdateVoucher.vue";
 import EmployeeList from "@/components/NhanVien/EmployeeList.vue";
 import AddEmployee from "@/components/NhanVien/AddEmployee.vue";
 import UpdateEmployee from "@/components/NhanVien/UpdateEmployee.vue";
+import AddCustomer from "@/components/KhachHang/AddCustomer.vue";
 
 const routes = [
   {
@@ -43,19 +45,16 @@ const routes = [
   {
     path: '/',
     component: Dashboard,
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true , breadcrumb: "Dashboard" },
     children: [
-      { path: 'home', name: 'Home', component: TrangChu },
-      { path: 'categories', name: 'Category', component: CategoryList },
-      // { path: "categories/add", name: "AddCategory", component: AddCategory },
-      // { path: "categories/update/:id", name: "UpdateCategory", component: UpdateCategory },
-      // { path: "categories/detail/:id", name: "DetailCategory", component: DetailCategory },
-
-      // { path: "employee", name: "Employee", component: EmployeeList },
-      // { path: "employee/add", name: "AddEmployee", component: AddEmployee },
-      // { path: "employee/update/:id", name: "UpdateEmployee", component: UpdateEmployee },
-      // { path: "employee/detail/:id", name: "DetailEmployee", component: DetailEmployee },
-
+      { path: "home", name: "Home", component: TrangChu , meta: {
+          breadcrumb: "Trang chủ",
+          parent: "Dashboard",
+        },},
+      { path: "categories", name: "Category", component: CategoryList , meta: {
+          breadcrumb: "Danh mục",
+          parent: "Dashboard",
+        },},
 
       
       { path: "voucher", name: "VoucherList", component: VoucherList },
@@ -75,7 +74,6 @@ const routes = [
       // { path: "sales-online", name: "OnlineSaleDisplay", component: OnlineSale },
 
       { path: 'supplier', name: 'NhaCungCap', component: SupplierList },
-
       { path: 'style', name: 'KieuDang', component: StyleList },
       { path: 'sole', name: 'DeGiay', component: SoleList },
       { path: 'size', name: 'KichThuoc', component: SizeList },
@@ -87,14 +85,16 @@ const routes = [
 
       { path: 'color', name: 'Color', component: ColorList },
 
-      // { path: "nha-cung-cap", name: "NhaCungCap", component: NhaCungCap },
-
       { path: 'voucher', name: 'Voucher', component: VoucherList },
       // { path: "customer", name: "Customer", component: CustomerList },
 
       { path: "employee", name: "Employee", component: EmployeeList },
       { path: "employee/add", name: "AddEmployee", component: AddEmployee },
       { path: "employee/update/:id", name: "UpdateEmployee", component: UpdateEmployee },
+
+      { path: "customer/add", name: "AddCustomer", component: AddCustomer },
+      { path: "customer", name: "CustomerList", component: CustomerList },
+      { path: "customer/update/:id", name: "UpdateCustomer", component: UpdateCustomer },
     ],
   },
 ]

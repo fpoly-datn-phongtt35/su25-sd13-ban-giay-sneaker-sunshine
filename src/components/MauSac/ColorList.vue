@@ -90,11 +90,19 @@ const rules = {
         const pattern = /^[\p{L}\d\s]+$/u
         if (!pattern.test(value)) {
           callback(new Error('Tên màu không chứa ký tự đặc biệt'))
-        } else {
-          callback()
+          return
         }
+        const nameTrimmed = value.trim().toLowerCase()
+        const duplicate = colors.value.some(
+          (c) => c.colorName.trim().toLowerCase() === nameTrimmed && c.id !== form.value.id
+        )
+        if (duplicate) {
+          callback(new Error('Tên màu đã tồn tại'))
+          return
+        }
+        callback()
       },
-      trigger: 'blur'
+      trigger: ['blur', 'change']
     }
   ]
 }
@@ -118,32 +126,37 @@ const handleSubmit = () => {
   formRef.value.validate(async (valid) => {
     if (!valid) return
 
-    const nameTrimmed = form.value.colorName.trim().toLowerCase()
-    const existed = colors.value.some(
-      (c) => c.colorName.trim().toLowerCase() === nameTrimmed && c.id !== form.value.id
-    )
-    if (existed) {
-      ElMessage.warning('Tên màu đã tồn tại')
-      return
-    }
+    const confirmMessage = isEditing.value
+      ? 'Bạn có chắc muốn cập nhật màu này?'
+      : 'Bạn có chắc muốn thêm mới màu này?'
 
-    loading.value = true
     try {
+      await ElMessageBox.confirm(confirmMessage, 'Xác nhận', {
+        confirmButtonText: 'Xác nhận',
+        cancelButtonText: 'Hủy',
+        type: 'info'
+      })
+
+      loading.value = true
+
       if (isEditing.value) {
         await axios.put(`http://localhost:8080/api/admin/color/${form.value.id}`, null, {
-          params: { colorName: form.value.colorName }
+          params: { name: form.value.colorName }
         })
         ElMessage.success('Cập nhật thành công')
       } else {
         await axios.post('http://localhost:8080/api/admin/color', null, {
-          params: { colorName: form.value.colorName }
+          params: { name: form.value.colorName }
         })
         ElMessage.success('Thêm mới thành công')
       }
+
       await fetchColors()
       resetForm()
     } catch (err) {
-      ElMessage.error('Lỗi khi lưu dữ liệu')
+      if (err !== 'cancel') {
+        ElMessage.error('Lỗi khi lưu dữ liệu')
+      }
     } finally {
       loading.value = false
     }

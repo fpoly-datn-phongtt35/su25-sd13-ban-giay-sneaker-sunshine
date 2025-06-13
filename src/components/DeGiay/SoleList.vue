@@ -6,18 +6,15 @@
 
     <!-- Form Thêm / Sửa -->
     <div class="form-section">
-      <el-form :model="form" ref="formRef" label-width="120px">
-        <el-form-item
-          label="Tên loại đế"
-          :rules="[{ required: true, message: 'Tên không được để trống', trigger: 'blur' }]"
-        >
+      <el-form :model="form" :rules="rules" ref="formRef" label-width="120px">
+        <el-form-item label="Tên loại đế" prop="name">
           <el-input v-model="form.name" placeholder="Nhập tên loại đế..." />
         </el-form-item>
 
         <el-form-item>
-          <el-button type="primary" @click="handleSubmit">{{
-            isEditing ? 'Cập nhật' : 'Thêm mới'
-          }}</el-button>
+          <el-button type="primary" @click="handleSubmit">
+            {{ isEditing ? 'Cập nhật' : 'Thêm mới' }}
+          </el-button>
           <el-button @click="resetForm">Làm mới</el-button>
         </el-form-item>
       </el-form>
@@ -40,7 +37,6 @@
           {{ formatDateTime(scope.row.createdDate) }}
         </template>
       </el-table-column>
-
       <el-table-column label="Hành động" width="200">
         <template #default="scope">
           <el-button size="small" @click="editSole(scope.row)">Sửa</el-button>
@@ -60,6 +56,13 @@ const soles = ref([])
 const form = ref({ id: null, name: '' })
 const isEditing = ref(false)
 const formRef = ref(null)
+
+const rules = {
+  name: [
+    { required: true, message: 'Tên không được để trống', trigger: 'blur' },
+    { min: 2, message: 'Tên phải có ít nhất 2 ký tự', trigger: 'blur' },
+  ],
+}
 
 const formatDateTime = (dateStr) => {
   if (!dateStr) return ''
@@ -85,10 +88,9 @@ const fetchSoles = async () => {
 }
 
 const handleSubmit = async () => {
-  if (!form.value.name || form.value.name.trim() === '') {
-    ElMessage.warning('Vui lòng nhập tên loại đế')
-    return
-  }
+  formRef.value.validate(async (valid) => {
+    if (!valid) return
+
 
   try {
     if (isEditing.value) {
@@ -115,17 +117,21 @@ const handleSubmit = async () => {
           resetForm()
         })
         .catch(() => {
-          ElMessage.info('Đã hủy thao tác thêm')
+          // Người dùng hủy thao tác
+          ElMessage.info('Thao tác đã bị hủy')
         })
-    }
+}
   } catch (error) {
-    ElMessage.error('Có lỗi xảy ra')
+    ElMessage.error('Lỗi khi lưu dữ liệu')
   }
+  })
 }
 
-
 const editSole = (sole) => {
-  form.value = { ...sole }
+  form.value = {
+    id: sole.id,
+    name: sole.soleName,
+  }
   isEditing.value = true
 }
 
@@ -146,7 +152,9 @@ const confirmDelete = (id) => {
       ElMessage.success('Đã xóa thành công')
       await fetchSoles()
     })
-    .catch(() => {})
+    .catch(() => {
+      ElMessage.info('Thao tác đã bị hủy')
+    })
 }
 
 onMounted(fetchSoles)

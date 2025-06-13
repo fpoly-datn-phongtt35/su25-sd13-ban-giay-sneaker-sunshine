@@ -90,11 +90,19 @@ const rules = {
         const pattern = /^[\p{L}\d\s]+$/u
         if (!pattern.test(value)) {
           callback(new Error('Tên thương hiệu không chứa ký tự đặc biệt'))
-        } else {
-          callback()
+          return
         }
+        const nameTrimmed = value.trim().toLowerCase()
+        const duplicate = brands.value.some(
+          (b) => b.brandName.trim().toLowerCase() === nameTrimmed && b.id !== form.value.id
+        )
+        if (duplicate) {
+          callback(new Error('Tên thương hiệu đã tồn tại'))
+          return
+        }
+        callback()
       },
-      trigger: 'blur'
+      trigger: ['blur', 'change']
     }
   ]
 }
@@ -118,17 +126,19 @@ const handleSubmit = () => {
   formRef.value.validate(async (valid) => {
     if (!valid) return
 
-    const brandNameTrimmed = form.value.brandName.trim().toLowerCase()
-    const existed = brands.value.some(
-      (b) => b.brandName.trim().toLowerCase() === brandNameTrimmed && b.id !== form.value.id
-    )
-    if (existed) {
-      ElMessage.warning('Tên thương hiệu đã tồn tại')
-      return
-    }
+    const confirmMessage = isEditing.value
+      ? 'Bạn có chắc muốn cập nhật thương hiệu này?'
+      : 'Bạn có chắc muốn thêm mới thương hiệu này?'
 
-    loading.value = true
     try {
+      await ElMessageBox.confirm(confirmMessage, 'Xác nhận', {
+        confirmButtonText: 'Xác nhận',
+        cancelButtonText: 'Hủy',
+        type: 'info'
+      })
+
+      loading.value = true
+
       if (isEditing.value) {
         await axios.put(`http://localhost:8080/api/admin/brand/${form.value.id}`, null, {
           params: { name: form.value.brandName }
@@ -140,10 +150,13 @@ const handleSubmit = () => {
         })
         ElMessage.success('Thêm mới thành công')
       }
+
       await fetchBrands()
       resetForm()
     } catch (err) {
-      ElMessage.error('Lỗi khi lưu dữ liệu')
+      if (err !== 'cancel') {
+        ElMessage.error('Lỗi khi lưu dữ liệu')
+      }
     } finally {
       loading.value = false
     }

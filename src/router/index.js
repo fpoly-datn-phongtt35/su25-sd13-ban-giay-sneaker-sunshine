@@ -55,7 +55,6 @@ const routes = [
           breadcrumb: "Danh mục",
           parent: "Dashboard",
         },},
-
       
       { path: "voucher", name: "VoucherList", component: VoucherList },
       { path: "voucher/add", name: "AddVoucher", component: AddVoucher },
@@ -86,6 +85,10 @@ const routes = [
       { path: 'color', name: 'Color', component: ColorList },
 
       { path: 'voucher', name: 'Voucher', component: VoucherList },
+
+      { path: "supplier", name: "NhaCungCap", component: SupplierList },
+      // { path: "sales-online", name: "OnlineSaleDisplay", component: OnlineSale },
+
       // { path: "customer", name: "Customer", component: CustomerList },
 
       { path: "employee", name: "Employee", component: EmployeeList },

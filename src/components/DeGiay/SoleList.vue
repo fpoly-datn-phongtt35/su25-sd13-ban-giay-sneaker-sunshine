@@ -90,10 +90,17 @@ const fetchSoles = async () => {
 const handleSubmit = async () => {
   formRef.value.validate(async (valid) => {
     if (!valid) return
-
+  
 
   try {
     if (isEditing.value) {
+        // Thêm xác nhận trước khi cập nhật
+        await ElMessageBox.confirm('Bạn có chắc chắn muốn cập nhật loại đế này?', 'Xác nhận', {
+          confirmButtonText: 'Cập nhật',
+          cancelButtonText: 'Hủy',
+          type: 'warning',
+        })
+     
       // Trường hợp cập nhật, không cần confirm
       await axios.put(`http://localhost:8080/api/admin/sole/${form.value.id}`, null, {
         params: { name: form.value.name },
@@ -116,6 +123,7 @@ const handleSubmit = async () => {
           await fetchSoles()
           resetForm()
         })
+
         .catch(() => {
           // Người dùng hủy thao tác
           ElMessage.info('Thao tác đã bị hủy')

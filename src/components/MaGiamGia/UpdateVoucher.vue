@@ -43,9 +43,10 @@
                   :max="100"
                   :disabled="voucher.discountAmount !== null && voucher.discountAmount > 0"
                   class="w-full"
-                  :formatter="(value) => `${value}%`"
+                  :formatter="(value) => value ? `${value}%` : ''"
                   :parser="(value) => value.replace('%', '')"
                   placeholder="Nhập phần trăm giảm"
+                  @change="clearDiscountAmount"
                 />
               </el-form-item>
             </el-col>
@@ -56,9 +57,10 @@
                   :min="0"
                   :disabled="voucher.discountPercentage !== null && voucher.discountPercentage > 0"
                   class="w-full"
-                  :formatter="(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')"
+                  :formatter="(value) => value ? `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''"
                   :parser="(value) => value.replace(/,/g, '')"
                   placeholder="Nhập số tiền giảm"
+                  @change="clearDiscountPercentage"
                 />
               </el-form-item>
             </el-col>
@@ -71,7 +73,7 @@
                   v-model="voucher.minOrderValue"
                   :min="0"
                   class="w-full"
-                  :formatter="(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')"
+                  :formatter="(value) => value ? `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''"
                   :parser="(value) => value.replace(/,/g, '')"
                   placeholder="Nhập giá trị tối thiểu"
                 />
@@ -83,7 +85,7 @@
                   v-model="voucher.maxDiscountValue"
                   :min="0"
                   class="w-full"
-                  :formatter="(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')"
+                  :formatter="(value) => value ? `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''"
                   :parser="(value) => value.replace(/,/g, '')"
                   placeholder="Nhập số tiền giảm tối đa"
                 />
@@ -101,6 +103,7 @@
                   value-format="YYYY-MM-DD HH:mm:ss"
                   @change="updateStatus"
                   class="w-full"
+                  :disabled-date="disablePastDates"
                 />
               </el-form-item>
             </el-col>
@@ -112,6 +115,7 @@
                   format="YYYY-MM-DD HH:mm:ss"
                   value-format="YYYY-MM-DD HH:mm:ss"
                   class="w-full"
+                  :disabled-date="disableEndDateBeforeStart"
                 />
               </el-form-item>
             </el-col>
@@ -131,17 +135,20 @@
               <el-form-item label="Loại đơn hàng" prop="orderType">
                 <el-select v-model="voucher.orderType" placeholder="Chọn loại">
                   <el-option label="Tại quầy" :value="1" />
-                  <el-option label="Online" :value="0" /> </el-select>
+                  <el-option label="Online" :value="0" />
+                </el-select>
               </el-form-item>
             </el-col>
             <el-col :span="8">
               <el-form-item label="Loại voucher" prop="voucherType">
                 <el-select v-model="voucher.voucherType" @change="onVoucherTypeChange">
                   <el-option label="Công khai" :value="1" />
-                  <el-option label="Riêng tư" :value="0" /> </el-select>
+                  <el-option label="Riêng tư" :value="0" />
+                </el-select>
               </el-form-item>
             </el-col>
-            <el-col :span="8" v-if="voucher.voucherType === 0"> <el-form-item label="Khách hàng áp dụng" prop="customerId">
+            <el-col :span="8" v-if="voucher.voucherType === 0">
+              <el-form-item label="Khách hàng áp dụng" prop="customerId">
                 <el-select
                   v-model="voucher.customerId"
                   placeholder="Chọn hoặc tìm khách hàng"
@@ -240,12 +247,13 @@ const route = useRoute()
 const router = useRouter()
 
 const voucherId = route.params.id
+const originalVoucher = ref({}) // Store original voucher data for reset
 
-// Computed properties to disable product/category selection if one is already chosen
+// Computed properties to disable product/category selection
 const isProductIdDisabled = computed(() => !!voucher.categoryId)
 const isCategoryIdDisabled = computed(() => !!voucher.productId)
 
-const voucherForm = ref(null) // Reference to the ElForm component for validation
+const voucherForm = ref(null)
 const voucher = reactive({
   voucherName: '',
   discountPercentage: null,
@@ -255,27 +263,49 @@ const voucher = reactive({
   startDate: null,
   endDate: null,
   description: '',
-  orderType: 1, // Default to 'Tại quầy'
-  voucherType: 1, // Default to 'Công khai'
+  orderType: 1,
+  voucherType: 1,
   customerId: null,
   productId: null,
   categoryId: null,
-  quantity: null, // New quantity field
-  status: 1, // Default status
+  quantity: null,
+  status: 1,
 })
 
-// Validation rules for the form fields
 const rules = {
   voucherName: [{ required: true, message: 'Vui lòng nhập tên voucher', trigger: 'blur' }],
-  startDate: [{ required: true, message: 'Chọn ngày bắt đầu', trigger: 'change' }],
-  endDate: [{ required: true, message: 'Chọn ngày kết thúc', trigger: 'change' }],
+  startDate: [
+    { required: true, message: 'Chọn ngày bắt đầu', trigger: 'change' },
+    {
+      validator: (rule, value, callback) => {
+        if (value && voucher.endDate && new Date(value) >= new Date(voucher.endDate)) {
+          callback(new Error('Ngày bắt đầu phải trước ngày kết thúc'))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'change',
+    },
+  ],
+  endDate: [
+    { required: true, message: 'Chọn ngày kết thúc', trigger: 'change' },
+    {
+      validator: (rule, value, callback) => {
+        if (value && voucher.startDate && new Date(value) <= new Date(voucher.startDate)) {
+          callback(new Error('Ngày kết thúc phải sau ngày bắt đầu'))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'change',
+    },
+  ],
   voucherType: [{ required: true, message: 'Chọn loại voucher', trigger: 'change' }],
   orderType: [{ required: true, message: 'Chọn loại đơn hàng', trigger: 'change' }],
-  // Custom validation for customerId if voucherType is 'Riêng tư'
   customerId: [
     {
       validator: (rule, value, callback) => {
-        if (voucher.voucherType === 0 && !value) { // Use 0 for "Riêng tư"
+        if (voucher.voucherType === 0 && !value) {
           callback(new Error('Vui lòng chọn khách hàng cho voucher riêng tư'))
         } else {
           callback()
@@ -284,17 +314,15 @@ const rules = {
       trigger: ['blur', 'change'],
     },
   ],
-  // Custom validation for discountPercentage and discountAmount
   discountPercentage: [
     {
       validator: (rule, value, callback) => {
-        // If discountAmount is not set, then discountPercentage is required
         if (voucher.discountAmount === null && (value === null || value === '')) {
-          callback(new Error('Vui lòng nhập phần trăm giảm hoặc số tiền giảm'));
+          callback(new Error('Vui lòng nhập phần trăm giảm hoặc số tiền giảm'))
         } else if (value !== null && (value < 0 || value > 100)) {
-          callback(new Error('Phần trăm giảm phải từ 0 đến 100'));
+          callback(new Error('Phần trăm giảm phải từ 0 đến 100'))
         } else {
-          callback();
+          callback()
         }
       },
       trigger: 'blur',
@@ -303,13 +331,12 @@ const rules = {
   discountAmount: [
     {
       validator: (rule, value, callback) => {
-        // If discountPercentage is not set, then discountAmount is required
         if (voucher.discountPercentage === null && (value === null || value === '')) {
-          callback(new Error('Vui lòng nhập số tiền giảm hoặc phần trăm giảm'));
+          callback(new Error('Vui lòng nhập số tiền giảm hoặc phần trăm giảm'))
         } else if (value !== null && value < 0) {
-          callback(new Error('Số tiền giảm phải lớn hơn hoặc bằng 0'));
+          callback(new Error('Số tiền giảm phải lớn hơn hoặc bằng 0'))
         } else {
-          callback();
+          callback()
         }
       },
       trigger: 'blur',
@@ -320,9 +347,9 @@ const rules = {
     {
       validator: (rule, value, callback) => {
         if (value !== null && value < 1) {
-          callback(new Error('Số lượng phải lớn hơn hoặc bằng 1'));
+          callback(new Error('Số lượng phải lớn hơn hoặc bằng 1'))
         } else {
-          callback();
+          callback()
         }
       },
       trigger: 'change',
@@ -334,80 +361,74 @@ const products = ref([])
 const categories = ref([])
 const customers = ref([])
 
-// Fetches voucher data from the API based on the voucherId
 const fetchVoucher = async () => {
   try {
     const res = await axios.get(`http://localhost:8080/api/admin/vouchers/${voucherId}`)
-    // Directly assign fetched data, ensuring nulls are handled for input-number fields
     Object.assign(voucher, res.data)
-
-    // Convert date strings from API to Date objects for el-date-picker to display correctly
+    Object.assign(originalVoucher.value, res.data) // Store original data
     if (res.data.startDate) {
-        voucher.startDate = new Date(res.data.startDate);
+      voucher.startDate = new Date(res.data.startDate)
     }
     if (res.data.endDate) {
-        voucher.endDate = new Date(res.data.endDate);
+      voucher.endDate = new Date(res.data.endDate)
     }
-
-    // Ensure numeric fields default to null if they come as 0 or undefined from API
-    voucher.discountPercentage = res.data.discountPercentage ?? null;
-    voucher.discountAmount = res.data.discountAmount ?? null;
-    voucher.minOrderValue = res.data.minOrderValue ?? null;
-    voucher.maxDiscountValue = res.data.maxDiscountValue ?? null;
-    voucher.quantity = res.data.quantity ?? null;
+    voucher.discountPercentage = res.data.discountPercentage ?? null
+    voucher.discountAmount = res.data.discountAmount ?? null
+    voucher.minOrderValue = res.data.minOrderValue ?? null
+    voucher.maxDiscountValue = res.data.maxDiscountValue ?? null
+    voucher.quantity = res.data.quantity ?? null
   } catch (err) {
     console.error('Lỗi khi tải dữ liệu voucher:', err)
     ElMessage.error('Không thể tải dữ liệu voucher!')
   }
 }
 
-// Client-side filtering for products (consider server-side for large datasets)
-const filterProducts = (query) => {
-  if (query) {
-    products.value = products.value.filter((product) =>
-      product.productName.toLowerCase().includes(query.toLowerCase())
-    )
-  } else {
-    fetchProducts() // Re-fetch all products if search query is cleared
+const filterProducts = async (query) => {
+  try {
+    const res = await axios.get('http://localhost:8080/api/admin/products/hien-thi', {
+      params: { search: query },
+    })
+    products.value = res.data
+  } catch (error) {
+    console.error('Lỗi khi tìm kiếm sản phẩm:', error)
+    ElMessage.error('Không thể tìm kiếm sản phẩm!')
   }
 }
 
-// Client-side filtering for categories
-const filterCategories = (query) => {
-  if (query) {
-    categories.value = categories.value.filter((category) =>
-      category.categoryName.toLowerCase().includes(query.toLowerCase())
-    )
-  } else {
-    fetchCategories()
+const filterCategories = async (query) => {
+  try {
+    const res = await axios.get('http://localhost:8080/api/admin/categories/hien-thi', {
+      params: { search: query },
+    })
+    categories.value = res.data
+  } catch (error) {
+    console.error('Lỗi khi tìm kiếm danh mục:', error)
+    ElMessage.error('Không thể tìm kiếm danh mục!')
   }
 }
 
-// Client-side filtering for customers by name or ID
-const filterCustomers = (query) => {
-  if (query) {
-    customers.value = customers.value.filter((customer) =>
-      (customer.customerName?.toLowerCase() || '').includes(query.toLowerCase()) ||
-      String(customer.id).includes(query)
-    )
-  } else {
-    fetchCustomers()
+const filterCustomers = async (query) => {
+  try {
+    const res = await axios.get('http://localhost:8080/api/admin/customers', {
+      params: { search: query },
+    })
+    customers.value = res.data
+  } catch (error) {
+    console.error('Lỗi khi tìm kiếm khách hàng:', error)
+    ElMessage.error('Không thể tìm kiếm khách hàng!')
   }
 }
 
-// Updates voucher status based on start date
 const updateStatus = () => {
   if (!voucher.startDate) {
-    voucher.status = 1 // Default or a safe status
+    voucher.status = 1
     return
   }
   const now = new Date()
   const start = new Date(voucher.startDate)
-  // Status 1: Đang diễn ra, 2: Sắp diễn ra
   voucher.status = start > now ? 2 : 1
 }
 
-// Fetches list of products
 const fetchProducts = async () => {
   try {
     const res = await axios.get('http://localhost:8080/api/admin/products/hien-thi')
@@ -418,7 +439,6 @@ const fetchProducts = async () => {
   }
 }
 
-// Fetches list of categories
 const fetchCategories = async () => {
   try {
     const res = await axios.get('http://localhost:8080/api/admin/categories/hien-thi')
@@ -429,41 +449,50 @@ const fetchCategories = async () => {
   }
 }
 
-// Fetches list of customers
 const fetchCustomers = async () => {
   try {
-    const response = await axios.get('http://localhost:8080/api/admin/customers')
-    customers.value = response.data
+    const res = await axios.get('http://localhost:8080/api/admin/customers')
+    customers.value = res.data
   } catch (error) {
     console.error('Lỗi khi lấy danh sách khách hàng:', error)
     ElMessage.error('Không thể tải danh sách khách hàng!')
   }
 }
 
-// Formats a Date object into a 'YYYY-MM-DD HH:mm:ss' string
 const formatDateForBackend = (date) => {
-  if (!date) return null;
-  const d = new Date(date);
-  // Check for invalid date to prevent errors
+  if (!date) return null
+  const d = new Date(date)
   if (isNaN(d.getTime())) {
-    console.warn("Invalid date object provided to formatDateForBackend:", date);
-    return null;
+    console.warn('Invalid date:', date)
+    return null
   }
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  const hours = String(d.getHours()).padStart(2, '0');
-  const minutes = String(d.getMinutes()).padStart(2, '0');
-  const seconds = String(d.getSeconds()).padStart(2, '0');
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-};
+  return d.toISOString().replace('T', ' ').slice(0, 19) // ISO format to 'YYYY-MM-DD HH:mm:ss'
+}
 
-// Handles the voucher update process
+const clearDiscountAmount = () => {
+  if (voucher.discountPercentage !== null && voucher.discountPercentage > 0) {
+    voucher.discountAmount = null
+  }
+}
+
+const clearDiscountPercentage = () => {
+  if (voucher.discountAmount !== null && voucher.discountAmount > 0) {
+    voucher.discountPercentage = null
+  }
+}
+
+const disablePastDates = (time) => {
+  return time.getTime() < new Date().setHours(0, 0, 0, 0)
+}
+
+const disableEndDateBeforeStart = (time) => {
+  if (!voucher.startDate) return false
+  return time.getTime() <= new Date(voucher.startDate).getTime()
+}
+
 const updateVoucher = async () => {
   try {
-    // Validate form fields
-    await voucherForm.value.validate();
-
+    await voucherForm.value.validate()
     const confirmed = await ElMessageBox.confirm(
       'Bạn có chắc chắn muốn cập nhật voucher này không?',
       'Xác nhận cập nhật',
@@ -472,23 +501,22 @@ const updateVoucher = async () => {
         cancelButtonText: 'Hủy',
         type: 'warning',
       }
-    );
+    )
 
-    // If confirmation is canceled, stop the process
     if (!confirmed) {
-      ElMessage.info('Hủy cập nhật voucher');
-      return;
+      ElMessage.info('Hủy cập nhật voucher')
+      return
     }
 
-    // Prepare payload, converting Date objects to string format required by backend
     const payload = {
       ...voucher,
-      startDate: voucher.startDate ? formatDateForBackend(voucher.startDate) : null,
-      endDate: voucher.endDate ? formatDateForBackend(voucher.endDate) : null,
-      // Logic to ensure only one of discountPercentage or discountAmount is sent
+      startDate: formatDateForBackend(voucher.startDate),
+      endDate: formatDateForBackend(voucher.endDate),
       discountPercentage: voucher.discountAmount > 0 ? null : voucher.discountPercentage,
       discountAmount: voucher.discountPercentage > 0 ? null : voucher.discountAmount,
-    };
+      minOrderValue: voucher.minOrderValue === 0 || voucher.minOrderValue === '' ? null : voucher.minOrderValue,
+      maxDiscountValue: voucher.maxDiscountValue === 0 || voucher.maxDiscountValue === '' ? null : voucher.maxDiscountValue,
+    }
 
     // Set fields to null if they are 0 or empty strings, as per backend expectation
     if (payload.minOrderValue === 0 || payload.minOrderValue === '') payload.minOrderValue = null;
@@ -501,56 +529,55 @@ const updateVoucher = async () => {
     const res = await axios.put(`http://localhost:8080/api/admin/vouchers/update/${voucherId}`, payload);
 
     if (res.status !== 200) {
-      throw new Error('Cập nhật voucher thất bại');
+      throw new Error(res.data.message || 'Cập nhật voucher thất bại')
     }
-    ElMessage.success('Cập nhật voucher thành công!');
-    router.push('/voucher'); // Navigate back to the voucher list
+    ElMessage.success('Cập nhật voucher thành công!')
+    router.push('/voucher')
   } catch (err) {
     if (err === 'cancel') {
-      ElMessage.info('Hủy cập nhật voucher');
+      ElMessage.info('Hủy cập nhật voucher')
     } else {
-      console.error('Lỗi trong quá trình cập nhật voucher:', err);
-      // Provide more specific error messages if possible from backend
-      ElMessage.error('Cập nhật thất bại, kiểm tra lại thông tin hoặc thử lại sau.');
+      console.error('Lỗi trong quá trình cập nhật voucher:', err)
+      const errorMessage = err.response?.data?.message || 'Cập nhật thất bại, kiểm tra lại thông tin.'
+      ElMessage.error(errorMessage)
     }
   }
-};
+}
 
-// Resets the form to its initial state
 const resetForm = () => {
   if (voucherForm.value) {
-    voucherForm.value.resetFields();
-  }
-  // Manually clear quantity if resetFields doesn't cover it fully
-  voucher.quantity = null;
-  // Re-fetch the original voucher data to revert changes
-  fetchVoucher();
-};
-
-// Navigates back to the previous page
-const goBack = () => {
-  router.back();
-};
-
-// Handles change in voucherType to clear customerId if not 'Riêng tư'
-const onVoucherTypeChange = () => {
-  if (voucher.voucherType !== 0) { // If not "Riêng tư" (0)
-    voucher.customerId = null;
-    if (voucherForm.value) {
-      voucherForm.value.clearValidate('customerId');
+    voucherForm.value.resetFields()
+    Object.assign(voucher, originalVoucher.value)
+    if (originalVoucher.value.startDate) {
+      voucher.startDate = new Date(originalVoucher.value.startDate)
+    }
+    if (originalVoucher.value.endDate) {
+      voucher.endDate = new Date(originalVoucher.value.endDate)
     }
   }
-};
+}
 
-// Fetch initial data when the component is mounted
+const goBack = () => {
+  router.back()
+}
+
+const onVoucherTypeChange = () => {
+  if (voucher.voucherType !== 0) {
+    voucher.customerId = null
+    if (voucherForm.value) {
+      voucherForm.value.clearValidate('customerId')
+    }
+  }
+}
+
 onMounted(async () => {
   await Promise.all([
     fetchVoucher(),
     fetchProducts(),
     fetchCategories(),
-    fetchCustomers()
-  ]);
-});
+    fetchCustomers(),
+  ])
+})
 </script>
 
 <style scoped>

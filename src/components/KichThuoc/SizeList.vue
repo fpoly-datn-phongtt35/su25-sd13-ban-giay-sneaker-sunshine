@@ -92,6 +92,12 @@ const handleSubmit = async () => {
 
   try {
     if (isEditing.value) {
+      await ElMessageBox.confirm('Bạn có chắc chắn muốn cập nhật kích thước này?', 'Xác nhận', {
+        confirmButtonText: 'Cập nhật',
+        cancelButtonText: 'Hủy',
+        type: 'info',
+      })
+
       await axios.put(`http://localhost:8080/api/admin/size/${form.value.id}`, null, {
         params: { name: form.value.name },
       })

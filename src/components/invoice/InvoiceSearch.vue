@@ -1,66 +1,80 @@
 <template>
-  <div class="d-flex mb-3 gap-2 align-items-center">
-    <input
-      type="text"
-      class="form-control"
-      placeholder="Tìm kiếm mã hóa đơn, tên khách hàng, số điện thoại..."
-      v-model="keyword"
-      @input="onInput"
-      autofocus
-    />
+  <div>
+    <div class="search-bar-container">
+      <el-input
+        v-model="keyword"
+        placeholder="Tìm mã hóa đơn, tên khách hàng..."
+        @input="onInput"
+        clearable
+        :prefix-icon="Search"
+      />
 
-    <select class="form-select w-auto" v-model="status" @change="onStatusChange">
-      <option value="">Tất cả trạng thái</option>
-      <option value="0">Chờ xử lý</option>
-      <option value="1">Đã thanh toán</option>
-      <option value="2">Đã hủy</option>
-    </select>
+      <el-select v-model="status" @change="onStatusChange" placeholder="Tất cả trạng thái" clearable>
+        <el-option label="Tất cả trạng thái" value="" />
+        <el-option label="Chờ xử lý" value="0" />
+        <el-option label="Đã thanh toán" value="1" />
+        <el-option label="Đã hủy" value="2" />
+      </el-select>
 
-    <input
-      type="date"
-      class="form-control w-auto"
-      v-model="createdDate"
-      @change="onCreatedDateChange"
-      placeholder="Ngày tạo"
-    />
+      <el-date-picker
+        v-model="createdDate"
+        type="date"
+        placeholder="Chọn ngày tạo"
+        @change="onCreatedDateChange"
+        clearable
+        format="DD/MM/YYYY"
+        value-format="YYYY-MM-DD"
+      />
 
-    <button class="btn btn-success btn-sm" @click="exportExcel">
-      Xuất Excel
-    </button>
+      <el-button
+        type="primary"
+        @click="startScan"
+        :disabled="scanning"
+        :loading="scanning"
+        :icon="Camera"
+      >
+        Quét QR
+      </el-button>
+    </div>
 
-    <button class="btn btn-primary btn-sm" @click="startScan" :disabled="scanning">
-      Quét QR
-    </button>
-  </div>
-
-  <!-- Khu vực hiển thị camera khi quét QR -->
-  <div v-if="scanning" class="qr-scanner-container mt-3">
-    <div id="qr-reader" style="width: 300px;"></div>
-    <button class="btn btn-danger btn-sm mt-2" @click="stopScan">Dừng quét</button>
+    <el-card v-if="scanning" class="qr-scanner-container mt-3" shadow="never">
+       <template #header>
+        <div class="d-flex justify-content-between align-items-center">
+            <span>Đưa mã QR vào vùng camera</span>
+            <el-button type="danger" @click="stopScan" :icon="CircleClose" circle/>
+        </div>
+      </template>
+      <div id="qr-reader" style="width: 100%;"></div>
+    </el-card>
   </div>
 </template>
 
 <script setup>
 import { ref, nextTick } from 'vue'
-import Swal from 'sweetalert2'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Search, Download, Camera, CircleClose } from '@element-plus/icons-vue'
 import { Html5Qrcode } from 'html5-qrcode'
+// THAY ĐỔI: Import instance apiClient đã được cấu hình sẵn
+import apiClient from '@/utils/axiosInstance.js' // <-- Điều chỉnh đường dẫn nếu cần
 
+// State
 const keyword = ref('')
 const status = ref('')
 const createdDate = ref('')
-
 const scanning = ref(false)
 let html5QrCode = null
 
+// Emits
 const emit = defineEmits(['search', 'clear'])
+
+// --- Search & Filter Logic ---
 
 let debounceTimer = null
 
 function emitSearch() {
   const statusValue = status.value === '' ? undefined : Number(status.value)
-  const dateValue = createdDate.value ? new Date(createdDate.value) : undefined
-
-  emit('search', { keyword: keyword.value.trim(), status: statusValue, createdDate: dateValue })
+  // createdDate đã là string YYYY-MM-DD, không cần convert
+  emit('search', { keyword: keyword.value.trim(), status: statusValue, createdDate: createdDate.value })
 }
 
 function onInput() {
@@ -78,6 +92,7 @@ function onCreatedDateChange() {
   emitSearch()
 }
 
+// Function này có thể được gọi từ component cha nếu cần nút "Clear"
 function onClearClick() {
   keyword.value = ''
   status.value = ''
@@ -85,159 +100,113 @@ function onClearClick() {
   emit('clear')
 }
 
-async function exportExcel() {
-  const result = await Swal.fire({
-    title: 'Bạn có chắc muốn xuất toàn bộ danh sách hóa đơn ra file Excel?',
-    showCancelButton: true,
-    confirmButtonText: 'Có',
-    cancelButtonText: 'Hủy',
-    icon: undefined  // Không hiển thị icon
-  })
-
-  if (!result.isConfirmed) return
-
-  try {
-    const response = await fetch('http://localhost:8080/api/invoices/export-all-excel', {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      },
-    })
-    if (!response.ok) throw new Error('Lỗi tải file Excel')
-
-    const blob = await response.blob()
-    const url = window.URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.setAttribute('download', 'danh_sach_hoa_don.xlsx')
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
-    window.URL.revokeObjectURL(url)
-  } catch (error) {
-    Swal.fire('Lỗi', 'Xuất Excel thất bại: ' + error.message, 'error')
-  }
-}
-
-// --- Quét QR Code ---
+// --- QR Code Scanning ---
 
 async function startScan() {
-  scanning.value = true
-  await nextTick() // Đợi div #qr-reader hiển thị
+  scanning.value = true;
+  await nextTick(); // Đợi div #qr-reader hiển thị
 
-  html5QrCode = new Html5Qrcode("qr-reader")
+  html5QrCode = new Html5Qrcode("qr-reader");
 
-  html5QrCode.start(
-    { facingMode: "environment" }, // camera sau
-    {
-      fps: 10,
-      qrbox: 250
-    },
-    qrCodeMessage => {
-      // Khi quét thành công
-      stopScan()
-      sendQRCodeToServer(qrCodeMessage)
-    },
-    errorMessage => {
-      // Có thể log lỗi nhỏ khi quét, không cần báo người dùng
-      // console.log('QR scan error:', errorMessage)
-    }
-  ).catch(err => {
-    Swal.fire('Lỗi', 'Không thể truy cập camera: ' + err, 'error')
-    scanning.value = false
-  })
+  try {
+    await html5QrCode.start(
+      { facingMode: "environment" }, // camera sau
+      { fps: 10, qrbox: { width: 250, height: 250 } },
+      qrCodeMessage => {
+        // Khi quét thành công
+        stopScan();
+        sendQRCodeToServer(qrCodeMessage);
+      },
+      errorMessage => {
+        // Lỗi có thể bỏ qua, không cần thông báo
+      }
+    );
+  } catch (err) {
+    ElMessage.error('Không thể truy cập camera: ' + err);
+    scanning.value = false;
+  }
 }
 
 async function stopScan() {
-  if (html5QrCode) {
+  if (html5QrCode && scanning.value) {
     try {
-      await html5QrCode.stop()
-      html5QrCode.clear()
+      await html5QrCode.stop();
     } catch (err) {
-      console.warn('Lỗi khi dừng camera:', err)
+      console.warn('Lỗi khi dừng camera:', err);
     }
   }
-  scanning.value = false
+  scanning.value = false;
 }
 
 async function sendQRCodeToServer(qrCode) {
   try {
-    const response = await fetch('http://localhost:8080/api/invoices/qr-scan', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ invoiceCode: qrCode }),
-    })
+    // THAY ĐỔI: Sử dụng apiClient và rút gọn URL
+    const response = await apiClient.post('/admin/invoices/qr-scan', {
+        invoiceCode: qrCode
+    });
 
-    if (!response.ok) {
-      const errorText = await response.text()
-      Swal.fire('Lỗi', `Không tìm thấy hóa đơn: ${errorText}`, 'error')
-      return
-    }
+    const data = response.data;
+    const invoice = data.invoice;
+    const details = data.details;
 
-    const data = await response.json()
-
-    // Tạo nội dung html hiển thị thông tin hóa đơn và chi tiết
-    const invoice = data.invoice
-    const details = data.details
-
-    // format ngày tạo
-    const createdDate = new Date(invoice.createdDate).toLocaleString()
-
-    // Tạo html danh sách sản phẩm
-    let productsHtml = '<ul style="text-align:left; padding-left: 20px;">'
+    // Tạo nội dung HTML để hiển thị
+    let productsHtml = '<ul style="text-align:left; padding-left: 20px; margin:0;">';
     details.forEach(item => {
       productsHtml += `
         <li>
-          <b>${item.productName}</b> (${item.categoryName})<br>
-          Size: ${item.size.sizeName}, Màu: ${item.color.colorName}<br>
-          Số lượng: ${item.quantity}, Giá: ${item.price.toLocaleString()} VND
-        </li>
-      `
-    })
-    productsHtml += '</ul>'
+          <b>${item.productName}</b> (Size: ${item.size.sizeName}, Màu: ${item.color.colorName})<br>
+          <small>${item.quantity} x ${item.price.toLocaleString('vi-VN')} VND</small>
+        </li>`;
+    });
+    productsHtml += '</ul>';
 
     const htmlContent = `
-      <div style="text-align:left;">
-        <p><b>Mã hóa đơn:</b> ${invoice.invoiceCode}</p>
-        <p><b>Khách hàng:</b> ${invoice.customerName}</p>
-        <p><b>Nhân viên:</b> ${invoice.employeeName}</p>
-        <p><b>Ngày tạo:</b> ${createdDate}</p>
-        <p><b>Trạng thái:</b> ${invoice.status === 0 ? 'Chờ xử lý' : invoice.status === 1 ? 'Đã thanh toán' : 'Đã hủy'}</p>
-        <p><b>Tổng tiền:</b> ${invoice.totalAmount.toLocaleString()} VND</p>
-        <p><b>Chi tiết sản phẩm:</b></p>
+      <div style="text-align:left; font-size: 1rem;">
+        <p><strong>Mã HĐ:</strong> ${invoice.invoiceCode}</p>
+        <p><strong>Khách hàng:</strong> ${invoice.customerName || 'Khách lẻ'}</p>
+        <p><strong>Trạng thái:</strong> ${invoice.status === 1 ? 'Đã thanh toán' : 'Chờ xử lý'}</p>
+        <hr>
+        <p><strong>Chi tiết sản phẩm:</strong></p>
         ${productsHtml}
-      </div>
-    `
+        <hr>
+        <p style="text-align:right; font-size: 1.1rem;"><strong>Tổng tiền: ${invoice.finalAmount.toLocaleString('vi-VN')} VND</strong></p>
+      </div>`;
 
-    Swal.fire({
-      title: 'Thông tin hóa đơn',
-      html: htmlContent,
-      icon: 'info',
-      width: '600px',
-      customClass: {
-        popup: 'swal-wide',
-      },
-    })
+    ElMessageBox.alert(htmlContent, 'Thông tin hóa đơn', {
+      dangerouslyUseHTMLString: true,
+      width: '500px',
+    });
 
   } catch (error) {
-    Swal.fire('Lỗi', 'Gửi mã QR lên server thất bại: ' + error.message, 'error')
+    const errorMessage = error.response?.data || error.message;
+    ElMessage.error(`Lỗi: ${errorMessage}`);
   }
 }
-
 </script>
 
 <style scoped>
-.btn-sm {
-  height: 42px;
-  padding: 0 10px;
-  font-size: 0.875rem;
+.search-bar-container {
+  display: flex;
+  gap: 10px;
+  align-items: center;
 }
-
 .qr-scanner-container {
-  border: 1px solid #ccc;
-  padding: 10px;
-  width: 320px;
+  max-width: 400px;
+}
+.mt-3 {
+    margin-top: 1rem;
+}
+.d-flex {
+    display: flex;
+}
+.justify-content-between {
+    justify-content: space-between;
+}
+.align-items-center {
+    align-items: center;
+}
+/* Tùy chỉnh chiều rộng cho select và date-picker nếu cần */
+.el-select, .el-date-editor {
+  width: 200px;
 }
 </style>

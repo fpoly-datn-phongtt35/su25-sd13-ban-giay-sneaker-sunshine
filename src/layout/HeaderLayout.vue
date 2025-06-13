@@ -17,7 +17,7 @@
 
     <!-- Khu vực tài khoản -->
     <div class="d-flex align-items-center">
-      <span>Welcome, <strong>{{ userName }}</strong>!</span>
+      <span>Welcome, <strong>{{ employeeName }}</strong>!</span>
       <button @click="logout" class="btn btn-danger ms-3">Logout</button>
     </div>
   </header>
@@ -25,4 +25,28 @@
 
 <script setup>
 
+import { ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
+
+// Khai báo router
+const router = useRouter();
+const employeeName = ref('');
+
+// Lấy thông tin người dùng từ localStorage khi trang được tải
+onMounted(() => {
+  const storedName = localStorage.getItem('employeeName'); 
+  if (!storedName) {
+    router.push('/login'); // Nếu không có dữ liệu => quay lại login
+    return;
+  }
+  employeeName.value = storedName;
+});
+
+// Hàm đăng xuất
+const logout = () => {
+  localStorage.removeItem('token');
+  localStorage.removeItem('username'); 
+  router.push('/login');
+  window.location.reload();
+};
 </script>

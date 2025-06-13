@@ -369,7 +369,7 @@ const fetchCatgories = async () => {
 // Lấy chất liệu sản phẩm
 const fecthMaterial = async () => {
   try {
-    const response = await axios.get('http://localhost:8080/api/material/hien-thi')
+    const response = await axios.get('http://localhost:8080/api/admin/material/hien-thi')
     materialList.value = response.data
   } catch (error) {
     console.error('Lỗi lấy chất liệu:', error)
@@ -391,7 +391,7 @@ const fecthSupplier = async () => {
 // Lấy thương hiệu sản phẩm
 const fetchBrand = async () => {
   try {
-    const response = await axios.get('http://localhost:8080/api/brand/hien-thi')
+    const response = await axios.get('http://localhost:8080/api/admin/brand/hien-thi')
     brandList.value = response.data
   } catch (error) {
     console.error('Lỗi lấy thương hiệu:', error)
@@ -402,7 +402,7 @@ const fetchBrand = async () => {
 // Lấy đế giày sản phẩm
 const fetchSole = async () => {
   try {
-    const response = await axios.get('http://localhost:8080/api/sole/hien-thi')
+    const response = await axios.get('http://localhost:8080/api/admin/sole/hien-thi')
     soleList.value = response.data
   } catch (error) {
     console.error('Lỗi lấy đế giày:', error)
@@ -413,7 +413,7 @@ const fetchSole = async () => {
 // Lấy phong cách sản phẩm
 const fetchStyle = async () => {
   try {
-    const response = await axios.get('http://localhost:8080/api/style/hien-thi')
+    const response = await axios.get('http://localhost:8080/api/admin/style/hien-thi')
     styleList.value = response.data
   } catch (error) {
     console.error('Lỗi lấy phong cách:', error)
@@ -425,8 +425,8 @@ const fetchStyle = async () => {
 const fetchSizesAndColors = async () => {
   try {
     const [sizesResponse, colorsResponse] = await Promise.all([
-      axios.get('http://localhost:8080/api/size/hien-thi'),
-      axios.get('http://localhost:8080/api/color/hien-thi'),
+      axios.get('http://localhost:8080/api/admin/size/hien-thi'),
+      axios.get('http://localhost:8080/api/admin/color/hien-thi'),
     ])
     sizeList.value = sizesResponse.data
     colorList.value = colorsResponse.data

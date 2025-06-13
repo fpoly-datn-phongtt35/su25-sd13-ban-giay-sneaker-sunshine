@@ -531,7 +531,7 @@ const submitForm = async () => {
     }).then(async () => {
       updateStatus();
       try {
-        await axios.post('http://localhost:8080/api/vouchers/create', voucher);
+        await axios.post('http://localhost:8080/api/admin/vouchers/create', voucher);
         ElMessage.success('Thêm voucher thành công!');
         router.push('/voucher');
         resetForm();

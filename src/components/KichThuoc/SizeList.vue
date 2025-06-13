@@ -77,7 +77,7 @@ const formatDateTime = (dateStr) => {
 
 const fetchSizes = async () => {
   try {
-    const response = await axios.get('http://localhost:8080/api/size/hien-thi')
+    const response = await axios.get('http://localhost:8080/api/admin/size/hien-thi')
     sizes.value = response.data
   } catch (error) {
     ElMessage.error('Lỗi khi tải dữ liệu kích thước')
@@ -98,7 +98,7 @@ const handleSubmit = async () => {
         type: 'info',
       })
 
-      await axios.put(`http://localhost:8080/api/size/${form.value.id}`, null, {
+      await axios.put(`http://localhost:8080/api/admin/size/${form.value.id}`, null, {
         params: { name: form.value.name },
       })
       ElMessage.success('Cập nhật thành công')
@@ -111,12 +111,17 @@ const handleSubmit = async () => {
         type: 'info',
       })
 
-      await axios.post('http://localhost:8080/api/size', null, {
-        params: { name: form.value.name },
-      })
-      ElMessage.success('Thêm mới thành công')
-      await fetchSizes()
-      resetForm()
+        .then(async () => {
+          await axios.post('http://localhost:8080/api/admin/size', null, {
+            params: { name: form.value.name },
+          })
+          ElMessage.success('Thêm mới thành công')
+          await fetchSizes()
+          resetForm()
+        })
+        .catch(() => {
+          ElMessage.info('Đã hủy thao tác thêm')
+        })
     }
   } catch (error) {
     if (error !== 'cancel') {
@@ -146,7 +151,7 @@ const confirmDelete = (id) => {
     type: 'warning',
   })
     .then(async () => {
-      await axios.delete(`http://localhost:8080/api/size/${id}`)
+      await axios.delete(`http://localhost:8080/api/admin/size/${id}`)
       ElMessage.success('Đã xóa thành công')
       await fetchSizes()
     })

@@ -80,7 +80,7 @@ const formatDateTime = (dateStr) => {
 
 const fetchSoles = async () => {
   try {
-    const response = await axios.get('http://localhost:8080/api/sole/hien-thi')
+    const response = await axios.get('http://localhost:8080/api/admin/sole/hien-thi')
     soles.value = response.data
   } catch (error) {
     ElMessage.error('Lỗi khi tải dữ liệu')
@@ -99,24 +99,26 @@ const handleSubmit = async () => {
           cancelButtonText: 'Hủy',
           type: 'warning',
         })
+      } else {
+        // Trường hợp thêm mới: hiển thị confirm
+      ElMessageBox.confirm('Bạn có chắc chắn muốn thêm mới loại đế?', 'Xác nhận', {
+        confirmButtonText: 'Thêm',
+        cancelButtonText: 'Hủy',
+        type: 'info',
+      })
+        .then(async () => {
+          await axios.post('http://localhost:8080/api/admin/sole', null, {
+            params: { name: form.value.name },
+          })
+          ElMessage.success('Thêm mới thành công')
+          await fetchSoles()
+          resetForm()
+        })
 
         await axios.put(`http://localhost:8080/api/sole/${form.value.id}`, null, {
           params: { name: form.value.name },
         })
         ElMessage.success('Cập nhật thành công')
-        await fetchSoles()
-        resetForm()
-      } else {
-        await ElMessageBox.confirm('Bạn có chắc chắn muốn thêm mới loại đế?', 'Xác nhận', {
-          confirmButtonText: 'Thêm',
-          cancelButtonText: 'Hủy',
-          type: 'info',
-        })
-
-        await axios.post('http://localhost:8080/api/sole', null, {
-          params: { name: form.value.name },
-        })
-        ElMessage.success('Thêm mới thành công')
         await fetchSoles()
         resetForm()
       }
@@ -147,7 +149,7 @@ const confirmDelete = (id) => {
     type: 'warning',
   })
     .then(async () => {
-      await axios.delete(`http://localhost:8080/api/sole/${id}`)
+      await axios.delete(`http://localhost:8080/api/admin/sole/${id}`)
       ElMessage.success('Đã xóa thành công')
       await fetchSoles()
     })

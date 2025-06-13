@@ -109,7 +109,7 @@ const rules = {
 
 const fetchColors = async () => {
   try {
-    const res = await axios.get('http://localhost:8080/api/color/hien-thi')
+    const res = await axios.get('http://localhost:8080/api/admin/color/hien-thi')
     colors.value = res.data
   } catch (err) {
     ElMessage.error('Không thể tải danh sách màu')
@@ -140,12 +140,13 @@ const handleSubmit = () => {
       loading.value = true
 
       if (isEditing.value) {
-        await axios.put(`http://localhost:8080/api/color/${form.value.id}`, null, {
+
+        await axios.put(`http://localhost:8080/api/admin/color/${form.value.id}`, null, {
           params: { name: form.value.colorName }
         })
         ElMessage.success('Cập nhật thành công')
       } else {
-        await axios.post('http://localhost:8080/api/color', null, {
+        await axios.post('http://localhost:8080/api/admin/color', null, {
           params: { name: form.value.colorName }
         })
         ElMessage.success('Thêm mới thành công')
@@ -173,7 +174,7 @@ const deleteColor = async (id) => {
     await ElMessageBox.confirm('Bạn có chắc muốn xóa màu này?', 'Xác nhận', {
       type: 'warning'
     })
-    await axios.delete(`http://localhost:8080/api/color/${id}`)
+    await axios.delete(`http://localhost:8080/api/admin/color/${id}`)
     ElMessage.success('Xóa thành công')
     await fetchColors()
   } catch (err) {

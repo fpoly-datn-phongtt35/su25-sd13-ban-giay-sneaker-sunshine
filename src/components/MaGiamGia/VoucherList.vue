@@ -249,7 +249,7 @@ const fetchVoucher = async (newPage = 0) => {
       ? {}
       : searchParams
 
-    const response = await axios.post('http://localhost:8080/api/vouchers/search', requestBody)
+    const response = await axios.post('http://localhost:8080/api/admin/vouchers/search', requestBody)
     vouchers.value = response.data.data || []
     totalPages.value = response.data.pagination?.totalPages || 0
     totalElements.value = response.data.pagination?.totalElements || 0
@@ -375,7 +375,7 @@ const onDeleteVoucher = (row) => {
   })
     .then(async () => {
       try {
-        await axios.delete(`http://localhost:8080/api/vouchers/${row.id}`)
+        await axios.delete(`http://localhost:8080/api/admin/vouchers/${row.id}`)
         ElMessage.success('Xóa voucher thành công!')
         await fetchVoucher(page.value)
       } catch (error) {

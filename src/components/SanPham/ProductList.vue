@@ -1,13 +1,11 @@
 <template>
   <div class="container-fluid mt-4">
-    <!-- Nút Thêm sản phẩm -->
     <div class="mb-2">
       <button @click="goToAdd" class="btn btn-primary btn-sm">
         <i class="bi bi-bag-plus-fill me-1"></i> Thêm sản phẩm
       </button>
     </div>
 
-    <!-- Form Tìm kiếm nâng cao -->
     <div class="card shadow-sm mb-2">
       <div class="card-body p-2">
         <h5 class="text-center mb-2">Tìm kiếm nâng cao</h5>
@@ -26,7 +24,6 @@
               </div>
             </div>
 
-            <!-- Category -->
             <div class="col-md-6">
               <label class="form-label fw-bold text-primary small">Danh mục</label>
               <Multiselect
@@ -48,7 +45,6 @@
               </small>
             </div>
 
-            <!-- Material & Gender -->
             <div class="col-md-6">
               <label class="form-label fw-bold text-primary small">Chất liệu</label>
               <select v-model="searchProduct.materialId" class="form-select form-select-sm">
@@ -66,7 +62,7 @@
                     class="form-check-input"
                     type="radio"
                     id="genderMale"
-                    value="1"
+                    :value="1"
                     v-model="searchProduct.genderId"
                   />
                   <label class="form-check-label small" for="genderMale">Nam</label>
@@ -76,7 +72,7 @@
                     class="form-check-input"
                     type="radio"
                     id="genderFemale"
-                    value="2"
+                    :value="2"
                     v-model="searchProduct.genderId"
                   />
                   <label class="form-check-label small" for="genderFemale">Nữ</label>
@@ -86,7 +82,7 @@
                     class="form-check-input"
                     type="radio"
                     id="genderBoth"
-                    value="3"
+                    :value="3"
                     v-model="searchProduct.genderId"
                   />
                   <label class="form-check-label small" for="genderBoth">Cả hai</label>
@@ -94,7 +90,6 @@
               </div>
             </div>
 
-            <!-- Sole & Style -->
             <div class="col-md-6">
               <label class="form-label fw-bold text-primary small">Loại đế</label>
               <select v-model="searchProduct.soleId" class="form-select form-select-sm">
@@ -114,7 +109,6 @@
               </select>
             </div>
 
-            <!-- Brand & Price Range -->
             <div class="col-md-6">
               <label class="form-label fw-bold text-primary small">Thương hiệu</label>
               <select v-model="searchProduct.brandId" class="form-select form-select-sm">
@@ -143,7 +137,6 @@
               </div>
             </div>
 
-            <!-- Date Range -->
             <div class="demo-datetime-picker row">
               <label class="form-label fw-bold text-primary small">Ngày tạo (Từ - Đến)</label>
               <div class="col-md-6">
@@ -169,7 +162,6 @@
             </div>
           </div>
 
-          <!-- Search Button -->
           <div class="text-center mt-3 d-flex justify-content-center gap-2">
             <button type="submit" class="btn btn-primary btn-sm">
               <i class="bi bi-search me-1"></i> Tìm kiếm
@@ -182,10 +174,8 @@
       </div>
     </div>
 
-    <!-- Hiển thị số lượng sản phẩm đã chọn -->
     <div class="text-muted small mb-2">Đã chọn: {{ allSelectedProducts.length }} sản phẩm</div>
 
-    <!-- Container nút -->
     <div class="mb-2 d-flex justify-content-between align-items-center">
       <div>
         <button type="button" class="btn btn-success btn-sm" @click="downloadExcel">
@@ -208,7 +198,6 @@
       </div>
     </div>
 
-    <!-- Bảng danh sách sản phẩm -->
     <div class="card shadow-sm">
       <div class="card-body table-responsive p-2">
         <table class="table table-striped table-hover table-bordered">
@@ -284,21 +273,17 @@
       </div>
     </div>
 
-    <!-- Điều hướng trang -->
-    <div class="d-flex justify-content-between align-items-center mt-2">
-      <span class="text-muted small">Trang {{ page + 1 }} / {{ totalPages }}</span>
-      <div>
-        <button
-          class="btn btn-outline-secondary btn-sm me-1"
-          :disabled="!hasPrevious"
-          @click="previousPage"
-        >
-          <i class="bi bi-chevron-left"></i>
-        </button>
-        <button class="btn btn-outline-secondary btn-sm" :disabled="!hasNext" @click="nextPage">
-          <i class="bi bi-chevron-right"></i>
-        </button>
-      </div>
+    <div class="d-flex justify-content-end mt-4">
+      <el-pagination
+        @size-change="handleSizeChange"
+        @current-change="handleCurrentChange"
+        :current-page="page + 1"
+        :page-sizes="[5, 8, 10, 20, 50]"
+        :page-size="size"
+        layout="total, sizes, prev, pager, next, jumper"
+        :total="totalElements"
+        background
+      />
     </div>
   </div>
 </template>
@@ -313,10 +298,8 @@ import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const productList = ref([])
-const totalPages = ref(0)
-const totalElements = ref(0)
-const hasNext = ref(false)
-const hasPrevious = ref(false)
+const totalPages = ref(0) // Giá trị này không còn dùng trực tiếp cho hasNext/hasPrevious với el-pagination
+const totalElements = ref(0) // Tổng số phần tử, cần thiết cho el-pagination
 const page = ref(0)
 const size = ref(8)
 const selectedProducts = ref([]) // ID sản phẩm trên trang hiện tại
@@ -358,18 +341,20 @@ const resetForm = async () => {
     createdFrom: null,
     createdTo: null,
   }
-  page.value = 0
-  selectedProducts.value = []
-  allSelectedProducts.value = []
-  selectAll.value = false
+  page.value = 0 // Reset trang về 0
+  size.value = 8 // Reset kích thước trang về mặc định
+  allSelectedProducts.value = [] // Xóa tất cả lựa chọn
+  selectedProducts.value = [] // Xóa lựa chọn trên trang hiện tại
+  selectAll.value = false // Bỏ chọn "Chọn tất cả"
   await fetchProduct()
 }
 
 // Bỏ chọn tất cả sản phẩm
 const clearAllSelections = () => {
   allSelectedProducts.value = []
-  selectedProducts.value = []
+  selectedProducts.value = [] // Đảm bảo checkbox trên trang hiện tại cũng bỏ chọn
   selectAll.value = false
+  ElMessage.info('Đã bỏ chọn tất cả sản phẩm.');
 }
 
 // Xử lý checkbox "Chọn tất cả"
@@ -381,6 +366,7 @@ const toggleSelectAll = () => {
     allSelectedProducts.value.push(...newIds)
     selectedProducts.value = [...productList.value.map((p) => p.id)]
   } else {
+    // Chỉ loại bỏ các sản phẩm của trang hiện tại khỏi allSelectedProducts
     allSelectedProducts.value = allSelectedProducts.value.filter(
       (id) => !productList.value.some((p) => p.id === id),
     )
@@ -389,24 +375,42 @@ const toggleSelectAll = () => {
 }
 
 // Đồng bộ selectedProducts với allSelectedProducts
+// Hàm này chạy sau khi productList thay đổi (ví dụ: chuyển trang)
 const syncSelectedProducts = () => {
   selectedProducts.value = productList.value
     .filter((p) => allSelectedProducts.value.includes(p.id))
     .map((p) => p.id)
-  selectAll.value =
-    productList.value.length > 0 && selectedProducts.value.length === productList.value.length
+  // Kiểm tra nếu tất cả sản phẩm trên trang hiện tại được chọn
+  selectAll.value = productList.value.length > 0 &&
+                    selectedProducts.value.length === productList.value.length
 }
 
 // Theo dõi selectedProducts để cập nhật allSelectedProducts
-watch(selectedProducts, () => {
-  const currentPageIds = productList.value.map((p) => p.id)
-  allSelectedProducts.value = [
-    ...allSelectedProducts.value.filter((id) => !currentPageIds.includes(id)),
-    ...selectedProducts.value,
-  ]
-  selectAll.value =
-    productList.value.length > 0 && selectedProducts.value.length === productList.value.length
-})
+watch(selectedProducts, (newSelectedIds, oldSelectedIds) => {
+  const currentPageIds = productList.value.map((p) => p.id);
+
+  // Loại bỏ các ID cũ của trang hiện tại khỏi allSelectedProducts
+  oldSelectedIds.forEach(id => {
+    if (currentPageIds.includes(id) && !newSelectedIds.includes(id)) {
+      const index = allSelectedProducts.value.indexOf(id);
+      if (index > -1) {
+        allSelectedProducts.value.splice(index, 1);
+      }
+    }
+  });
+
+  // Thêm các ID mới của trang hiện tại vào allSelectedProducts
+  newSelectedIds.forEach(id => {
+    if (!allSelectedProducts.value.includes(id)) {
+      allSelectedProducts.value.push(id);
+    }
+  });
+
+  // Cập nhật trạng thái của checkbox "Chọn tất cả" trên trang hiện tại
+  selectAll.value = productList.value.length > 0 &&
+                    selectedProducts.value.length === productList.value.length;
+}, { deep: true });
+
 
 // Lấy danh mục sản phẩm
 const fetchCategories = async () => {
@@ -479,6 +483,7 @@ const fetchProduct = async () => {
     priceMax: searchProduct.value.priceMax || null,
     page: page.value,
     size: size.value,
+    status: 1 // Chỉ lấy sản phẩm đang hoạt động
   }
 
   try {
@@ -487,11 +492,9 @@ const fetchProduct = async () => {
       searchParams,
     )
     productList.value = response.data.data
-    totalPages.value = response.data.pagination?.totalPages || 0
-    totalElements.value = response.data.pagination?.totalElements || 0
-    hasNext.value = page.value + 1 < totalPages.value
-    hasPrevious.value = page.value > 0
-    syncSelectedProducts()
+    totalElements.value = response.data.pagination?.totalElements || 0 // Cập nhật tổng số phần tử
+    totalPages.value = response.data.pagination?.totalPages || 0 // Giữ lại nếu bạn vẫn muốn hiển thị
+    syncSelectedProducts() // Đồng bộ hóa các checkbox trên trang hiện tại
   } catch (error) {
     console.error('Lỗi tải danh sách sản phẩm:', error)
     ElMessage.error('Tải danh sách sản phẩm thất bại!')
@@ -505,6 +508,10 @@ const goToAdd = () => {
 
 const goToHistory = () => {
   router.push('/product/history')
+}
+
+const goToTrash = () => {
+  router.push('/product/trash') // Thêm điều hướng tới trang sản phẩm đã xóa
 }
 
 const goToUpdate = (id) => {
@@ -521,31 +528,17 @@ const formatDate = (dateString) => {
   return new Date(dateString).toLocaleString('vi-VN', { hour12: false })
 }
 
-const formatDateTime = (dateString) => {
-  if (!dateString) return null
-  const d = new Date(dateString)
-  const year = d.getFullYear()
-  const month = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  const hours = String(d.getHours()).padStart(2, '0')
-  const minutes = String(d.getMinutes()).padStart(2, '0')
-  const seconds = String(d.getSeconds()).padStart(2, '0')
-  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`
+
+// --- Phân trang Element Plus handlers ---
+const handleSizeChange = (newSize) => {
+  size.value = newSize
+  page.value = 0 // Reset về trang đầu tiên khi thay đổi số lượng mục trên trang
+  fetchProduct()
 }
 
-// Phân trang
-const previousPage = () => {
-  if (hasPrevious.value) {
-    page.value--
-    fetchProduct()
-  }
-}
-
-const nextPage = () => {
-  if (hasNext.value) {
-    page.value++
-    fetchProduct()
-  }
+const handleCurrentChange = (newPage) => {
+  page.value = newPage - 1 // el-pagination là 1-indexed, API của bạn là 0-indexed
+  fetchProduct()
 }
 
 // Xuất Excel
@@ -554,7 +547,8 @@ const downloadExcel = async () => {
     const message =
       allSelectedProducts.value.length > 0
         ? `Xuất Excel cho ${allSelectedProducts.value.length} sản phẩm đã chọn?`
-        : 'Xuất Excel toàn bộ sản phẩm?'
+        : 'Xuất Excel toàn bộ sản phẩm theo bộ lọc hiện tại?'; // Thay đổi thông báo
+
     await ElMessageBox.confirm(message, 'Xác nhận', {
       type: 'warning',
       confirmButtonText: 'Xuất',
@@ -567,21 +561,22 @@ const downloadExcel = async () => {
       data = allSelectedProducts.value
       filename = 'products-by-ids.xlsx'
     } else {
-      const searchParams = {
+      const searchParamsForExport = {
         keyword: searchProduct.value.keyWord || null,
         brandId: searchProduct.value.brandId || null,
         genderId: searchProduct.value.genderId || null,
         styleId: searchProduct.value.styleId || null,
         soleId: searchProduct.value.soleId || null,
         materialId: searchProduct.value.materialId || null,
-        createdFrom: formatDateTime(searchProduct.value.createdFrom) || null,
-        createdTo: formatDateTime(searchProduct.value.createdTo) || null,
+        createdFrom: searchProduct.value.createdFrom || null, // value-format đã xử lý
+        createdTo: searchProduct.value.createdTo || null,
         categoryIds: searchProduct.value.categoryIds.map((c) => c.id) || [],
-        priceMin: Number(searchProduct.value.priceMin) || null,
-        priceMax: Number(searchProduct.value.priceMax) || null,
+        priceMin: searchProduct.value.priceMin === '' ? null : searchProduct.value.priceMin,
+        priceMax: searchProduct.value.priceMax === '' ? null : searchProduct.value.priceMax,
+        status: 1 // Chỉ xuất các sản phẩm đang hoạt động
       }
       url = 'http://localhost:8080/api/admin/products/export-excel/by-filter'
-      data = searchParams
+      data = searchParamsForExport
       filename = 'products-by-filter.xlsx'
     }
 
@@ -593,6 +588,7 @@ const downloadExcel = async () => {
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
+    window.URL.revokeObjectURL(responseUrl) // Giải phóng bộ nhớ
 
     ElMessage.success('Xuất Excel thành công!')
   } catch (error) {
@@ -606,17 +602,20 @@ const downloadExcel = async () => {
 // Xóa sản phẩm
 const deleteProduct = async (id) => {
   try {
-    await ElMessageBox.confirm('Bạn có chắc chắn muốn xóa sản phẩm này?', 'Xác nhận', {
+    await ElMessageBox.confirm('Bạn có chắc chắn muốn xóa sản phẩm này? Sản phẩm sẽ được chuyển vào thùng rác.', 'Xác nhận', {
       confirmButtonText: 'Xóa',
       cancelButtonText: 'Hủy',
       type: 'warning',
     })
     await axios.delete(`http://localhost:8080/api/admin/products/${id}`)
-    productList.value = productList.value.filter((p) => p.id !== id)
-    allSelectedProducts.value = allSelectedProducts.value.filter((pId) => pId !== id)
-    selectedProducts.value = selectedProducts.value.filter((pId) => pId !== id)
-    syncSelectedProducts()
     ElMessage.success('Xóa sản phẩm thành công!')
+    // Cập nhật lại danh sách sau khi xóa
+    await fetchProduct()
+    // Xóa ID khỏi allSelectedProducts nếu nó bị xóa
+    allSelectedProducts.value = allSelectedProducts.value.filter((pId) => pId !== id)
+    // Xóa ID khỏi selectedProducts nếu nó nằm trên trang hiện tại
+    selectedProducts.value = selectedProducts.value.filter((pId) => pId !== id)
+    syncSelectedProducts() // Đồng bộ lại checkbox "Chọn tất cả"
   } catch (error) {
     if (error === 'cancel' || error === 'close') return
     console.error('Lỗi khi xóa:', error)
@@ -626,8 +625,8 @@ const deleteProduct = async (id) => {
 
 // Tìm kiếm
 const search = async () => {
-  page.value = 0
-  allSelectedProducts.value = []
+  page.value = 0 // Reset về trang đầu tiên khi tìm kiếm mới
+  allSelectedProducts.value = [] // Xóa tất cả các lựa chọn khi tìm kiếm mới
   await fetchProduct()
 }
 
@@ -702,16 +701,67 @@ onMounted(() => {
   padding: 0.3rem 0.6rem;
 }
 
-.modal-content {
-  border-radius: 6px;
+/* Multiselect specific styles to make it match Bootstrap sm */
+.multiselect {
+  min-height: auto;
+  font-size: 0.85rem;
+  min-height: 32px; /* Match Bootstrap form-control-sm height */
+}
+.multiselect__select {
+  height: 32px;
+  padding: 0 8px;
+}
+.multiselect__tags {
+  min-height: 32px;
+  padding: 4px 40px 0 8px; /* Adjust padding to leave space for the arrow */
+}
+.multiselect__tag {
+  margin-bottom: 4px;
+}
+.multiselect__input, .multiselect__single {
+  height: 24px;
+  line-height: 24px;
+  font-size: 0.85rem;
+  margin-bottom: 4px;
 }
 
-.modal-header {
-  background-color: #f8f9fa;
-  border-top-left-radius: 6px;
-  border-top-right-radius: 6px;
+
+/* El-date-picker styles for better integration */
+.demo-datetime-picker .el-date-editor {
+  height: 32px; /* Match Bootstrap form-control-sm height */
+  --el-date-editor-font-size: 0.85rem; /* Adjust font size */
+}
+.demo-datetime-picker .el-input__wrapper {
+  padding: 0.2rem 0.5rem; /* Match Bootstrap form-control-sm padding */
 }
 
+/* El-pagination styling for better visual */
+.el-pagination {
+  --el-pagination-font-size: 0.875rem; /* Slightly smaller font */
+  --el-pagination-button-width: 28px; /* Smaller buttons */
+  --el-pagination-button-height: 28px; /* Smaller buttons */
+  padding: 8px 0;
+}
+.el-pagination.is-background .el-pager li,
+.el-pagination.is-background .btn-prev,
+.el-pagination.is-background .btn-next {
+    background-color: #f0f2f5; /* Light grey background for pages */
+    border-radius: 4px;
+}
+
+.el-pagination.is-background .el-pager li:not(.is-disabled).is-active {
+    background-color: #007bff; /* Primary color for active page */
+    color: #fff;
+}
+
+.el-pagination__total,
+.el-pagination__sizes,
+.el-pagination__jump {
+    font-size: 0.875rem; /* Match other pagination elements */
+    margin-right: 8px;
+}
+
+/* Generic styling for Element Plus components if needed, or rely on defaults */
 .text-muted {
   font-size: 0.875rem;
 }

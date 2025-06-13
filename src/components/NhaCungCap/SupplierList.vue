@@ -32,7 +32,9 @@
         </el-form-item>
 
         <el-form-item>
-          <el-button type="primary" @click="handleSubmit">{{ isEditing ? 'Cập nhật' : 'Thêm mới' }}</el-button>
+          <el-button type="primary" @click="handleSubmit">
+            {{ isEditing ? 'Cập nhật' : 'Thêm mới' }}
+          </el-button>
           <el-button @click="resetForm">Làm mới</el-button>
         </el-form-item>
       </el-form>
@@ -75,7 +77,6 @@ const form = ref({
 const isEditing = ref(false)
 const formRef = ref(null)
 
-// Validation rules tương ứng với DTO
 const rules = {
   supplierName: [
     { required: true, message: 'Tên nhà cung cấp là bắt buộc', trigger: 'blur' },
@@ -116,7 +117,17 @@ const handleSubmit = () => {
   formRef.value.validate(async (valid) => {
     if (!valid) return
 
+    const confirmMsg = isEditing.value
+      ? `Bạn có chắc chắn muốn cập nhật nhà cung cấp "${form.value.supplierName}"?`
+      : `Bạn có chắc chắn muốn thêm mới nhà cung cấp "${form.value.supplierName}"?`
+
     try {
+      await ElMessageBox.confirm(confirmMsg, 'Xác nhận', {
+        confirmButtonText: isEditing.value ? 'Cập nhật' : 'Thêm mới',
+        cancelButtonText: 'Hủy',
+        type: 'info',
+      })
+
       if (isEditing.value) {
         await axios.put(`http://localhost:8080/api/admin/supplier/${form.value.id}`, form.value)
         ElMessage.success('Cập nhật thành công')
@@ -124,10 +135,15 @@ const handleSubmit = () => {
         await axios.post('http://localhost:8080/api/admin/supplier', form.value)
         ElMessage.success('Thêm mới thành công')
       }
+
       await fetchSuppliers()
       resetForm()
     } catch (error) {
-      ElMessage.error('Có lỗi xảy ra!')
+      if (error !== 'cancel') {
+        ElMessage.error('Có lỗi xảy ra khi gửi dữ liệu!')
+      } else {
+        ElMessage.info('Đã hủy thao tác')
+      }
     }
   })
 }

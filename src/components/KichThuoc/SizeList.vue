@@ -92,6 +92,12 @@ const handleSubmit = async () => {
 
   try {
     if (isEditing.value) {
+      await ElMessageBox.confirm('Bạn có chắc chắn muốn cập nhật kích thước này?', 'Xác nhận', {
+        confirmButtonText: 'Cập nhật',
+        cancelButtonText: 'Hủy',
+        type: 'info',
+      })
+
       await axios.put(`http://localhost:8080/api/size/${form.value.id}`, null, {
         params: { name: form.value.name },
       })
@@ -99,27 +105,28 @@ const handleSubmit = async () => {
       await fetchSizes()
       resetForm()
     } else {
-      ElMessageBox.confirm('Bạn có chắc chắn muốn thêm mới kích thước?', 'Xác nhận', {
+      await ElMessageBox.confirm('Bạn có chắc chắn muốn thêm mới kích thước?', 'Xác nhận', {
         confirmButtonText: 'Thêm',
         cancelButtonText: 'Hủy',
         type: 'info',
       })
-        .then(async () => {
-          await axios.post('http://localhost:8080/api/size', null, {
-            params: { name: form.value.name },
-          })
-          ElMessage.success('Thêm mới thành công')
-          await fetchSizes()
-          resetForm()
-        })
-        .catch(() => {
-          ElMessage.info('Đã hủy thao tác thêm')
-        })
+
+      await axios.post('http://localhost:8080/api/size', null, {
+        params: { name: form.value.name },
+      })
+      ElMessage.success('Thêm mới thành công')
+      await fetchSizes()
+      resetForm()
     }
   } catch (error) {
-    ElMessage.error('Có lỗi xảy ra')
+    if (error !== 'cancel') {
+      ElMessage.error('Có lỗi xảy ra')
+    } else {
+      ElMessage.info('Đã hủy thao tác')
+    }
   }
 }
+
 
 const editSize = (size) => {
   form.value = { id: size.id, name: size.sizeName }

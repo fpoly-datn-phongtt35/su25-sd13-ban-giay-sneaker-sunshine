@@ -4,13 +4,40 @@
       <el-col :span="12">
         <h3 class="mb-0">Danh sách hóa đơn</h3>
       </el-col>
+      <el-col :span="12" class="text-end">
+        <el-dropdown @command="handleExportCommand" type="primary">
+          <el-button type="primary">
+            Xuất Excel<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+          </el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="selected" :disabled="selectedRows.length === 0">
+                Xuất các hóa đơn đã chọn
+              </el-dropdown-item>
+              <el-dropdown-item command="currentPage" :disabled="invoices.length === 0">
+                Xuất hóa đơn trang này
+              </el-dropdown-item>
+              <el-dropdown-item command="all">
+                Xuất tất cả hóa đơn
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+      </el-col>
     </el-row>
 
     <div class="mb-4">
       <InvoiceSearch @search="onSearch" @clear="onClear" />
     </div>
 
-    <el-table :data="invoices" style="width: 100%" v-loading="loading" border>
+    <el-table
+      :data="invoices"
+      style="width: 100%"
+      v-loading="loading"
+      border
+      ref="invoiceTable"
+      @selection-change="handleRowSelection"
+    >
       <el-table-column type="selection" width="55" align="center" />
       <el-table-column type="index" label="#" width="50" align="center" :index="tableIndex" />
       <el-table-column prop="invoiceCode" label="Mã hóa đơn" width="150">
@@ -41,6 +68,13 @@
       <el-table-column prop="finalAmount" label="Thành tiền" align="right" width="150">
         <template #default="scope">
           {{ formatCurrency(getField(scope.row, 'finalAmount')) }}
+        </template>
+      </el-table-column>
+      <el-table-column prop="status" label="Đơn hàng" align="center">
+        <template #default="scope">
+          <el-tag :type="statusClass(getField(scope.row, 'orderType'))" disable-transitions>
+            {{ orderType(getField(scope.row, 'orderType')) }}
+          </el-tag>
         </template>
       </el-table-column>
       <el-table-column prop="status" label="Trạng thái" align="center">
@@ -107,23 +141,22 @@
           </h4>
         </div>
       </template>
-
       <div v-if="selectedInvoice">
         <el-row :gutter="20" class="mb-2">
-          <el-col :span="12"
-            ><strong>Khách hàng:</strong> {{ selectedInvoice.customerName || 'Khách lẻ' }}</el-col
-          >
-          <el-col :span="12"
-            ><strong>Nhân viên:</strong> {{ selectedInvoice.employeeName || '---' }}</el-col
-          >
+          <el-col :span="12">
+            <strong>Khách hàng:</strong> {{ selectedInvoice.customerName || 'Khách lẻ' }}
+          </el-col>
+          <el-col :span="12">
+            <strong>Nhân viên:</strong> {{ selectedInvoice.employeeName || '---' }}
+          </el-col>
         </el-row>
         <el-row :gutter="20" class="mb-3">
-          <el-col :span="12"
-            ><strong>Ngày tạo:</strong> {{ formatDate(selectedInvoice.createdDate) }}</el-col
-          >
-          <el-col :span="12"
-            ><strong>Ghi chú:</strong> {{ selectedInvoice.description || '---' }}</el-col
-          >
+          <el-col :span="12">
+            <strong>Ngày tạo:</strong> {{ formatDate(selectedInvoice.createdDate) }}
+          </el-col>
+          <el-col :span="12">
+            <strong>Ghi chú:</strong> {{ selectedInvoice.description || '---' }}
+          </el-col>
         </el-row>
 
         <el-table :data="invoiceDetails" border size="small">
@@ -133,9 +166,9 @@
             <template #default="scope">{{ formatCurrency(scope.row.price) }}</template>
           </el-table-column>
           <el-table-column label="Thành tiền" align="right">
-            <template #default="scope">{{
-              formatCurrency(scope.row.price * scope.row.quantity)
-            }}</template>
+            <template #default="scope">
+              {{ formatCurrency(scope.row.price * scope.row.quantity) }}
+            </template>
           </el-table-column>
         </el-table>
 
@@ -170,8 +203,12 @@ import {
   ElRow,
   ElCol,
   ElLoading,
+  ElDropdown,
+  ElDropdownMenu,
+  ElDropdownItem,
+  ElIcon,
 } from 'element-plus'
-import { View, Printer } from '@element-plus/icons-vue'
+import { View, Printer, ArrowDown } from '@element-plus/icons-vue'
 import InvoiceSearch from './InvoiceSearch.vue'
 import Swal from 'sweetalert2'
 import { ElMessageBox, ElMessage } from 'element-plus'
@@ -186,7 +223,7 @@ const totalPages = ref(0)
 const totalItems = ref(0)
 const isSearching = ref(false)
 const loading = ref(true)
-
+const selectedRows = ref([])
 // Dialog visibility
 const dialogVisible = ref(false)
 
@@ -194,6 +231,10 @@ const dialogVisible = ref(false)
 let currentKeyword = ''
 let currentStatus = null
 let currentCreatedDate = null
+
+const handleRowSelection = (selection) => {
+  selectedRows.value = selection
+}
 
 const getField = (inv, field) => inv[field] ?? inv?.invoice?.[field]
 
@@ -294,31 +335,98 @@ const printInvoice = (invoiceId) => {
     return
   }
 
-  ElMessageBox.confirm(
-    'Bạn có chắc muốn in hóa đơn?', 
-    'Xác nhận', 
-    {
-      confirmButtonText: 'Có, In ngay!',
-      cancelButtonText: 'Hủy',
-      type: 'warning',
-    }
-  ).then(() => {
-    const url = `/admin/invoices/${invoiceId}/export-id`
-
-    apiClient
-      .get(url, { responseType: 'blob' })
-      .then((response) => {
-        const file = new Blob([response.data], { type: 'application/pdf' })
-        const fileURL = URL.createObjectURL(file)
-        window.open(fileURL)
-      })
-      .catch((error) => {
-        console.error('Lỗi khi in hóa đơn:', error)
-        ElMessage.error('Không thể in hóa đơn. Vui lòng thử lại.')
-      })
-  }).catch(() => {
-    // Người dùng bấm hủy, không làm gì cả
+  ElMessageBox.confirm('Bạn có chắc muốn in hóa đơn?', 'Xác nhận', {
+    confirmButtonText: 'Có, In ngay!',
+    cancelButtonText: 'Hủy',
+    type: 'warning',
   })
+    .then(() => {
+      const url = `/admin/invoices/${invoiceId}/export-id`
+
+      apiClient
+        .get(url, { responseType: 'blob' })
+        .then((response) => {
+          const file = new Blob([response.data], { type: 'application/pdf' })
+          const fileURL = URL.createObjectURL(file)
+          window.open(fileURL)
+        })
+        .catch((error) => {
+          console.error('Lỗi khi in hóa đơn:', error)
+          ElMessage.error('Không thể in hóa đơn. Vui lòng thử lại.')
+        })
+    })
+    .catch(() => {
+      // Người dùng bấm hủy, không làm gì cả
+    })
+}
+
+const handleExportCommand = (command) => {
+  const url = '/admin/invoices/export-excel'
+  const params = {}
+  let exportFileName = `hoa_don_${new Date().toLocaleDateString('vi-VN').replace(/\//g, '-')}.xlsx`
+  let actionDescription = ''
+
+  switch (command) {
+    case 'selected':
+      if (selectedRows.value.length === 0) {
+        ElMessage.warning('Vui lòng chọn ít nhất một hóa đơn để xuất.')
+        return
+      }
+      const selectedIds = selectedRows.value.map((row) => getField(row, 'id'))
+      params.invoiceIds = selectedIds.join(',')
+      actionDescription = `Xuất ${selectedIds.length} hóa đơn đã chọn...`
+      break
+
+    case 'currentPage':
+      if (invoices.value.length === 0) {
+        ElMessage.warning('Không có hóa đơn nào ở trang hiện tại để xuất.')
+        return
+      }
+      const currentPageIds = invoices.value.map((row) => getField(row, 'id'))
+      params.invoiceIds = currentPageIds.join(',')
+      actionDescription = 'Xuất các hóa đơn trên trang hiện tại...'
+      break
+
+    // START MODIFICATION
+    case 'all':
+      // Gửi các tham số rỗng để báo cho backend rằng chúng ta muốn xuất tất cả,
+      // mô phỏng một tìm kiếm "trống". Điều này giúp tránh lỗi 500 do
+      // gọi API mà không có tham số bắt buộc.
+      params.keyword = ''
+      params.status = null
+      params.createdDate = null
+      exportFileName = `tat_ca_hoa_don_${new Date().toLocaleDateString('vi-VN').replace(/\//g, '-')}.xlsx`
+      actionDescription = 'Xuất tất cả hóa đơn...'
+      break
+    // END MODIFICATION
+
+    default:
+      ElMessage.error('Hành động xuất không hợp lệ.')
+      return
+  }
+
+  ElMessage.info(actionDescription || 'Đang chuẩn bị tệp Excel, vui lòng chờ...')
+
+  apiClient
+    .get(url, { params, responseType: 'blob' })
+    .then((response) => {
+      const file = new Blob([response.data], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      })
+      const fileURL = URL.createObjectURL(file)
+      const link = document.createElement('a')
+      link.href = fileURL
+      link.download = exportFileName
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(fileURL)
+      ElMessage.success('Xuất Excel thành công!')
+    })
+    .catch((error) => {
+      console.error('Lỗi khi xuất Excel:', error)
+      ElMessage.error('Không thể xuất Excel. Vui lòng thử lại.')
+    })
 }
 
 const handlePageChange = (newPage) => {
@@ -354,6 +462,17 @@ const statusText = (status) => {
       return 'Đã thanh toán'
     case 2:
       return 'Đã hủy'
+    default:
+      return 'Không xác định'
+  }
+}
+
+const orderType = (status) => {
+  switch (status) {
+    case 0:
+      return 'Tại quầy'
+    case 1:
+      return 'Online'
     default:
       return 'Không xác định'
   }
@@ -397,5 +516,9 @@ onMounted(() => {
   display: flex;
   flex-direction: row;
   justify-content: space-between;
+}
+/* Style for dropdown icon */
+.el-icon--right {
+  margin-left: 8px;
 }
 </style>

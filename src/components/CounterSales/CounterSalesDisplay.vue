@@ -419,28 +419,41 @@ const confirmAddProduct = async () => {
     ElMessage.warning('Hóa đơn không hợp lệ.');
     return;
   }
+
   const matchedAttr = attributes.value.find(
     (a) => a.size?.id === selectedSizeId.value && a.color?.id === selectedColorId.value
   );
+
   if (!matchedAttr) {
     ElMessage.warning('Không tìm thấy biến thể sản phẩm phù hợp.');
     return;
   }
+
   try {
-    await apiClient.post( // THAY ĐỔI
+    await apiClient.post(
       `/admin/counter-sales/${invoiceDetails.value.invoice.id}/details`,
-      { productDetailId: matchedAttr.id, quantity: selectedQuantity.value }
+      {
+        productDetailId: matchedAttr.id,
+        quantity: selectedQuantity.value,
+      }
     );
+
     ElMessage.success(`Đã thêm "${currentProduct.value.productName}" vào giỏ hàng.`);
     closeProductDialog();
+
     await fetchInvoiceDetails(invoiceId);
+
     await fetchProducts(pagination.value.currentPage);
+
+    await fetchVoucherByInvoiceId(invoiceId);
+
   } catch (error) {
     const message = error.response?.data || 'Thêm sản phẩm thất bại.';
     ElMessage.error(message);
     console.error('Error adding product to invoice:', error);
   }
 };
+
 
 // --- Cart Logic ---
 const deleteCartItem = async (invoiceDetailId) => {

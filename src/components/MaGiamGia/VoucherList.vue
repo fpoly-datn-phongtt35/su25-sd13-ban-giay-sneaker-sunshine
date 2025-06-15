@@ -1,9 +1,7 @@
-```vue
 <template>
   <div class="voucher-wrapper">
     <div class="card shadow-lg">
       <div class="card-body p-4">
-        <!-- Form tìm kiếm -->
         <div class="search-section mb-4 p-3 bg-light rounded">
           <div class="row g-3">
             <div class="col-md-3 col-sm-6">
@@ -82,7 +80,7 @@
                 <th scope="col" class="text-center d-none d-md-table-cell" style="width: 90px">NV</th>
                 <th scope="col" class="text-center" style="width: 80px">Loại đơn hàng</th>
                 <th scope="col" class="text-center" style="width: 80px">Loại</th>
-                <th scope="col" class="text-center d-none d-md-table-cell" style="width: 100px">Danh mục</th>
+                <th scope="col" class="text-center" style="width: 80px">Số lượng</th> <th scope="col" class="text-center d-none d-md-table-cell" style="width: 100px">Danh mục</th>
                 <th scope="col" class="text-center" style="width: 100px">Thao tác</th>
               </tr>
             </thead>
@@ -113,7 +111,7 @@
                 <td class="text-center d-none d-md-table-cell">{{ row.employeeName || '-' }}</td>
                 <td class="text-center">{{ formatOrderType(row) }}</td>
                 <td class="text-center">{{ formatVoucherType(row) }}</td>
-                <td class="text-center d-none d-md-table-cell">{{ row.categoryName || '-' }}</td>
+                <td class="text-center">{{ row.quantity || '-' }}</td> <td class="text-center d-none d-md-table-cell">{{ row.categoryName || '-' }}</td>
                 <td class="text-center">
                   <el-tooltip content="Sửa" placement="top">
                     <el-button
@@ -136,13 +134,11 @@
                 </td>
               </tr>
               <tr v-if="!vouchers.length">
-                <td colspan="17" class="text-center text-muted">Không có dữ liệu</td>
-              </tr>
+                <td colspan="18" class="text-center text-muted">Không có dữ liệu</td> </tr>
             </tbody>
           </table>
         </div>
 
-        <!-- Phân trang -->
         <nav aria-label="Page navigation" class="mt-4" v-if="totalPages > 1">
           <ul class="pagination pagination-sm justify-content-center">
             <li class="page-item" :class="{ disabled: !hasPrevious }">
@@ -274,7 +270,7 @@ const fetchVoucher = async (newPage = 0) => {
     vouchers.value = []
     totalPages.value = 0
     totalElements.value = 0
-    hasNext.value = false
+    hasGonext.value = false
     hasPrevious.value = false
   }
 }
@@ -379,7 +375,7 @@ const onDeleteVoucher = (row) => {
   })
     .then(async () => {
       try {
-        await axios.delete(`http://localhost:8080/api/vouchers/${row.id}`)
+        await axios.delete(`http://localhost:8080/api/admin/vouchers/${row.id}`)
         ElMessage.success('Xóa voucher thành công!')
         await fetchVoucher(page.value)
       } catch (error) {

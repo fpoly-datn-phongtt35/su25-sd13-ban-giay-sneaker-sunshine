@@ -1,6 +1,4 @@
-
-
-import { createRouter, createWebHistory } from "vue-router";
+import { createRouter, createWebHistory } from 'vue-router'
 
 import MaterialList from '@/components/ChatLieu/MaterialList.vue'
 import StyleList from '@/components/CoGiay/StyleList.vue'
@@ -22,11 +20,15 @@ import ProductList from '@/components/SanPham/ProductList.vue'
 import UpdateProduct from '@/components/SanPham/UpdateProduct.vue'
 import BrandList from '@/components/ThuongHieu/BrandList.vue'
 import Dashboard from '@/layout/Dashboard.vue'
-import AddVoucher from "@/components/MaGiamGia/AddVoucher.vue";
-import UpdateVoucher from "@/components/MaGiamGia/UpdateVoucher.vue";
-import EmployeeList from "@/components/NhanVien/EmployeeList.vue";
-import AddEmployee from "@/components/NhanVien/AddEmployee.vue";
-import UpdateEmployee from "@/components/NhanVien/UpdateEmployee.vue";
+import AddVoucher from '@/components/MaGiamGia/AddVoucher.vue'
+import UpdateVoucher from '@/components/MaGiamGia/UpdateVoucher.vue'
+import EmployeeList from '@/components/NhanVien/EmployeeList.vue'
+import AddEmployee from '@/components/NhanVien/AddEmployee.vue'
+import UpdateEmployee from '@/components/NhanVien/UpdateEmployee.vue'
+import CustomerList from '@/components/KhachHang/CustomerList.vue'
+import AddCustomer from '@/components/KhachHang/AddCustomer.vue'
+import UpdateCustomer from '@/components/KhachHang/UpdateCustomer.vue'
+import StatisticsView from '@/components/ThongKe/StatisticsView.vue'
 
 const routes = [
   {
@@ -47,30 +49,23 @@ const routes = [
     children: [
       { path: 'home', name: 'Home', component: TrangChu },
       { path: 'categories', name: 'Category', component: CategoryList },
-      // { path: "categories/add", name: "AddCategory", component: AddCategory },
-      // { path: "categories/update/:id", name: "UpdateCategory", component: UpdateCategory },
-      // { path: "categories/detail/:id", name: "DetailCategory", component: DetailCategory },
+      { path: 'voucher', name: 'VoucherList', component: VoucherList },
+      { path: 'voucher/add', name: 'AddVoucher', component: AddVoucher },
+      { path: 'voucher/update/:id', name: 'UpdateVoucher', component: UpdateVoucher },
 
-      // { path: "employee", name: "Employee", component: EmployeeList },
-      // { path: "employee/add", name: "AddEmployee", component: AddEmployee },
-      // { path: "employee/update/:id", name: "UpdateEmployee", component: UpdateEmployee },
-      // { path: "employee/detail/:id", name: "DetailEmployee", component: DetailEmployee },
+      { path: 'product', name: 'ProductList', component: ProductList },
+      { path: 'product/add', name: 'AddProduct', component: AddProduct },
+      { path: 'product/update/:id', name: 'UpdateProduct', component: UpdateProduct },
+      { path: 'product/detail/:id', name: 'DetailProduct', component: DetailProduct },
+      { path: 'product/history', name: 'ProductHistory', component: ProductHistory },
 
-
-      
-      { path: "voucher", name: "VoucherList", component: VoucherList },
-      { path: "voucher/add", name: "AddVoucher", component: AddVoucher },
-      { path: "voucher/update/:id", name: "UpdateVoucher", component: UpdateVoucher },
-
-      { path: "product", name: "ProductList", component: ProductList },
-      { path: "product/add", name: "AddProduct", component: AddProduct },
-      { path: "product/update/:id", name: "UpdateProduct", component: UpdateProduct },
-      { path: "product/detail/:id", name: "DetailProduct", component: DetailProduct },
-      { path: "product/history", name: "ProductHistory", component: ProductHistory },
-
-      // Những route này có dấu / ở đầu vì không thuộc route con Dashboard (tách riêng)
       { path: '/sales-counter/list', name: 'CounterSales', component: CounterSales },
-      { path: '/sales-counter/:id', name: 'CounterSalesDisplay', component: CounterSalesDisplay, props: true },
+      {
+        path: '/sales-counter/:id',
+        name: 'CounterSalesDisplay',
+        component: CounterSalesDisplay,
+        props: true,
+      },
 
       // { path: "sales-online", name: "OnlineSaleDisplay", component: OnlineSale },
 
@@ -87,14 +82,16 @@ const routes = [
 
       { path: 'color', name: 'Color', component: ColorList },
 
-      // { path: "nha-cung-cap", name: "NhaCungCap", component: NhaCungCap },
-
       { path: 'voucher', name: 'Voucher', component: VoucherList },
-      // { path: "customer", name: "Customer", component: CustomerList },
+      { path: 'customer/add', name: 'AddCustomer', component: AddCustomer },
+      { path: 'customer', name: 'CustomerList', component: CustomerList },
+      { path: 'customer/update/:id', name: 'UpdateCustomer', component: UpdateCustomer },
 
-      { path: "employee", name: "Employee", component: EmployeeList },
-      { path: "employee/add", name: "AddEmployee", component: AddEmployee },
-      { path: "employee/update/:id", name: "UpdateEmployee", component: UpdateEmployee },
+      { path: 'employee', name: 'Employee', component: EmployeeList },
+      { path: 'employee/add', name: 'AddEmployee', component: AddEmployee },
+      { path: 'employee/update/:id', name: 'UpdateEmployee', component: UpdateEmployee },
+
+      { path: 'statistics', name: 'Statistics', component: StatisticsView },
     ],
   },
 ]
@@ -120,4 +117,3 @@ router.beforeEach((to, from, next) => {
 })
 
 export default router
-

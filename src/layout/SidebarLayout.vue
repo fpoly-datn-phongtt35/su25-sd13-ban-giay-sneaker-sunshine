@@ -1,299 +1,189 @@
 <template>
-  <nav class="d-flex flex-column bg-white p-3 min-vh-100 border-end" style="width: 250px">
-    <!-- Logo -->
-    <div class="d-flex align-items-center mb-4">
-      <img
-        :src="logoSrc"
-        alt="Logo"
-        class="rounded-circle me-3"
-        style="width: 50px; height: 50px; object-fit: cover"
-      />
-      <span class="h4 text-dark">Clothing Store</span>
-    </div>
+  <nav class="sidebar-container">
+    <el-menu
+      :default-active="route.path"
+      class="el-menu-vertical"
+      router
+    >
+      <div class="logo-container">
+        <img
+          :src="logoSrc"
+          alt="Logo"
+          class="logo-img"
+        />
+        <span class="logo-text">Clothing Store</span>
+      </div>
 
-    <!-- Navigation -->
-    <ul class="nav flex-column">
-      <!-- Trang chủ -->
-      <li class="nav-item">
-        <RouterLink
-          class="nav-link py-3"
-          :class="{ active: selected === 'home' }"
-          to="/home"
-          @click="selectMenu('home')"
-        >
-          <i class="bi bi-house-door me-2"></i> Trang chủ
-        </RouterLink>
-      </li>
+      <el-menu-item index="/home">
+        <el-icon><i class="bi bi-house-door"></i></el-icon>
+        <span>Trang chủ</span>
+      </el-menu-item>
 
-      <!-- Bán hàng -->
-      <li class="nav-item">
-        <div
-          class="nav-link py-3 d-flex justify-content-between align-items-center"
-          @click="toggleCollapse('sales')"
-        >
-          <span><i class="bi bi-cart-fill me-2"></i> Bán hàng</span>
-          <i class="bi" :class="isSalesOpen ? 'bi-chevron-up' : 'bi-chevron-down'"></i>
-        </div>
-        <ul v-if="isSalesOpen" class="nav flex-column ms-3">
-          <li class="nav-item">
-            <RouterLink
-              class="nav-link py-2"
-              :class="{ active: selected === 'sales-counter' }"
-              to="/sales-counter/list"
-              @click="selectMenu('sales-counter')"
-            >
-              <i class="bi bi-cash me-2"></i> Bán hàng tại quầy
-            </RouterLink>
-          </li>
-          <li class="nav-item">
-            <RouterLink
-              class="nav-link py-2"
-              :class="{ active: selected === 'sales-online' }"
-              to="/sales-online"
-              @click="selectMenu('sales-online')"
-            >
-              <i class="bi bi-laptop me-2"></i> Bán hàng online
-            </RouterLink>
-          </li>
-        </ul>
-      </li>
+      <el-sub-menu index="sales">
+        <template #title>
+          <el-icon><i class="bi bi-cart-fill"></i></el-icon>
+          <span>Bán hàng</span>
+        </template>
+        <el-menu-item index="/sales-counter/list">
+          <el-icon><i class="bi bi-cash"></i></el-icon>
+          <span>Bán hàng tại quầy</span>
+        </el-menu-item>
+        <el-menu-item index="/sales-online">
+          <el-icon><i class="bi bi-laptop"></i></el-icon>
+          <span>Bán hàng online</span>
+        </el-menu-item>
+      </el-sub-menu>
 
-      <!-- Quản lý sản phẩm -->
-      <li class="nav-item">
-        <div
-          class="nav-link py-3 d-flex justify-content-between align-items-center"
-          @click="toggleCollapse('product')"
-        >
-          <span><i class="bi bi-box-seam me-2"></i> Quản lý sản phẩm</span>
-          <i class="bi" :class="isProductOpen ? 'bi-chevron-up' : 'bi-chevron-down'"></i>
-        </div>
-        <ul v-if="isProductOpen" class="nav flex-column ms-3">
-          <li class="nav-item">
-            <RouterLink
-              class="nav-link py-2"
-              :class="{ active: selected === 'products' }"
-              to="/product"
-              @click="selectMenu('products')"
-            >
-              <i class="bi bi-box me-2"></i> Sản phẩm
-            </RouterLink>
-          </li>
-          <li class="nav-item">
-            <RouterLink
-              class="nav-link py-2"
-              :class="{ active: selected === 'discounts' }"
-              to="/voucher"
-              @click="selectMenu('discounts')"
-            >
-              <i class="bi bi-tag me-2"></i> Mã giảm giá
-            </RouterLink>
-          </li>
-          <li class="nav-item">
-            <RouterLink
-              class="nav-link py-2"
-              :class="{ active: selected === 'suppliers' }"
-              to="/supplier"
-              @click="selectMenu('suppliers')"
-            >
-              <i class="bi bi-truck me-2"></i> Nhà cung cấp
-            </RouterLink>
-          </li>
-          <li class="nav-item">
-            <RouterLink
-              class="nav-link py-2"
-              :class="{ active: selected === 'soles' }"
-              to="/sole"
-              @click="selectMenu('soles')"
-            >
-              <i class="bi bi-grid me-2"></i> Đế giày
-            </RouterLink>
-          </li>
-          <li class="nav-item">
-            <RouterLink
-              class="nav-link py-2"
-              :class="{ active: selected === 'collars' }"
-              to="/style"
-              @click="selectMenu('collars')"
-            >
-              <i class="bi bi-circle-half me-2"></i> Cổ giày
-            </RouterLink>
-          </li>
-          <li class="nav-item">
-            <RouterLink
-              class="nav-link py-2"
-              :class="{ active: selected === 'materials' }"
-              to="/material"
-              @click="selectMenu('materials')"
-            >
-              <i class="bi bi-layers me-2"></i> Chất liệu
-            </RouterLink>
-          </li>
-          <li class="nav-item">
-            <RouterLink
-              class="nav-link py-2"
-              :class="{ active: selected === 'categories' }"
-              to="/categories"
-              @click="selectMenu('categories')"
-            >
-              <i class="bi bi-list me-2"></i> Danh mục
-            </RouterLink>
-          </li>
+      <el-sub-menu index="product-management">
+        <template #title>
+          <el-icon><i class="bi bi-box-seam"></i></el-icon>
+          <span>Quản lý sản phẩm</span>
+        </template>
+        <el-menu-item index="/product">
+          <el-icon><i class="bi bi-box"></i></el-icon>
+          <span>Sản phẩm</span>
+        </el-menu-item>
+        <el-menu-item index="/voucher">
+          <el-icon><i class="bi bi-tag"></i></el-icon>
+          <span>Mã giảm giá</span>
+        </el-menu-item>
+        <el-menu-item index="/supplier">
+          <el-icon><i class="bi bi-truck"></i></el-icon>
+          <span>Nhà cung cấp</span>
+        </el-menu-item>
+         <el-menu-item index="/sole">
+          <el-icon><i class="bi bi-grid"></i></el-icon>
+          <span>Đế giày</span>
+        </el-menu-item>
+        <el-menu-item index="/style">
+          <el-icon><i class="bi bi-circle-half"></i></el-icon>
+          <span>Cổ giày</span>
+        </el-menu-item>
+        <el-menu-item index="/material">
+          <el-icon><i class="bi bi-layers"></i></el-icon>
+          <span>Chất liệu</span>
+        </el-menu-item>
+        <el-menu-item index="/categories">
+          <el-icon><i class="bi bi-list"></i></el-icon>
+          <span>Danh mục</span>
+        </el-menu-item>
+        <el-menu-item index="/size">
+          <el-icon><i class="bi bi-arrows-angle-contract"></i></el-icon>
+          <span>Kích thước</span>
+        </el-menu-item>
+        <el-menu-item index="/color">
+          <el-icon><i class="bi bi-palette"></i></el-icon>
+          <span>Màu sắc</span>
+        </el-menu-item>
+        <el-menu-item index="/brand">
+          <el-icon><i class="bi bi-tags"></i></el-icon>
+          <span>Thương hiệu</span>
+        </el-menu-item>
+      </el-sub-menu>
 
-          <li class="nav-item">
-            <RouterLink
-              class="nav-link py-2"
-              :class="{ active: selected === 'sizes' }"
-              to="/size"
-              @click="selectMenu('sizes')"
-            >
-              <i class="bi bi-arrows-angle-contract me-2"></i> Kích thước
-            </RouterLink>
-          </li>
+      <el-menu-item index="/employee">
+        <el-icon><i class="bi bi-person"></i></el-icon>
+        <span>Quản lý người dùng</span>
+      </el-menu-item>
 
-          <li class="nav-item">
-            <RouterLink
-              class="nav-link py-2"
-              :class="{ active: selected === 'colors' }"
-              to="/color"
-              @click="selectMenu('colors')"
-            >
-              <i class="bi bi-palette me-2"></i> Màu sắc
-            </RouterLink>
-          </li>
-          <li class="nav-item">
-            <RouterLink
-              class="nav-link py-2"
-              :class="{ active: selected === 'brands' }"
-              to="/brand"
-              @click="selectMenu('brands')"
-            >
-              <i class="bi bi-tags me-2"></i> Thương hiệu
-            </RouterLink>
-          </li>
-        </ul>
-      </li>
+      <el-menu-item index="/customer">
+        <el-icon><i class="bi bi-person-fill"></i></el-icon>
+        <span>Quản lý khách hàng</span>
+      </el-menu-item>
 
-      <!-- Quản lý người dùng -->
-      <li class="nav-item">
-        <RouterLink
-          class="nav-link py-3"
-          :class="{ active: selected === 'user' }"
-          to="/employee"
-          @click="selectMenu('user')"
-        >
-          <i class="bi bi-person me-2"></i> Quản lý người dùng
-        </RouterLink>
-      </li>
+      <el-menu-item index="/invoices">
+        <el-icon><i class="bi bi-file-earmark"></i></el-icon>
+        <span>Quản lý hóa đơn</span>
+      </el-menu-item>
 
-      <!-- Quản lý khách hàng -->
-      <li class="nav-item">
-        <RouterLink
-          class="nav-link py-3"
-          :class="{ active: selected === 'customers' }"
-          to="/"
-          @click="selectMenu('customers')"
-        >
-          <i class="bi bi-person-fill me-2"></i> Quản lý khách hàng
-        </RouterLink>
-      </li>
-
-      <!-- Quản lý hóa đơn -->
-      <li class="nav-item">
-        <RouterLink
-          class="nav-link py-3"
-          :class="{ active: selected === 'invoices' }"
-          to="/invoices"
-          @click="selectMenu('invoices')"
-        >
-          <i class="bi bi-file-earmark me-2"></i> Quản lý hóa đơn
-        </RouterLink>
-      </li>
-
-      <!-- Thống kê -->
-      <li class="nav-item">
-        <div
-          class="nav-link py-3 d-flex justify-content-between align-items-center"
-          @click="toggleCollapse('')"
-        >
-          <span><i class="bi bi-graph-up me-2"></i> Thống kê</span>
-          <i class="bi" :class="isStatisticsOpen ? 'bi-chevron-up' : 'bi-chevron-down'"></i>
-        </div>
-        <ul v-if="isStatisticsOpen" class="nav flex-column ms-3">
-          <li class="nav-item">
-            <RouterLink
-              class="nav-link py-2"
-              :class="{ active: selected === '' }"
-              to=""
-              @click="selectMenu('')"
-            >
-              <i class="bi bi-bar-chart me-2"></i> Tại quầy
-            </RouterLink>
-          </li>
-          <li class="nav-item">
-            <RouterLink
-              class="nav-link py-2"
-              :class="{ active: selected === '' }"
-              to=""
-              @click="selectMenu('')"
-            >
-              <i class="bi bi-bar-chart-line me-2"></i> Online
-            </RouterLink>
-          </li>
-        </ul>
-      </li>
-    </ul>
+      <el-sub-menu index="">
+        <template #title>
+          <el-icon><i class="bi bi-graph-up"></i></el-icon>
+          <span>Thống kê</span>
+        </template>
+        <el-menu-item index="/statistics">
+          <el-icon><i class="bi bi-bar-chart"></i></el-icon>
+          <span>Tại quầy</span>
+        </el-menu-item>
+        <el-menu-item index="/statistics/online">
+          <el-icon><i class="bi bi-bar-chart-line"></i></el-icon>
+          <span>Online</span>
+        </el-menu-item>
+      </el-sub-menu>
+    </el-menu>
   </nav>
 </template>
 
 <script setup>
 import { ref } from 'vue'
+import { useRoute } from 'vue-router'
+import {
+  ElMenu,
+  ElMenuItem,
+  ElSubMenu,
+  ElIcon
+} from 'element-plus'
 
-const selected = ref('home')
-const selectMenu = (menu) => {
-  selected.value = menu
-}
+// Lấy thông tin route hiện tại để xác định menu active
+const route = useRoute()
 
 const logoSrc = ref('https://img.icons8.com/?size=100&id=juRF5DiUGr4p&format=png&color=000000')
 
-// Collapse states
-const isSalesOpen = ref(true)
-const isProductOpen = ref(true)
-const isStatisticsOpen = ref(true)
-
-const toggleCollapse = (section) => {
-  if (section === 'sales') isSalesOpen.value = !isSalesOpen.value
-  if (section === 'product') isProductOpen.value = !isProductOpen.value
-  if (section === 'statistics') isStatisticsOpen.value = !isStatisticsOpen.value
-}
+// Các biến state và hàm để quản lý đóng/mở menu không còn cần thiết nữa.
+// Element Plus sẽ tự động xử lý.
 </script>
 
 <style scoped>
-nav {
+.sidebar-container {
   background-color: #ffffff;
-  color: #333;
+  width: 250px;
+  min-height: 100vh;
+  border-right: 1px solid #e6e6e6;
 }
 
-.nav-link {
-  color: black;
-  cursor: pointer;
+.el-menu-vertical {
+  width: 100%;
+  border-right: none; /* Bỏ border mặc định của el-menu */
 }
 
-.nav-link:hover {
-  background-color: #f1f1f1;
-  color: black;
+.logo-container {
+  display: flex;
+  align-items: center;
+  padding: 15px 20px;
+  margin-bottom: 10px;
 }
 
-.nav-link.active {
-  background-color: #007bff;
-  color: white;
-  box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
+.logo-img {
+  width: 50px;
+  height: 50px;
+  object-fit: cover;
+  border-radius: 50%;
+  margin-right: 12px;
 }
 
-.nav-link i {
-  font-size: 1.3rem;
+.logo-text {
+  font-size: 1.25rem; /* Tương đương h4 */
+  font-weight: 600;
+  color: #303133;
 }
 
-.ms-3 {
-  margin-left: 1rem;
+/* Căn chỉnh lại icon */
+.el-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem; /* Giữ kích thước icon như cũ */
+  margin-right: 8px;
+}
+
+/* Ghi đè style của el-menu-item để trông đẹp hơn */
+.el-menu-item,
+.el-sub-menu__title {
+    padding-left: 20px !important; /* Đồng bộ khoảng cách lề trái */
+}
+
+/* Style cho các mục con trong menu */
+.el-menu-item-group .el-menu-item {
+    padding-left: 40px !important;
 }
 </style>

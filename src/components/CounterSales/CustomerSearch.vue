@@ -65,7 +65,7 @@ const debounce = (func, delay) => {
  * @param {Function} cb - The callback function to return the suggestions.
  */
 const searchCustomers = debounce(async (queryString, cb) => {
-  if (!queryString || queryString.trim().length < 4) {
+  if (!queryString || queryString.trim().length < 1) {
     cb([]); // Return empty if query is too short
     return;
   }

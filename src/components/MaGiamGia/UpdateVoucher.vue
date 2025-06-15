@@ -28,14 +28,12 @@
           label-position="top"
           @submit.prevent="updateVoucher"
         >
-          <!-- Tên voucher -->
           <el-form-item label="Tên voucher" prop="voucherName">
             <el-input v-model="voucher.voucherName" placeholder="Nhập tên voucher" clearable>
               <template #prefix><i class="fas fa-tag text-gray-500"></i></template>
             </el-input>
           </el-form-item>
 
-          <!-- Phần trăm / số tiền giảm -->
           <el-row :gutter="20">
             <el-col :span="12">
               <el-form-item label="Phần trăm giảm (%)" prop="discountPercentage">
@@ -43,8 +41,12 @@
                   v-model="voucher.discountPercentage"
                   :min="0"
                   :max="100"
-                  :disabled="voucher.discountAmount > 0"
+                  :disabled="voucher.discountAmount !== null && voucher.discountAmount > 0"
                   class="w-full"
+                  :formatter="(value) => value ? `${value}%` : ''"
+                  :parser="(value) => value.replace('%', '')"
+                  placeholder="Nhập phần trăm giảm"
+                  @change="clearDiscountAmount"
                 />
               </el-form-item>
             </el-col>
@@ -53,28 +55,44 @@
                 <el-input-number
                   v-model="voucher.discountAmount"
                   :min="0"
-                  :disabled="voucher.discountPercentage > 0"
+                  :disabled="voucher.discountPercentage !== null && voucher.discountPercentage > 0"
                   class="w-full"
+                  :formatter="(value) => value ? `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''"
+                  :parser="(value) => value.replace(/,/g, '')"
+                  placeholder="Nhập số tiền giảm"
+                  @change="clearDiscountPercentage"
                 />
               </el-form-item>
             </el-col>
           </el-row>
 
-          <!-- Đơn hàng tối thiểu & giảm tối đa -->
           <el-row :gutter="20">
             <el-col :span="12">
               <el-form-item label="Giá trị đơn tối thiểu" prop="minOrderValue">
-                <el-input-number v-model="voucher.minOrderValue" :min="0" class="w-full" />
+                <el-input-number
+                  v-model="voucher.minOrderValue"
+                  :min="0"
+                  class="w-full"
+                  :formatter="(value) => value ? `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''"
+                  :parser="(value) => value.replace(/,/g, '')"
+                  placeholder="Nhập giá trị tối thiểu"
+                />
               </el-form-item>
             </el-col>
             <el-col :span="12">
               <el-form-item label="Giảm tối đa" prop="maxDiscountValue">
-                <el-input-number v-model="voucher.maxDiscountValue" :min="0" class="w-full" />
+                <el-input-number
+                  v-model="voucher.maxDiscountValue"
+                  :min="0"
+                  class="w-full"
+                  :formatter="(value) => value ? `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''"
+                  :parser="(value) => value.replace(/,/g, '')"
+                  placeholder="Nhập số tiền giảm tối đa"
+                />
               </el-form-item>
             </el-col>
           </el-row>
 
-          <!-- Ngày bắt đầu / kết thúc -->
           <el-row :gutter="20">
             <el-col :span="12">
               <el-form-item label="Ngày bắt đầu" prop="startDate">
@@ -85,6 +103,7 @@
                   value-format="YYYY-MM-DD HH:mm:ss"
                   @change="updateStatus"
                   class="w-full"
+                  :disabled-date="disablePastDates"
                 />
               </el-form-item>
             </el-col>
@@ -96,12 +115,12 @@
                   format="YYYY-MM-DD HH:mm:ss"
                   value-format="YYYY-MM-DD HH:mm:ss"
                   class="w-full"
+                  :disabled-date="disableEndDateBeforeStart"
                 />
               </el-form-item>
             </el-col>
           </el-row>
 
-          <!-- Mô tả -->
           <el-form-item label="Mô tả" prop="description">
             <el-input
               v-model="voucher.description"
@@ -111,13 +130,12 @@
             />
           </el-form-item>
 
-          <!-- Loại đơn hàng / loại voucher -->
           <el-row :gutter="20">
             <el-col :span="8">
               <el-form-item label="Loại đơn hàng" prop="orderType">
                 <el-select v-model="voucher.orderType" placeholder="Chọn loại">
                   <el-option label="Tại quầy" :value="1" />
-                  <el-option label="Online" :value="2" />
+                  <el-option label="Online" :value="0" />
                 </el-select>
               </el-form-item>
             </el-col>
@@ -125,18 +143,34 @@
               <el-form-item label="Loại voucher" prop="voucherType">
                 <el-select v-model="voucher.voucherType" @change="onVoucherTypeChange">
                   <el-option label="Công khai" :value="1" />
-                  <el-option label="Riêng tư" :value="2" />
+                  <el-option label="Riêng tư" :value="0" />
                 </el-select>
               </el-form-item>
             </el-col>
-            <el-col :span="8" v-if="voucher.voucherType === 2">
-              <el-form-item label="ID khách hàng" prop="customerId">
-                <el-input-number v-model="voucher.customerId" :min="1" class="w-full" />
+            <el-col :span="8" v-if="voucher.voucherType === 0">
+              <el-form-item label="Khách hàng áp dụng" prop="customerId">
+                <el-select
+                  v-model="voucher.customerId"
+                  placeholder="Chọn hoặc tìm khách hàng"
+                  class="w-full"
+                  clearable
+                  filterable
+                  :filter-method="filterCustomers"
+                >
+                  <template #prefix>
+                    <i class="fas fa-user text-gray-500"></i>
+                  </template>
+                  <el-option
+                    v-for="customer in customers"
+                    :key="customer.id"
+                    :value="customer.id"
+                    :label="customer.customerName || `ID: ${customer.id}`"
+                  />
+                </el-select>
               </el-form-item>
             </el-col>
           </el-row>
 
-          <!-- Sản phẩm & danh mục -->
           <el-row :gutter="20">
             <el-col :span="12">
               <el-form-item label="Chọn sản phẩm (nếu có)" prop="productId">
@@ -180,7 +214,15 @@
             </el-col>
           </el-row>
 
-          <!-- Nút -->
+          <el-form-item label="Số lượng" prop="quantity">
+            <el-input-number
+              v-model="voucher.quantity"
+              :min="1"
+              placeholder="Nhập số lượng voucher"
+              class="w-full"
+            />
+          </el-form-item>
+
           <div class="flex gap-4 mt-6">
             <el-button type="primary" @click="updateVoucher">
               <i class="fas fa-save mr-2" /> Cập nhật Voucher
@@ -199,22 +241,25 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import axios from 'axios'
 
 const route = useRoute()
 const router = useRouter()
 
 const voucherId = route.params.id
+const originalVoucher = ref({}) // Store original voucher data for reset
 
+// Computed properties to disable product/category selection
 const isProductIdDisabled = computed(() => !!voucher.categoryId)
 const isCategoryIdDisabled = computed(() => !!voucher.productId)
 
 const voucherForm = ref(null)
 const voucher = reactive({
   voucherName: '',
-  discountPercentage: 0,
-  discountAmount: 0,
-  minOrderValue: 0,
-  maxDiscountValue: 0,
+  discountPercentage: null,
+  discountAmount: null,
+  minOrderValue: null,
+  maxDiscountValue: null,
   startDate: null,
   endDate: null,
   description: '',
@@ -222,47 +267,155 @@ const voucher = reactive({
   voucherType: 1,
   customerId: null,
   productId: null,
-  categoryId: null
+  categoryId: null,
+  quantity: null,
+  status: 1,
 })
 
 const rules = {
   voucherName: [{ required: true, message: 'Vui lòng nhập tên voucher', trigger: 'blur' }],
-  startDate: [{ required: true, message: 'Chọn ngày bắt đầu', trigger: 'change' }],
-  endDate: [{ required: true, message: 'Chọn ngày kết thúc', trigger: 'change' }],
+  startDate: [
+    { required: true, message: 'Chọn ngày bắt đầu', trigger: 'change' },
+    {
+      validator: (rule, value, callback) => {
+        if (value && voucher.endDate && new Date(value) >= new Date(voucher.endDate)) {
+          callback(new Error('Ngày bắt đầu phải trước ngày kết thúc'))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'change',
+    },
+  ],
+  endDate: [
+    { required: true, message: 'Chọn ngày kết thúc', trigger: 'change' },
+    {
+      validator: (rule, value, callback) => {
+        if (value && voucher.startDate && new Date(value) <= new Date(voucher.startDate)) {
+          callback(new Error('Ngày kết thúc phải sau ngày bắt đầu'))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'change',
+    },
+  ],
   voucherType: [{ required: true, message: 'Chọn loại voucher', trigger: 'change' }],
   orderType: [{ required: true, message: 'Chọn loại đơn hàng', trigger: 'change' }],
+  customerId: [
+    {
+      validator: (rule, value, callback) => {
+        if (voucher.voucherType === 0 && !value) {
+          callback(new Error('Vui lòng chọn khách hàng cho voucher riêng tư'))
+        } else {
+          callback()
+        }
+      },
+      trigger: ['blur', 'change'],
+    },
+  ],
+  discountPercentage: [
+    {
+      validator: (rule, value, callback) => {
+        if (voucher.discountAmount === null && (value === null || value === '')) {
+          callback(new Error('Vui lòng nhập phần trăm giảm hoặc số tiền giảm'))
+        } else if (value !== null && (value < 0 || value > 100)) {
+          callback(new Error('Phần trăm giảm phải từ 0 đến 100'))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'blur',
+    },
+  ],
+  discountAmount: [
+    {
+      validator: (rule, value, callback) => {
+        if (voucher.discountPercentage === null && (value === null || value === '')) {
+          callback(new Error('Vui lòng nhập số tiền giảm hoặc phần trăm giảm'))
+        } else if (value !== null && value < 0) {
+          callback(new Error('Số tiền giảm phải lớn hơn hoặc bằng 0'))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'blur',
+    },
+  ],
+  quantity: [
+    { required: true, message: 'Vui lòng nhập số lượng voucher', trigger: 'change' },
+    {
+      validator: (rule, value, callback) => {
+        if (value !== null && value < 1) {
+          callback(new Error('Số lượng phải lớn hơn hoặc bằng 1'))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'change',
+    },
+  ],
 }
 
 const products = ref([])
 const categories = ref([])
+const customers = ref([])
 
 const fetchVoucher = async () => {
   try {
-    const res = await fetch(`http://localhost:8080/api/vouchers/${voucherId}`)
-    const data = await res.json()
-    Object.assign(voucher, data)
+    const res = await axios.get(`http://localhost:8080/api/admin/vouchers/${voucherId}`)
+    Object.assign(voucher, res.data)
+    Object.assign(originalVoucher.value, res.data) // Store original data
+    if (res.data.startDate) {
+      voucher.startDate = new Date(res.data.startDate)
+    }
+    if (res.data.endDate) {
+      voucher.endDate = new Date(res.data.endDate)
+    }
+    voucher.discountPercentage = res.data.discountPercentage ?? null
+    voucher.discountAmount = res.data.discountAmount ?? null
+    voucher.minOrderValue = res.data.minOrderValue ?? null
+    voucher.maxDiscountValue = res.data.maxDiscountValue ?? null
+    voucher.quantity = res.data.quantity ?? null
   } catch (err) {
+    console.error('Lỗi khi tải dữ liệu voucher:', err)
     ElMessage.error('Không thể tải dữ liệu voucher!')
   }
 }
 
-const filterProducts = (query) => {
-  if (query) {
-    products.value = products.value.filter((product) =>
-      product.productName.toLowerCase().includes(query.toLowerCase())
-    )
-  } else {
-    fetchProducts()
+const filterProducts = async (query) => {
+  try {
+    const res = await axios.get('http://localhost:8080/api/admin/products/hien-thi', {
+      params: { search: query },
+    })
+    products.value = res.data
+  } catch (error) {
+    console.error('Lỗi khi tìm kiếm sản phẩm:', error)
+    ElMessage.error('Không thể tìm kiếm sản phẩm!')
   }
 }
 
-const filterCategories = (query) => {
-  if (query) {
-    categories.value = categories.value.filter((category) =>
-      category.categoryName.toLowerCase().includes(query.toLowerCase())
-    )
-  } else {
-    fetchCategories()
+const filterCategories = async (query) => {
+  try {
+    const res = await axios.get('http://localhost:8080/api/admin/categories/hien-thi', {
+      params: { search: query },
+    })
+    categories.value = res.data
+  } catch (error) {
+    console.error('Lỗi khi tìm kiếm danh mục:', error)
+    ElMessage.error('Không thể tìm kiếm danh mục!')
+  }
+}
+
+const filterCustomers = async (query) => {
+  try {
+    const res = await axios.get('http://localhost:8080/api/admin/customers', {
+      params: { search: query },
+    })
+    customers.value = res.data
+  } catch (error) {
+    console.error('Lỗi khi tìm kiếm khách hàng:', error)
+    ElMessage.error('Không thể tìm kiếm khách hàng!')
   }
 }
 
@@ -277,70 +430,123 @@ const updateStatus = () => {
 }
 
 const fetchProducts = async () => {
-  const res = await fetch('http://localhost:8080/api/admin/products/hien-thi')
-  products.value = await res.json()
+  try {
+    const res = await axios.get('http://localhost:8080/api/admin/products/hien-thi')
+    products.value = res.data
+  } catch (error) {
+    console.error('Lỗi khi lấy danh sách sản phẩm:', error)
+    ElMessage.error('Không thể tải danh sách sản phẩm!')
+  }
 }
 
 const fetchCategories = async () => {
-  const res = await fetch('http://localhost:8080/api/admin/categories/hien-thi')
-  categories.value = await res.json()
+  try {
+    const res = await axios.get('http://localhost:8080/api/admin/categories/hien-thi')
+    categories.value = res.data
+  } catch (error) {
+    console.error('Lỗi khi lấy danh sách danh mục:', error)
+    ElMessage.error('Không thể tải danh sách danh mục!')
+  }
 }
 
-const formatDate = (date) => {
+const fetchCustomers = async () => {
+  try {
+    const res = await axios.get('http://localhost:8080/api/admin/customers')
+    customers.value = res.data
+  } catch (error) {
+    console.error('Lỗi khi lấy danh sách khách hàng:', error)
+    ElMessage.error('Không thể tải danh sách khách hàng!')
+  }
+}
+
+const formatDateForBackend = (date) => {
   if (!date) return null
   const d = new Date(date)
-  const year = d.getFullYear()
-  const month = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  const hours = String(d.getHours()).padStart(2, '0')
-  const minutes = String(d.getMinutes()).padStart(2, '0')
-  const seconds = String(d.getSeconds()).padStart(2, '0')
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+  if (isNaN(d.getTime())) {
+    console.warn('Invalid date:', date)
+    return null
+  }
+  return d.toISOString().replace('T', ' ').slice(0, 19) // ISO format to 'YYYY-MM-DD HH:mm:ss'
+}
+
+const clearDiscountAmount = () => {
+  if (voucher.discountPercentage !== null && voucher.discountPercentage > 0) {
+    voucher.discountAmount = null
+  }
+}
+
+const clearDiscountPercentage = () => {
+  if (voucher.discountAmount !== null && voucher.discountAmount > 0) {
+    voucher.discountPercentage = null
+  }
+}
+
+const disablePastDates = (time) => {
+  return time.getTime() < new Date().setHours(0, 0, 0, 0)
+}
+
+const disableEndDateBeforeStart = (time) => {
+  if (!voucher.startDate) return false
+  return time.getTime() <= new Date(voucher.startDate).getTime()
 }
 
 const updateVoucher = async () => {
   try {
     await voucherForm.value.validate()
-
-    // Hiển thị hộp thoại xác nhận
     const confirmed = await ElMessageBox.confirm(
       'Bạn có chắc chắn muốn cập nhật voucher này không?',
       'Xác nhận cập nhật',
       {
         confirmButtonText: 'OK',
         cancelButtonText: 'Hủy',
-        type: 'warning'
+        type: 'warning',
       }
     )
 
-    // Nếu người dùng nhấn OK, tiếp tục gửi request
-    const payload = {
-      ...voucher,
-      startDate: voucher.startDate ? formatDate(voucher.startDate) : null,
-      endDate: voucher.endDate ? formatDate(voucher.endDate) : null
+    if (!confirmed) {
+      ElMessage.info('Hủy cập nhật voucher')
+      return
     }
 
-    console.log('startDate:', payload.startDate)
-    console.log('endDate:', payload.endDate)
+    const payload = {
+      ...voucher,
+      startDate: formatDateForBackend(voucher.startDate),
+      endDate: formatDateForBackend(voucher.endDate),
+      discountPercentage: voucher.discountAmount > 0 ? null : voucher.discountPercentage,
+      discountAmount: voucher.discountPercentage > 0 ? null : voucher.discountAmount,
+      minOrderValue: voucher.minOrderValue === 0 || voucher.minOrderValue === '' ? null : voucher.minOrderValue,
+      maxDiscountValue: voucher.maxDiscountValue === 0 || voucher.maxDiscountValue === '' ? null : voucher.maxDiscountValue,
+    }
 
-    const res = await fetch(`http://localhost:8080/api/vouchers/update/${voucherId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    })
+    const res = await axios.put(`http://localhost:8080/api/admin/vouchers/update/${voucherId}`, payload)
 
-    if (!res.ok) throw new Error()
+    if (res.status !== 200) {
+      throw new Error(res.data.message || 'Cập nhật voucher thất bại')
+    }
     ElMessage.success('Cập nhật voucher thành công!')
-    router.push('/voucher') // Sửa '/voucher' thành '/vouchers' cho đúng với route trước đó
+    router.push('/voucher')
   } catch (err) {
-    // Nếu người dùng hủy xác nhận, không hiển thị lỗi
-    if (err === 'cancel') return
-    ElMessage.error('Cập nhật thất bại, kiểm tra lại thông tin.')
+    if (err === 'cancel') {
+      ElMessage.info('Hủy cập nhật voucher')
+    } else {
+      console.error('Lỗi trong quá trình cập nhật voucher:', err)
+      const errorMessage = err.response?.data?.message || 'Cập nhật thất bại, kiểm tra lại thông tin.'
+      ElMessage.error(errorMessage)
+    }
   }
 }
 
 const resetForm = () => {
-  voucherForm.value.resetFields()
+  if (voucherForm.value) {
+    voucherForm.value.resetFields()
+    Object.assign(voucher, originalVoucher.value)
+    if (originalVoucher.value.startDate) {
+      voucher.startDate = new Date(originalVoucher.value.startDate)
+    }
+    if (originalVoucher.value.endDate) {
+      voucher.endDate = new Date(originalVoucher.value.endDate)
+    }
+  }
 }
 
 const goBack = () => {
@@ -348,20 +554,39 @@ const goBack = () => {
 }
 
 const onVoucherTypeChange = () => {
-  if (voucher.voucherType !== 2) {
+  if (voucher.voucherType !== 0) {
     voucher.customerId = null
+    if (voucherForm.value) {
+      voucherForm.value.clearValidate('customerId')
+    }
   }
 }
 
-onMounted(() => {
-  fetchVoucher()
-  fetchProducts()
-  fetchCategories()
+onMounted(async () => {
+  await Promise.all([
+    fetchVoucher(),
+    fetchProducts(),
+    fetchCategories(),
+    fetchCustomers(),
+  ])
 })
 </script>
 
 <style scoped>
 .el-card {
   border-radius: 12px;
+}
+
+:deep(.el-form-item__label) {
+  @apply font-semibold text-gray-700;
+}
+:deep(.el-input-number) {
+  @apply w-full;
+}
+:deep(.el-select) {
+  @apply w-full;
+}
+:deep(.el-date-picker) {
+  @apply w-full;
 }
 </style>

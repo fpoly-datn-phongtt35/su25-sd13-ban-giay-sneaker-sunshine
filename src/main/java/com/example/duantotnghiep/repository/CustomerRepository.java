@@ -13,8 +13,8 @@ import java.util.Optional;
 
 @Repository
 public interface CustomerRepository extends JpaRepository<Customer, Long> {
-    @Query("SELECT c FROM Customer c WHERE c.phone LIKE CONCAT(:phonePrefix, '%')")
-    List<Customer> findByPhoneStartingWith(@Param("phonePrefix") String phonePrefix);
+    @Query("SELECT c FROM Customer c WHERE c.phone LIKE CONCAT(:phonePrefix, '%') AND c.status = 1")
+    List<Customer> findByPhoneStartingWithAndStatusActive(@Param("phonePrefix") String phonePrefix);
 
     List<Customer> findCustomerByStatus(Integer status);
 

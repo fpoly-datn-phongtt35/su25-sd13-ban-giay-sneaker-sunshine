@@ -35,7 +35,7 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
     @Query("SELECT i FROM Invoice i WHERE i.invoiceCode = :invoiceCode")
     Optional<Invoice> findByInvoiceCodeQR(@Param("invoiceCode") String invoiceCode);
 
-    Page<Invoice> findByStatus(int status, Pageable pageable);
+    Page<Invoice> findByStatusAndEmployeeId(int status, Long employeeId, Pageable pageable);
 
     List<Invoice> findByStatusAndCreatedDateBefore(int status, LocalDateTime time);
 
@@ -43,9 +43,54 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
 
     Optional<Invoice> findById(Long id);
 
-    @Query("SELECT d FROM InvoiceDetail d WHERE d.invoice.id IN :ids")
-    List<InvoiceDetail> findByInvoiceIdIn(@Param("ids") List<Long> ids);
+    @Query("""
+        SELECT MONTH(i.createdDate), SUM(i.finalAmount)
+        FROM Invoice i
+        WHERE YEAR(i.createdDate) = :year AND i.status = 1
+        GROUP BY MONTH(i.createdDate)
+        ORDER BY MONTH(i.createdDate)
+    """)
+    List<Object[]> getMonthlyRevenue(@Param("year") int year);
 
+    @Query("""
+        SELECT YEAR(i.createdDate), SUM(i.finalAmount)
+        FROM Invoice i
+        WHERE i.status = 1
+        GROUP BY YEAR(i.createdDate)
+        ORDER BY YEAR(i.createdDate)
+    """)
+    List<Object[]> getYearlyRevenue();
+
+    @Query("""
+        SELECT i.orderType, SUM(i.finalAmount)
+        FROM Invoice i
+        WHERE i.status = 1
+        GROUP BY i.orderType
+    """)
+    List<Object[]> getRevenueByOrderType();
+
+    @Query("""
+        SELECT pd.product.id, pd.product.productName, SUM(idt.quantity)
+        FROM InvoiceDetail idt
+        JOIN idt.invoice i
+        JOIN idt.productDetail pd
+        WHERE i.status = 1 AND i.createdDate BETWEEN :start AND :end
+        GROUP BY pd.product.id, pd.product.productName
+        ORDER BY SUM(idt.quantity) DESC
+    """)
+    List<Object[]> getTopSellingProducts(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end, Pageable pageable);
+
+    @Query("""
+    SELECT i.status, COUNT(i)
+    FROM Invoice i
+    GROUP BY i.status
+""")
+    List<Object[]> countInvoicesByStatus();
+
+    @Query("SELECT COALESCE(SUM(i.totalAmount), 0) FROM Invoice i " +
+            "WHERE i.createdDate >= :startOfDay AND i.createdDate < :endOfDay AND i.status = 1")
+    Long getTodayRevenue(@Param("startOfDay") LocalDateTime startOfDay,
+                         @Param("endOfDay") LocalDateTime endOfDay);
 
 
 }

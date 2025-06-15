@@ -16,6 +16,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,23 +35,32 @@ public class InvoiceServiceImpl implements InvoiceService {
 
     private final InvoiceRepository invoiceRepository;
     private final CustomerRepository customerRepository;
-    private final EmployeeRepository employeeRepository;
     private final InvoiceDetailRepository invoiceDetailRepository;
     private final ProductDetailRepository productDetailRepository;
     private final VoucherRepository voucherRepository;
     private final VoucherHistoryRepository voucherHistoryRepository;
 
     private final InvoiceMapper invoiceMapper;
-
-    private static final String DEFAULT_USER = "admin";
     private static final String DEFAULT_CUSTOMER_NAME = "Khách lẻ";
+    private final UserRepository userRepository;
 
     @Transactional
     @Override
-    public InvoiceResponse createEmptyInvoice(Long employeeId) {
-        Employee employee = employeeRepository.findById(employeeId)
-                .orElseThrow(() -> new RuntimeException("Nhân viên không tồn tại"));
+    public InvoiceResponse createEmptyInvoice() {
+        // Lấy username từ người đang đăng nhập
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
 
+        // Tìm user theo username
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng với username: " + username));
+
+        // Lấy employee từ user
+        Employee employee = user.getEmployee();
+        if (employee == null) {
+            throw new RuntimeException("Người dùng không phải là nhân viên.");
+        }
+
+        // Tạo hóa đơn mới
         Invoice invoice = new Invoice();
         invoice.setInvoiceCode(generateInvoiceCode());
         invoice.setEmployee(employee);
@@ -58,9 +68,9 @@ public class InvoiceServiceImpl implements InvoiceService {
         invoice.setStatus(0);
         invoice.setTotalAmount(BigDecimal.ZERO);
         invoice.setFinalAmount(BigDecimal.ZERO);
-        invoice.setCreatedBy(DEFAULT_USER);
+        invoice.setCreatedBy(username);
         invoice.setDescription("Hóa đơn bán tại quầy");
-        invoice.setOrderType(0); // 0: tại quầy
+        invoice.setOrderType(0); // tại quầy
 
         invoiceRepository.save(invoice);
         return invoiceMapper.toInvoiceResponse(invoice);
@@ -84,10 +94,12 @@ public class InvoiceServiceImpl implements InvoiceService {
 
     @Override
     public List<CustomerResponse> findCustomersByPhonePrefix(String phonePrefix) {
-        List<Customer> customers = customerRepository.findByPhoneStartingWith(phonePrefix);
+        List<Customer> customers = customerRepository.findByPhoneStartingWithAndStatusActive(phonePrefix);
+
         if (customers.isEmpty()) {
-            throw new RuntimeException("Không tìm thấy khách hàng với số điện thoại bắt đầu bằng: " + phonePrefix);
+            throw new RuntimeException("Không tìm thấy khách hàng đang hoạt động với số điện thoại bắt đầu bằng: " + phonePrefix);
         }
+
         return customers.stream()
                 .map(invoiceMapper::toCustomerResponse)
                 .collect(Collectors.toList());
@@ -105,8 +117,8 @@ public class InvoiceServiceImpl implements InvoiceService {
         newCustomer.setCustomerCode(String.format("CUS%02d", count));
         newCustomer.setStatus(1);
         newCustomer.setCreatedDate(LocalDateTime.now());
-        newCustomer.setCreatedBy(DEFAULT_USER);
-
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        newCustomer.setCreatedBy(username);
         Customer customer = customerRepository.save(newCustomer);
 
         // Bỏ phần gán khách hàng vào hóa đơn
@@ -186,30 +198,40 @@ public class InvoiceServiceImpl implements InvoiceService {
                 .orElseThrow(() -> new RuntimeException("Hóa đơn không tồn tại với ID: " + invoiceId));
 
         // 2. Cập nhật trạng thái hóa đơn
-        invoice.setStatus(1); // Đã thanh toán
-        invoice.setOrderType(1); // Loại đơn hàng
+        invoice.setStatus(1); // 1 = Đã thanh toán
         invoice.setUpdatedDate(LocalDateTime.now());
-        invoice.setUpdatedBy(DEFAULT_USER); // Hoặc người đăng nhập
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        invoice.setUpdatedBy(username);
 
-        // 3. Cập nhật lại VoucherHistory nếu có voucher
-        if (invoice.getVoucher() != null) {
-            Voucher voucher = invoice.getVoucher();
-
-            // Tìm tất cả lịch sử voucher chưa sử dụng cho hóa đơn này
+        // 3. Nếu có voucher thì cập nhật lịch sử + trừ số lượng
+        Voucher voucher = invoice.getVoucher();
+        if (voucher != null) {
+            // 3.1 Tìm các bản ghi lịch sử voucher chưa sử dụng cho hóa đơn này
             List<VoucherHistory> histories = voucherHistoryRepository
-                    .findByInvoiceAndVoucherAndStatus(invoice, voucher, 0);
+                    .findByInvoiceAndVoucherAndStatus(invoice, voucher, 0); // 0 = chưa sử dụng
 
+            // 3.2 Đánh dấu tất cả các bản ghi là đã sử dụng
             for (VoucherHistory history : histories) {
-                history.setStatus(1); // Đánh dấu đã sử dụng
+                history.setStatus(1); // 1 = đã sử dụng
                 history.setUpdatedDate(LocalDateTime.now());
-                history.setUpdatedBy(DEFAULT_USER);
+                history.setUpdatedBy(username);
             }
 
-            // Lưu lại tất cả bản ghi
+            // 3.3 Lưu lại lịch sử voucher
             voucherHistoryRepository.saveAll(histories);
+
+            // 3.4 Trừ số lượng voucher nếu còn
+            if (voucher.getQuantity() != null && voucher.getQuantity() > 0) {
+                voucher.setQuantity(voucher.getQuantity() - 1);
+                voucher.setUpdatedDate(LocalDateTime.now());
+                voucher.setUpdatedBy(username);
+                voucherRepository.save(voucher);
+            } else {
+                throw new RuntimeException("Voucher đã hết lượt sử dụng!");
+            }
         }
 
-        // 4. Lưu lại hóa đơn
+        // 4. Lưu hóa đơn đã cập nhật
         invoiceRepository.save(invoice);
     }
 
@@ -314,7 +336,8 @@ public class InvoiceServiceImpl implements InvoiceService {
             invoiceDetail.setProductDetail(productDetail);
             invoiceDetail.setQuantity(quantity);
             invoiceDetail.setCreatedDate(now);
-            invoiceDetail.setCreatedBy(DEFAULT_USER);
+            String username = SecurityContextHolder.getContext().getAuthentication().getName();
+            invoiceDetail.setCreatedBy(username);
             invoiceDetail.setStatus(1);
 
             // Tạo mã chi tiết hóa đơn tự động
@@ -412,10 +435,28 @@ public class InvoiceServiceImpl implements InvoiceService {
     }
 
     public Page<InvoiceResponse> getInvoicesByStatus(int status, int page, int size) {
+        // Lấy username từ SecurityContext
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        // Tìm user theo username
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng với username: " + username));
+
+        // Lấy employee
+        Employee employee = user.getEmployee();
+        if (employee == null) {
+            throw new RuntimeException("Người dùng không phải là nhân viên.");
+        }
+
+        // Tạo phân trang
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdDate").descending());
-        Page<Invoice> invoicePage = invoiceRepository.findByStatus(status, pageable);
+
+        // Truy vấn theo status và employeeId
+        Page<Invoice> invoicePage = invoiceRepository.findByStatusAndEmployeeId(status, employee.getId(), pageable);
+
         return invoicePage.map(invoiceMapper::toInvoiceResponse);
     }
+
 
     @Override
     public InvoiceDisplayResponse getInvoiceWithDetails(Long invoiceId) {

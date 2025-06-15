@@ -7,6 +7,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.awt.print.Pageable;
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -27,4 +29,17 @@ public interface InvoiceDetailRepository extends JpaRepository<InvoiceDetail, Lo
     List<InvoiceDetail> findByInvoiceWithProductDetail(@Param("invoice") Invoice invoice);
 
     List<InvoiceDetail> findByInvoiceIdIn(Collection<Long> invoiceIds);
+
+    @Query("""
+    SELECT pd.product.id, pd.product.productName, SUM(d.quantity)
+    FROM InvoiceDetail d
+    JOIN d.productDetail pd
+    JOIN d.invoice i
+    WHERE i.status = 1
+    AND i.createdDate BETWEEN :startDate AND :endDate
+    GROUP BY pd.product.id, pd.product.productName
+    ORDER BY SUM(d.quantity) DESC
+""")
+    List<Object[]> getTopSellingProducts(LocalDateTime startDate, LocalDateTime endDate, Pageable pageable);
+
 }

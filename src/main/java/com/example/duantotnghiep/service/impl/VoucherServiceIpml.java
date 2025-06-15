@@ -70,7 +70,7 @@ public class VoucherServiceIpml implements VoucherService {
         Long customerId = invoice.getCustomer().getId();
         LocalDateTime now = LocalDateTime.now();
 
-        // Tập hợp các productId và categoryId
+        // Tập hợp productId và categoryId
         Set<String> productIds = new HashSet<>();
         Set<String> categoryIds = new HashSet<>();
 
@@ -89,12 +89,10 @@ public class VoucherServiceIpml implements VoucherService {
             }
         }
 
-        // Truy vấn voucher phù hợp với customerId, productIds và categoryIds
-        List<Voucher> vouchers = voucherRepository.findValidVouchers(
-                now, customerId, productIds, categoryIds
-        );
+        // Truy vấn voucher phù hợp
+        List<Voucher> vouchers = voucherRepository.findValidVouchers(now, customerId, productIds, categoryIds);
 
-        // Bỏ voucher đã dùng
+        // Lọc bỏ voucher đã dùng và voucher có quantity <= 0
         Set<Long> usedVoucherIds = voucherHistoryRepository
                 .findByCustomerIdAndStatus(customerId, 1)
                 .stream()
@@ -103,13 +101,13 @@ public class VoucherServiceIpml implements VoucherService {
 
         List<Voucher> availableVouchers = vouchers.stream()
                 .filter(v -> !usedVoucherIds.contains(v.getId()))
+                .filter(v -> v.getQuantity() != null && v.getQuantity() > 0) // Kiểm tra số lượng
                 .collect(Collectors.toList());
 
         return availableVouchers.stream()
                 .map(voucherMapper::toDto)
                 .toList();
     }
-
 
     @Override
     public VoucherResponse themMoi(VoucherRequest voucherRequest) {

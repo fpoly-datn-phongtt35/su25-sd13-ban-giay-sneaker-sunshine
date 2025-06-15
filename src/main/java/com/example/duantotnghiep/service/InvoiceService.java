@@ -20,7 +20,7 @@ import java.util.List;
 public interface InvoiceService {
 
     @Transactional
-    InvoiceResponse createEmptyInvoice(Long employeeId);
+    InvoiceResponse createEmptyInvoice();
 
     List<CustomerResponse> findCustomersByPhonePrefix(String phonePrefix);
 

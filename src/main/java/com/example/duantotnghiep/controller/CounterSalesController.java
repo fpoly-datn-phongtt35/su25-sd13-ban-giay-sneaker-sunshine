@@ -86,8 +86,8 @@ public class CounterSalesController {
      * Tạo hóa đơn rỗng (bán tại quầy)
      */
     @PostMapping("/create-empty")
-    public ResponseEntity<InvoiceResponse> createEmptyInvoice(@RequestParam Long employeeId) {
-        InvoiceResponse response = invoiceService.createEmptyInvoice(employeeId);
+    public ResponseEntity<InvoiceResponse> createEmptyInvoice() {
+        InvoiceResponse response = invoiceService.createEmptyInvoice();
         return ResponseEntity.ok(response);
     }
 

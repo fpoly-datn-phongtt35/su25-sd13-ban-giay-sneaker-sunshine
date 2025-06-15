@@ -19,6 +19,7 @@ public interface VoucherRepository extends JpaRepository<Voucher, Long> {
     @Query("""
     SELECT v FROM Voucher v
     WHERE v.status = 1
+      AND v.quantity > 0
       AND :now BETWEEN v.startDate AND v.endDate
       AND (:customerId IS NULL OR v.customer.id = :customerId OR v.customer IS NULL)
       AND (
@@ -34,7 +35,5 @@ public interface VoucherRepository extends JpaRepository<Voucher, Long> {
             @Param("productIds") Set<String> productIds,
             @Param("categoryIds") Set<String> categoryIds
     );
-
-
 
 }

@@ -18,4 +18,6 @@ public interface ProductDetailRepository extends JpaRepository<ProductDetail,Lon
 
     List<ProductDetail> findByProductId(Long productId);
 
+    List<ProductDetail> findByProductIdAndColorId(Long productId, Long colorId);
+
 }

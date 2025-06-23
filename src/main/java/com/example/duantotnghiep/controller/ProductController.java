@@ -74,7 +74,7 @@ public class ProductController {
     // CREATE
     @PostMapping
     public ResponseEntity<ProductResponse> createProduct( @ModelAttribute ProductRequest request) {
-
+        System.out.println("Tổng số ảnh: " + request.getProductImages().size());
         return ResponseEntity.ok(productService.createProduct(request));
     }
 
@@ -172,6 +172,12 @@ public class ProductController {
             System.err.println("Xuất Excel theo filter thất bại: " + e.getMessage());
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         }
+    }
+
+    @GetMapping("/online-home")
+    public ResponseEntity<List<ProductResponse>> hienThi(){
+        List<ProductResponse> productResponseList = productService.findProductWithImage();
+        return ResponseEntity.ok(productResponseList);
     }
 
 }

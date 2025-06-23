@@ -23,7 +23,6 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
     @Query("SELECT c FROM Customer c WHERE c.status = :status")
     Page<Customer> findCustomerByStatus1(@Param("status") Integer status, Pageable pageable);
 
-
     boolean existsByEmail(String email);
 
 }

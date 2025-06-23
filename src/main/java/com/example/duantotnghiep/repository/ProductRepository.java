@@ -32,6 +32,10 @@ public interface ProductRepository extends JpaRepository<Product,Long> {
             "WHERE p.id = :id")
     Optional<Product> findByIdWithCategories(@Param("id") Long id);
 
+    @Query("SELECT p FROM Product p " +
+            "LEFT JOIN FETCH p.productImages pi  where p.status = 1 and pi.status = 1 order by p.createdDate desc ")
+    List<Product> findProductWithImage(Pageable pageable);
+
     @Query("SELECT p FROM Product p where p.status = 1 order by p.createdDate desc ")
     List<Product> findAllWithJPQL();
 

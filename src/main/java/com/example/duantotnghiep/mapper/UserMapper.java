@@ -24,6 +24,7 @@ public interface UserMapper {
 
     @Mapping(target = "employeeName", expression = "java(user.getEmployee() != null ? user.getEmployee().getEmployeeName() : null)")
     UserDTO toDto(User user);
+
     @Mapping(target = "username", source = "username")
     @Mapping(target = "password", source = "password")
     @Mapping(target = "id", source = "employee.id")

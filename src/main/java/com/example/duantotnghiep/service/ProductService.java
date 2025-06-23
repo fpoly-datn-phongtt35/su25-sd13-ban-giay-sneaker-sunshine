@@ -10,6 +10,7 @@ import com.example.duantotnghiep.model.Product;
 import org.springframework.data.domain.Page;
 import com.example.duantotnghiep.dto.response.ProductResponse;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
@@ -37,4 +38,6 @@ public interface ProductService {
     void exportProductToExcelByIds(List<Long> productIds, OutputStream outputStream) throws IOException;
 
     PaginationDTO<ProductSearchResponse> getProductRemoved(ProductSearchRequest request, Pageable pageable);
+
+    List<ProductResponse> findProductWithImage();
 }

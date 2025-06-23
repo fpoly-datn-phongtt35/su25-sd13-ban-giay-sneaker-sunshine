@@ -33,9 +33,10 @@
         private Date modifiedDate;
         private String createdBy;
         private String modifiedBy;
-        private List<MultipartFile> productImages;
+        private List<ProductImageRequest> productImages;
         private List<Long> categoryIds;
         private List<Long> oldImageIds;
+        private List<Long> oldColorIds;
         private List<ProductDetailRequest> productDetails;
     }
     

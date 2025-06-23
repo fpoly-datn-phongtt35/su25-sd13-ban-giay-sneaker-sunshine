@@ -35,6 +35,10 @@ public class ProductImage {
     @JoinColumn(name = "product_id")
     private Product product;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "color_id")
+    private Color color;
+
     @Size(max = 250)
     @Nationalized
     @Column(name = "image_name", length = 250)

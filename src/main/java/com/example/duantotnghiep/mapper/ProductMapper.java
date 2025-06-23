@@ -74,9 +74,7 @@ public interface ProductMapper {
     @Mapping(target = "style", source = "styleId")
     @Mapping(target = "gender", source = "genderId")
     @Mapping(target = "sole", source = "soleId")
-
     @Mapping(target = "supplier", source = "supplierId")
-
     void updateEntityFromRequest(ProductRequest request, @MappingTarget Product product);
 
     // Helper method chuyển Long -> Material

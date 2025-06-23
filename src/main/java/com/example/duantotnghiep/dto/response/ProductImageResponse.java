@@ -16,8 +16,9 @@ public class ProductImageResponse {
     private Long id;
     private String imageName;
     private String status;
+    private Long colorId;
+    private String colorName;
     private byte[] image;
-
 
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "Asia/Ho_Chi_Minh")
     private Date createdDate;

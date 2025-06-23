@@ -20,9 +20,9 @@ import org.mapstruct.NullValuePropertyMappingStrategy;
 
 @Mapper(componentModel = "spring")
 public interface UserMapper {
-
-
     @Mapping(target = "employeeName", expression = "java(user.getEmployee() != null ? user.getEmployee().getEmployeeName() : null)")
+    @Mapping(target = "customerName", expression = "java(user.getCustomer() != null ? user.getCustomer().getCustomerName() : null)")
+    @Mapping(target = "customerId", expression = "java(user.getCustomer() != null ? user.getCustomer().getId() : null)") // 👈 THÊM DÒNG NÀY
     UserDTO toDto(User user);
     @Mapping(target = "username", source = "username")
     @Mapping(target = "password", source = "password")

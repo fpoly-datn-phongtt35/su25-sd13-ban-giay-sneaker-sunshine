@@ -20,7 +20,8 @@ public class UserDTO {
     private String password;
     private Integer role;
     private Employee employee;
-    private Customer customer;         // 👈 Thêm dòng này nếu chưa có
+    private Customer customer;
     private String employeeName;
     private String customerName;
+    private Long customerId;
 }

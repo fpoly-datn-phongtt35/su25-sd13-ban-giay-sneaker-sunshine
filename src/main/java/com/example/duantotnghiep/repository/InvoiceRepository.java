@@ -37,7 +37,7 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
 
     Page<Invoice> findByStatusAndEmployeeId(int status, Long employeeId, Pageable pageable);
 
-    List<Invoice> findByStatusAndCreatedDateBefore(int status, LocalDateTime time);
+    List<Invoice> findByStatusAndOrderTypeAndCreatedDateBefore(int status, int orderType, LocalDateTime time);
 
     boolean existsByCustomer_IdAndStatus(Long customerId, int status);
 
@@ -91,6 +91,8 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
             "WHERE i.createdDate >= :startOfDay AND i.createdDate < :endOfDay AND i.status = 1")
     Long getTodayRevenue(@Param("startOfDay") LocalDateTime startOfDay,
                          @Param("endOfDay") LocalDateTime endOfDay);
+
+    Optional<Invoice> findByAppTransId(String appTransId);
 
 
 }

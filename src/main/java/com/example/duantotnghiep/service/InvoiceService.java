@@ -1,12 +1,15 @@
 package com.example.duantotnghiep.service;
 
 import com.example.duantotnghiep.dto.PaymentSummary;
+import com.example.duantotnghiep.dto.request.InvoiceRequest;
 import com.example.duantotnghiep.dto.response.CustomerResponse;
 import com.example.duantotnghiep.dto.response.InvoiceCheckoutResponse;
 import com.example.duantotnghiep.dto.response.InvoiceDetailResponse;
 import com.example.duantotnghiep.dto.response.InvoiceDisplayResponse;
 import com.example.duantotnghiep.dto.response.InvoiceResponse;
+import com.example.duantotnghiep.dto.response.InvoiceWithZaloPayResponse;
 import com.example.duantotnghiep.dto.response.ProductAttributeResponse;
+import com.example.duantotnghiep.model.Customer;
 import com.example.duantotnghiep.model.Invoice;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -25,7 +28,7 @@ public interface InvoiceService {
     List<CustomerResponse> findCustomersByPhonePrefix(String phonePrefix);
 
     @Transactional
-    CustomerResponse createQuickCustomer(String phone, String name);
+    CustomerResponse createQuickCustomer(String phone, String name, String email);
 
     PaymentSummary calculatePayment(Long invoiceId, BigDecimal amountGiven);
 
@@ -50,4 +53,13 @@ public interface InvoiceService {
     Invoice findById(Long id);
 
     List<InvoiceDisplayResponse> getInvoicesWithDetailsByIds(List<Long> ids);
+
+    @Transactional
+    InvoiceDisplayResponse createInvoice(InvoiceRequest request);
+
+
+    @Transactional
+    InvoiceWithZaloPayResponse createInvoiceAndZaloPay(InvoiceRequest request) throws Exception;
+
+    void updateInvoiceStatusByAppTransId(String appTransId, int status);
 }

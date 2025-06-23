@@ -14,7 +14,9 @@ public interface InvoiceMapper {
     // ================= Invoice -> InvoiceResponse =================
     @Mapping(target = "customerId", expression = "java(invoice.getCustomer() != null ? invoice.getCustomer().getId() : null)")
     @Mapping(target = "customerName", expression = "java(invoice.getCustomer() != null ? invoice.getCustomer().getCustomerName() : \"Khách lẻ\")")
+    @Mapping(target = "phone", expression = "java(invoice.getCustomer() != null ? invoice.getCustomer().getPhone() : \"\")")
     @Mapping(target = "employeeName", source = "employee.employeeName")
+    @Mapping(target = "shippingFee", source = "shippingFee") // 👈 Thêm dòng này
     InvoiceResponse toInvoiceResponse(Invoice invoice);
 
     // ================= InvoiceDetail -> InvoiceDetailResponse =================
@@ -27,6 +29,8 @@ public interface InvoiceMapper {
     @Mapping(target = "quantity", source = "quantity")
 // Thêm dòng này để tính totalPrice = price * quantity
     @Mapping(target = "totalPrice", expression = "java(invoiceDetail.getProductDetail().getSellPrice().multiply(java.math.BigDecimal.valueOf(invoiceDetail.getQuantity())))")
+    @Mapping(target = "phone", expression = "java(invoiceDetail.getInvoice().getCustomer() != null ? invoiceDetail.getInvoice().getCustomer().getPhone() : null)")
+    @Mapping(target = "customerName", expression = "java(invoiceDetail.getInvoice().getCustomer() != null ? invoiceDetail.getInvoice().getCustomer().getCustomerName() : \"Khách lẻ\")")
     InvoiceDetailResponse toInvoiceDetailResponse(InvoiceDetail invoiceDetail);
 
     // ================= ProductDetail -> ProductAttributeResponse =================

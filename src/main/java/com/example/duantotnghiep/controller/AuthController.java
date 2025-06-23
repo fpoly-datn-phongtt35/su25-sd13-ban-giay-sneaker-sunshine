@@ -1,8 +1,11 @@
 package com.example.duantotnghiep.controller;
 
+import com.example.duantotnghiep.dto.request.CustomerRequest;
 import com.example.duantotnghiep.dto.request.LoginRequest;
+import com.example.duantotnghiep.dto.response.CustomerResponse;
 import com.example.duantotnghiep.dto.response.LoginResponse;
 import com.example.duantotnghiep.securiry.AuthService;
+import com.example.duantotnghiep.service.CustomerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -16,10 +19,17 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+    private final CustomerService customerService;
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
         return ResponseEntity.ok(authService.login(request));
+    }
+
+    @PostMapping("/register")
+    public ResponseEntity<CustomerResponse> registerCustomer(@RequestBody CustomerRequest request) {
+        CustomerResponse response = customerService.createCustomer(request);
+        return ResponseEntity.ok(response);
     }
 }
 

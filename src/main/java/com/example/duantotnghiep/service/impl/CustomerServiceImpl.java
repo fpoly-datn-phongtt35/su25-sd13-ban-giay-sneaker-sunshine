@@ -133,10 +133,38 @@ public class CustomerServiceImpl implements CustomerService {
 
     @Override
     public CustomerResponse getCustomerById(Long id) {
-        User user = userRepository.findByCustomerId(id)
-                .orElseThrow(null);
-        return userMapper.toCustomerResponse(user);
+        // Lấy thông tin customer
+        Customer customer = customerRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Customer not found"));
+
+        // Lấy danh sách địa chỉ theo customerId
+        List<AddressCustomer> addresses = addressRepository.findAllByCustomerId(customer.getId());
+
+        // Gán địa chỉ đầu tiên nếu có
+        AddressCustomer address = null;
+        if (!addresses.isEmpty()) {
+            address = addresses.get(0);
+        }
+
+        // Ánh xạ customer sang response DTO
+        CustomerResponse response = customerMapper.toDto(customer);
+
+        // Nếu có địa chỉ thì set vào DTO
+        if (address != null) {
+            response.setCountry(address.getCountry());
+            response.setProvinceCode(address.getProvinceCode());
+            response.setProvinceName(address.getProvinceName());
+            response.setDistrictCode(address.getDistrictCode());
+            response.setDistrictName(address.getDistrictName());
+            response.setWardCode(address.getWardCode());
+            response.setWardName(address.getWardName());
+            response.setHouseName(address.getHouseName());
+        }
+
+        return response;
     }
+
+
 
     @Override
     public List<CustomerResponse> getAllCustomers() {

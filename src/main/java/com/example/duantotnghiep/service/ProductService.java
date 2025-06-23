@@ -37,4 +37,6 @@ public interface ProductService {
     void exportProductToExcelByIds(List<Long> productIds, OutputStream outputStream) throws IOException;
 
     PaginationDTO<ProductSearchResponse> getProductRemoved(ProductSearchRequest request, Pageable pageable);
+
+    List<ProductResponse> findProductWithImage();
 }

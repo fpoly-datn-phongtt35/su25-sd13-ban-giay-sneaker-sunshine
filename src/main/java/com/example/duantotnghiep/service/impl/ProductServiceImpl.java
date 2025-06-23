@@ -33,6 +33,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import com.example.duantotnghiep.service.ProductService;
 import lombok.RequiredArgsConstructor;
@@ -666,6 +667,12 @@ public class ProductServiceImpl implements ProductService {
     @Override
     public PaginationDTO<ProductSearchResponse> getProductRemoved(ProductSearchRequest request, Pageable pageable) {
         return productSearchRepository.getProductRemoved(request,pageable);
+    }
+
+    @Override
+    public List<ProductResponse> findProductWithImage() {
+        Pageable top8 = PageRequest.of(0, 8);
+        return productRepository.findProductWithImage(top8).stream().map(productMapper::toResponse).collect(Collectors.toList());
     }
 
     private String generateProductCode() {

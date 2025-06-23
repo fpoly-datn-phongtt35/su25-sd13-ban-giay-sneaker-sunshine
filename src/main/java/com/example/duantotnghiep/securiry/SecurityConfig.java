@@ -33,13 +33,25 @@ public class SecurityConfig {
 //        http
 //                .csrf(csrf -> csrf.disable())
 //                .authorizeHttpRequests(auth -> auth
-//                        // Cho phép mọi người truy cập login
-//                        .requestMatchers("/api/auth/login").permitAll()
-//                        // Chỉ ADMIN mới truy cập được đường dẫn này
-//                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
-//                        // ADMIN và STAFF đều được truy cập các API này
-//                        .requestMatchers("/api/nhanvien/**").hasAnyRole("ADMIN", "STAFF")
-//                        // Các request còn lại cần xác thực
+//                        // Cho phép truy cập login và register
+//                        .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
+//
+//                        .requestMatchers("/api/online-sale/**").permitAll()
+//
+//                        // ADMIN và STAFF có thể truy cập counter-sales
+//                        .requestMatchers("/api/admin/counter-sales/**").hasAnyRole("ADMIN", "STAFF")
+//
+//                        // CHỈ ADMIN mới được phép truy cập thống kê
+//                        .requestMatchers("/api/admin/statistics/**").hasRole("ADMIN")
+//
+//                        .requestMatchers("/api/admin/customers/**").hasRole("ADMIN")
+//
+//                        .requestMatchers("/api/admin/employees/**").hasRole("ADMIN")
+//
+//                        // CHỈ ADMIN được phép vào các API admin khác
+//                        .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "STAFF")
+//
+//                        // Các request khác yêu cầu xác thực
 //                        .anyRequest().authenticated()
 //                )
 //                .sessionManagement(sess -> sess
@@ -47,7 +59,6 @@ public class SecurityConfig {
 //                )
 //                .authenticationProvider(authenticationProvider());
 //
-//        // Thêm filter JWT trước filter xử lý username/password của Spring Security
 //        http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 //
 //        return http.build();
@@ -69,7 +80,6 @@ public class SecurityConfig {
 
         return http.build();
     }
-
 
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {

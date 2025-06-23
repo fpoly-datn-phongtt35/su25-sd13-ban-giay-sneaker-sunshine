@@ -1,34 +1,50 @@
 package com.example.duantotnghiep.service.impl;
 
 import com.example.duantotnghiep.dto.PaymentSummary;
+import com.example.duantotnghiep.dto.request.AddressRequest;
+import com.example.duantotnghiep.dto.request.CartItemRequest;
+import com.example.duantotnghiep.dto.request.InvoiceRequest;
 import com.example.duantotnghiep.dto.response.CustomerResponse;
 import com.example.duantotnghiep.dto.response.InvoiceDetailResponse;
 import com.example.duantotnghiep.dto.response.InvoiceDisplayResponse;
 import com.example.duantotnghiep.dto.response.InvoiceResponse;
+import com.example.duantotnghiep.dto.response.InvoiceWithZaloPayResponse;
 import com.example.duantotnghiep.dto.response.ProductAttributeResponse;
+import com.example.duantotnghiep.dto.response.ZaloPayResponse;
 import com.example.duantotnghiep.mapper.InvoiceMapper;
 import com.example.duantotnghiep.model.*;
 import com.example.duantotnghiep.repository.*;
+import com.example.duantotnghiep.service.EmailService;
 import com.example.duantotnghiep.service.InvoiceService;
+import com.example.duantotnghiep.service.VoucherEmailService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class InvoiceServiceImpl implements InvoiceService {
@@ -39,10 +55,16 @@ public class InvoiceServiceImpl implements InvoiceService {
     private final ProductDetailRepository productDetailRepository;
     private final VoucherRepository voucherRepository;
     private final VoucherHistoryRepository voucherHistoryRepository;
+    private final EmailService emailService;
+
 
     private final InvoiceMapper invoiceMapper;
     private static final String DEFAULT_CUSTOMER_NAME = "Khách lẻ";
     private final UserRepository userRepository;
+    private final VoucherEmailService voucherEmailService;
+    private final AddressRepository addressRepository;
+    private final EmployeeRepository employeeRepository;
+    private final ZaloPayService zaloPayService;
 
     @Transactional
     @Override
@@ -107,21 +129,22 @@ public class InvoiceServiceImpl implements InvoiceService {
 
     @Transactional
     @Override
-    public CustomerResponse createQuickCustomer(String phone, String name) {
+    public CustomerResponse createQuickCustomer(String phone, String name, String email) {
         // Tạo khách hàng mới
         Customer newCustomer = new Customer();
         newCustomer.setCustomerName(name != null ? name : "Khách lẻ");
         newCustomer.setPhone(phone);
+        newCustomer.setEmail(email); // <-- Thêm dòng này
 
         long count = customerRepository.count() + 1;
         newCustomer.setCustomerCode(String.format("CUS%02d", count));
         newCustomer.setStatus(1);
         newCustomer.setCreatedDate(LocalDateTime.now());
+
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         newCustomer.setCreatedBy(username);
-        Customer customer = customerRepository.save(newCustomer);
 
-        // Bỏ phần gán khách hàng vào hóa đơn
+        Customer customer = customerRepository.save(newCustomer);
 
         return invoiceMapper.toCustomerResponse(customer);
     }
@@ -193,46 +216,100 @@ public class InvoiceServiceImpl implements InvoiceService {
     @Transactional
     @Override
     public void checkout(Long invoiceId) {
-        // 1. Tìm hóa đơn theo ID
+        // 1. Lấy hóa đơn
         Invoice invoice = invoiceRepository.findById(invoiceId)
-                .orElseThrow(() -> new RuntimeException("Hóa đơn không tồn tại với ID: " + invoiceId));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy hóa đơn với ID: " + invoiceId));
+
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
 
         // 2. Cập nhật trạng thái hóa đơn
-        invoice.setStatus(1); // 1 = Đã thanh toán
+        invoice.setStatus(1); // Đã thanh toán
         invoice.setUpdatedDate(LocalDateTime.now());
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
         invoice.setUpdatedBy(username);
 
-        // 3. Nếu có voucher thì cập nhật lịch sử + trừ số lượng
-        Voucher voucher = invoice.getVoucher();
-        if (voucher != null) {
-            // 3.1 Tìm các bản ghi lịch sử voucher chưa sử dụng cho hóa đơn này
+        // 3. Xử lý nếu hóa đơn sử dụng voucher
+        Voucher usedVoucher = invoice.getVoucher();
+        if (usedVoucher != null) {
             List<VoucherHistory> histories = voucherHistoryRepository
-                    .findByInvoiceAndVoucherAndStatus(invoice, voucher, 0); // 0 = chưa sử dụng
+                    .findByInvoiceAndVoucherAndStatus(invoice, usedVoucher, 0);
 
-            // 3.2 Đánh dấu tất cả các bản ghi là đã sử dụng
             for (VoucherHistory history : histories) {
-                history.setStatus(1); // 1 = đã sử dụng
+                history.setStatus(1);
                 history.setUpdatedDate(LocalDateTime.now());
                 history.setUpdatedBy(username);
             }
-
-            // 3.3 Lưu lại lịch sử voucher
             voucherHistoryRepository.saveAll(histories);
 
-            // 3.4 Trừ số lượng voucher nếu còn
-            if (voucher.getQuantity() != null && voucher.getQuantity() > 0) {
-                voucher.setQuantity(voucher.getQuantity() - 1);
-                voucher.setUpdatedDate(LocalDateTime.now());
-                voucher.setUpdatedBy(username);
-                voucherRepository.save(voucher);
+            if (usedVoucher.getQuantity() != null && usedVoucher.getQuantity() > 0) {
+                usedVoucher.setQuantity(usedVoucher.getQuantity() - 1);
+                usedVoucher.setUpdatedDate(LocalDateTime.now());
+                usedVoucher.setUpdatedBy(username);
+                voucherRepository.save(usedVoucher);
             } else {
                 throw new RuntimeException("Voucher đã hết lượt sử dụng!");
             }
         }
 
-        // 4. Lưu hóa đơn đã cập nhật
+        // 4. Lưu hóa đơn cập nhật
         invoiceRepository.save(invoice);
+
+        // 5. 🎁 Xử lý tự động tặng voucher nếu đủ điều kiện
+        if (invoice.getCustomer() != null) {
+            BigDecimal totalAmount = invoice.getTotalAmount();
+            Long customerId = invoice.getCustomer().getId();
+
+            // Lấy danh sách chương trình AUTO đang bật
+            List<Voucher> autoPromos = voucherRepository
+                    .findByVoucherNameStartingWithAndStatus("AUTO_PROMO_", 1);
+
+            // Tìm chương trình phù hợp với đơn hàng
+            Voucher matchedPromo = autoPromos.stream()
+                    .filter(v -> totalAmount.compareTo(v.getMinOrderValue()) >= 0)
+                    .sorted((v1, v2) -> v2.getMinOrderValue().compareTo(v1.getMinOrderValue()))
+                    .findFirst()
+                    .orElse(null);
+
+            if (matchedPromo != null) {
+                boolean alreadyGiven = voucherRepository.existsByCustomerIdAndVoucherNameAndDiscountAmount(
+                        customerId,
+                        matchedPromo.getVoucherName(),
+                        matchedPromo.getDiscountAmount()
+                );
+
+                if (!alreadyGiven) {
+                    // Tạo voucher tặng
+                    Voucher newVoucher = new Voucher();
+                    newVoucher.setCustomer(invoice.getCustomer());
+                    newVoucher.setVoucherCode("VOUCHER-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+                    newVoucher.setVoucherName(matchedPromo.getVoucherName());
+                    newVoucher.setDiscountAmount(matchedPromo.getDiscountAmount());
+                    newVoucher.setMinOrderValue(matchedPromo.getMinOrderValue());
+                    newVoucher.setStartDate(LocalDateTime.now());
+                    newVoucher.setEndDate(LocalDateTime.now().plusDays(30));
+                    newVoucher.setStatus(1);
+                    newVoucher.setCreatedDate(LocalDateTime.now());
+                    newVoucher.setCreatedBy("SYSTEM");
+                    newVoucher.setQuantity(1);
+                    newVoucher.setVoucherType(0); // tặng
+                    newVoucher.setOrderType(1);
+
+                    voucherRepository.save(newVoucher);
+
+                    // Gửi email thông báo qua VoucherEmailService
+                    String email = invoice.getCustomer().getEmail();
+                    if (email != null && !email.isEmpty()) {
+                        voucherEmailService.sendVoucherNotificationEmail(
+                                email,
+                                invoice.getCustomer().getCustomerName(),
+                                totalAmount,
+                                matchedPromo.getDiscountAmount(),
+                                newVoucher.getVoucherCode(),
+                                newVoucher.getEndDate().toLocalDate()
+                        );
+                    }
+                }
+            }
+        }
     }
 
     @Transactional
@@ -425,6 +502,26 @@ public class InvoiceServiceImpl implements InvoiceService {
         return updatedInvoice;
     }
 
+    public Invoice removeVoucherFromInvoice(Long invoiceId) {
+        Invoice invoice = invoiceRepository.findById(invoiceId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy hóa đơn"));
+
+        // Nếu không có voucher nào đang áp dụng thì không cần làm gì
+        if (invoice.getVoucher() == null) {
+            throw new RuntimeException("Hóa đơn hiện không có voucher để bỏ");
+        }
+
+        // Xóa thông tin voucher
+        invoice.setVoucher(null);
+        invoice.setDiscountAmount(BigDecimal.ZERO);
+        invoice.setFinalAmount(invoice.getTotalAmount());
+        invoice.setUpdatedDate(LocalDateTime.now());
+
+        // Lưu lại hóa đơn đã cập nhật
+        return invoiceRepository.save(invoice);
+    }
+
+
     /**
      * Tạo hóa đơn(bán tại quầy)
      */
@@ -608,6 +705,160 @@ public class InvoiceServiceImpl implements InvoiceService {
                     return invoiceMapper.toInvoiceDisplayResponse(invoice, details);
                 })
                 .collect(Collectors.toList());
+    }
+
+    @Transactional
+    @Override
+    public InvoiceDisplayResponse createInvoice(InvoiceRequest request) {
+        // 1. Xử lý thông tin khách hàng
+        Customer customer;
+        Long customerId = request.getCustomerInfo().getCustomerId();
+
+        if (customerId != null) {
+            customer = customerRepository.findById(customerId)
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy khách hàng với ID: " + customerId));
+        } else {
+            customer = customerRepository.findTop1ByPhoneAndStatus(request.getCustomerInfo().getPhone(), 1)
+                    .orElseGet(() -> {
+                        Customer c = new Customer();
+                        c.setCustomerName(request.getCustomerInfo().getCustomerName());
+                        c.setPhone(request.getCustomerInfo().getPhone());
+                        c.setEmail(request.getCustomerInfo().getEmail());
+                        c.setStatus(1);
+                        c.setCustomerCode("KH" + System.currentTimeMillis());
+                        c.setCreatedDate(LocalDateTime.now());
+                        return customerRepository.save(c);
+                    });
+        }
+
+        // 2. Lưu địa chỉ
+        AddressRequest addr = request.getCustomerInfo().getAddress();
+        AddressCustomer address = new AddressCustomer();
+        address.setCustomer(customer);
+        address.setCountry(addr.getCountry());
+        address.setProvinceCode(addr.getProvinceCode());
+        address.setProvinceName(addr.getProvinceName());
+        address.setDistrictCode(addr.getDistrictCode());
+        address.setDistrictName(addr.getDistrictName());
+        address.setWardCode(addr.getWardCode());
+        address.setWardName(addr.getWardName());
+        address.setHouseName(addr.getHouseName());
+        address.setStatus(1);
+        address.setCreatedDate(new Date());
+        address.setDefaultAddress(true);
+        addressRepository.save(address);
+
+        // 3. Tạo hóa đơn
+        Invoice invoice = new Invoice();
+        invoice.setInvoiceCode("INV" + System.currentTimeMillis());
+        invoice.setCustomer(customer);
+        invoice.setCreatedDate(LocalDateTime.now());
+        invoice.setUpdatedDate(LocalDateTime.now());
+        invoice.setDescription(request.getDescription());
+        invoice.setOrderType(request.getOrderType());
+        invoice.setStatus(0); // Mặc định
+
+        invoice.setDiscountAmount(Optional.ofNullable(request.getDiscountAmount()).orElse(BigDecimal.ZERO));
+        invoice.setShippingFee(Optional.ofNullable(request.getShippingFee()).orElse(BigDecimal.ZERO)); // ✅ thêm phí ship
+
+        if (request.getEmployeeId() != null) {
+            employeeRepository.findById(request.getEmployeeId()).ifPresent(invoice::setEmployee);
+        }
+
+        if (request.getVoucherId() != null) {
+            voucherRepository.findById(request.getVoucherId()).ifPresent(invoice::setVoucher);
+        }
+
+        // 4. Tạo danh sách chi tiết hóa đơn
+        BigDecimal total = BigDecimal.ZERO;
+        List<InvoiceDetail> details = new ArrayList<>();
+
+        for (CartItemRequest item : request.getItems()) {
+            ProductDetail productDetail = productDetailRepository.findById(item.getProductDetailId())
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm: " + item.getProductDetailId()));
+
+            InvoiceDetail detail = new InvoiceDetail();
+            detail.setInvoice(invoice);
+            detail.setProductDetail(productDetail);
+            detail.setQuantity(item.getQuantity());
+            detail.setCreatedDate(LocalDateTime.now());
+            detail.setStatus(0);
+            detail.setInvoiceCodeDetail("INV-DTL-" + UUID.randomUUID().toString().substring(0, 8));
+
+            BigDecimal itemTotal = productDetail.getSellPrice().multiply(BigDecimal.valueOf(item.getQuantity()));
+            total = total.add(itemTotal);
+            details.add(detail);
+        }
+
+        invoice.setTotalAmount(total);
+
+        // ✅ Tính finalAmount = total - discount + phí ship
+        invoice.setFinalAmount(total
+                .subtract(invoice.getDiscountAmount())
+                .add(invoice.getShippingFee()));
+
+        invoice.setInvoiceDetails(details);
+
+        // 5. Lưu và trả kết quả
+        Invoice savedInvoice = invoiceRepository.save(invoice);
+        return invoiceMapper.toInvoiceDisplayResponse(savedInvoice, savedInvoice.getInvoiceDetails());
+    }
+
+    @Transactional
+    @Override
+    public InvoiceWithZaloPayResponse createInvoiceAndZaloPay(InvoiceRequest request) throws Exception {
+        // Bước 1: Tạo hóa đơn và lưu vào DB
+        InvoiceDisplayResponse invoiceDisplay = this.createInvoice(request);
+        Long invoiceId = invoiceDisplay.getInvoice().getId();
+
+        // Bước 2: Tạo appTransId theo định dạng yyMMdd_id
+        String appTransId = new SimpleDateFormat("yyMMdd").format(new Date()) + "_" + invoiceId;
+
+        // Bước 3: Gọi ZaloPay để tạo đơn thanh toán
+        ZaloPayResponse zaloPayResponse = zaloPayService.createZaloPayOrder(
+                invoiceDisplay.getInvoice().getPhone(),
+                invoiceDisplay.getInvoice().getFinalAmount(),
+                "Thanh toán đơn hàng #" + invoiceDisplay.getInvoice().getInvoiceCode(),
+                appTransId
+        );
+
+        // Bước 4: Cập nhật appTransId vào DB
+        invoiceRepository.findById(invoiceId).ifPresent(invoice -> {
+            invoice.setAppTransId(appTransId);
+            invoice.setUpdatedDate(LocalDateTime.now());
+            invoiceRepository.save(invoice);
+        });
+
+        // ✅ Bước 4.5: Đặt hẹn 1 phút nếu không thanh toán → chuyển status = 11
+        scheduleFailIfNotPaid(appTransId);
+
+        // Bước 5: Trả kết quả về client
+        return new InvoiceWithZaloPayResponse(invoiceDisplay, zaloPayResponse);
+    }
+
+    @Async
+    public void scheduleFailIfNotPaid(String appTransId) {
+        Executors.newSingleThreadScheduledExecutor().schedule(() -> {
+            Optional<Invoice> opt = invoiceRepository.findByAppTransId(appTransId);
+            if (opt.isPresent()) {
+                Invoice invoice = opt.get();
+                if (invoice.getStatus() == 0) { // chưa thanh toán
+                    invoice.setStatus(11); // thanh toán thất bại
+                    invoice.setUpdatedDate(LocalDateTime.now());
+                    invoiceRepository.save(invoice);
+                    log.info("⏰ Đơn {} không thanh toán sau 1 phút → chuyển status = 11", appTransId);
+                }
+            }
+        }, 1, TimeUnit.MINUTES);
+    }
+
+    @Transactional
+    public void updateInvoiceStatusByAppTransId(String appTransId, int status) {
+        invoiceRepository.findByAppTransId(appTransId).ifPresent(invoice -> {
+            invoice.setStatus(status);
+            invoice.setUpdatedDate(LocalDateTime.now());
+            invoiceRepository.save(invoice);
+        });
     }
 
 }

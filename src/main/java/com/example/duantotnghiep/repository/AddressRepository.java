@@ -17,4 +17,7 @@ public interface AddressRepository extends JpaRepository<AddressCustomer,Long> {
     @Modifying
     @Query("UPDATE AddressCustomer ca SET ca.defaultAddress = false WHERE ca.customer.id = :customerId")
     void clearDefaultAddress(@Param("customerId") Long customerId);
+
+    List<AddressCustomer> findAllByCustomerId(Long customerId);
+
 }

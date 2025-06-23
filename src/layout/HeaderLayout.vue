@@ -16,9 +16,9 @@
             v-model="searchQuery"
             @keyup.enter="performSearch"
           />
-          <button class="btn btn-primary custom-search-button" type="button" @click="performSearch">
+          <!-- <button class="btn btn-primary custom-search-button" type="button" @click="performSearch">
             <i class="fas fa-search"></i>
-          </button>
+          </button> -->
         </div>
       </div>
 

@@ -62,4 +62,8 @@ public interface ProductRepository extends JpaRepository<Product,Long> {
             "WHERE p.id IN :ids")
     List<Product> findByIdsWithDetails(@Param("ids") List<Long> ids);
 
+    @Query("SELECT p FROM Product p " +
+            "LEFT JOIN FETCH p.productImages pi  where p.status = 1 and pi.status = 1 order by p.createdDate desc ")
+    List<Product> findProductWithImage(Pageable pageable);
+
 }

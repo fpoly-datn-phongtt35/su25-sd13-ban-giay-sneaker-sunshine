@@ -34,6 +34,13 @@ public class Invoice {
     @Column(name = "invoice_code", length = 100, unique = true)
     private String invoiceCode;
 
+    @Size(max = 50)
+    @Column(name = "app_trans_id", length = 50, unique = true)
+    private String appTransId;
+
+    @Column(name = "shipping_fee", precision = 18, scale = 3)
+    private BigDecimal shippingFee;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customer_id")
     private Customer customer;

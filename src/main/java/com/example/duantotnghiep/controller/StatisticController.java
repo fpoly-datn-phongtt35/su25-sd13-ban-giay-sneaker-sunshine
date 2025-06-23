@@ -20,7 +20,7 @@ import java.time.YearMonth;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/statistics")
+@RequestMapping("/api/admin/statistics")
 @RequiredArgsConstructor
 public class StatisticController {
 

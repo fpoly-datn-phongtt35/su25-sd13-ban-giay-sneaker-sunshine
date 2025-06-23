@@ -103,9 +103,10 @@ public class CounterSalesController {
     @PostMapping("/quick-create-customer")
     public ResponseEntity<CustomerResponse> createQuickCustomer(
             @RequestParam String phone,
-            @RequestParam(required = false) String name) {
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String email) {
 
-        CustomerResponse response = invoiceService.createQuickCustomer(phone, name);
+        CustomerResponse response = invoiceService.createQuickCustomer(phone, name, email);
         return ResponseEntity.ok(response);
     }
 
@@ -208,6 +209,22 @@ public class CounterSalesController {
         } catch (Exception ex) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Đã xảy ra lỗi hệ thống khi áp dụng voucher.");
+        }
+    }
+
+    @PutMapping("/{invoiceId}/remove-voucher")
+    public ResponseEntity<?> removeVoucher(@PathVariable Long invoiceId) {
+        try {
+            Invoice updatedInvoice = invoiceService.removeVoucherFromInvoice(invoiceId);
+
+            return ResponseEntity.ok("Đã bỏ áp dụng voucher. Tổng tiền: " + updatedInvoice.getFinalAmount());
+
+        } catch (RuntimeException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("Lỗi khi bỏ voucher: " + ex.getMessage());
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Đã xảy ra lỗi hệ thống khi bỏ voucher.");
         }
     }
 

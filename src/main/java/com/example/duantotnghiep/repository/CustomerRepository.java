@@ -1,6 +1,12 @@
 package com.example.duantotnghiep.repository;
 
+import com.example.duantotnghiep.model.AddressCustomer;
 import com.example.duantotnghiep.model.Customer;
+import com.example.duantotnghiep.model.Employee;
+import com.example.duantotnghiep.model.Invoice;
+import com.example.duantotnghiep.model.InvoiceDetail;
+import com.example.duantotnghiep.model.ProductDetail;
+import com.example.duantotnghiep.model.Voucher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -24,5 +30,21 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
     Page<Customer> findCustomerByStatus1(@Param("status") Integer status, Pageable pageable);
 
     boolean existsByEmail(String email);
+
+    Optional<Customer> findTop1ByPhoneAndStatus(String phone, int status);
+
+
+    public interface ProductDetailRepository extends JpaRepository<ProductDetail, Long> {}
+
+    public interface InvoiceRepository extends JpaRepository<Invoice, Long> {}
+
+    public interface InvoiceDetailRepository extends JpaRepository<InvoiceDetail, Long> {}
+
+    public interface AddressCustomerRepository extends JpaRepository<AddressCustomer, Long> {}
+
+    public interface EmployeeRepository extends JpaRepository<Employee, Long> {}
+
+    public interface VoucherRepository extends JpaRepository<Voucher, Long> {}
+
 
 }

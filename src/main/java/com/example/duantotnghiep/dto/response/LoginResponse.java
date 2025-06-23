@@ -12,5 +12,7 @@ import lombok.Setter;
 public class LoginResponse {
     private String token;
     private String employeeName;
+    private String customerName;
     private Long id;
+    private Long customerId;
 }

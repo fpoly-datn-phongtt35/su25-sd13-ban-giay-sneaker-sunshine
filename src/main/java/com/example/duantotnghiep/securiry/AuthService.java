@@ -58,8 +58,7 @@ public class AuthService {
 
             UserDTO userDTO = userMapper.toDto(user);
             String employeeName = userDTO.getEmployee() != null ? userDTO.getEmployee().getEmployeeName() : null;
-            return new LoginResponse(token, employeeName, userDTO.getId());
-
+            return new LoginResponse(token, employeeName, userDTO.getCustomerName(), userDTO.getCustomerId(), userDTO.getId());
         } catch (BadCredentialsException e) {
             throw new RuntimeException("❌ Sai tên đăng nhập hoặc mật khẩu");
 

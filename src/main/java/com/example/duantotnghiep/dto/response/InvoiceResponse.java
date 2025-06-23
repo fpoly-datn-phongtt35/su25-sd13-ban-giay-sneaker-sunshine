@@ -8,6 +8,7 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @AllArgsConstructor
 @NoArgsConstructor
@@ -37,6 +38,13 @@ public class InvoiceResponse {
 
     private String invoiceCode;
 
-    private Long customerId; // <-- Thêm dòng này
+    private Long customerId;
+
+    private VoucherResponse voucher;
+
+    private BigDecimal shippingFee; // 👈 Thêm trường này
+
+    private List<InvoiceDetailResponse> invoiceDetails;
+
 
 }

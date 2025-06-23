@@ -23,14 +23,14 @@ public class InvoiceCleanupTask {
     private final ProductDetailRepository productDetailRepository;
 
     /**
-     * Chạy mỗi 30 giây để kiểm tra hóa đơn chưa thanh toán quá 2 phút
+     * Chạy mỗi 30 giây để kiểm tra hóa đơn chưa thanh toán quá 10 phút
      */
-    @Scheduled(fixedRate = 30000) // 30 giây một lần
+    @Scheduled(fixedRate = 60000) // 30 giây một lần
     public void cancelUnpaidInvoices() {
-        LocalDateTime limitTime = LocalDateTime.now().minusMinutes(2);
+        LocalDateTime limitTime = LocalDateTime.now().minusMinutes(10);
 
-        // Tìm hóa đơn status = 0 (chưa thanh toán), tạo trước hơn 2 phút
-        List<Invoice> expiredInvoices = invoiceRepository.findByStatusAndCreatedDateBefore(0, limitTime);
+        // Tìm hóa đơn status = 0 (chưa thanh toán), tạo trước hơn 10 phút
+        List<Invoice> expiredInvoices = invoiceRepository.findByStatusAndOrderTypeAndCreatedDateBefore(0, 0, limitTime);
 
         for (Invoice invoice : expiredInvoices) {
             List<InvoiceDetail> details = invoiceDetailRepository.findByInvoice(invoice);

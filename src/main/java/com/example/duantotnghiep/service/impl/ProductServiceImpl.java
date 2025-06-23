@@ -425,7 +425,6 @@ public class ProductServiceImpl implements ProductService {
                     }
                     detailsToSave.add(foundDetail);
                 } else {
-                    // Add new detail
                     ProductDetail newEntity = productDetailMapper.fromRequest(newDetailRequest);
                     newEntity.setProduct(updatedProduct);
                     newEntity.setStatus(1); // Active by default for new creations

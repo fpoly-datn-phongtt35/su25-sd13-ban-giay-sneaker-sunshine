@@ -347,7 +347,7 @@ const handleSubmit = () => {
         // 👉 Lưu appTransId để tra cứu sau thanh toán
         localStorage.setItem('appTransId', appTransId)
 
-        // 👉 Chuyển hướng người dùng đến trang thanh toán của ZaloPay
+        // 👉 Redirect user đến trang thanh toán
         window.location.href = orderUrl
       } else {
         ElMessage.error('❌ Không nhận được orderUrl từ ZaloPay')
@@ -358,8 +358,6 @@ const handleSubmit = () => {
     }
   })
 }
-
-
 
 </script>
 

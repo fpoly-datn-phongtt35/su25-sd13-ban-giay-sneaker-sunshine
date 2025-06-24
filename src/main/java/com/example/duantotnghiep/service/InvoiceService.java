@@ -7,6 +7,7 @@ import com.example.duantotnghiep.dto.response.InvoiceCheckoutResponse;
 import com.example.duantotnghiep.dto.response.InvoiceDetailResponse;
 import com.example.duantotnghiep.dto.response.InvoiceDisplayResponse;
 import com.example.duantotnghiep.dto.response.InvoiceResponse;
+import com.example.duantotnghiep.dto.response.InvoiceWithVnpayResponse;
 import com.example.duantotnghiep.dto.response.InvoiceWithZaloPayResponse;
 import com.example.duantotnghiep.dto.response.ProductAttributeResponse;
 import com.example.duantotnghiep.model.Customer;
@@ -62,4 +63,9 @@ public interface InvoiceService {
     InvoiceWithZaloPayResponse createInvoiceAndZaloPay(InvoiceRequest request) throws Exception;
 
     void updateInvoiceStatusByAppTransId(String appTransId, int status);
+
+    void updateStatusIfPaid(String appTransId) throws Exception;
+
+    @Transactional
+    InvoiceWithVnpayResponse createInvoiceAndVnpay(InvoiceRequest request) throws Exception;
 }

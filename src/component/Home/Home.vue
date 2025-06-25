@@ -149,7 +149,7 @@ const fetchFeaturedProducts = async () => {
   loading.value = true;
   error.value = false;
   try {
-    const response = await axios.get('http://localhost:8080/api/admin/products/online-home');
+    const response = await axios.get('http://localhost:8080/api/online-sale/online-home');
     featuredProducts.value = response.data.map(p => ({
       id: p.id,
       productName: p.productName,

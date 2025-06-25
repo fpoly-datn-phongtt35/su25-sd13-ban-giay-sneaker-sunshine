@@ -2,364 +2,427 @@
   <header class="bg-white text-gray-800 py-4 shadow-md">
     <div class="container d-flex align-items-center justify-content-between">
       <div class="d-flex align-items-center gap-1 flex-shrink-0">
-        <img :src="logoSrc" alt="Sunshine Shop Logo" class="h-8 w-8" />
-        <h1 class="m-0 fw-bold text-xl text-nowrap">Sunshine Shop</h1>
+        <img :src="logoSrc" alt="Logo" class="h-10 w-10" /> 
+        <h1 class="m-0 fw-bold text-2xl text-nowrap">Sunshine Shop</h1> 
       </div>
 
-      <div class="search-bar d-flex flex-grow-1 mx-4">
-        <div class="input-group">
-          <input
-            type="text"
-            class="form-control custom-search-input"
-            placeholder="Tìm kiếm sản phẩm..."
-            aria-label="Tìm kiếm sản phẩm"
-            v-model="searchQuery"
-            @keyup.enter="performSearch"
-          />
-          <!-- <button class="btn btn-primary custom-search-button" type="button" @click="performSearch">
-            <i class="fas fa-search"></i>
-          </button> -->
-        </div>
-      </div>
-
-      <nav class="flex-grow-1 d-flex justify-content-center px-4">
-        <ul class="nav gap-3 m-0 p-0 flex-nowrap">
-          <li class="nav-item">
-            <RouterLink to="/" class="nav-link text-gray-700 hover:text-blue-600 fw-semibold d-flex align-items-center gap-1">
-              <i class="fas fa-home"></i> Trang chủ
+      <nav class="flex-grow-1 d-flex justify-content-start"> 
+        <ul class="nav gap-1 m-0 p-0 flex-nowrap align-items-center"> 
+          <li class="nav-item" v-for="link in navLinks" :key="link.path">
+            <RouterLink
+              :to="link.path"
+              class="nav-link text-gray-700 fw-semibold d-flex align-items-center gap-1 text-nowrap"
+              active-class="text-primary"
+            >
+              <i :class="link.icon"></i> {{ link.label }}
             </RouterLink>
-          </li>
-          <li class="nav-item">
-            <RouterLink to="/product-list" class="nav-link text-gray-700 hover:text-blue-600 fw-semibold d-flex align-items-center gap-1">
-              <i class="fas fa-box-open"></i> Sản phẩm
-            </RouterLink>
-          </li>
-          <li class="nav-item">
-            <RouterLink to="/chinh-sach" class="nav-link text-gray-700 hover:text-blue-600 fw-semibold d-flex align-items-center gap-1">
-              <i class="fas fa-scroll"></i> Sản phẩm bán chạy
-            </RouterLink>
-          </li>
-          <li class="nav-item">
-            <RouterLink to="/gioi-thieu" class="nav-link text-gray-700 hover:text-blue-600 fw-semibold d-flex align-items-center gap-1">
-              <i class="fas fa-info-circle"></i> Giới thiệu
-            </RouterLink>
-          </li>
-          <li class="nav-item">
-            <RouterLink to="/lien-he" class="nav-link text-gray-700 hover:text-blue-600 fw-semibold d-flex align-items-center gap-1">
-              <i class="fas fa-phone-alt"></i> Liên hệ
-            </RouterLink>
-          </li>
-          <li class="nav-item">
-            <a href="#" class="nav-link text-gray-700 hover:text-blue-600 fw-semibold d-flex align-items-center gap-1" @click.prevent="handleOrderClick">
-              <i class="fas fa-receipt"></i> Đơn hàng
-            </a>
           </li>
         </ul>
       </nav>
 
-      <div class="d-flex align-items-center gap-1 flex-nowrap flex-shrink-0">
-        <template v-if="customer">
-          <span class="fw-semibold text-nowrap text-sm text-gray-700 d-flex align-items-center gap-1">
-            <i class="fas fa-user-circle"></i> 👋 {{ customer.customerName }}
-          </span>
-          <button class="btn btn-outline-secondary btn-sm" @click="logout">
-            <i class="fas fa-sign-out-alt"></i> Đăng xuất
-          </button>
-        </template>
-        <template v-else>
-          <button class="btn btn-outline-primary btn-sm text-nowrap d-flex align-items-center gap-1" @click="showRegisterCustomerModal = true">
-            <i class="fas fa-user-plus"></i> Đăng ký
-          </button>
-          <button class="btn btn-primary btn-sm text-nowrap d-flex align-items-center gap-1" @click="showLoginModal = true">
-            <i class="fas fa-sign-in-alt"></i> Đăng nhập
-          </button>
-        </template>
+      <div class="d-flex align-items-center gap-4 flex-nowrap flex-shrink-0"> 
+        <div class="search-input-container">
+          <el-input
+            v-model.trim="searchQuery"
+            placeholder="Tìm kiếm..."
+            :prefix-icon="Search"
+            @keyup.enter="performSearchAndCloseModal"
+            class="header-search-input"
+          />
+        </div>
 
-        <router-link to="/gio-hang" class="btn btn-outline-primary btn-sm position-relative flex-shrink-0">
-          <i class="fas fa-shopping-cart"></i>
+        <div class="position-relative">
+          <button class="btn btn-link p-0 border-0 text-gray-700 header-icon-btn" @click="toggleUserDropdown" type="button" aria-label="Tài khoản">
+            <el-icon :size="24"><User /></el-icon>
+          </button>
+          <div
+            v-if="showUserOptions"
+            class="user-dropdown-menu position-absolute bg-white shadow-lg rounded py-2 px-3"
+          >
+            <template v-if="user">
+              <span class="d-block text-center text-sm fw-semibold text-gray-700 mb-2">👋 {{ user.customerName || user.employeeName }}</span>
+              <RouterLink to="/don-hang" class="dropdown-item d-flex align-items-center gap-2 py-2 mb-1" @click="showUserOptions = false">
+                <i class="fas fa-receipt"></i> Đơn hàng
+              </RouterLink>
+              <RouterLink to="/thong-tin-ca-nhan" class="dropdown-item d-flex align-items-center gap-2 py-2 mb-1" @click="showUserOptions = false">
+                <i class="fas fa-user-circle"></i> Thông tin cá nhân
+              </RouterLink>
+              <RouterLink to="/ma-giam-gia" class="dropdown-item d-flex align-items-center gap-2 py-2 mb-1" @click="showUserOptions = false">
+                <i class="fas fa-tags"></i> Mã giảm giá
+              </RouterLink>
+              <button class="btn btn-outline-danger btn-sm w-100 mt-2" @click="logout" type="button">
+                <i class="fas fa-sign-out-alt"></i> Đăng xuất
+              </button>
+            </template>
+            <template v-else>
+              <button class="btn btn-outline-primary btn-sm w-100 mb-2" @click="openRegisterModal" type="button">
+                <i class="fas fa-user-plus"></i> Đăng ký
+              </button>
+              <button class="btn btn-primary btn-sm w-100" @click="openLoginModal" type="button">
+                <i class="fas fa-sign-in-alt"></i> Đăng nhập
+              </button>
+            </template>
+          </div>
+        </div>
+
+        <RouterLink to="/cart" class="btn btn-link p-0 border-0 text-gray-700 position-relative header-icon-btn" aria-label="Giỏ hàng">
+          <el-icon :size="24"><ShoppingCart /></el-icon>
           <span
             v-if="cartCount > 0"
             class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+            >{{ cartCount }}</span
           >
-            {{ cartCount }}
-          </span>
-        </router-link>
+        </RouterLink>
       </div>
     </div>
+
+    <LoginModal
+      :isVisible="showLogin"
+      @update:isVisible="showLogin = $event"
+      @loggedIn="handleLoggedIn"
+      @openRegister="showRegister = true"
+    />
+
+    <RegisterCustomerModal
+      :isVisible="showRegister"
+      @update:isVisible="showRegister = $event"
+      @customerAdded="handleRegisterSuccess"
+      @openLogin="showLogin = true"
+    />
+
+    <el-dialog
+      v-model="showSearchModal"
+      title="Tìm kiếm sản phẩm"
+      width="30%"
+      @close="searchQuery = ''"
+    >
+      <el-input
+        v-model.trim="searchQuery"
+        placeholder="Nhập từ khóa tìm kiếm..."
+        @keyup.enter="performSearchAndCloseModal"
+      />
+      <template #footer>
+        <el-button @click="showSearchModal = false">Hủy</el-button>
+        <el-button type="primary" @click="performSearchAndCloseModal">Tìm kiếm</el-button>
+      </template>
+    </el-dialog>
+
   </header>
-
-  <LoginModal
-    :isVisible="showLoginModal"
-    @update:isVisible="showLoginModal = $event"
-    @loggedIn="handleLoggedIn"
-    @openRegister="showRegisterCustomerModal = true"
-  />
-
-  <RegisterCustomerModal
-    :isVisible="showRegisterCustomerModal"
-    @update:isVisible="showRegisterCustomerModal = $event"
-    @customerAdded="handleCustomerAdded"
-    @openLogin="showLoginModal = true"
-  />
 </template>
 
 <script setup>
-import { ref } from "vue";
-import { useRouter } from 'vue-router';
-import { ElMessage } from 'element-plus'; // Import ElMessage for toast notifications
-import RegisterCustomerModal from "@/component/RegisterCustomerModal.vue";
-import LoginModal from "@/component/LoginModal.vue";
+import { ref, onMounted, watch, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import { User, Search, ShoppingCart } from '@element-plus/icons-vue'
 
-const customer = ref(null);
-const cartCount = ref(0);
-const router = useRouter();
+import LoginModal from '@/component/LoginModal.vue'
+import RegisterCustomerModal from '@/component/RegisterCustomerModal.vue'
 
-// State cho input tìm kiếm
-const searchQuery = ref('');
+const router = useRouter()
 
-// States để điều khiển hiển thị các modal
-const showLoginModal = ref(false);
-const showRegisterCustomerModal = ref(false);
+const logoSrc = ref('https://img.icons8.com/?size=100&id=juRF5DiUGr4p&format=png&color=000000')
+const user = ref(null)
+const cartCount = ref(0)
+const searchQuery = ref('')
+const showLogin = ref(false)
+const showRegister = ref(false)
+const showUserOptions = ref(false)
+const showSearchModal = ref(false);
 
-const logoSrc = ref('https://img.icons8.com/?size=100&id=juRF5DiUGr4p&format=png&color=000000'); // Hello Kitty logo
+const navLinks = [
+  { path: '/', label: 'Trang chủ', icon: 'fas fa-home' },
+  { path: '/collections', label: 'Sản phẩm', icon: 'fas fa-box-open' },
+  { path: '/chinh-sach', label: 'Sản phẩm bán chạy', icon: 'fas fa-scroll' },
+  { path: '/gioi-thieu', label: 'Giới thiệu', icon: 'fas fa-info-circle' },
+  { path: '/lien-he', label: 'Liên hệ', icon: 'fas fa-phone-alt' },
+  // { path: '/don-hang', label: 'Đơn hàng', icon: 'fas fa-receipt' },
+]
+
+onMounted(() => {
+  const storedUser = localStorage.getItem('user')
+  if (storedUser) user.value = JSON.parse(storedUser)
+  updateCartCount()
+  document.addEventListener('click', closeUserDropdownOnClickOutside);
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', closeUserDropdownOnClickOutside);
+});
+
+watch(user, () => {
+  updateCartCount()
+})
+
+function updateCartCount() {
+  try {
+    const userId = user.value?.id || 'guest'
+    const cartKey = `cart_${userId}`
+    const cart = JSON.parse(localStorage.getItem(cartKey) || '[]')
+    cartCount.value = Array.isArray(cart) ? cart.reduce((acc, item) => acc + (item.quantity || 0), 0) : 0
+  } catch {
+    cartCount.value = 0
+  }
+}
+
+const toggleUserDropdown = (event) => {
+  event.stopPropagation();
+  showUserOptions.value = !showUserOptions.value;
+};
+
+const openLoginModal = () => {
+  showUserOptions.value = false;
+  showLogin.value = true;
+};
+
+const openRegisterModal = () => {
+  showUserOptions.value = false;
+  showRegister.value = true;
+};
+
+const closeUserDropdownOnClickOutside = (event) => {
+  // Kiểm tra nếu click bên ngoài dropdown và không phải nút kích hoạt dropdown
+  if (showUserOptions.value &&
+      !event.target.closest('.user-dropdown-menu') &&
+      !event.target.closest('.header-icon-btn')
+  ) {
+    showUserOptions.value = false;
+  }
+};
+
+const openSearchModal = () => {
+  showSearchModal.value = true;
+};
+
+const performSearch = () => {
+  const keyword = searchQuery.value.trim()
+  if (!keyword) {
+    ElMessage.info('Vui lòng nhập từ khóa tìm kiếm.')
+    return
+  }
+  router.push({ path: '/search-results', query: { q: keyword } })
+};
+
+const performSearchAndCloseModal = () => {
+  performSearch();
+};
+
+const handleLoggedIn = (userData) => {
+  localStorage.setItem('user', JSON.stringify(userData))
+  user.value = userData
+  updateCartCount()
+  ElMessage.success('Đăng nhập thành công!')
+  showLogin.value = false; // Đóng modal đăng nhập
+}
+
+const handleRegisterSuccess = () => {
+  ElMessage.success('Đăng ký thành công! Vui lòng đăng nhập.')
+  showLogin.value = true
+  showRegister.value = false; // Đóng modal đăng ký
+}
 
 const logout = () => {
-  customer.value = null; // Clear customer data
-  ElMessage.success('Đăng xuất thành công!');
-  console.log("Logged out");
-  // Thêm logic xóa token, reset state của giỏ hàng nếu cần
-};
+  const userId = user.value?.id || 'guest'
 
-const handleOrderClick = () => {
-  if (customer.value) {
-    router.push('/don-hang');
-  } else {
-    // Nếu chưa đăng nhập, mở modal đăng nhập
-    showLoginModal.value = true;
-    ElMessage.info('Vui lòng đăng nhập để xem đơn hàng của bạn.');
-  }
-};
+  localStorage.removeItem('user')
+  localStorage.removeItem('userId')
+  localStorage.removeItem(`cart_${userId}`)
 
-// Hàm xử lý tìm kiếm
-const performSearch = () => {
-  if (searchQuery.value.trim()) {
-    console.log("Tìm kiếm sản phẩm:", searchQuery.value);
-    // Điều hướng đến trang kết quả tìm kiếm với query
-    router.push({ path: '/search-results', query: { q: searchQuery.value.trim() } });
-    ElMessage.success(`Đang tìm kiếm: "${searchQuery.value}"`);
-  } else {
-    ElMessage.info('Vui lòng nhập từ khóa tìm kiếm.');
-  }
-};
+  user.value = null
+  updateCartCount()
+  showUserOptions.value = false; // Đóng dropdown sau khi đăng xuất
 
-// Xử lý khi đăng nhập thành công từ LoginModal
-const handleLoggedIn = (userData) => {
-  customer.value = { customerName: userData.username }; // Cập nhật thông tin khách hàng
-  console.log('Đăng nhập thành công, user:', userData.username);
-  // Có thể tải dữ liệu giỏ hàng, thông tin cá nhân khác ở đây
-};
-
-// Xử lý khi đăng ký khách hàng thành công từ RegisterCustomerModal
-const handleCustomerAdded = (userData) => {
-  // Sau khi đăng ký thành công, thông báo và có thể tự động mở lại LoginModal
-  ElMessage.success('Tài khoản đã được đăng ký thành công! Vui lòng đăng nhập.');
-  showLoginModal.value = true; // Mở lại modal đăng nhập
-  // Không tự động gán customer ở đây vì họ cần đăng nhập để xác thực
-};
+  ElMessage.success('Đăng xuất thành công!')
+  router.push('/')
+}
 </script>
 
 <style scoped>
-/* Bootstrap-like utility classes */
-.container {
-  max-width: 100%;
-  margin: 0 auto;
-  padding: 0 10px;
-  box-sizing: border-box;
+/* Đảm bảo container chính của header căn giữa các mục con theo chiều dọc và có một chút khoảng cách từ lề */
+.container.d-flex {
+  align-items: center;
+  height: 70px; /* Chiều cao cố định của header */
+  padding: 0 1rem;
+  max-width: none;
+  width: 100%;
 }
-.d-flex { display: flex; }
-.justify-content-between { justify-content: space-between; }
-.justify-content-center { justify-content: center; }
-.align-items-center { align-items: center; }
 
-.gap-1 { gap: 0.25rem; }
-.gap-3 { gap: 0.75rem; }
-.flex-grow-1 { flex-grow: 1; }
-.flex-shrink-0 { flex-shrink: 0; }
-.flex-nowrap { flex-wrap: nowrap; }
-.text-nowrap { white-space: nowrap; }
+/* Logo và Tên Shop */
+.d-flex.align-items-center.gap-1.flex-shrink-0 {
+  /* No specific vertical alignment needed as parent container handles it */
+}
 
-.m-0 { margin: 0; }
-.p-0 { padding: 0; }
-.mx-4 { margin-left: 1rem; margin-right: 1rem; } /* Margin cho thanh search */
-.px-4 { padding-left: 1rem; padding-right: 1rem; }
-.fw-bold { font-weight: 700; }
-.fw-semibold { font-weight: 600; }
-.text-xl { font-size: 1.25rem; }
-.text-sm { font-size: 0.875rem; }
+/* Navigation Links (Menu) */
+nav.flex-grow-1 {
+  flex-grow: 1;
+  display: flex;
+  justify-content: flex-start; /* Căn các mục menu về phía trái của nav */
+  align-items: center;
+  padding: 0 1.5rem; /* Khoảng cách giữa logo và menu */
+}
 
-.bg-white { background-color: #fff; }
-.text-gray-800 { color: #2d3748; }
-.text-gray-700 { color: #4a5568; }
-.hover\:text-blue-600:hover { color: #3182ce; }
-.shadow-md { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); }
-.py-4 { padding-top: 1rem; padding-bottom: 1rem; }
+/* Danh sách Navigation (ul) */
+nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 0.25rem; /* Khoảng cách giữa các mục menu */
+}
 
-/* Navigation specific styles */
-.nav { list-style: none; }
+/* Các Mục Link Navigation riêng lẻ (li) */
+.nav-item {
+  display: flex;
+  align-items: center;
+}
+
+/* RouterLink bên trong Mục Nav - Điều chỉnh padding để to hơn */
 .nav-link {
-  display: block;
-  padding: 0.5rem 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.75rem 1rem; /* Padding của các menu link */
   text-decoration: none;
-  transition: color 0.2s ease-in-out;
-}
-.nav-link:hover { text-decoration: none; }
-
-.nav-link.d-flex i {
-  vertical-align: middle;
-  font-size: 1rem;
-  line-height: 1;
-}
-.nav-link.d-flex {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
+  white-space: nowrap;
+  color: #4a5568; /* Màu chữ mặc định */
+  transition: color 0.2s ease;
 }
 
-/* Button styles */
-.btn {
-  display: inline-flex;
+.nav-link:hover {
+  color: #007bff; /* Màu chữ khi hover */
+}
+
+.nav-link.text-primary {
+  color: #007bff !important; /* Màu chữ khi active */
+}
+
+/* Các Icon và ô tìm kiếm bên phải */
+.d-flex.align-items-center.gap-4.flex-nowrap.flex-shrink-0 {
+  display: flex;
+  align-items: center;
+  gap: 2rem; /* Khoảng cách giữa ô tìm kiếm, tài khoản, giỏ hàng */
+  flex-shrink: 0;
+}
+
+/* Ô input tìm kiếm trên header - Tăng chiều rộng */
+.header-search-input {
+  width: 250px; /* Chiều rộng của ô input */
+  height: 36px; /* Chiều cao của ô input */
+  --el-input-border-radius: 20px; /* Bo tròn góc input */
+  --el-input-border-color: #dcdfe6;
+  --el-input-hover-border-color: #409eff;
+  --el-input-focus-border-color: #409eff;
+}
+
+/* Đảm bảo icon bên trong input không bị lệch */
+.header-search-input .el-input__prefix {
+  display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0.375rem 0.75rem;
-  font-size: 0.875rem;
-  line-height: 1.5;
-  border-radius: 0.25rem;
-  cursor: pointer;
-  transition: all 0.15s ease-in-out;
-  text-decoration: none;
-}
-.btn-primary { color: #fff; background-color: #4299e1; border-color: #4299e1; }
-.btn-primary:hover { background-color: #3182ce; border-color: #3182ce; }
-.btn-outline-primary { color: #4299e1; border: 1px solid #4299e1; background-color: transparent; }
-.btn-outline-primary:hover { color: #fff; background-color: #4299e1; }
-.btn-outline-secondary { color: #718096; border: 1px solid #718096; background-color: transparent; }
-.btn-outline-secondary:hover { color: #fff; background-color: #718096; }
-.btn-sm { padding: 0.25rem 0.5rem; font-size: 0.75rem; }
-
-/* Badge styling */
-.position-relative { position: relative; }
-.position-absolute { position: absolute; }
-.top-0 { top: 0; }
-.start-100 { left: 100%; }
-.translate-middle { transform: translate(-50%, -50%); }
-.badge {
-  padding: 0.35em 0.65em;
-  font-size: 0.75em;
-  font-weight: 700;
-  line-height: 1;
-  text-align: center;
-  white-space: nowrap;
-  vertical-align: baseline;
-  border-radius: 0.25rem;
-}
-.rounded-pill { border-radius: 50rem; }
-.bg-danger { background-color: #e53e3e; color: #fff; }
-
-/* Custom search bar styles */
-.search-bar {
-  max-width: 400px; /* Giới hạn chiều rộng thanh tìm kiếm */
 }
 
-.input-group {
+/* Styling chung cho các nút icon (Tài khoản, Giỏ hàng) */
+.header-icon-btn {
   display: flex;
-  width: 100%;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
 }
 
-.form-control {
-  display: block;
-  width: 100%;
-  padding: 0.375rem 0.75rem;
-  font-size: 1rem;
-  font-weight: 400;
-  line-height: 1.5;
-  color: #495057;
-  background-color: #fff;
-  background-clip: padding-box;
-  border: 1px solid #ced4da;
-  border-radius: 0.25rem;
-  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+/* Icon Element Plus bên trong các nút */
+.header-icon-btn .el-icon {
+  vertical-align: middle;
+  color: #4a5568;
+  transition: color 0.2s ease;
+  font-size: 24px;
 }
 
-.form-control:focus {
-  color: #495057;
-  background-color: #fff;
-  border-color: #80bdff;
-  outline: 0;
-  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+.header-icon-btn:hover .el-icon {
+  color: #007bff;
 }
 
-.custom-search-input {
-  border-top-right-radius: 0;
-  border-bottom-right-radius: 0;
-  border-right: none; /* Loại bỏ viền phải để liền với nút */
+/* Menu thả xuống của người dùng */
+.user-dropdown-menu {
+  top: calc(100% + 5px); /* Khoảng cách từ nút kích hoạt */
+  right: 0; /* Căn lề phải với nút kích hoạt */
+  z-index: 1000;
+  min-width: 180px; /* Tăng chiều rộng tối thiểu cho menu dropdown */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border: 1px solid #e2e8f0; /* Thêm đường viền nhẹ */
 }
 
-.custom-search-button {
-  border-top-left-radius: 0;
-  border-bottom-left-radius: 0;
-  padding: 0.375rem 0.75rem; /* Giữ padding như các btn khác */
-  font-size: 1rem; /* Giữ kích thước icon */
+/* Kiểu cho các mục trong dropdown menu */
+.user-dropdown-menu .dropdown-item {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  text-decoration: none;
+  color: #333;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  border-radius: 0.25rem; /* Bo tròn nhẹ các góc của mục */
 }
 
-/* Responsive adjustments */
+.user-dropdown-menu .dropdown-item:hover {
+  background-color: #f0f0f0;
+  color: #007bff;
+}
+
+.user-dropdown-menu .dropdown-item i {
+  margin-right: 0.5rem; /* Khoảng cách giữa icon và chữ */
+}
+
+/* Điều chỉnh cho màn hình nhỏ (responsive) */
 @media (max-width: 992px) {
-  .container {
+  .container.d-flex {
     flex-wrap: wrap;
     justify-content: center;
+    padding: 0 1rem;
+    height: auto;
   }
-  .search-bar {
-    order: 3; /* Đẩy search bar xuống hàng mới trên màn hình nhỏ */
+
+  .d-flex.align-items-center.gap-1.flex-shrink-0 { /* Logo */
     width: 100%;
-    margin: 10px 0; /* Thêm margin trên dưới */
-    max-width: none; /* Bỏ giới hạn chiều rộng trên màn hình nhỏ */
+    justify-content: center;
+    margin-bottom: 1rem;
+    order: 1;
   }
-  nav {
-    order: 2; /* Đẩy nav xuống hàng thứ 2 */
-    flex-basis: 100%; /* Chiếm toàn bộ chiều rộng */
-    justify-content: center !important;
-    padding: 0 !important;
-  }
-  nav ul {
-    flex-wrap: wrap; /* Cho phép các mục nav xuống dòng */
+
+  nav.flex-grow-1 { /* Menu Navigation */
+    width: 100%;
+    order: 2;
+    margin-bottom: 1rem;
+    padding: 0;
     justify-content: center;
   }
-  nav .nav-item {
-    margin: 5px; /* Thêm khoảng cách giữa các mục nav khi xuống dòng */
-  }
-  .d-flex.flex-shrink-0:first-child,
-  .d-flex.flex-shrink-0:last-child {
-    flex-basis: auto; /* Trở lại kích thước ban đầu */
-    width: auto;
-  }
-  .d-flex.flex-nowrap {
+
+  nav ul {
     flex-wrap: wrap;
     justify-content: center;
+    gap: 0.5rem;
   }
-  .text-nowrap {
-    white-space: normal; /* Cho phép text xuống dòng trên màn hình nhỏ */
+
+  .nav-link {
+    padding: 0.4rem 0.6rem;
+  }
+
+  .d-flex.align-items-center.gap-3.flex-nowrap.flex-shrink-0 { /* Các icon bên phải */
+    width: 100%;
+    order: 3;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 0.5rem;
+  }
+
+  /* Ẩn ô input tìm kiếm trên mobile, chỉ hiển thị icon */
+  .search-input-container {
+    display: none;
   }
 }
-
-@media (max-width: 768px) {
-  .h-8 { height: 2rem; } /* Điều chỉnh kích thước logo nhỏ hơn */
-  .w-8 { width: 2rem; }
-  .text-xl { font-size: 1.1rem; } /* Điều chỉnh font chữ tiêu đề */
-  .btn-sm { font-size: 0.8rem; padding: 0.2rem 0.4rem; }
-  .nav-link { padding: 0.4rem 0.6rem; font-size: 0.9rem; }
-  .input-group .form-control, .input-group .btn {
-    font-size: 0.9rem;
-    padding: 0.3rem 0.6rem;
-  }
-}
-
 </style>

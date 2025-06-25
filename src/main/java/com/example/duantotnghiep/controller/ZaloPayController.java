@@ -5,7 +5,9 @@ import com.example.duantotnghiep.dto.response.InvoiceWithZaloPayResponse;
 import com.example.duantotnghiep.model.Invoice;
 import com.example.duantotnghiep.repository.InvoiceRepository;
 import com.example.duantotnghiep.service.InvoiceService;
+import com.example.duantotnghiep.service.impl.ZaloPayService;
 import lombok.RequiredArgsConstructor;
+import org.json.JSONObject;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,6 +27,7 @@ public class ZaloPayController {
 
     private final InvoiceService invoiceService;
     private final InvoiceRepository invoiceRepository;
+    private final ZaloPayService zaloPayService;
 
     @PostMapping("/create")
     public ResponseEntity<InvoiceWithZaloPayResponse> createZaloInvoice(@RequestBody InvoiceRequest request) throws Exception {
@@ -75,6 +78,54 @@ public class ZaloPayController {
         }
     }
 
+    @GetMapping("/query")
+    public ResponseEntity<?> queryZaloPayStatus(@RequestParam("appTransId") String appTransId) {
+        try {
+            JSONObject response = zaloPayService.queryOrder(appTransId);
+            return ResponseEntity.ok(response.toMap());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Không thể kiểm tra trạng thái đơn hàng", "message", e.getMessage()));
+        }
+    }
+
+//    @GetMapping("/status-check")
+//    public ResponseEntity<?> checkAndUpdateStatus(@RequestParam String appTransId) {
+//        try {
+//            invoiceService.updateStatusIfPaid(appTransId); // Gọi service kiểm tra + cập nhật
+//            return ResponseEntity.ok(Map.of(
+//                    "message", "Đã kiểm tra trạng thái và cập nhật nếu cần",
+//                    "appTransId", appTransId
+//            ));
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+//                    .body(Map.of("error", "Lỗi khi kiểm tra trạng thái thanh toán", "message", e.getMessage()));
+//        }
+//    }
+
+    @GetMapping("/status-check")
+    public ResponseEntity<?> checkAndUpdateInvoiceStatus(@RequestParam String appTransId) {
+        try {
+            JSONObject response = zaloPayService.queryOrder(appTransId);
+            int returnCode = response.optInt("returncode", -1);
+            int bcStatus = response.optInt("bctransstatus", -1);
+
+            if (returnCode == 1 && bcStatus == 1) {
+                invoiceService.updateInvoiceStatusByAppTransId(appTransId, 1); // PAID
+            } else if (returnCode != 1) {
+                invoiceService.updateInvoiceStatusByAppTransId(appTransId, 11); // FAIL
+            }
+
+            return ResponseEntity.ok(Map.of(
+                    "message", "Đã kiểm tra trạng thái và cập nhật nếu cần",
+                    "appTransId", appTransId
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
 
 
 }

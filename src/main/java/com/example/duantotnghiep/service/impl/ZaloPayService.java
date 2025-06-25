@@ -21,6 +21,7 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -118,6 +119,35 @@ public class ZaloPayService {
             throw new RuntimeException("Không thể kết nối đến ZaloPay", e);
         }
     }
+
+    public JSONObject queryOrder(String appTransId) throws Exception {
+        String data = APP_ID + "|" + appTransId + "|" + KEY1;
+        String mac = HMACUtil.HMacHexStringEncode(HMACUtil.HMACSHA256, KEY1, data);
+
+        Map<String, String> params = new HashMap<>();
+        params.put("appid", APP_ID);
+        params.put("apptransid", appTransId);
+        params.put("mac", mac);
+
+        try (CloseableHttpClient client = HttpClients.createDefault()) {
+            HttpPost post = new HttpPost("https://sandbox.zalopay.com.vn/v001/tpe/getstatusbyapptransid");
+
+            List<NameValuePair> body = new ArrayList<>();
+            for (Map.Entry<String, String> entry : params.entrySet()) {
+                body.add(new BasicNameValuePair(entry.getKey(), entry.getValue()));
+            }
+            post.setEntity(new UrlEncodedFormEntity(body, StandardCharsets.UTF_8));
+
+            try (CloseableHttpResponse response = client.execute(post)) {
+                String result = new BufferedReader(new InputStreamReader(response.getEntity().getContent()))
+                        .lines().collect(Collectors.joining("\n"));
+                return new JSONObject(result);
+            }
+        }
+    }
+
+
+
 }
 
 

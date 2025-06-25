@@ -8,8 +8,10 @@ import com.example.duantotnghiep.dto.response.CustomerResponse;
 import com.example.duantotnghiep.dto.response.InvoiceDetailResponse;
 import com.example.duantotnghiep.dto.response.InvoiceDisplayResponse;
 import com.example.duantotnghiep.dto.response.InvoiceResponse;
+import com.example.duantotnghiep.dto.response.InvoiceWithVnpayResponse;
 import com.example.duantotnghiep.dto.response.InvoiceWithZaloPayResponse;
 import com.example.duantotnghiep.dto.response.ProductAttributeResponse;
+import com.example.duantotnghiep.dto.response.VnpayResponse;
 import com.example.duantotnghiep.dto.response.ZaloPayResponse;
 import com.example.duantotnghiep.mapper.InvoiceMapper;
 import com.example.duantotnghiep.model.*;
@@ -19,12 +21,12 @@ import com.example.duantotnghiep.service.InvoiceService;
 import com.example.duantotnghiep.service.VoucherEmailService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.json.JSONObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,8 +41,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 
@@ -65,6 +65,7 @@ public class InvoiceServiceImpl implements InvoiceService {
     private final AddressRepository addressRepository;
     private final EmployeeRepository employeeRepository;
     private final ZaloPayService zaloPayService;
+    private final VnpayService vnpayService;
 
     @Transactional
     @Override
@@ -830,27 +831,27 @@ public class InvoiceServiceImpl implements InvoiceService {
         });
 
         // ✅ Bước 4.5: Đặt hẹn 1 phút nếu không thanh toán → chuyển status = 11
-        scheduleFailIfNotPaid(appTransId);
+//        scheduleFailIfNotPaid(appTransId);
 
         // Bước 5: Trả kết quả về client
         return new InvoiceWithZaloPayResponse(invoiceDisplay, zaloPayResponse);
     }
 
-    @Async
-    public void scheduleFailIfNotPaid(String appTransId) {
-        Executors.newSingleThreadScheduledExecutor().schedule(() -> {
-            Optional<Invoice> opt = invoiceRepository.findByAppTransId(appTransId);
-            if (opt.isPresent()) {
-                Invoice invoice = opt.get();
-                if (invoice.getStatus() == 0) { // chưa thanh toán
-                    invoice.setStatus(11); // thanh toán thất bại
-                    invoice.setUpdatedDate(LocalDateTime.now());
-                    invoiceRepository.save(invoice);
-                    log.info("⏰ Đơn {} không thanh toán sau 1 phút → chuyển status = 11", appTransId);
-                }
-            }
-        }, 1, TimeUnit.MINUTES);
-    }
+//    @Async
+//    public void scheduleFailIfNotPaid(String appTransId) {
+//        Executors.newSingleThreadScheduledExecutor().schedule(() -> {
+//            Optional<Invoice> opt = invoiceRepository.findByAppTransId(appTransId);
+//            if (opt.isPresent()) {
+//                Invoice invoice = opt.get();
+//                if (invoice.getStatus() == 0) { // chưa thanh toán
+//                    invoice.setStatus(11); // thanh toán thất bại
+//                    invoice.setUpdatedDate(LocalDateTime.now());
+//                    invoiceRepository.save(invoice);
+//                    log.info("⏰ Đơn {} không thanh toán sau 1 phút → chuyển status = 11", appTransId);
+//                }
+//            }
+//        }, 1, TimeUnit.MINUTES);
+//    }
 
     @Transactional
     public void updateInvoiceStatusByAppTransId(String appTransId, int status) {
@@ -860,6 +861,52 @@ public class InvoiceServiceImpl implements InvoiceService {
             invoiceRepository.save(invoice);
         });
     }
+
+    @Override
+    public void updateStatusIfPaid(String appTransId) throws Exception {
+        JSONObject response = zaloPayService.queryOrder(appTransId); // ✅ gọi từ ZaloPayService
+
+        int returnCode = response.optInt("returncode");
+        int bcTransStatus = response.optInt("bctransstatus");
+
+        if (returnCode == 1 && bcTransStatus == 1) {
+            updateInvoiceStatusByAppTransId(appTransId, 1); // PAID
+            log.info("✅ Đơn {} đã được cập nhật thành PAID từ kết quả query ZaloPay", appTransId);
+        } else {
+            log.warn("❌ Đơn {} chưa thanh toán (status={})", appTransId, bcTransStatus);
+        }
+    }
+
+    @Transactional
+    @Override
+    public InvoiceWithVnpayResponse createInvoiceAndVnpay(InvoiceRequest request) throws Exception {
+        // Bước 1: Tạo hóa đơn
+        InvoiceDisplayResponse invoiceDisplay = this.createInvoice(request);
+        Long invoiceId = invoiceDisplay.getInvoice().getId();
+
+        // Bước 2: Tạo orderId
+        String orderId = new SimpleDateFormat("yyMMdd").format(new Date()) + "_" + invoiceId;
+
+        // Bước 3: Gọi VNPay
+        VnpayResponse vnpayResponse = vnpayService.createVnpayOrder(
+                orderId,
+                invoiceDisplay.getInvoice().getFinalAmount(),
+                "Thanh toán đơn hàng #" + invoiceDisplay.getInvoice().getInvoiceCode()
+        );
+
+        // Bước 4: Lưu orderId vào DB
+        invoiceRepository.findById(invoiceId).ifPresent(invoice -> {
+            invoice.setAppTransId(orderId); // ✅ dùng lại trường appTransId
+            invoice.setUpdatedDate(LocalDateTime.now());
+            invoiceRepository.save(invoice);
+        });
+
+
+        // Bước 5: Trả kết quả về FE
+        return new InvoiceWithVnpayResponse(invoiceDisplay, vnpayResponse);
+    }
+
+
 
 }
 

@@ -1,6 +1,5 @@
 <template>
   <div>
-    <!-- Dialog tạo khách hàng mới -->
     <el-dialog
       v-model="dialogVisible"
       title="Thông tin Khách hàng Mới"
@@ -29,7 +28,7 @@
           />
         </el-form-item>
 
-        <el-form-item label="Tên khách hàng (tùy chọn)" prop="name">
+        <el-form-item label="Tên khách hàng" prop="name">
           <el-input
             v-model="customerForm.name"
             placeholder="Nhập tên khách hàng"
@@ -51,13 +50,14 @@
       </template>
     </el-dialog>
 
-    <!-- Dialog xác nhận khách hàng vừa tạo -->
     <el-dialog
       v-model="confirmationDialogVisible"
       title="Khách hàng đã được tạo"
       width="400px"
-      :before-close="() => { confirmationDialogVisible.value = false }"
+      :before-close="() => { confirmationDialogVisible = false }"
       destroy-on-close
+      center
+      align-center
     >
       <div class="text-success d-flex align-items-center mb-3">
         <el-icon class="me-2"><SuccessFilled /></el-icon>
@@ -91,8 +91,36 @@ const customerForm = reactive({
   name: '',
 });
 
+// Validator tùy chỉnh để kiểm tra định dạng SĐT Việt Nam
+const validatePhoneNumber = (rule, value, callback) => {
+  if (!value) {
+    return callback(new Error('Số điện thoại không được để trống.'));
+  }
+  // Regex cho SĐT di động 10 số của Việt Nam
+  const phoneRegex = /^(0[35789])\d{8}$/;
+  if (!phoneRegex.test(value)) {
+    callback(new Error('Định dạng số điện thoại không hợp lệ. (Phải là 10 chữ số bắt đầu bằng 03, 05, 07, 08, 09)'));
+  } else {
+    callback(); // Hợp lệ
+  }
+};
+
+// Validator tùy chỉnh để kiểm tra tên không chỉ chứa khoảng trắng
+const validateName = (rule, value, callback) => {
+  if (!value) { // Tên khách hàng là bắt buộc
+    return callback(new Error('Tên khách hàng không được để trống.'));
+  }
+  if (value.trim().length === 0) {
+    callback(new Error('Tên khách hàng không thể chỉ là khoảng trắng.'));
+  } else {
+    callback(); // Hợp lệ
+  }
+};
+
 const formRules = reactive({
-  phone: [{ required: true, message: 'Số điện thoại không được để trống.', trigger: 'blur' }],
+  phone: [{ validator: validatePhoneNumber, trigger: 'blur' }],
+  // Cập nhật: Tên khách hàng giờ là bắt buộc
+  name: [{ validator: validateName, trigger: 'blur', required: true }],
 });
 
 const emit = defineEmits(['created', 'select-customer']);
@@ -101,7 +129,10 @@ function openDialog() {
   apiError.value = '';
   createdCustomer.value = null;
   confirmationDialogVisible.value = false;
-  if (formRef.value) formRef.value.resetFields();
+  // Reset form khi mở dialog
+  if (formRef.value) {
+    formRef.value.resetFields();
+  }
   dialogVisible.value = true;
 }
 
@@ -110,13 +141,15 @@ function closeDialog() {
 }
 
 function handleClose(done) {
-  if (!loading.value) done();
+  if (!loading.value) {
+    done();
+  }
 }
 
 async function submitForm() {
   if (!formRef.value) return;
   await formRef.value.validate(async (valid) => {
-    if (!valid) return;
+    if (!valid) return; // Dừng lại nếu validation thất bại
 
     loading.value = true;
     apiError.value = '';
@@ -124,9 +157,8 @@ async function submitForm() {
     try {
       const params = new URLSearchParams();
       params.append('phone', customerForm.phone);
-      if (customerForm.name.trim()) {
-        params.append('name', customerForm.name);
-      }
+      // Không cần kiểm tra name.trim() nữa vì đã là bắt buộc
+      params.append('name', customerForm.name.trim()); 
 
       const res = await apiClient.post(`/admin/counter-sales/quick-create-customer?${params.toString()}`);
       createdCustomer.value = res.data;
@@ -145,6 +177,13 @@ async function submitForm() {
 function selectCreatedCustomer() {
   emit('select-customer', createdCustomer.value);
   confirmationDialogVisible.value = false;
+  
+  // --- START: THAY ĐỔI YÊU CẦU ---
+  // Reset trực tiếp model của form sau khi chọn khách hàng.
+  // Điều này đảm bảo lần mở form tiếp theo, dữ liệu sẽ trống.
+  customerForm.phone = '';
+  customerForm.name = '';
+  // --- END: THAY ĐỔI YÊU CẦU ---
 }
 
 // Expose openDialog method to parent

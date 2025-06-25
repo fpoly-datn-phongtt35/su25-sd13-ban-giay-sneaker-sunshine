@@ -56,7 +56,7 @@
               {{ scope.row.status === 0 ? 'Đã xóa' : 'Hoạt động' }}
             </el-tag>
           </template>
-          </el-table-column>
+        </el-table-column>
         <el-table-column label="Hành động" width="120">
           <template #default="scope">
             <el-button type="primary" size="small" @click="openRestoreDialog(scope.row)">
@@ -147,12 +147,7 @@
               </el-form-item>
             </el-col>
             <el-col :span="8">
-              <el-form-item label="Giá bán buôn" prop="originPrice">
-                <el-input :value="formatPrice(updateProduct.originPrice) || '0 ₫'" disabled />
-              </el-form-item>
-            </el-col>
-            <el-col :span="8">
-              <el-form-item label="Giá bán lẻ" prop="sellPrice">
+              <el-form-item label="Giá bán" prop="sellPrice">
                 <el-input :value="formatPrice(updateProduct.sellPrice) || '0 ₫'" disabled />
               </el-form-item>
             </el-col>
@@ -183,7 +178,7 @@
           </el-form-item>
 
           <el-form-item label="Màu sắc" prop="selectedColors">
-            <el-checkbox-group v-model="selectedColors" @change="generateProductDetails">
+            <el-checkbox-group v-model="selectedColors" @change="handleSelectedColorsChange">
               <el-checkbox
                 v-for="color in colorList"
                 :key="color.id"
@@ -232,23 +227,155 @@
             </div>
           </div>
 
-          <el-form-item label="Hình ảnh sản phẩm">
-            <el-upload
-              class="upload-demo"
-              action="#"
-              :on-preview="handlePreview"
-              :on-change="handleFileChange"
-              :on-remove="handleFileRemove"
-              list-type="picture-card"
-              :limit="10"
-              :file-list="selectedFiles"
-              :auto-upload="false"
-              multiple
-              accept="image/*"
+          <h3 class="section-title">Hình ảnh sản phẩm</h3>
+          <el-tabs v-model="activeImageTab" type="card" class="image-tabs">
+            <el-tab-pane label="Tất cả ảnh" name="all">
+              <el-upload
+                action="#"
+                :on-preview="handlePreview"
+                :on-remove="handleFileRemove"
+                list-type="picture-card"
+                :limit="10"
+                :file-list="filteredFiles(null)"
+                :auto-upload="false"
+                multiple
+                accept="image/*"
+              >
+                <template #trigger>
+                  <el-button type="primary" round>Tải ảnh mới</el-button>
+                </template>
+                <template #file="{ file }">
+                  <div>
+                    <img class="el-upload-list__item-thumbnail" :src="file.url" alt="" />
+                    <span class="el-upload-list__item-actions">
+                      <span
+                        class="el-upload-list__item-preview"
+                        @click="handlePreview(file)"
+                      >
+                        <el-icon><zoom-in /></el-icon>
+                      </span>
+                      <span
+                        class="el-upload-list__item-delete"
+                        @click="handleFileRemove(file)"
+                      >
+                        <el-icon><Delete /></el-icon>
+                      </span>
+                    </span>
+                    <el-select
+                      v-model="file.colorId"
+                      placeholder="Chọn màu"
+                      size="small"
+                      style="width: 100px; margin-top: 5px;"
+                      class="image-color-select"
+                      :disabled="file.isOld"
+                    >
+                      <el-option
+                        v-for="color in colorList"
+                        :key="color.id"
+                        :label="color.colorName"
+                        :value="color.id"
+                      />
+                    </el-select>
+                  </div>
+                </template>
+              </el-upload>
+            </el-tab-pane>
+
+            <el-tab-pane label="Ảnh chưa gán màu" name="unassigned">
+              <el-upload
+                action="#"
+                :on-preview="handlePreview"
+                :on-change="(file, fileList) => handleFileChange(file, fileList, null)"
+                :on-remove="handleFileRemove"
+                list-type="picture-card"
+                :limit="10"
+                :file-list="filteredFiles(null)"
+                :auto-upload="false"
+                multiple
+                accept="image/*"
+              >
+                <template #trigger>
+                  <el-button type="primary" round>Tải ảnh mới</el-button>
+                </template>
+                <template #file="{ file }">
+                  <div>
+                    <img class="el-upload-list__item-thumbnail" :src="file.url" alt="" />
+                    <span class="el-upload-list__item-actions">
+                      <span
+                        class="el-upload-list__item-preview"
+                        @click="handlePreview(file)"
+                      >
+                        <el-icon><zoom-in /></el-icon>
+                      </span>
+                      <span
+                        class="el-upload-list__item-delete"
+                        @click="handleFileRemove(file)"
+                      >
+                        <el-icon><Delete /></el-icon>
+                      </span>
+                    </span>
+                    <el-select
+                      v-model="file.colorId"
+                      placeholder="Chọn màu"
+                      size="small"
+                      style="width: 100px; margin-top: 5px;"
+                      class="image-color-select"
+                    >
+                      <el-option
+                        v-for="color in colorList"
+                        :key="color.id"
+                        :label="color.colorName"
+                        :value="color.id"
+                      />
+                    </el-select>
+                  </div>
+                </template>
+              </el-upload>
+            </el-tab-pane>
+
+            <el-tab-pane
+              v-for="colorId in selectedColors"
+              :key="colorId"
+              :label="getColorName(colorId)"
+              :name="colorId.toString()"
             >
-              <el-button type="primary" round>Tải lên hình ảnh</el-button>
-            </el-upload>
-          </el-form-item>
+              <el-upload
+                action="#"
+                :on-preview="handlePreview"
+                :on-change="(file, fileList) => handleFileChange(file, fileList, colorId)"
+                :on-remove="handleFileRemove"
+                list-type="picture-card"
+                :limit="10"
+                :file-list="filteredFiles(colorId)"
+                :auto-upload="false"
+                multiple
+                accept="image/*"
+              >
+                <template #trigger>
+                  <el-button type="primary" round>Tải ảnh cho {{ getColorName(colorId) }}</el-button>
+                </template>
+                <template #file="{ file }">
+                  <div>
+                    <img class="el-upload-list__item-thumbnail" :src="file.url" alt="" />
+                    <span class="el-upload-list__item-actions">
+                      <span
+                        class="el-upload-list__item-preview"
+                        @click="handlePreview(file)"
+                      >
+                        <el-icon><zoom-in /></el-icon>
+                      </span>
+                      <span
+                        class="el-upload-list__item-delete"
+                        @click="handleFileRemove(file)"
+                      >
+                        <el-icon><Delete /></el-icon>
+                      </span>
+                    </span>
+                  </div>
+                </template>
+              </el-upload>
+            </el-tab-pane>
+          </el-tabs>
 
           <div class="form-actions">
             <el-button type="success" native-type="submit" size="large" round>
@@ -272,11 +399,15 @@
         <el-button type="danger" @click="isConfirmDialogVisible = false" round>Hủy</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="dialogVisible">
+      <img w-full :src="dialogImageUrl" alt="Preview Image" />
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import axios from 'axios'
 import {
   ElMessage,
@@ -298,16 +429,18 @@ import {
   ElDialog,
   ElRow,
   ElCol,
-  // ElRadioGroup, // Không sử dụng trực tiếp nếu chỉ dùng để hiển thị text
-  // ElRadio, // Không sử dụng trực tiếp nếu chỉ dùng để hiển thị text
+  ElSelect,
+  ElOption,
+  ElTabs,
+  ElTabPane
 } from 'element-plus'
-import { Back } from '@element-plus/icons-vue'
+import { Back, ZoomIn, Delete } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
 
-// Helper function để hiển thị tên giới tính từ ID
-function getGenderName(id) {
+// --- Helper Functions ---
+const getGenderName = (id) => {
   return {
     1: 'Nam',
     2: 'Nữ',
@@ -315,7 +448,36 @@ function getGenderName(id) {
   }[id] || ''
 }
 
-// State Variables
+const formatPrice = (price) => {
+  if (price === null || price === undefined) return '0 ₫';
+  return new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency: 'VND',
+  }).format(price);
+};
+
+const formatDate = (dateString) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${day}/${month}/${year} ${hours}:${minutes}`;
+};
+
+const indexMethod = (index) => {
+  return page.value * size.value + index + 1;
+};
+
+const getColorName = (colorId) => {
+  const color = colorList.value.find(c => c.id === colorId);
+  return color ? color.colorName : 'Không xác định';
+};
+
+
+// --- State Variables ---
 const products = ref([])
 const page = ref(0)
 const size = ref(8)
@@ -323,29 +485,37 @@ const totalElements = ref(0)
 const loading = ref(false)
 const isRestoreDialogVisible = ref(false)
 const isConfirmDialogVisible = ref(false)
+const dialogImageUrl = ref('') // For image preview
+const dialogVisible = ref(false) // For image preview dialog
 
 // Lists for dropdowns/checkboxes in the form (fetched from API)
 const brandList = ref([])
 const materialList = ref([])
-const categoryList = ref([]) // Dùng cho checkbox group nếu cần lựa chọn lại danh mục
+const categoryList = ref([])
 const sizeList = ref([])
 const colorList = ref([])
 const soleList = ref([])
 const supplierList = ref([])
 const styleList = ref([])
 
-const deletedImageIds = ref([]) // Store IDs of images marked for deletion
-const selectedFiles = ref([]) // Files currently selected for upload/display
-const selectedSizes = ref([]) // IDs of selected sizes for product details
-const selectedColors = ref([]) // IDs of selected colors for product details
-const productDetails = ref([]) // Array of product detail objects (size, color, quantity)
-const currentProductId = ref(null) // ID of the product being restored/updated
+// All files selected/existing for the product
+// This array will hold both original images (with isOld: true) and new uploads (with isNew: true)
+const allProductImages = ref([])
 
-// Form model for the product to be updated
+const selectedSizes = ref([])
+const selectedColors = ref([]) // IDs of selected colors for product details
+const activeImageTab = ref('all') // Default to 'all' tab to see all images
+
+const productDetails = ref([])
+const originalProductDetails = ref([]) // Store initial details from API
+const originalProductImages = ref([]) // Store initial images from API
+
+const currentProductId = ref(null)
+
 const updateProduct = ref({
-  productId: null, // Add productId here to explicitly store it
+  productId: null,
   categoryIds: [],
-  categoryNames: [], // This will directly hold the List<String> from the API
+  categoryNames: [],
   productName: '',
   materialId: null,
   materialName: '',
@@ -364,7 +534,7 @@ const updateProduct = ref({
   description: '',
 })
 
-// Navigation Function
+// --- Navigation Function ---
 const goBack = () => {
   router.push('/product')
 }
@@ -395,7 +565,6 @@ const fetchData = async () => {
   }
 }
 
-// Fetch lists for form selections
 const fetchCategories = async () => {
   try {
     const response = await axios.get('http://localhost:8080/api/admin/categories/hien-thi')
@@ -408,7 +577,7 @@ const fetchCategories = async () => {
 
 const fetchMaterial = async () => {
   try {
-    const response = await axios.get('http://localhost:8080/api/material/hien-thi')
+    const response = await axios.get('http://localhost:8080/api/admin/material/hien-thi')
     materialList.value = response.data
   } catch (error) {
     console.error('Lỗi lấy chất liệu:', error)
@@ -428,7 +597,7 @@ const fetchSupplier = async () => {
 
 const fetchBrand = async () => {
   try {
-    const response = await axios.get('http://localhost:8080/api/brand/hien-thi')
+    const response = await axios.get('http://localhost:8080/api/admin/brand/hien-thi')
     brandList.value = response.data
   } catch (error) {
     console.error('Lỗi lấy thương hiệu:', error)
@@ -438,7 +607,7 @@ const fetchBrand = async () => {
 
 const fetchSole = async () => {
   try {
-    const response = await axios.get('http://localhost:8080/api/sole/hien-thi')
+    const response = await axios.get('http://localhost:8080/api/admin/sole/hien-thi')
     soleList.value = response.data
   } catch (error) {
     console.error('Lỗi lấy đế giày:', error)
@@ -448,7 +617,7 @@ const fetchSole = async () => {
 
 const fetchStyle = async () => {
   try {
-    const response = await axios.get('http://localhost:8080/api/style/hien-thi')
+    const response = await axios.get('http://localhost:8080/api/admin/style/hien-thi')
     styleList.value = response.data
   } catch (error) {
     console.error('Lỗi lấy phong cách:', error)
@@ -459,8 +628,8 @@ const fetchStyle = async () => {
 const fetchSizesAndColors = async () => {
   try {
     const [sizesResponse, colorsResponse] = await Promise.all([
-      axios.get('http://localhost:8080/api/size/hien-thi'),
-      axios.get('http://localhost:8080/api/color/hien-thi'),
+      axios.get('http://localhost:8080/api/admin/size/hien-thi'),
+      axios.get('http://localhost:8080/api/admin/color/hien-thi'),
     ])
     sizeList.value = sizesResponse.data
     colorList.value = colorsResponse.data
@@ -476,14 +645,10 @@ const fetchProduct = async (productId) => {
     const response = await axios.get(`http://localhost:8080/api/admin/products/${productId}`)
     const product = response.data
 
-    // Map fetched data to the updateProduct form model
     updateProduct.value = {
-      productId: product.id, // Store the product ID
-      // Assuming API now directly returns categoryNames as List<String>
+      productId: product.id,
       categoryNames: product.categoryNames || [],
-      // If your API also returns categoryIds as List<Integer>, map it here too:
       categoryIds: product.categoryIds || [],
-
       productName: product.productName || '',
       materialId: product.materialId || null,
       materialName: product.materialName || '',
@@ -502,37 +667,30 @@ const fetchProduct = async (productId) => {
       description: product.description || '',
     }
 
-    // Process product details (sizes, colors, quantities)
-    productDetails.value =
-      product.productDetails?.map((detail) => {
-        const size = sizeList.value.find((s) => s.id === detail.sizeId)
-        const color = colorList.value.find((c) => c.id === detail.colorId)
-        return {
-          sizeId: detail.sizeId,
-          colorId: detail.colorId,
-          sizeName: size?.sizeName || '',
-          colorName: color?.colorName || '',
-          sellPrice: detail.sellPrice,
-          quantity: detail.quantity,
-          id: detail.id, // Keep existing detail ID
-        }
-      }) || []
+    originalProductDetails.value = product.productDetails || []
+    originalProductImages.value = product.productImages || []
 
-    // Pre-select checkboxes based on existing product details
-    selectedSizes.value = [...new Set(productDetails.value.map((detail) => detail.sizeId))]
-    selectedColors.value = [...new Set(productDetails.value.map((detail) => detail.colorId))]
+    // Pre-select sizes and colors based on existing details
+    selectedSizes.value = [...new Set(originalProductDetails.value.map((detail) => detail.sizeId))];
+    selectedColors.value = [...new Set(originalProductDetails.value.map((detail) => detail.colorId))];
+    
+    // Generate product details for the form
+    generateProductDetails();
 
-    // Populate selectedFiles for image display
-    selectedFiles.value =
-      product.productImages?.map((img, index) => ({
-        name: `image-${index + 1}`,
-        url: `data:image/png;base64,${img.image}`, // Assume base64 image data
-        isOld: true, // Mark as an existing image
-        id: img.id, // Store image ID for deletion tracking
-        file: null, // No raw file for old images
+    // Populate allProductImages with all existing images (active ones)
+    // Add a unique identifier (uid) to each file for proper tracking by el-upload
+    allProductImages.value =
+      originalProductImages.value.filter(img => img.status === 1).map((img) => ({
+        uid: img.id || Math.random().toString(36).substring(2, 11), // Use ID if available, else generate
+        name: img.imageName || `image-${img.id || 'new'}`,
+        url: `data:image/png;base64,${img.image}`, // Assume base64 encoded image
+        isOld: true, // Mark as an existing image from DB
+        isNew: false, // Not a newly uploaded file
+        id: img.id, // Keep original ID
+        colorId: img.colorId, // Preserve existing colorId
       })) || []
 
-    deletedImageIds.value = [] // Reset deleted image IDs when opening dialog
+    activeImageTab.value = 'all'; // Set initial active tab to 'all'
   } catch (error) {
     console.error('Lỗi lấy dữ liệu sản phẩm để khôi phục:', error)
     ElMessage.error('Lỗi lấy dữ liệu sản phẩm để khôi phục!')
@@ -543,7 +701,6 @@ const fetchProduct = async (productId) => {
 
 const openRestoreDialog = async (product) => {
   currentProductId.value = product.id
-  // Fetch all necessary supporting data first
   await Promise.all([
     fetchCategories(),
     fetchMaterial(),
@@ -553,13 +710,12 @@ const openRestoreDialog = async (product) => {
     fetchStyle(),
     fetchSizesAndColors(),
   ]);
-  // Then fetch the specific product data
   await fetchProduct(product.id)
   isRestoreDialogVisible.value = true
 }
 
 const handleCloseDialog = (done) => {
-  ElMessageBox.confirm('Bạn có chắc chắn muốn đóng biểu mẫu này không?', 'Xác nhận', {
+  ElMessageBox.confirm('Bạn có chắc chắn muốn đóng biểu mẫu này không? Mọi thay đổi sẽ không được lưu.', 'Xác nhận', {
     confirmButtonText: 'Đóng',
     cancelButtonText: 'Hủy',
     type: 'warning',
@@ -573,7 +729,6 @@ const handleCloseDialog = (done) => {
     })
 }
 
-// Resets the form model and related state
 const resetForm = () => {
   updateProduct.value = {
     productId: null,
@@ -597,15 +752,23 @@ const resetForm = () => {
     description: '',
   }
   productDetails.value = []
+  originalProductDetails.value = []
+  originalProductImages.value = []
   selectedSizes.value = []
   selectedColors.value = []
-  selectedFiles.value = []
-  deletedImageIds.value = []
+  allProductImages.value = [] // Reset all images
   currentProductId.value = null
+  activeImageTab.value = 'all'; // Reset to 'all' tab after close
 }
 
 const openConfirmDialog = () => {
-  // You might want to add form validation here before opening the confirm dialog
+  // Validate if all new or kept old images have a color assigned
+  const imagesWithoutColor = allProductImages.value.filter(file => !file.colorId);
+
+  if (imagesWithoutColor.length > 0) {
+    ElMessage.error('Vui lòng chọn màu cho tất cả các hình ảnh đang hoạt động hoặc mới tải lên!');
+    return;
+  }
   isConfirmDialogVisible.value = true
 }
 
@@ -615,393 +778,372 @@ const generateProductDetails = () => {
   const newProductDetails = [];
   const existingDetailsMap = new Map();
 
-  // Populate map with existing details for easy lookup by sizeId-colorId
-  productDetails.value.forEach(detail => {
-    existingDetailsMap.set(`${detail.sizeId}-${detail.colorId}`, detail);
+  originalProductDetails.value.forEach(detail => {
+    // Only consider active details for pre-filling
+    if (detail.status === 1) {
+      const key = `${detail.sizeId}-${detail.colorId}`;
+      existingDetailsMap.set(key, detail);
+    }
   });
 
-  // Generate new product details based on selected sizes and colors
   for (const sizeId of selectedSizes.value) {
-    for (const colorId of selectedColors.value) {
+    // Filter out invalid colorIds (null/undefined)
+    for (const colorId of selectedColors.value.filter(id => id !== null && id !== undefined)) { 
       const size = sizeList.value.find((s) => s.id === sizeId);
       const color = colorList.value.find((c) => c.id === colorId);
       const key = `${sizeId}-${colorId}`;
-      const existingDetail = existingDetailsMap.get(key); // Get existing detail if available
+
+      const detailToUse = existingDetailsMap.get(key);
 
       newProductDetails.push({
         sizeId: sizeId,
         colorId: colorId,
         sizeName: size?.sizeName || '',
         colorName: color?.colorName || '',
-        // Keep existing sellPrice and quantity if detail existed, otherwise default
-        sellPrice: existingDetail?.sellPrice || updateProduct.value.sellPrice || 0,
-        quantity: existingDetail?.quantity || 0,
-        id: existingDetail?.id || null, // Preserve ID for existing details
+        sellPrice: detailToUse?.sellPrice || updateProduct.value.sellPrice || 0,
+        quantity: detailToUse?.quantity || 0,
+        id: detailToUse?.id || null, // Keep existing ID for backend to update/restore
+        status: detailToUse ? detailToUse.status : 1, // Default new details to active (1)
       });
     }
   }
   productDetails.value = newProductDetails;
 }
 
+const handleSelectedColorsChange = (newSelectedColors) => {
+    generateProductDetails(); // Re-generate product details first based on new color selection
 
-// --- Image Upload/Management Handlers ---
+    // Update image color assignments: If an image's assigned color is no longer selected, nullify its colorId
+    allProductImages.value.forEach(img => {
+        if (img.colorId && !newSelectedColors.includes(img.colorId)) {
+            img.colorId = null; // Unlink image from a deselected color
+        }
+    });
 
-const handleFileChange = (file, fileList) => {
-  const maxSize = 5 * 1024 * 1024 // 5MB
-  if (file.size > maxSize) {
-    ElMessage.error(`Ảnh ${file.name} vượt quá kích thước tối đa (5MB)!`)
-    // Remove the oversized file from the list
-    fileList.splice(fileList.indexOf(file), 1)
-    selectedFiles.value = fileList.map((item) => ({
-      name: item.name,
-      url: item.url || (item.raw ? URL.createObjectURL(item.raw) : ''),
-      file: item.raw || null,
-      isOld: item.isOld || false,
-      id: item.id || null,
-    }))
-    return
-  }
-
-  // Check for duplicate files (by name and size, for new files)
-  const isDuplicate = selectedFiles.value.some(
-    (f) => f.name === file.name && f.file?.size === file.size && !f.isOld,
-  )
-  if (isDuplicate) {
-    ElMessage.error(`Ảnh ${file.name} đã được chọn!`)
-    fileList.splice(fileList.indexOf(file), 1)
-    selectedFiles.value = fileList.map((item) => ({
-      name: item.name,
-      url: item.url || (item.raw ? URL.createObjectURL(item.raw) : ''),
-      file: item.raw || null,
-      isOld: item.isOld || false,
-      id: item.id || null,
-    }))
-    return
-  }
-
-  // Update selectedFiles with new and existing files
-  selectedFiles.value = fileList.map((item) => ({
-    name: item.name,
-    url: item.url || (item.raw ? URL.createObjectURL(item.raw) : ''),
-    file: item.raw || null, // raw file is available for newly added files
-    isOld: item.isOld || false,
-    id: item.id || null, // ID for old images
-  }))
-}
-
-const handleFileRemove = (file, fileList) => {
-  // If an old image is removed, add its ID to deletedImageIds
-  if (file.isOld && file.id) {
-    if (!deletedImageIds.value.includes(file.id)) {
-      deletedImageIds.value.push(file.id)
+    // Reset active tab if the currently active color tab is no longer selected
+    if (activeImageTab.value !== 'all' && activeImageTab.value !== 'unassigned' && !newSelectedColors.includes(parseInt(activeImageTab.value))) {
+        activeImageTab.value = 'all'; // Change to 'all' if current tab's color is removed
     }
-  }
-  // Update the remaining selected files
-  selectedFiles.value = fileList.map((item) => ({
-    name: item.name,
-    url: item.url || (item.raw ? URL.createObjectURL(item.raw) : ''),
-    file: item.raw || null,
-    isOld: item.isOld || false,
-    id: item.id || null,
-  }))
 }
+
+// --- Image Handling Logic ---
+
+// Computed property to filter files for the active tab
+const filteredFiles = computed(() => (tabColorId) => {
+  if (tabColorId === null) { // This handles 'unassigned' tab
+    return allProductImages.value.filter(file => file.colorId === null || file.colorId === undefined);
+  } else if (tabColorId === undefined) { // This handles 'all' tab (no specific colorId filter for the tab itself)
+    return allProductImages.value;
+  } else { // Specific color tab
+    return allProductImages.value.filter(file => file.colorId === tabColorId);
+  }
+});
+
 
 const handlePreview = (file) => {
-  // Open image in a new tab for preview
-  window.open(file.url, '_blank')
+  dialogImageUrl.value = file.url
+  dialogVisible.value = true
 }
 
-// --- Save Product Function ---
+// Handles both new file uploads and updates to existing files (e.g., changing colorId in 'all' tab)
+const handleFileChange = (file, fileList, currentColorId = undefined) => {
+  const maxSize = 5 * 1024 * 1024 // 5MB
+
+  if (file.size > maxSize) {
+    ElMessage.error(`Ảnh ${file.name} vượt quá kích thước tối đa (5MB)!`)
+    // Remove the oversized file directly from the allProductImages array
+    allProductImages.value = allProductImages.value.filter(f => f.uid !== file.uid);
+    // Also remove from el-upload's internal fileList if it's not already filtered by the v-model
+    const uploadComp = document.querySelector('.el-upload'); // Find the specific upload component if necessary
+    if (uploadComp && uploadComp.__vue__) { // Access Vue instance if available
+      // This is a bit hacky, directly manipulating internal state, but sometimes necessary for complex scenarios
+      // A cleaner approach might involve re-assigning fileList prop if available.
+      // For now, relying on v-model for filteredFiles to naturally update.
+    }
+    return;
+  }
+
+  // Find the file in the overall list by uid
+  const existingFileIndex = allProductImages.value.findIndex(f => f.uid === file.uid);
+
+  if (existingFileIndex > -1) {
+    // If it's an existing file being updated (e.g., colorId changed or it's an old image being re-added by EL-Upload internally), update it
+    allProductImages.value[existingFileIndex] = {
+      ...allProductImages.value[existingFileIndex],
+      // If currentColorId is provided (from a specific color tab), use it.
+      // Otherwise, if it's from 'unassigned' tab, it's null.
+      // If from 'all' tab, the select dropdown handles its own model (file.colorId is already bound).
+      colorId: currentColorId !== undefined ? currentColorId : allProductImages.value[existingFileIndex].colorId,
+      url: file.url || (file.raw ? URL.createObjectURL(file.raw) : allProductImages.value[existingFileIndex].url),
+      file: file.raw || allProductImages.value[existingFileIndex].file, // Preserve raw file if exists
+    };
+  } else {
+    // It's a new file being added
+    // Check for exact duplicates (same raw file content/size) only for new files
+    const isDuplicateNewFile = allProductImages.value.some(
+        (f) => f.isNew && f.file && file.raw && f.file.size === file.raw.size && f.file.name === file.raw.name
+    );
+
+    if (file.raw && isDuplicateNewFile) {
+        ElMessage.error(`Ảnh ${file.name} đã được chọn!`);
+        // Remove the duplicate from the internal fileList of el-upload if necessary
+        // This relies on el-upload's internal mechanism. The v-model for filteredFiles will take care of our state.
+        return;
+    }
+
+    allProductImages.value.push({
+      uid: file.uid || Math.random().toString(36).substring(2, 11), // Ensure uid
+      name: file.name,
+      url: file.url || URL.createObjectURL(file.raw),
+      file: file.raw,
+      isOld: false, // Mark as a new file
+      isNew: true, // Mark as a new file
+      id: null, // New file, no ID yet
+      colorId: currentColorId, // Automatically assign colorId if from a specific tab (will be null for 'unassigned' tab)
+    });
+  }
+};
+
+
+const handleFileRemove = (fileToRemove) => {
+  // Remove the file from the allProductImages array
+  allProductImages.value = allProductImages.value.filter(
+    (f) => f.uid !== fileToRemove.uid
+  );
+  // No need to track removedImageIds for this API call, as per simplified backend
+};
+
+// --- Save Product Logic ---
 
 const saveProduct = async () => {
+  isConfirmDialogVisible.value = false;
   try {
-    // Calculate total quantity from product details
-    const totalQuantity = productDetails.value.reduce((sum, detail) => sum + Number(detail.quantity), 0)
+    const productData = {
+      ...updateProduct.value,
+      productDetails: productDetails.value.map((detail) => ({
+        id: detail.id, // Pass ID to allow backend to update/restore existing details
+        sizeId: detail.sizeId,
+        colorId: detail.colorId,
+        quantity: detail.quantity,
+        sellPrice: detail.sellPrice,
+        status: detail.status,
+      })),
+      // No removedColorIds or removedImageIds needed here as per simplified backend
+    };
 
-    if (totalQuantity <= 0) {
-      ElMessage.error('Tổng số lượng của các biến thể sản phẩm phải lớn hơn 0!')
-      isConfirmDialogVisible.value = false
-      return
-    }
+    const formData = new FormData();
 
-    const formData = new FormData()
-    // Append basic product information
-    formData.append('productName', updateProduct.value.productName || '')
-    formData.append('materialId', updateProduct.value.materialId || '')
-    formData.append('supplierId', updateProduct.value.supplierId || '')
-    formData.append('brandId', updateProduct.value.brandId || '')
-    formData.append('soleId', updateProduct.value.soleId || '')
-    formData.append('styleId', updateProduct.value.styleId || '')
-    formData.append('genderId', updateProduct.value.genderId || '')
-    formData.append('weight', updateProduct.value.weight || 0)
-    formData.append('originPrice', updateProduct.value.originPrice || 0)
-    formData.append('sellPrice', updateProduct.value.sellPrice || 0)
-    formData.append('quantity', totalQuantity) // Total quantity for the product
-    formData.append('description', updateProduct.value.description || '')
+    // Append JSON part of productData
+    formData.append('productRequest', new Blob([JSON.stringify(productData)], { type: 'application/json' }));
 
-    // Append category IDs (assuming backend expects them as a list of integers)
-    // You need to make sure updateProduct.value.categoryIds is populated correctly
-    // If your backend now only expects categoryNames for display, you might adjust this
-    updateProduct.value.categoryIds.forEach((catId, index) => {
-      formData.append(`categoryIds[${index}]`, catId)
-    })
+    // Append new product images
+    const newImages = allProductImages.value.filter(
+      (file) => file.isNew && file.file // Only new files with actual raw file data
+    );
 
-    // Append product details (variants)
-    productDetails.value.forEach((detail, index) => {
-      if (detail.id) { // Include ID if it's an existing detail
-        formData.append(`productDetails[${index}].id`, detail.id)
+    newImages.forEach((file, index) => {
+      if (file.file) {
+        // Backend expects ProductImageRequest with 'productImages' (MultipartFile) and 'colorId'
+        // The list index must be part of the field name to correctly bind to List<ProductImageRequest>
+        formData.append(`productImages[${index}].productImages`, file.file);
+        formData.append(`productImages[${index}].colorId`, file.colorId);
+        // productId is handled by the overall ProductRequest
       }
-      formData.append(`productDetails[${index}].sizeId`, detail.sizeId)
-      formData.append(`productDetails[${index}].colorId`, detail.colorId)
-      formData.append(`productDetails[${index}].sellPrice`, detail.sellPrice)
-      formData.append(`productDetails[${index}].quantity`, detail.quantity)
-    })
+    });
 
-    // Append IDs of images to be deleted
-    if (deletedImageIds.value.length > 0) {
-      deletedImageIds.value.forEach((id, index) => {
-        formData.append(`oldImageIds[${index}]`, id)
-      })
+    // For debugging: Log FormData entries
+    for (const pair of formData.entries()) {
+      console.log(`${pair[0]}, ${pair[1]}`);
     }
 
-    // Append new image files
-    const newImages = selectedFiles.value.filter((fileObj) => fileObj.file && !fileObj.isOld)
-    newImages.forEach((fileObj) => {
-      formData.append('productImages', fileObj.file)
-    })
-
-    // Send the PUT request to restore and update the product
-    await axios.put(
+    const response = await axios.put(
       `http://localhost:8080/api/admin/products/restore/${currentProductId.value}`,
       formData,
       {
-        headers: { 'Content-Type': 'multipart/form-data' }, // Important for FormData
-      },
-    )
+        headers: {
+          'Content-Type': 'multipart/form-data', // Essential for FormData
+        },
+      }
+    );
 
-    ElMessage.success('Khôi phục và cập nhật sản phẩm thành công!')
-    isConfirmDialogVisible.value = false
-    isRestoreDialogVisible.value = false
-    resetForm() 
-    fetchData()
+    ElMessage.success('Sản phẩm đã được khôi phục và cập nhật thành công!');
+    isRestoreDialogVisible.value = false;
+    resetForm();
+    fetchData(); // Reload product list
   } catch (error) {
-    console.error('Lỗi khi khôi phục và cập nhật sản phẩm:', error)
-    const errorMessage = error.response?.data?.error || 'Đã xảy ra lỗi khi cập nhật sản phẩm.'
-    ElMessage.error(errorMessage)
-    isConfirmDialogVisible.value = false
+    console.error('Lỗi khi khôi phục hoặc cập nhật sản phẩm:', error);
+    ElMessage.error(
+      'Không thể khôi phục hoặc cập nhật sản phẩm. Vui lòng kiểm tra lại.'
+    );
   }
-}
-
-const formatPrice = (price) => {
-  if (price === null || price === undefined) return '0 ₫'
-  return new Intl.NumberFormat('vi-VN', {
-    style: 'currency',
-    currency: 'VND',
-  }).format(price)
-}
-
-const formatDate = (dateStr) => {
-  if (!dateStr) return ''
-  const date = new Date(dateStr)
-  return date.toLocaleString('vi-VN')
-}
-
+};
 
 // --- Pagination Handlers ---
-
 const handleSizeChange = (newSize) => {
   size.value = newSize
-  page.value = 0 // Reset to first page when size changes
+  page.value = 0 // Reset to first page
   fetchData()
 }
 
 const handleCurrentChange = (newPage) => {
-  page.value = newPage - 1 // page is 0-indexed in backend, but 1-indexed in Element Plus pagination
+  page.value = newPage - 1 // Convert to 0-indexed
   fetchData()
 }
 
-const indexMethod = (index) => {
-  return page.value * size.value + index + 1
-}
-
-
+// Initial data fetch on component mount
 onMounted(() => {
-  fetchData() // Fetch initial list of deleted products
-  // Pre-fetch all supporting lists needed for the restore/update form
-  fetchBrand()
-  fetchMaterial()
-  fetchSizesAndColors()
-  fetchSole()
-  fetchStyle()
-  fetchCategories()
-  fetchSupplier()
-})
+  fetchData();
+});
 </script>
 
 <style scoped>
-/* Base padding and background for the main container */
 .p-4 {
-  padding: 2rem;
-  background-color: #f5f7fa;
+  padding: 1rem;
 }
 
-/* Styling for the main card holding the table */
 .card-container {
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  padding: 1.5rem;
-  background: linear-gradient(145deg, #ffffff, #f8f9fa);
+  border-radius: 8px;
+  overflow: hidden;
 }
 
-/* Title styling */
 .title {
-  font-size: 1.8rem;
-  font-weight: 600;
-  color: #2c3e50;
-  margin: 0;
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #333;
 }
 
-/* Flexbox utilities */
 .d-flex {
   display: flex;
 }
+
 .justify-between {
   justify-content: space-between;
 }
-.justify-end {
-  justify-content: flex-end;
-}
+
 .align-center {
   align-items: center;
 }
 
-/* Margin utilities */
 .mb-3 {
   margin-bottom: 1rem;
 }
+
 .mt-4 {
   margin-top: 1.5rem;
 }
-.mr-1 {
-  margin-right: 0.25rem;
-}
-.mb-1 {
-  margin-bottom: 0.25rem;
+
+/* El-dialog styles */
+.elegant-dialog :deep(.el-dialog__header) {
+  background-color: #f5f7fa;
+  padding: 15px 20px;
+  border-bottom: 1px solid #ebeef5;
 }
 
-/* Category tags display */
+.elegant-dialog :deep(.el-dialog__title) {
+  font-weight: bold;
+  color: #303133;
+}
+
+.elegant-dialog :deep(.el-dialog__body) {
+  padding: 20px;
+}
+
+.dialog-content {
+  max-height: 70vh; /* Limits height of dialog content */
+  overflow-y: auto; /* Enables scrolling for overflowing content */
+  padding-right: 10px; /* Add some padding for the scrollbar */
+}
+
+.form-container {
+  padding: 10px;
+}
+
+.section-title {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #409eff;
+  margin-top: 20px;
+  margin-bottom: 15px;
+  border-bottom: 2px solid #e4e7ed;
+  padding-bottom: 5px;
+}
+
+.checkbox-item {
+  margin-right: 15px;
+  margin-bottom: 10px;
+}
+
+.detail-card {
+  border: 1px solid #e4e7ed;
+  border-radius: 6px;
+  margin-bottom: 15px;
+  overflow: hidden;
+}
+
+.card-header {
+  background-color: #f5f7fa;
+  padding: 10px 15px;
+  border-bottom: 1px solid #e4e7ed;
+  font-size: 1rem;
+  color: #606266;
+}
+
+.card-body {
+  padding: 15px;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: center;
+  padding-top: 20px;
+  border-top: 1px solid #e4e7ed;
+  margin-top: 20px;
+}
+
+.confirm-dialog :deep(.el-dialog__body) {
+  text-align: center;
+  font-size: 1.1rem;
+}
+
+.confirm-dialog :deep(.el-dialog__footer) {
+  text-align: center;
+}
+
+/* Custom styles for el-upload */
+.image-tabs :deep(.el-upload-list__item) {
+  width: 148px; /* Standard size for picture-card */
+  height: 148px; /* Standard size for picture-card */
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column; /* Allow content to stack */
+  align-items: center;
+  justify-content: center;
+}
+
+.image-tabs :deep(.el-upload-list__item-thumbnail) {
+  max-width: 100%;
+  max-height: 100px; /* Limit image height to make space for select */
+  object-fit: contain;
+  display: block;
+}
+
+.image-tabs .image-color-select {
+  position: absolute; /* Position the select over the image space */
+  bottom: 5px; /* Adjust as needed */
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90% !important; /* Ensure it fits */
+}
+
+.image-tabs :deep(.el-upload--picture-card) {
+  width: 148px;
+  height: 148px;
+}
+
 .category-tags-container {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px; /* Space between tags */
-}
-.el-tag {
-  border-radius: 12px;
-  font-size: 0.85rem;
-}
-
-/* Styling for the restore dialog (main dialog) */
-.elegant-dialog {
-  border-radius: 16px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-  overflow: hidden; /* Ensures border-radius applies to content */
-}
-/* Header of the elegant dialog */
-.elegant-dialog :deep(.el-dialog__header) {
-  background: linear-gradient(90deg, #3498db, #2ecc71); /* Gradient background */
-  color: #fff;
-  padding: 1.5rem;
-  font-size: 1.25rem;
-  font-weight: 500;
-  border-top-left-radius: 16px;
-  border-top-right-radius: 16px;
-}
-/* Body of the elegant dialog */
-.elegant-dialog :deep(.el-dialog__body) {
-  padding: 2rem;
-  background: #f9fafc;
-}
-
-/* Content area within the dialog, with scrollbar */
-.dialog-content {
-  max-height: 70vh; /* Max height to enable scrolling */
-  overflow-y: auto;
-  padding-right: 1rem; /* Space for scrollbar */
-}
-.dialog-content::-webkit-scrollbar {
-  width: 8px;
-}
-.dialog-content::-webkit-scrollbar-thumb {
-  background: #bdc3c7;
-  border-radius: 4px;
-}
-.dialog-content::-webkit-scrollbar-track {
-  background: #f1f3f5;
-}
-
-/* Styling for the form container inside the dialog */
-.form-container {
-  background: #ffffff;
-  border-radius: 12px;
-  padding: 1.5rem;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-}
-
-/* Section titles within the form */
-.section-title {
-  font-size: 1.4rem;
-  font-weight: 500;
-  color: #34495e;
-  margin-bottom: 1.5rem;
-  border-bottom: 2px solid #3498db;
-  padding-bottom: 0.5rem;
-}
-
-/* Styling for individual checkbox items */
-.checkbox-item {
-  margin-right: 1.5rem;
-  margin-bottom: 0.5rem;
-}
-
-/* Card styling for product details sections */
-.detail-card {
-  border-radius: 12px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-  margin-bottom: 1.5rem;
-  background: #fff;
-}
-.card-header {
-  background: linear-gradient(90deg, #3498db, #2980b9);
-  color: #fff;
-  padding: 1rem;
-  font-size: 1.1rem;
-  border-top-left-radius: 12px;
-  border-top-right-radius: 12px;
-}
-.card-body {
-  padding: 1.5rem;
-}
-
-/* Form action buttons container */
-.form-actions {
-  text-align: center;
-  margin-top: 2rem;
-}
-
-/* Full width utility class */
-.w-full {
-  width: 100%;
-}
-
-/* Styling for the confirmation dialog */
-.confirm-dialog :deep(.el-dialog__header) {
-  background: #3498db;
-  color: #fff;
-  border-top-left-radius: 12px;
-  border-top-right-radius: 12px;
-}
-.confirm-dialog :deep(.el-dialog__body) {
-  font-size: 1rem;
-  color: #2c3e50;
+  gap: 4px; /* Space between tags */
 }
 </style>

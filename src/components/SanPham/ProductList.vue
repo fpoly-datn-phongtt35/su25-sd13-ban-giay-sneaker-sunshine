@@ -195,7 +195,7 @@
         <button @click="goToHistory" class="btn btn-outline-secondary btn-sm">
           <i class="bi bi-clock-history me-1"></i> Lịch sử sản phẩm
         </button>
-      </div>
+        </div>
     </div>
 
     <div class="card shadow-sm">
@@ -213,8 +213,7 @@
               <th scope="col">Thương hiệu</th>
               <th scope="col">Cổ giày</th>
               <th scope="col">Dành cho</th>
-              <th scope="col">Giá bán buôn</th>
-              <th scope="col">Giá bán lẻ</th>
+              <th scope="col">Giá bán</th>
               <th scope="col">Số lượng</th>
               <th scope="col">Ghi chú</th>
               <th scope="col">Ngày tạo</th>
@@ -224,7 +223,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(pr, index) in productList" :key="pr.id">
+            <tr v-for="(pr, index) in productList" :key="pr.id" :class="{ 'low-quantity': pr.quantity < 10 }">
               <td>
                 <input type="checkbox" v-model="selectedProducts" :value="pr.id" />
               </td>
@@ -239,7 +238,6 @@
               <td>{{ pr.brandName }}</td>
               <td>{{ pr.styleName }}</td>
               <td>{{ pr.genderName }}</td>
-              <td>{{ pr.originPrice }}</td>
               <td>{{ pr.sellPrice }}</td>
               <td>{{ pr.quantity }}</td>
               <td>{{ pr.description }}</td>
@@ -298,8 +296,8 @@ import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const productList = ref([])
-const totalPages = ref(0) // Giá trị này không còn dùng trực tiếp cho hasNext/hasPrevious với el-pagination
-const totalElements = ref(0) // Tổng số phần tử, cần thiết cho el-pagination
+const totalPages = ref(0)
+const totalElements = ref(0)
 const page = ref(0)
 const size = ref(8)
 const selectedProducts = ref([]) // ID sản phẩm trên trang hiện tại
@@ -326,7 +324,11 @@ const categoryList = ref([])
 const soleList = ref([])
 const styleList = ref([])
 
-// Reset form tìm kiếm và lựa chọn
+// --- Các hàm xử lý trạng thái và dữ liệu ---
+
+/**
+ * Đặt lại form tìm kiếm và xóa tất cả lựa chọn.
+ */
 const resetForm = async () => {
   searchProduct.value = {
     keyWord: '',
@@ -349,15 +351,20 @@ const resetForm = async () => {
   await fetchProduct()
 }
 
-// Bỏ chọn tất cả sản phẩm
+/**
+ * Xóa tất cả các sản phẩm đã chọn trên tất cả các trang.
+ */
 const clearAllSelections = () => {
   allSelectedProducts.value = []
   selectedProducts.value = [] // Đảm bảo checkbox trên trang hiện tại cũng bỏ chọn
   selectAll.value = false
-  ElMessage.info('Đã bỏ chọn tất cả sản phẩm.');
+  ElMessage.info('Đã bỏ chọn tất cả sản phẩm.')
 }
 
-// Xử lý checkbox "Chọn tất cả"
+/**
+ * Xử lý sự kiện khi checkbox "Chọn tất cả" thay đổi.
+ * Thêm hoặc loại bỏ ID sản phẩm của trang hiện tại khỏi danh sách đã chọn.
+ */
 const toggleSelectAll = () => {
   if (selectAll.value) {
     const newIds = productList.value
@@ -374,18 +381,15 @@ const toggleSelectAll = () => {
   }
 }
 
-// Đồng bộ selectedProducts với allSelectedProducts
-// Hàm này chạy sau khi productList thay đổi (ví dụ: chuyển trang)
+
 const syncSelectedProducts = () => {
   selectedProducts.value = productList.value
     .filter((p) => allSelectedProducts.value.includes(p.id))
     .map((p) => p.id)
-  // Kiểm tra nếu tất cả sản phẩm trên trang hiện tại được chọn
   selectAll.value = productList.value.length > 0 &&
-                    selectedProducts.value.length === productList.value.length
+                      selectedProducts.value.length === productList.value.length
 }
 
-// Theo dõi selectedProducts để cập nhật allSelectedProducts
 watch(selectedProducts, (newSelectedIds, oldSelectedIds) => {
   const currentPageIds = productList.value.map((p) => p.id);
 
@@ -408,11 +412,14 @@ watch(selectedProducts, (newSelectedIds, oldSelectedIds) => {
 
   // Cập nhật trạng thái của checkbox "Chọn tất cả" trên trang hiện tại
   selectAll.value = productList.value.length > 0 &&
-                    selectedProducts.value.length === productList.value.length;
+                      selectedProducts.value.length === productList.value.length;
 }, { deep: true });
 
+// --- Lấy dữ liệu danh mục, chất liệu, thương hiệu, đế giày, kiểu giày ---
 
-// Lấy danh mục sản phẩm
+/**
+ * Lấy danh sách danh mục sản phẩm từ API.
+ */
 const fetchCategories = async () => {
   try {
     const response = await axios.get('http://localhost:8080/api/admin/categories/hien-thi')
@@ -423,7 +430,9 @@ const fetchCategories = async () => {
   }
 }
 
-// Lấy chất liệu sản phẩm
+/**
+ * Lấy danh sách chất liệu sản phẩm từ API.
+ */
 const fetchMaterial = async () => {
   try {
     const response = await axios.get('http://localhost:8080/api/admin/material/hien-thi')
@@ -434,7 +443,9 @@ const fetchMaterial = async () => {
   }
 }
 
-// Lấy thương hiệu sản phẩm
+/**
+ * Lấy danh sách thương hiệu sản phẩm từ API.
+ */
 const fetchBrand = async () => {
   try {
     const response = await axios.get('http://localhost:8080/api/admin/brand/hien-thi')
@@ -445,7 +456,9 @@ const fetchBrand = async () => {
   }
 }
 
-// Lấy đế giày sản phẩm
+/**
+ * Lấy danh sách loại đế giày từ API.
+ */
 const fetchSole = async () => {
   try {
     const response = await axios.get('http://localhost:8080/api/admin/sole/hien-thi')
@@ -456,7 +469,9 @@ const fetchSole = async () => {
   }
 }
 
-// Lấy phong cách sản phẩm
+/**
+ * Lấy danh sách kiểu giày từ API.
+ */
 const fetchStyle = async () => {
   try {
     const response = await axios.get('http://localhost:8080/api/admin/style/hien-thi')
@@ -467,7 +482,9 @@ const fetchStyle = async () => {
   }
 }
 
-// Lấy danh sách sản phẩm
+/**
+ * Lấy danh sách sản phẩm dựa trên các tham số tìm kiếm và phân trang.
+ */
 const fetchProduct = async () => {
   const searchParams = {
     keyword: searchProduct.value.keyWord || null,
@@ -492,8 +509,8 @@ const fetchProduct = async () => {
       searchParams,
     )
     productList.value = response.data.data
-    totalElements.value = response.data.pagination?.totalElements || 0 // Cập nhật tổng số phần tử
-    totalPages.value = response.data.pagination?.totalPages || 0 // Giữ lại nếu bạn vẫn muốn hiển thị
+    totalElements.value = response.data.pagination?.totalElements || 0
+    totalPages.value = response.data.pagination?.totalPages || 0
     syncSelectedProducts() // Đồng bộ hóa các checkbox trên trang hiện tại
   } catch (error) {
     console.error('Lỗi tải danh sách sản phẩm:', error)
@@ -501,53 +518,82 @@ const fetchProduct = async () => {
   }
 }
 
-// Điều hướng
+// --- Điều hướng trang ---
+
+/**
+ * Chuyển hướng đến trang thêm sản phẩm mới.
+ */
 const goToAdd = () => {
   router.push('/product/add')
 }
 
+/**
+ * Chuyển hướng đến trang lịch sử sản phẩm.
+ */
 const goToHistory = () => {
   router.push('/product/history')
 }
 
-const goToTrash = () => {
-  router.push('/product/trash') // Thêm điều hướng tới trang sản phẩm đã xóa
-}
-
+/**
+ * Chuyển hướng đến trang cập nhật sản phẩm.
+ * @param {number} id ID của sản phẩm cần cập nhật.
+ */
 const goToUpdate = (id) => {
   router.push({ name: 'UpdateProduct', params: { id } })
 }
 
+/**
+ * Chuyển hướng đến trang chi tiết sản phẩm.
+ * @param {number} id ID của sản phẩm cần xem chi tiết.
+ */
 const goToDetail = (id) => {
   router.push({ name: 'DetailProduct', params: { id } })
 }
 
-// Định dạng ngày
+// --- Tiện ích ---
+
+/**
+ * Định dạng chuỗi ngày thành định dạng dễ đọc.
+ * @param {string} dateString Chuỗi ngày cần định dạng.
+ * @returns {string} Chuỗi ngày đã định dạng.
+ */
 const formatDate = (dateString) => {
   if (!dateString) return ''
   return new Date(dateString).toLocaleString('vi-VN', { hour12: false })
 }
 
+// --- Xử lý phân trang Element Plus ---
 
-// --- Phân trang Element Plus handlers ---
+/**
+ * Xử lý khi số lượng mục trên mỗi trang thay đổi.
+ * @param {number} newSize Kích thước trang mới.
+ */
 const handleSizeChange = (newSize) => {
   size.value = newSize
   page.value = 0 // Reset về trang đầu tiên khi thay đổi số lượng mục trên trang
   fetchProduct()
 }
 
+/**
+ * Xử lý khi trang hiện tại thay đổi.
+ * @param {number} newPage Trang mới (1-indexed).
+ */
 const handleCurrentChange = (newPage) => {
-  page.value = newPage - 1 // el-pagination là 1-indexed, API của bạn là 0-indexed
+  page.value = newPage - 1 // el-pagination là 1-indexed, API là 0-indexed
   fetchProduct()
 }
 
-// Xuất Excel
+// --- Xuất dữ liệu và xóa sản phẩm ---
+
+/**
+ * Tải xuống dữ liệu sản phẩm dưới dạng Excel, có thể theo lựa chọn hoặc theo bộ lọc hiện tại.
+ */
 const downloadExcel = async () => {
   try {
     const message =
       allSelectedProducts.value.length > 0
         ? `Xuất Excel cho ${allSelectedProducts.value.length} sản phẩm đã chọn?`
-        : 'Xuất Excel toàn bộ sản phẩm theo bộ lọc hiện tại?'; // Thay đổi thông báo
+        : 'Xuất Excel toàn bộ sản phẩm theo bộ lọc hiện tại?';
 
     await ElMessageBox.confirm(message, 'Xác nhận', {
       type: 'warning',
@@ -568,7 +614,7 @@ const downloadExcel = async () => {
         styleId: searchProduct.value.styleId || null,
         soleId: searchProduct.value.soleId || null,
         materialId: searchProduct.value.materialId || null,
-        createdFrom: searchProduct.value.createdFrom || null, // value-format đã xử lý
+        createdFrom: searchProduct.value.createdFrom || null,
         createdTo: searchProduct.value.createdTo || null,
         categoryIds: searchProduct.value.categoryIds.map((c) => c.id) || [],
         priceMin: searchProduct.value.priceMin === '' ? null : searchProduct.value.priceMin,
@@ -599,7 +645,10 @@ const downloadExcel = async () => {
   }
 }
 
-// Xóa sản phẩm
+/**
+ * Xóa một sản phẩm khỏi hệ thống (chuyển vào thùng rác).
+ * @param {number} id ID của sản phẩm cần xóa.
+ */
 const deleteProduct = async (id) => {
   try {
     await ElMessageBox.confirm('Bạn có chắc chắn muốn xóa sản phẩm này? Sản phẩm sẽ được chuyển vào thùng rác.', 'Xác nhận', {
@@ -623,14 +672,17 @@ const deleteProduct = async (id) => {
   }
 }
 
-// Tìm kiếm
+/**
+ * Thực hiện tìm kiếm sản phẩm.
+ * Đặt lại trang về 0 và xóa tất cả lựa chọn trước khi tìm kiếm mới.
+ */
 const search = async () => {
   page.value = 0 // Reset về trang đầu tiên khi tìm kiếm mới
   allSelectedProducts.value = [] // Xóa tất cả các lựa chọn khi tìm kiếm mới
   await fetchProduct()
 }
 
-// Khởi tạo dữ liệu
+// --- Khởi tạo dữ liệu khi component được mount ---
 onMounted(() => {
   fetchBrand()
   fetchCategories()
@@ -642,6 +694,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* --- General Layout and Card Styles --- */
 .container-fluid {
   padding: 15px;
 }
@@ -655,9 +708,11 @@ onMounted(() => {
   padding: 1rem;
 }
 
+/* --- Table Styles --- */
 .table {
   border-radius: 6px;
   overflow: hidden;
+  margin-bottom: 0; /* Remove default table margin */
 }
 
 .table-primary {
@@ -669,6 +724,7 @@ onMounted(() => {
   background-color: #f8f9fa;
 }
 
+/* --- Button Group Styles --- */
 .btn-group .btn {
   margin-right: 3px;
 }
@@ -677,6 +733,7 @@ onMounted(() => {
   padding: 0.15rem 0.3rem;
 }
 
+/* --- Form Element Styles (Labels, Inputs, Selects) --- */
 .form-label {
   font-size: 0.85rem;
   margin-bottom: 0.2rem;
@@ -701,7 +758,7 @@ onMounted(() => {
   padding: 0.3rem 0.6rem;
 }
 
-/* Multiselect specific styles to make it match Bootstrap sm */
+/* --- Vue-Multiselect Specific Styles --- */
 .multiselect {
   min-height: auto;
   font-size: 0.85rem;
@@ -725,8 +782,7 @@ onMounted(() => {
   margin-bottom: 4px;
 }
 
-
-/* El-date-picker styles for better integration */
+/* --- Element Plus Date Picker Styles --- */
 .demo-datetime-picker .el-date-editor {
   height: 32px; /* Match Bootstrap form-control-sm height */
   --el-date-editor-font-size: 0.85rem; /* Adjust font size */
@@ -735,7 +791,7 @@ onMounted(() => {
   padding: 0.2rem 0.5rem; /* Match Bootstrap form-control-sm padding */
 }
 
-/* El-pagination styling for better visual */
+/* --- Element Plus Pagination Styles --- */
 .el-pagination {
   --el-pagination-font-size: 0.875rem; /* Slightly smaller font */
   --el-pagination-button-width: 28px; /* Smaller buttons */
@@ -745,28 +801,36 @@ onMounted(() => {
 .el-pagination.is-background .el-pager li,
 .el-pagination.is-background .btn-prev,
 .el-pagination.is-background .btn-next {
-    background-color: #f0f2f5; /* Light grey background for pages */
-    border-radius: 4px;
+  background-color: #f0f2f5; /* Light grey background for pages */
+  border-radius: 4px;
 }
 
 .el-pagination.is-background .el-pager li:not(.is-disabled).is-active {
-    background-color: #007bff; /* Primary color for active page */
-    color: #fff;
+  background-color: #007bff; /* Primary color for active page */
+  color: #fff;
 }
 
 .el-pagination__total,
 .el-pagination__sizes,
 .el-pagination__jump {
-    font-size: 0.875rem; /* Match other pagination elements */
-    margin-right: 8px;
+  font-size: 0.875rem; /* Match other pagination elements */
+  margin-right: 8px;
 }
 
-/* Generic styling for Element Plus components if needed, or rely on defaults */
+/* --- Text Utility Classes --- */
 .text-muted {
   font-size: 0.875rem;
 }
 
 .small {
   font-size: 0.8rem;
+}
+
+/* --- Specific Style for Low Quantity Products --- */
+.low-quantity {
+  background-color: #ffcccc; /* Nền màu đỏ nổi bật hơn */
+  color: #cc0000; /* Màu chữ đỏ sẫm, nổi bật */
+  font-weight: bold;
+  font-style: italic; 
 }
 </style>

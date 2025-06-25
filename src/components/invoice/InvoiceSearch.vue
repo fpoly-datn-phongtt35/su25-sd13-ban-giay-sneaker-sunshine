@@ -111,7 +111,7 @@ async function startScan() {
   try {
     await html5QrCode.start(
       { facingMode: "environment" }, // camera sau
-      { fps: 10, qrbox: { width: 250, height: 250 } },
+      { fps: 60, qrbox: { width: 250, height: 250 } },
       qrCodeMessage => {
         // Khi quét thành công
         stopScan();

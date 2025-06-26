@@ -17,9 +17,7 @@
               <el-dropdown-item command="currentPage" :disabled="invoices.length === 0">
                 Xuất hóa đơn trang này
               </el-dropdown-item>
-              <el-dropdown-item command="all">
-                Xuất tất cả hóa đơn
-              </el-dropdown-item>
+              <el-dropdown-item command="all"> Xuất tất cả hóa đơn </el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
@@ -70,20 +68,28 @@
           {{ formatCurrency(getField(scope.row, 'finalAmount')) }}
         </template>
       </el-table-column>
-      <el-table-column prop="status" label="Đơn hàng" align="center">
+
+      <!-- Cột "Đơn hàng" — dùng orderType -->
+      <el-table-column prop="orderType" label="Loại đơn hàng" align="center">
         <template #default="scope">
-          <el-tag :type="statusClass(getField(scope.row, 'orderType'))" disable-transitions>
-            {{ orderType(getField(scope.row, 'orderType')) }}
+          <el-tag type="info" disable-transitions>
+            {{ getField(scope.row, 'orderType') === 0 ? 'Tại quầy' : 'Online' }}
           </el-tag>
         </template>
       </el-table-column>
+
+      <!-- Cột "Trạng thái" — giữ nguyên dùng status -->
       <el-table-column prop="status" label="Trạng thái" align="center">
         <template #default="scope">
-          <el-tag :type="statusClass(getField(scope.row, 'status'))" disable-transitions>
-            {{ statusText(getField(scope.row, 'status')) }}
+          <el-tag
+            :type="statusClass(getField(scope.row, 'status'), getField(scope.row, 'orderType'))"
+            disable-transitions
+          >
+            {{ statusText(getField(scope.row, 'status'), getField(scope.row, 'orderType')) }}
           </el-tag>
         </template>
       </el-table-column>
+
       <el-table-column prop="createdDate" label="Ngày tạo" align="center" width="180">
         <template #default="scope">
           {{ formatDate(getField(scope.row, 'createdDate')) }}
@@ -454,42 +460,64 @@ const formatDate = (val) => {
   return d.toLocaleDateString('vi-VN') + ' ' + d.toLocaleTimeString('vi-VN')
 }
 
-const statusText = (status) => {
-  switch (status) {
-    case 0:
-      return 'Chờ xử lý'
-    case 1:
-      return 'Đã thanh toán'
-    case 2:
-      return 'Đã hủy'
-    default:
-      return 'Không xác định'
+const statusText = (status, orderType) => {
+  if (orderType === 0) {
+    switch (status) {
+      case 0: return 'Chờ thanh toán'
+      case 1: return 'Đã thanh toán'
+      case 2: return 'Đã hủy'
+      default: return 'Không xác định'
+    }
+  } else if (orderType === 1) {
+    switch (status) {
+      case -1: return 'Chờ xác nhận'
+      case 0: return 'Đang xử lý'
+      case 1: return 'Đã thanh toán (chờ xác nhận)'
+      case 2: return 'Đã xác nhận'
+      case 3: return 'Chờ nhập hàng'
+      case 4: return 'Đang chuẩn bị'
+      case 5: return 'Đang giao hàng'
+      case 6: return 'Giao thành công'
+      case 7: return 'Giao thất bại'
+      case 8: return 'Đã trả hàng'
+      case 9: return 'Mất hàng'
+      case 10: return 'Đã hủy'
+      case 11: return 'Thanh toán thất bại'
+      default: return 'Không xác định'
+    }
   }
+  return 'Không xác định'
 }
 
-const orderType = (status) => {
-  switch (status) {
-    case 0:
-      return 'Tại quầy'
-    case 1:
-      return 'Online'
-    default:
-      return 'Không xác định'
+
+const statusClass = (status, orderType) => {
+  if (orderType === 0) {
+    switch (status) {
+      case 0: return 'warning'
+      case 1: return 'success'
+      case 2: return 'danger'
+      default: return 'info'
+    }
+  } else if (orderType === 1) {
+    switch (status) {
+      case 0: return 'warning'
+      case 1: return 'primary'
+      case 2: return 'success'
+      case 3: return 'warning'
+      case 4: return 'info'
+      case 5: return 'primary'
+      case 6: return 'success'
+      case 7: return 'danger'
+      case 8: return 'danger'
+      case 9: return 'danger'
+      case 10: return 'danger'
+      case 11: return 'danger'
+      default: return 'info'
+    }
   }
+  return 'info'
 }
 
-const statusClass = (status) => {
-  switch (status) {
-    case 0:
-      return 'warning'
-    case 1:
-      return 'success'
-    case 2:
-      return 'danger'
-    default:
-      return 'info'
-  }
-}
 
 onMounted(() => {
   fetchOrSearch()

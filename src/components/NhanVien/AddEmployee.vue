@@ -110,10 +110,13 @@
 
 <script setup>
 import { ref } from 'vue'
-import axios from 'axios'
+// Import your pre-configured API client
+import apiClient from '@/utils/axiosInstance' 
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { User } from '@element-plus/icons-vue'
+import { User, ArrowLeft, Calendar, Money, Phone, Message, Lock, Male, Female, Location, CirclePlus } from '@element-plus/icons-vue' // Added more relevant icons
 import { useRouter } from 'vue-router'
+
+const router = useRouter()
 
 const form = ref({
   employeeName: '',
@@ -123,49 +126,78 @@ const form = ref({
   phone: '',
   gender: 1,
   dateOfBirth: '',
-  country: '',
+  country: 'Việt Nam', // Assuming default for new employee is Vietnam
   province: '',
   district: '',
   ward: '',
   houseName: '',
-  role: 1,
-  hireDate: new Date().toISOString().split('T')[0], // mặc định là ngày hôm nay
+  role: 0, // Default role for a new employee might be 'Nhân viên' (0)
+  hireDate: new Date().toISOString().split('T')[0], // Default to today's date
   salary: 0,
 })
 
-const router = useRouter()
+const employeeForm = ref(null) // Ref for the Element Plus form component
 
 const goBack = () => {
   router.push('/employee')
 }
 
+// Formats salary value to Vietnamese currency format
 const formatSalary = (value) => {
-  if (!value) return ''
-  return Number(value).toLocaleString('vi-VN')
+  // Ensure value is treated as a string before manipulation for safety
+  const stringValue = String(value || ''); 
+  // Parse out only digits for formatting
+  const numberValue = parseInt(stringValue.replace(/[^\d]/g, ''), 10);
+  if (isNaN(numberValue)) return '';
+  return numberValue.toLocaleString('vi-VN') + ' VND'; // Added currency symbol
 }
 
+// Parses formatted salary back to a plain number
 const parseSalary = (value) => {
-  return value.replace(/[^\d]/g, '')
+  if (!value) return null;
+  // Ensure value is treated as a string before using replace
+  const stringValue = String(value);
+  const parsed = parseInt(stringValue.replace(/[^\d]/g, ''), 10);
+  return isNaN(parsed) ? null : parsed;
 }
 
+// Disable future dates for Date of Birth and Hire Date pickers
+const disableFutureDates = (time) => {
+  return time.getTime() > Date.now();
+};
+
+// Validation Rules for the form
 const rules = {
   employeeName: [{ required: true, message: 'Vui lòng nhập họ tên', trigger: 'blur' }],
-  username: [{ required: true, message: 'Vui lòng nhập tên đăng nhập', trigger: 'blur' }],
-  password: [{ required: true, message: 'Vui lòng nhập mật khẩu', trigger: 'blur' }],
-  email: [{ type: 'email', message: 'Email không hợp lệ', trigger: 'blur' }],
-  phone: [{ required: true, message: 'Vui lòng nhập số điện thoại', trigger: 'blur' }],
+  username: [
+    { required: true, message: 'Vui lòng nhập tên đăng nhập', trigger: 'blur' },
+    { min: 3, max: 50, message: 'Tên đăng nhập phải từ 3 đến 50 ký tự', trigger: 'blur' }
+  ],
+  password: [
+    { required: true, message: 'Vui lòng nhập mật khẩu', trigger: 'blur' },
+    { min: 6, message: 'Mật khẩu phải có ít nhất 6 ký tự', trigger: 'blur' }
+  ],
+  email: [
+    { required: true, message: 'Vui lòng nhập email', trigger: 'blur' },
+    { type: 'email', message: 'Email không hợp lệ', trigger: ['blur', 'change'] }
+  ],
+  phone: [
+    { required: true, message: 'Vui lòng nhập số điện thoại', trigger: 'blur' },
+    { pattern: /^(0|\+84)[3|5|7|8|9][0-9]{8}$/, message: 'Số điện thoại không hợp lệ', trigger: 'blur' }
+  ],
   role: [{ required: true, message: 'Vui lòng chọn vai trò', trigger: 'change' }],
   gender: [{ required: true, message: 'Vui lòng chọn giới tính', trigger: 'change' }],
+  dateOfBirth: [{ required: true, message: 'Vui lòng chọn ngày sinh', trigger: 'change' }],
   hireDate: [{ required: true, message: 'Vui lòng chọn ngày tuyển dụng', trigger: 'change' }],
   salary: [
     { required: true, message: 'Vui lòng nhập lương', trigger: 'blur' },
     {
       validator: (rule, value, callback) => {
-        const parsed = parseInt(value.toString().replace(/[^\d]/g, ''), 10)
-        if (isNaN(parsed) || parsed < 0) {
-          callback(new Error('Lương phải là số và lớn hơn hoặc bằng 0'))
+        const parsed = parseSalary(value); // Use the helper to parse
+        if (parsed === null || parsed < 0) {
+          callback(new Error('Lương phải là số và lớn hơn hoặc bằng 0'));
         } else {
-          callback()
+          callback();
         }
       },
       trigger: 'blur',
@@ -173,8 +205,7 @@ const rules = {
   ],
 }
 
-const employeeForm = ref(null)
-
+// Submits the form data to the backend
 const submitForm = () => {
   employeeForm.value.validate(async (valid) => {
     if (valid) {
@@ -183,20 +214,52 @@ const submitForm = () => {
           confirmButtonText: 'Xác nhận',
           cancelButtonText: 'Hủy',
           type: 'warning',
-        })
-        await axios.post('http://localhost:8080/api/admin/employees', form.value)
-        ElMessage.success('Thêm nhân viên thành công!')
-        resetForm()
+        });
+
+        // Prepare data for sending, ensuring salary is a number
+        const dataToSend = {
+          ...form.value,
+          salary: parseSalary(form.value.salary), // Ensure salary is parsed before sending
+          // Convert Date objects to ISO strings if necessary, though Element Plus date-picker with value-format usually handles this
+          dateOfBirth: form.value.dateOfBirth ? new Date(form.value.dateOfBirth).toISOString().split('T')[0] : null,
+          hireDate: form.value.hireDate ? new Date(form.value.hireDate).toISOString().split('T')[0] : null,
+        };
+
+        // --- Debugging 403 Forbidden Error ---
+        console.log('Sending data to backend:', dataToSend);
+        const token = localStorage.getItem('token');
+        console.log('Token from localStorage:', token ? 'Token exists (length: ' + token.length + ')' : 'Token is MISSING or empty');
+        // --- End Debugging ---
+
+        // Use apiClient for the POST request
+        await apiClient.post('/admin/employees', dataToSend);
+        ElMessage.success('Thêm nhân viên thành công!');
+        resetForm();
+        router.push('/employee'); // Navigate back to employee list after success
       } catch (error) {
-        console.error(error)
-        ElMessage.error('Lỗi khi thêm nhân viên.')
+        console.error('Lỗi khi thêm nhân viên:', error);
+        if (error.response && error.response.data && error.response.data.message) {
+          ElMessage.error(`Lỗi: ${error.response.data.message}`);
+        } else if (error === 'cancel' || error === 'close') {
+          ElMessage.info('Đã hủy thao tác thêm nhân viên.');
+        } else {
+          ElMessage.error('Có lỗi xảy ra khi thêm nhân viên. Vui lòng kiểm tra lại thông tin.');
+        }
       }
+    } else {
+      ElMessage.error('Vui lòng điền đầy đủ và đúng thông tin!');
     }
   })
 }
 
+// Resets the form fields and validation status
 const resetForm = () => {
-  employeeForm.value.resetFields()
+  employeeForm.value.resetFields();
+  // Reset other non-form-item bound properties or specific defaults
+  form.value.salary = 0;
+  form.value.hireDate = new Date().toISOString().split('T')[0];
+  form.value.gender = 1;
+  form.value.role = 0;
 }
 </script>
 

@@ -95,7 +95,8 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import axios from 'axios'
+// Import your pre-configured API client
+import apiClient from '@/utils/axiosInstance' 
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Avatar, CirclePlus, EditPen, DeleteFilled } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
@@ -106,34 +107,54 @@ const employees = ref([])
 const currentPage = ref(1)
 const size = ref(10)
 const totalElements = ref(0)
+const loading = ref(false) // Added loading state for table
 
+// Function to fetch employees from the backend API
 const fetchEmployees = async () => {
+  loading.value = true
   try {
-    const response = await axios.get('http://localhost:8080/api/admin/employees', {
+    const response = await apiClient.get('/admin/employees', {
       params: {
         page: currentPage.value - 1,
-        size: size.value
-      }
+        size: size.value,
+      },
     })
     employees.value = response.data.content
     totalElements.value = response.data.totalElements
   } catch (error) {
-    console.error(error)
-    ElMessage.error('Không thể tải dữ liệu nhân viên.')
+    console.error('Lỗi khi tải dữ liệu nhân viên:', error)
+
+    if (error.response && error.response.status === 403) {
+      router.push('/error')
+    } else {
+      ElMessage.error('Không thể tải dữ liệu nhân viên. Vui lòng thử lại sau.')
+    }
+
+    employees.value = []
+    totalElements.value = 0
+  } finally {
+    loading.value = false
   }
 }
 
+// Handler for pagination page change
 const handlePageChange = (val) => {
   currentPage.value = val
   fetchEmployees()
 }
 
+// Formats date string to 'dd/mm/yyyy' (Vietnamese locale)
 const formatDate = (dateStr) => {
   if (!dateStr) return ''
   const date = new Date(dateStr)
+  // Check if the date is valid before formatting
+  if (isNaN(date.getTime())) {
+    return dateStr; // Return original string if invalid date
+  }
   return date.toLocaleDateString('vi-VN')
 }
 
+// Maps numerical role to a readable string
 const mapRole = (role) => {
   switch (role) {
     case 0: return 'Nhân viên'
@@ -142,14 +163,17 @@ const mapRole = (role) => {
   }
 }
 
+// Navigates to the add employee page
 const addEmployee = () => {
   router.push('/employee/add')
 }
 
+// Navigates to the update employee page with a specific ID
 const updateEmployee = (id) => {
   router.push(`/employee/update/${id}`)
 }
 
+// Handles deletion of an employee with confirmation
 const deleteEmployee = async (id) => {
   try {
     await ElMessageBox.confirm(
@@ -161,16 +185,23 @@ const deleteEmployee = async (id) => {
         type: 'warning'
       }
     )
-    await axios.delete(`http://localhost:8080/api/admin/employees/${id}`)
+    // Use apiClient for delete request
+    await apiClient.delete(`/admin/employees/${id}`)
     ElMessage.success('Xóa nhân viên thành công.')
+    // Re-fetch employees to update the list after deletion
     fetchEmployees()
   } catch (error) {
-    if (error !== 'cancel') {
-      ElMessage.error('Xóa nhân viên thất bại.')
+    // Only show error message if it's not a cancellation
+    if (error !== 'cancel' && error !== 'close') {
+      console.error('Lỗi khi xóa nhân viên:', error)
+      ElMessage.error('Xóa nhân viên thất bại. Vui lòng thử lại.')
+    } else {
+      ElMessage.info('Đã hủy thao tác xóa.')
     }
   }
 }
 
+// Fetch employees when the component is mounted
 onMounted(fetchEmployees)
 </script>
 

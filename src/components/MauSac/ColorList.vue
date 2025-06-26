@@ -69,16 +69,16 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import axios from 'axios'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { Brush, Edit, CirclePlus, RefreshRight } from '@element-plus/icons-vue'
+import { ref, onMounted } from 'vue';
+import apiClient from '@/utils/axiosInstance'; // Import the configured axios instance
+import { ElMessage, ElMessageBox } from 'element-plus';
+import { Brush, Edit, CirclePlus, RefreshRight } from '@element-plus/icons-vue';
 
-const colors = ref([])
-const form = ref({ id: null, colorName: '' })
-const isEditing = ref(false)
-const formRef = ref()
-const loading = ref(false)
+const colors = ref([]);
+const form = ref({ id: null, colorName: '' });
+const isEditing = ref(false);
+const formRef = ref();
+const loading = ref(false);
 
 const rules = {
   colorName: [
@@ -87,90 +87,124 @@ const rules = {
     { max: 50, message: 'Tên màu tối đa 50 ký tự', trigger: 'blur' },
     {
       validator: (_, value, callback) => {
-        const pattern = /^[\p{L}\d\s]+$/u
+        const pattern = /^[\p{L}\d\s]+$/u;
         if (!pattern.test(value)) {
-          callback(new Error('Tên màu không chứa ký tự đặc biệt'))
+          callback(new Error('Tên màu không chứa ký tự đặc biệt'));
         } else {
-          callback()
+          callback();
         }
       },
-      trigger: 'blur'
-    }
-  ]
-}
+      trigger: 'blur',
+    },
+  ],
+};
 
+/**
+ * Fetches the list of colors from the backend.
+ */
 const fetchColors = async () => {
   try {
-    const res = await axios.get('http://localhost:8080/api/admin/color/hien-thi')
-    colors.value = res.data
+    loading.value = true;
+    // GET request from apiClient
+    const res = await apiClient.get('/admin/color/hien-thi');
+    colors.value = res.data;
   } catch (err) {
-    ElMessage.error('Không thể tải danh sách màu')
+    console.error("Failed to fetch colors:", err);
+    ElMessage.error('Không thể tải danh sách màu');
+  } finally {
+    loading.value = false;
   }
-}
+};
 
+/**
+ * Resets the form to its initial state and clears validation errors.
+ */
 const resetForm = () => {
-  form.value = { id: null, colorName: '' }
-  isEditing.value = false
-  formRef.value?.resetFields()
-}
+  form.value = { id: null, colorName: '' };
+  isEditing.value = false;
+  formRef.value?.resetFields();
+};
 
+/**
+ * Handles form submission for both adding and updating colors.
+ */
 const handleSubmit = () => {
   formRef.value.validate(async (valid) => {
-    if (!valid) return
+    if (!valid) return;
 
-    const nameTrimmed = form.value.colorName.trim().toLowerCase()
+    const nameTrimmed = form.value.colorName.trim().toLowerCase();
     const existed = colors.value.some(
       (c) => c.colorName.trim().toLowerCase() === nameTrimmed && c.id !== form.value.id
-    )
+    );
+
     if (existed) {
-      ElMessage.warning('Tên màu đã tồn tại')
-      return
+      ElMessage.warning('Tên màu đã tồn tại');
+      return;
     }
 
-    loading.value = true
+    loading.value = true;
     try {
       if (isEditing.value) {
-        await axios.put(`http://localhost:8080/api/admin/color/${form.value.id}`, null, {
-          params: { colorName: form.value.colorName }
-        })
-        ElMessage.success('Cập nhật thành công')
+        // Update existing color: Send 'name' as a query parameter
+        await apiClient.put(`/admin/color/${form.value.id}`, null, {
+          params: { name: form.value.colorName } // Changed colorName to name
+        });
+        ElMessage.success('Cập nhật thành công');
       } else {
-        await axios.post('http://localhost:8080/api/admin/color', null, {
-          params: { colorName: form.value.colorName }
-        })
-        ElMessage.success('Thêm mới thành công')
+        // Add new color: Send 'name' as a query parameter
+        await apiClient.post('/admin/color', null, {
+          params: { name: form.value.colorName } // Changed colorName to name
+        });
+        ElMessage.success('Thêm mới thành công');
       }
-      await fetchColors()
-      resetForm()
+      await fetchColors();
+      resetForm();
     } catch (err) {
-      ElMessage.error('Lỗi khi lưu dữ liệu')
+      console.error("Error saving color:", err);
+      ElMessage.error('Lỗi khi lưu dữ liệu');
     } finally {
-      loading.value = false
+      loading.value = false;
     }
-  })
-}
+  });
+};
 
+/**
+ * Sets the form to edit mode with the selected color's data.
+ * @param {object} color - The color object to be edited.
+ */
 const editColor = (color) => {
-  form.value = { ...color }
-  isEditing.value = true
-}
+  form.value = { ...color };
+  isEditing.value = true;
+};
 
+/**
+ * Deletes a color after user confirmation.
+ * @param {number} id - The ID of the color to delete.
+ */
 const deleteColor = async (id) => {
   try {
     await ElMessageBox.confirm('Bạn có chắc muốn xóa màu này?', 'Xác nhận', {
-      type: 'warning'
-    })
-    await axios.delete(`http://localhost:8080/api/admin/color/${id}`)
-    ElMessage.success('Xóa thành công')
-    await fetchColors()
+      type: 'warning',
+    });
+    loading.value = true;
+    // DELETE request from apiClient
+    await apiClient.delete(`/admin/color/${id}`);
+    ElMessage.success('Xóa thành công');
+    await fetchColors();
   } catch (err) {
-    ElMessage.error('Không thể xóa')
+    if (err !== 'cancel') {
+      console.error("Failed to delete color:", err);
+      ElMessage.error('Không thể xóa');
+    }
+  } finally {
+    loading.value = false;
   }
-}
+};
 
+// Fetch colors when the component is mounted
 onMounted(() => {
-  fetchColors()
-})
+  fetchColors();
+});
 </script>
 
 <style scoped>

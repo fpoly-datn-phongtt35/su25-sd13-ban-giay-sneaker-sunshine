@@ -59,8 +59,11 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import axios from 'axios'
+// Import your pre-configured API client
+import apiClient from '@/utils/axiosInstance' 
 import { ElMessage, ElMessageBox } from 'element-plus'
+// Import relevant icons for the UI
+import { Plus, Edit, Delete, RefreshRight, CirclePlus, HomeFilled } from '@element-plus/icons-vue'
 
 const suppliers = ref([])
 const form = ref({
@@ -74,8 +77,9 @@ const form = ref({
 })
 const isEditing = ref(false)
 const formRef = ref(null)
+const loading = ref(false) // Added loading state for API calls
 
-// Validation rules tương ứng với DTO
+// Validation rules corresponding to DTO
 const rules = {
   supplierName: [
     { required: true, message: 'Tên nhà cung cấp là bắt buộc', trigger: 'blur' },
@@ -103,40 +107,74 @@ const rules = {
   ],
 }
 
+// Function to fetch the list of suppliers
 const fetchSuppliers = async () => {
+  loading.value = true // Set loading state
   try {
-    const res = await axios.get('http://localhost:8080/api/admin/supplier/hien-thi')
+    // Use apiClient for the GET request
+    const res = await apiClient.get('/admin/supplier/hien-thi')
     suppliers.value = res.data
+    ElMessage.success('Tải danh sách nhà cung cấp thành công.')
   } catch (error) {
-    ElMessage.error('Lỗi khi tải danh sách nhà cung cấp')
+    console.error('Lỗi khi tải danh sách nhà cung cấp:', error)
+    ElMessage.error('Lỗi khi tải danh sách nhà cung cấp.')
+    suppliers.value = [] // Clear data on error
+  } finally {
+    loading.value = false // Reset loading state
   }
 }
 
+// Function to handle form submission (add or update)
 const handleSubmit = () => {
   formRef.value.validate(async (valid) => {
-    if (!valid) return
+    if (!valid) {
+      ElMessage.error('Vui lòng kiểm tra lại thông tin form.');
+      return;
+    }
 
+    loading.value = true // Set loading state for submission
     try {
       if (isEditing.value) {
-        await axios.put(`http://localhost:8080/api/admin/supplier/${form.value.id}`, form.value)
+        // Use apiClient for the PUT request
+        await apiClient.put(`/admin/supplier/${form.value.id}`, form.value)
         ElMessage.success('Cập nhật thành công')
       } else {
-        await axios.post('http://localhost:8080/api/admin/supplier', form.value)
+        // Confirmation for adding new supplier
+        await ElMessageBox.confirm('Bạn có chắc chắn muốn thêm mới nhà cung cấp?', 'Xác nhận', {
+          confirmButtonText: 'Thêm',
+          cancelButtonText: 'Hủy',
+          type: 'info',
+        });
+        // Use apiClient for the POST request
+        await apiClient.post('/admin/supplier', form.value)
         ElMessage.success('Thêm mới thành công')
       }
-      await fetchSuppliers()
-      resetForm()
+      await fetchSuppliers() // Refresh the list
+      resetForm() // Reset the form
     } catch (error) {
-      ElMessage.error('Có lỗi xảy ra!')
+      console.error('Lỗi khi lưu dữ liệu nhà cung cấp:', error)
+      // Handle user cancellation or API errors
+      if (error === 'cancel' || error === 'close') {
+        ElMessage.info('Đã hủy thao tác.');
+      } else if (error.response && error.response.data && error.response.data.message) {
+        ElMessage.error(`Lỗi: ${error.response.data.message}`);
+      } else {
+        ElMessage.error('Có lỗi xảy ra khi lưu dữ liệu!');
+      }
+    } finally {
+      loading.value = false // Reset loading state
     }
   })
 }
 
+// Function to populate the form for editing
 const editSupplier = (supplier) => {
   form.value = { ...supplier }
   isEditing.value = true
+  ElMessage.info(`Đang chỉnh sửa: ${supplier.supplierName}`);
 }
 
+// Function to reset the form to its initial empty state
 const resetForm = () => {
   form.value = {
     id: null,
@@ -148,25 +186,40 @@ const resetForm = () => {
     houseName: '',
   }
   isEditing.value = false
-  formRef.value?.clearValidate()
+  formRef.value?.clearValidate() // Clear validation messages
+  ElMessage.info('Form đã được đặt lại.');
 }
 
-const confirmDelete = (id) => {
-  ElMessageBox.confirm('Bạn có chắc chắn muốn xóa nhà cung cấp này?', 'Cảnh báo', {
-    confirmButtonText: 'Xóa',
-    cancelButtonText: 'Hủy',
-    type: 'warning',
-  }).then(async () => {
-    try {
-      await axios.delete(`http://localhost:8080/api/admin/supplier/${id}`)
-      ElMessage.success('Xóa thành công')
-      await fetchSuppliers()
-    } catch (error) {
-      ElMessage.error('Lỗi khi xóa nhà cung cấp')
+// Function to confirm and delete a supplier
+const confirmDelete = async (id) => {
+  try {
+    await ElMessageBox.confirm('Bạn có chắc chắn muốn xóa nhà cung cấp này?', 'Cảnh báo', {
+      confirmButtonText: 'Xóa',
+      cancelButtonText: 'Hủy',
+      type: 'warning',
+    });
+    // Use apiClient for the DELETE request
+    await apiClient.delete(`/admin/supplier/${id}`)
+    ElMessage.success('Xóa thành công')
+    await fetchSuppliers() // Refresh the list
+    // If the deleted item was the one being edited, reset the form
+    if (form.value.id === id) {
+      resetForm();
     }
-  }).catch(() => {})
+  } catch (error) {
+    console.error('Lỗi khi xóa nhà cung cấp:', error)
+    // Handle user cancellation or API errors
+    if (error === 'cancel' || error === 'close') {
+      ElMessage.info('Đã hủy thao tác xóa.');
+    } else if (error.response && error.response.data && error.response.data.message) {
+      ElMessage.error(`Lỗi khi xóa: ${error.response.data.message}`);
+    } else {
+      ElMessage.error('Lỗi khi xóa nhà cung cấp.');
+    }
+  }
 }
 
+// Fetch suppliers when the component is mounted
 onMounted(fetchSuppliers)
 </script>
 

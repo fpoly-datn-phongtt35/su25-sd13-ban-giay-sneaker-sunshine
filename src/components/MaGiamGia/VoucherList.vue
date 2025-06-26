@@ -166,7 +166,8 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import axios from 'axios'
+// Import your pre-configured API client
+import apiClient from '@/utils/axiosInstance' 
 import { ElMessageBox, ElButton, ElIcon, ElMessage } from 'element-plus'
 import { Ticket, Edit, Delete, Plus } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
@@ -212,7 +213,8 @@ const resetForm = async () => {
 // Lấy danh mục
 const fetchCategories = async () => {
   try {
-    const response = await axios.get('http://localhost:8080/api/admin/categories/hien-thi')
+    // Use apiClient for the GET request
+    const response = await apiClient.get('/admin/categories/hien-thi')
     categoryList.value = response.data || []
   } catch (error) {
     console.error('Lỗi lấy danh mục:', error)
@@ -249,7 +251,8 @@ const fetchVoucher = async (newPage = 0) => {
       ? {}
       : searchParams
 
-    const response = await axios.post('http://localhost:8080/api/admin/vouchers/search', requestBody)
+    // Use apiClient for the POST request
+    const response = await apiClient.post('/admin/vouchers/search', requestBody)
     vouchers.value = response.data.data || []
     totalPages.value = response.data.pagination?.totalPages || 0
     totalElements.value = response.data.pagination?.totalElements || 0
@@ -270,7 +273,7 @@ const fetchVoucher = async (newPage = 0) => {
     vouchers.value = []
     totalPages.value = 0
     totalElements.value = 0
-    hasGonext.value = false
+    hasNext.value = false // Fixed typo: hasGonext.value -> hasNext.value
     hasPrevious.value = false
   }
 }
@@ -292,7 +295,8 @@ const exportExcel = async () => {
   }
 
   try {
-    const response = await axios.post('http://localhost:8080/api/vouchers/vcollect', {
+    // Use apiClient for the POST request
+    const response = await apiClient.post('/vouchers/vcollect', { // Changed to apiClient
       voucherIds: selectedVouchers.value
     }, {
       responseType: 'blob' // Expect binary data (Excel file)
@@ -375,7 +379,8 @@ const onDeleteVoucher = (row) => {
   })
     .then(async () => {
       try {
-        await axios.delete(`http://localhost:8080/api/admin/vouchers/${row.id}`)
+        // Use apiClient for the DELETE request
+        await apiClient.delete(`/admin/vouchers/${row.id}`)
         ElMessage.success('Xóa voucher thành công!')
         await fetchVoucher(page.value)
       } catch (error) {

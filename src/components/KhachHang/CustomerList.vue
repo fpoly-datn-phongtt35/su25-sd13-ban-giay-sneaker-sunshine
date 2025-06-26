@@ -100,7 +100,8 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import axios from 'axios';
+// Import the pre-configured apiClient instance
+import apiClient from '@/utils/axiosInstance'; 
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Plus, Edit, Delete, Search, Refresh } from '@element-plus/icons-vue';
@@ -119,30 +120,23 @@ const searchKeyword = ref(''); // Search keyword
 const fetchCustomers = async () => {
   loading.value = true;
   try {
-    const res = await axios.get(`http://localhost:8080/api/admin/customers/phan-trang`, {
+    const res = await apiClient.get(`/admin/customers/phan-trang`, {
       params: {
-        page: currentPage.value - 1, // Convert to 0-indexed for API
+        page: currentPage.value - 1,
         size: size.value,
-        keyword: searchKeyword.value.trim() !== '' ? searchKeyword.value.trim() : null
-      }
+        keyword: searchKeyword.value.trim() !== '' ? searchKeyword.value.trim() : null,
+      },
     });
 
-    // Log response for debugging
     console.log('API Response:', res.data);
 
-    // Safely access content and totalElements with fallbacks
     customers.value = res.data?.content || [];
     totalElements.value = res.data?.page?.totalElements ?? 0;
 
-    console.log('Customers:', customers.value);
-    console.log('Total Elements:', totalElements.value);
-    console.log('Current Page:', currentPage.value);
-
-    // Handle edge case: if no data on current page but data exists
     if (customers.value.length === 0 && currentPage.value > 1 && totalElements.value > 0) {
       console.log('No data on current page, adjusting to last valid page');
       currentPage.value = Math.max(1, Math.ceil(totalElements.value / size.value));
-      await fetchCustomers(); // Fetch the last valid page
+      await fetchCustomers();
     } else if (totalElements.value === 0) {
       console.log('No data available, resetting to page 1');
       currentPage.value = 1;
@@ -150,7 +144,13 @@ const fetchCustomers = async () => {
 
   } catch (err) {
     console.error('Lỗi tải danh sách khách hàng:', err);
-    console.error('Error details:', err.response?.data || err.message);
+
+    // 👉 Nếu lỗi là 403 thì chuyển hướng
+    if (err.response && err.response.status === 403) {
+      router.push('/error');
+      return;
+    }
+
     ElMessage.error('Không thể tải dữ liệu khách hàng. Vui lòng thử lại sau.');
     customers.value = [];
     totalElements.value = 0;
@@ -232,7 +232,8 @@ const confirmDeleteCustomer = async (id) => {
 
 const deleteCustomer = async (id) => {
   try {
-    await axios.delete(`http://localhost:8080/api/admin/customers/${id}`);
+    // Use apiClient instead of axios directly
+    await apiClient.delete(`/admin/customers/${id}`);
     ElMessage.success('Xóa khách hàng thành công!');
     if (customers.value.length === 1 && currentPage.value > 1) {
       currentPage.value--;

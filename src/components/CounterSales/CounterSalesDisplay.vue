@@ -159,37 +159,56 @@
             <el-empty v-else description="Chưa có thông tin hóa đơn." />
           </el-card>
 
-          <el-card shadow="never">
-            <template #header>
-              <span>Voucher khuyến mãi</span>
-            </template>
-            <div v-loading="voucherLoading">
-              <div v-if="voucherError" class="alert alert-danger p-2 small">{{ voucherError }}</div>
-              <div v-else-if="vouchers.length > 0">
-                <el-scrollbar max-height="150px">
-                  <div
-                    v-for="voucher in vouchers"
-                    :key="voucher.id"
-                    class="d-flex justify-content-between align-items-center p-2 border-bottom"
-                  >
-                    <span>Mã: <strong>{{ voucher.voucherCode }}</strong></span>
-                    <el-button
-                      @click="applyVoucher(voucher.voucherCode)"
-                      :loading="applyLoading && applyingVoucherCode === voucher.voucherCode"
-                      :disabled="applyLoading || appliedVoucher?.voucherCode === voucher.voucherCode"
-                      :type="appliedVoucher?.voucherCode === voucher.voucherCode ? 'success' : 'primary'"
-                      size="small"
-                      round
-                    >
-                      <el-icon v-if="appliedVoucher?.voucherCode === voucher.voucherCode" class="me-1"><Select /></el-icon>
-                      {{ appliedVoucher?.voucherCode === voucher.voucherCode ? 'Đã áp dụng' : 'Áp dụng' }}
-                    </el-button>
-                  </div>
-                </el-scrollbar>
-              </div>
-              <el-empty v-else description="Không có voucher phù hợp." :image-size="60" />
-            </div>
-          </el-card>
+<el-card shadow="never">
+  <template #header>
+    <span>Voucher khuyến mãi</span>
+  </template>
+
+  <div v-loading="voucherLoading">
+    <div v-if="voucherError" class="alert alert-danger p-2 small">{{ voucherError }}</div>
+
+    <div v-else-if="vouchers.length > 0">
+      <el-scrollbar max-height="150px">
+        <div
+          v-for="voucher in vouchers"
+          :key="voucher.id"
+          class="d-flex justify-between align-items-center p-2 border-bottom"
+        >
+          <span>Mã: <strong>{{ voucher.voucherCode }}</strong></span>
+
+          <!-- BỎ CHỌN -->
+          <el-button
+            v-if="appliedVoucher?.voucherCode === voucher.voucherCode"
+            @click="removeVoucher"
+            :loading="removeLoading"
+            type="danger"
+            size="small"
+            round
+          >
+            Bỏ chọn
+          </el-button>
+
+          <!-- ÁP DỤNG -->
+          <el-button
+            v-else
+            @click="applyVoucher(voucher.voucherCode)"
+            :loading="applyLoading && applyingVoucherCode === voucher.voucherCode"
+            :disabled="applyLoading"
+            type="primary"
+            size="small"
+            round
+          >
+            Áp dụng
+          </el-button>
+        </div>
+      </el-scrollbar>
+    </div>
+
+    <el-empty v-else description="Không có voucher phù hợp." :image-size="60" />
+  </div>
+</el-card>
+
+
           
           <div class="d-grid gap-2">
              <el-button type="primary" size="large" @click="checkoutInvoice" :loading="isLoading" :disabled="!invoiceDetails?.details?.length">
@@ -311,6 +330,7 @@ const vouchers = ref([]);
 const applyLoading = ref(false);
 const applyError = ref(''); // Not directly shown, but used for logic
 const applyingVoucherCode = ref(null); // To show loading on specific button
+const removeLoading = ref(false); // <- THÊM DÒNG NÀY
 
 // Action State
 const isLoading = ref(false);
@@ -345,10 +365,13 @@ const debounce = (fn, delay) => {
 // API Calls & Logic - Tất cả đều đã được đổi sang apiClient
 const fetchInvoiceDetails = async (id) => {
   try {
-    const { data } = await apiClient.get(`/admin/counter-sales/${id}/details`); // THAY ĐỔI
+    const { data } = await apiClient.get(`/admin/counter-sales/${id}/details`);
     invoiceDetails.value = data;
-    if (data.invoice?.voucherCode) {
-        appliedVoucher.value = { voucherCode: data.invoice.voucherCode };
+
+    if (data.invoice?.voucher) {
+      appliedVoucher.value = data.invoice.voucher;
+    } else {
+      appliedVoucher.value = null;
     }
   } catch (e) {
     ElMessage.error('Lỗi khi tải chi tiết hóa đơn.');
@@ -366,7 +389,7 @@ const pagination = ref({
 const fetchProducts = async (page = 1) => {
   productLoading.value = true;
   try {
-    const response = await apiClient.post('/admin/products/search', { // THAY ĐỔI
+    const response = await apiClient.post('/admin/products/search', { 
       keyword: searchTerm.value.trim(),
       page: page - 1,
       size: pagination.value.pageSize,
@@ -535,46 +558,56 @@ const checkoutInvoice = async () => {
     ElMessage.error('Giỏ hàng trống, không thể thanh toán!');
     return;
   }
+
   if (customerPaid.value < invoiceDetails.value.invoice.finalAmount) {
-      ElMessage.error('Số tiền khách đưa chưa đủ để thanh toán.');
-      return;
+    ElMessage.error('Số tiền khách đưa chưa đủ để thanh toán.');
+    return;
   }
 
   isLoading.value = true;
   try {
-    await apiClient.post(`/admin/counter-sales/${invoiceId}/checkout`); // THAY ĐỔI
-    
-    await ElMessageBox.confirm('Thanh toán thành công! Bạn có muốn in hóa đơn PDF không?', 'Thành công', {
-      confirmButtonText: 'Có, In hóa đơn',
-      cancelButtonText: 'Không, về danh sách',
-      type: 'success',
-    });
+    // 1. Gọi API thanh toán
+    await apiClient.post(`/admin/counter-sales/${invoiceId}/checkout`);
 
-    // User chose to print
-    const exportResponse = await apiClient.get( // THAY ĐỔI
-      `/admin/invoices/${invoiceId}/export-id`,
-      { responseType: 'blob' }
-    );
-    const blob = new Blob([exportResponse.data], { type: 'application/pdf' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `HoaDon-${invoiceId}.pdf`;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    a.remove();
-    
-  } catch (err) {
-    if (err !== 'cancel' && err !== 'close') {
-      const message = err.response?.data || 'Có lỗi xảy ra khi thanh toán.';
-      ElMessage.error(message);
+    // 2. Xác nhận in hóa đơn
+    const confirmed = await ElMessageBox.confirm(
+      'Thanh toán thành công! Bạn có muốn in hóa đơn PDF không?',
+      'Thành công',
+      {
+        confirmButtonText: 'Có, In hóa đơn',
+        cancelButtonText: 'Không',
+        type: 'success',
+      }
+    ).then(() => true).catch(() => false);
+
+    // 3. In hóa đơn nếu người dùng đồng ý
+    if (confirmed) {
+      const res = await apiClient.get(`/admin/invoices/${invoiceId}/export-id`, {
+        responseType: 'blob',
+      });
+
+      const blob = new Blob([res.data], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `HoaDon-${invoiceId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      URL.revokeObjectURL(url);
+      a.remove();
     }
+
+    // 4. Chuyển trang sau cùng
+    router.push('/sales-counter/list');
+  } catch (err) {
+    console.error('Lỗi khi thanh toán:', err);
+    const message = err?.response?.data?.message || err?.message || 'Có lỗi xảy ra khi thanh toán.';
+    ElMessage.error(message);
   } finally {
     isLoading.value = false;
-    router.push('/sales-counter/list');
   }
 };
+
 
 const cancelInvoice = async () => {
   try {
@@ -632,6 +665,23 @@ const applyVoucher = async (voucherCode) => {
   }
 };
 
+const removeVoucher = async () => {
+  try {
+    removeLoading.value = true;
+
+    await apiClient.put(`/admin/counter-sales/${invoiceId}/remove-voucher`);
+
+    appliedVoucher.value = null; // Xóa voucher đã chọn
+    await fetchInvoiceDetails(invoiceId); // Cập nhật chi tiết hóa đơn
+
+    ElMessage.success('Đã bỏ áp dụng voucher.');
+  } catch (error) {
+    const message = error.response?.data || 'Lỗi khi bỏ voucher.';
+    ElMessage.error(message);
+  } finally {
+    removeLoading.value = false;
+  }
+};
 
 // --- Lifecycle & Watchers ---
 onMounted(() => {

@@ -241,7 +241,7 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import axios from 'axios'
+import apiClient from '@/utils/axiosInstance' // Import the configured axios instance
 
 const route = useRoute()
 const router = useRouter()
@@ -363,7 +363,8 @@ const customers = ref([])
 
 const fetchVoucher = async () => {
   try {
-    const res = await axios.get(`http://localhost:8080/api/admin/vouchers/${voucherId}`)
+    // Use apiClient
+    const res = await apiClient.get(`/admin/vouchers/${voucherId}`)
     Object.assign(voucher, res.data)
     Object.assign(originalVoucher.value, res.data) // Store original data
     if (res.data.startDate) {
@@ -385,7 +386,8 @@ const fetchVoucher = async () => {
 
 const filterProducts = async (query) => {
   try {
-    const res = await axios.get('http://localhost:8080/api/admin/products/hien-thi', {
+    // Use apiClient
+    const res = await apiClient.get('/admin/products/hien-thi', {
       params: { search: query },
     })
     products.value = res.data
@@ -397,7 +399,8 @@ const filterProducts = async (query) => {
 
 const filterCategories = async (query) => {
   try {
-    const res = await axios.get('http://localhost:8080/api/admin/categories/hien-thi', {
+    // Use apiClient
+    const res = await apiClient.get('/admin/categories/hien-thi', {
       params: { search: query },
     })
     categories.value = res.data
@@ -409,7 +412,8 @@ const filterCategories = async (query) => {
 
 const filterCustomers = async (query) => {
   try {
-    const res = await axios.get('http://localhost:8080/api/admin/customers', {
+    // Use apiClient
+    const res = await apiClient.get('/admin/customers', {
       params: { search: query },
     })
     customers.value = res.data
@@ -431,7 +435,8 @@ const updateStatus = () => {
 
 const fetchProducts = async () => {
   try {
-    const res = await axios.get('http://localhost:8080/api/admin/products/hien-thi')
+    // Use apiClient
+    const res = await apiClient.get('/admin/products/hien-thi')
     products.value = res.data
   } catch (error) {
     console.error('Lỗi khi lấy danh sách sản phẩm:', error)
@@ -441,7 +446,8 @@ const fetchProducts = async () => {
 
 const fetchCategories = async () => {
   try {
-    const res = await axios.get('http://localhost:8080/api/admin/categories/hien-thi')
+    // Use apiClient
+    const res = await apiClient.get('/admin/categories/hien-thi')
     categories.value = res.data
   } catch (error) {
     console.error('Lỗi khi lấy danh sách danh mục:', error)
@@ -451,7 +457,8 @@ const fetchCategories = async () => {
 
 const fetchCustomers = async () => {
   try {
-    const res = await axios.get('http://localhost:8080/api/admin/customers')
+    // Use apiClient
+    const res = await apiClient.get('/admin/customers')
     customers.value = res.data
   } catch (error) {
     console.error('Lỗi khi lấy danh sách khách hàng:', error)
@@ -466,7 +473,9 @@ const formatDateForBackend = (date) => {
     console.warn('Invalid date:', date)
     return null
   }
-  return d.toISOString().replace('T', ' ').slice(0, 19) // ISO format to 'YYYY-MM-DD HH:mm:ss'
+  // Ensure the time is included if needed by backend, otherwise just date part.
+  // The backend seems to expect 'YYYY-MM-DD HH:mm:ss'
+  return d.toISOString().replace('T', ' ').slice(0, 19)
 }
 
 const clearDiscountAmount = () => {
@@ -512,13 +521,15 @@ const updateVoucher = async () => {
       ...voucher,
       startDate: formatDateForBackend(voucher.startDate),
       endDate: formatDateForBackend(voucher.endDate),
+      // Ensure only one of discountPercentage or discountAmount is sent
       discountPercentage: voucher.discountAmount > 0 ? null : voucher.discountPercentage,
       discountAmount: voucher.discountPercentage > 0 ? null : voucher.discountAmount,
       minOrderValue: voucher.minOrderValue === 0 || voucher.minOrderValue === '' ? null : voucher.minOrderValue,
       maxDiscountValue: voucher.maxDiscountValue === 0 || voucher.maxDiscountValue === '' ? null : voucher.maxDiscountValue,
     }
 
-    const res = await axios.put(`http://localhost:8080/api/admin/vouchers/update/${voucherId}`, payload)
+    // Use apiClient
+    const res = await apiClient.put(`/admin/vouchers/update/${voucherId}`, payload)
 
     if (res.status !== 200) {
       throw new Error(res.data.message || 'Cập nhật voucher thất bại')
@@ -554,6 +565,8 @@ const goBack = () => {
 }
 
 const onVoucherTypeChange = () => {
+  // Assuming voucherType 0 means private (for specific customer)
+  // And other values mean public (no specific customer)
   if (voucher.voucherType !== 0) {
     voucher.customerId = null
     if (voucherForm.value) {

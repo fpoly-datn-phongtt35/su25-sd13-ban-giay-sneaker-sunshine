@@ -136,17 +136,18 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import axios from 'axios';
+import axios from 'axios'; // Keep axios for external GHN API calls
+import apiClient from '@/utils/axiosInstance'; // Import your pre-configured API client
 import { ElMessage } from 'element-plus';
 import { useRouter } from 'vue-router';
-// Import các icon từ Element Plus Icons Vue
+// Import icons from Element Plus Icons Vue
 import { ArrowLeft, User, UserFilled, Lock, Phone, Message, Calendar, HomeFilled, CirclePlus } from '@element-plus/icons-vue';
 
 const router = useRouter();
-const customerFormRef = ref(null); // Thêm ref cho form
+const customerFormRef = ref(null); // Add ref for the form
 
 const goBack = () => {
-  router.push({ name: 'CustomerList' }); // Đảm bảo 'CustomerList' là tên route đúng của trang danh sách khách hàng
+  router.push({ name: 'CustomerList' }); // Ensure 'CustomerList' is the correct route name for your customer list page
 };
 
 const form = ref({
@@ -155,10 +156,10 @@ const form = ref({
   password: '',
   phone: '',
   dateOfBirth: null,
-  country: 'Việt Nam', // Mặc định là Việt Nam
+  country: 'Việt Nam', // Default to Vietnam
   email: '',
-  gender: 1, // Mặc định là Nam
-  provinceCode: null, // Thay đổi thành null để giữ placeholder
+  gender: 1, // Default to Male (assuming 1 for male, 0 for female or other)
+  provinceCode: null, // Changed to null to keep placeholder
   provinceName: '',
   districtCode: null,
   districtName: '',
@@ -171,11 +172,12 @@ const provinces = ref([]);
 const districts = ref([]);
 const wards = ref([]);
 
-const GHN_TOKEN = '847c9bb7-6e42-11ee-a59f-a260851ba65c'; // Token GHN của bạn
+const GHN_TOKEN = '847c9bb7-6e42-11ee-a59f-a260851ba65c'; // Your GHN Token
 
-// Hàm lấy danh sách tỉnh/thành phố
+// Function to load provinces/cities from GHN
 const loadProvinces = async () => {
   try {
+    // Use direct axios for GHN API, as apiClient has a specific baseURL
     const res = await axios.post(
       'https://online-gateway.ghn.vn/shiip/public-api/master-data/province',
       {},
@@ -188,9 +190,9 @@ const loadProvinces = async () => {
   }
 };
 
-// Hàm lấy danh sách quận/huyện
+// Function to load districts/counties from GHN
 const loadDistricts = async () => {
-  // Reset giá trị quận/huyện và phường/xã khi tỉnh/thành phố thay đổi
+  // Reset district and ward values when province changes
   form.value.districtCode = null;
   form.value.districtName = '';
   form.value.wardCode = null;
@@ -198,9 +200,10 @@ const loadDistricts = async () => {
   districts.value = [];
   wards.value = [];
 
-  if (!form.value.provinceCode) return; // Không tải nếu chưa chọn tỉnh
+  if (!form.value.provinceCode) return; // Do not load if no province is selected
 
   try {
+    // Use direct axios for GHN API
     const res = await axios.get(
       'https://online-gateway.ghn.vn/shiip/public-api/master-data/district',
       {
@@ -215,16 +218,17 @@ const loadDistricts = async () => {
   }
 };
 
-// Hàm lấy danh sách phường/xã
+// Function to load wards/communes from GHN
 const loadWards = async () => {
-  // Reset giá trị phường/xã khi quận/huyện thay đổi
+  // Reset ward values when district changes
   form.value.wardCode = null;
   form.value.wardName = '';
   wards.value = [];
 
-  if (!form.value.districtCode) return; // Không tải nếu chưa chọn quận
+  if (!form.value.districtCode) return; // Do not load if no district is selected
 
   try {
+    // Use direct axios for GHN API
     const res = await axios.get(
       'https://online-gateway.ghn.vn/shiip/public-api/master-data/ward',
       {
@@ -239,34 +243,33 @@ const loadWards = async () => {
   }
 };
 
-// Xử lý khi chọn tỉnh/thành phố
+// Handle province selection change
 const handleProvinceChange = () => {
   const selected = provinces.value.find(p => p.ProvinceID === form.value.provinceCode);
   form.value.provinceName = selected?.ProvinceName || '';
   loadDistricts();
 };
 
-// Xử lý khi chọn quận/huyện
+// Handle district selection change
 const handleDistrictChange = () => {
   const selected = districts.value.find(d => d.DistrictID === form.value.districtCode);
   form.value.districtName = selected?.DistrictName || '';
   loadWards();
 };
 
-// Xử lý khi chọn phường/xã
+// Handle ward selection change
 const handleWardChange = () => {
   const selected = wards.value.find(w => w.WardCode === form.value.wardCode);
   form.value.wardName = selected?.WardName || '';
 };
 
-// Gửi form
+// Submit form
 const submitForm = async () => {
   try {
     // Validate the form first
     await customerFormRef.value.validate();
 
-    // Định dạng lại dateOfBirth trước khi gửi
-    // Nếu dateOfBirth là một đối tượng Date, chuyển nó thành chuỗi 'YYYY-MM-DD'
+    // Format dateOfBirth before sending
     let formattedDateOfBirth = null;
     if (form.value.dateOfBirth instanceof Date) {
       const year = form.value.dateOfBirth.getFullYear();
@@ -274,19 +277,18 @@ const submitForm = async () => {
       const day = String(form.value.dateOfBirth.getDate()).padStart(2, '0');
       formattedDateOfBirth = `${year}-${month}-${day}`;
     } else if (typeof form.value.dateOfBirth === 'string' && form.value.dateOfBirth) {
-        // If it's already a string and not empty, assume it's correctly formatted
-        formattedDateOfBirth = form.value.dateOfBirth;
+      // If it's already a string and not empty, assume it's correctly formatted
+      formattedDateOfBirth = form.value.dateOfBirth;
     }
 
-
-    // Đảm bảo các trường địa chỉ được gửi đúng theo cấu trúc của API
+    // Ensure address fields are sent correctly according to API structure
     const customerData = {
       customerName: form.value.customerName,
       username: form.value.username,
       password: form.value.password,
       phone: form.value.phone,
       email: form.value.email,
-      dateOfBirth: formattedDateOfBirth, // Sử dụng giá trị đã định dạng
+      dateOfBirth: formattedDateOfBirth, // Use the formatted value
       gender: form.value.gender,
       provinceCode: form.value.provinceCode || null,
       provinceName: form.value.provinceName || '',
@@ -298,28 +300,28 @@ const submitForm = async () => {
       country: form.value.country || 'Việt Nam',
     };
 
- console.log("Dữ liệu gửi đi:", customerData);
+    console.log("Dữ liệu gửi đi:", customerData);
 
-    const res = await axios.post('http://localhost:8080/api/admin/customers', customerData);
+    // Use apiClient for your backend API calls
+    const res = await apiClient.post('/admin/customers', customerData);
     ElMessage.success('Thêm khách hàng thành công!');
     console.log('Khách hàng đã thêm:', res.data);
-    router.push({ name: 'CustomerList' }); // Điều hướng về danh sách khách hàng
+    router.push({ name: 'CustomerList' }); // Redirect to customer list page
   } catch (error) {
     console.error('Lỗi khi thêm khách hàng:', error);
     if (error.response && error.response.data && error.response.data.message) {
       ElMessage.error(`Lỗi: ${error.response.data.message}`);
-    } else if (error.name === 'ValidationError') { // Nếu bạn sử dụng validation của Element Plus
-        ElMessage.error('Vui lòng điền đầy đủ và đúng thông tin!');
-    }
-    else {
+    } else if (error.name === 'ValidationError') { // If you use Element Plus validation
+      ElMessage.error('Vui lòng điền đầy đủ và đúng thông tin!');
+    } else {
       ElMessage.error('Có lỗi xảy ra khi thêm khách hàng. Vui lòng kiểm tra lại thông tin.');
     }
   }
 };
 
-// Hàm reset form (tùy chọn, có thể gọi sau khi submit thành công)
+// Optional: Function to reset form (can be called after successful submission)
 const resetForm = () => {
-  customerFormRef.value.resetFields(); // Reset các trường và validation
+  customerFormRef.value.resetFields(); // Reset fields and validation
   form.value.provinceCode = null;
   form.value.provinceName = '';
   form.value.districtCode = null;
@@ -331,7 +333,7 @@ const resetForm = () => {
   wards.value = [];
 };
 
-// Thêm rules cho form để validate
+// Form validation rules
 const rules = ref({
   customerName: [{ required: true, message: 'Vui lòng nhập họ tên khách hàng', trigger: 'blur' }],
   username: [

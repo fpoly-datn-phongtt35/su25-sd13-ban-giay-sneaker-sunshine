@@ -29,6 +29,7 @@ import CustomerList from '@/components/KhachHang/CustomerList.vue'
 import AddCustomer from '@/components/KhachHang/AddCustomer.vue'
 import UpdateCustomer from '@/components/KhachHang/UpdateCustomer.vue'
 import StatisticsView from '@/components/ThongKe/StatisticsView.vue'
+import Error403 from '@/components/404-error-main/Error403.vue'
 
 const routes = [
   {
@@ -39,6 +40,12 @@ const routes = [
     path: '/login',
     name: 'Login',
     component: Login,
+  },
+
+   {
+    path: '/error',
+    name: 'Error403',
+    component: Error403,
   },
 
   // Các trang bên trong Dashboard - cần đăng nhập mới vào được

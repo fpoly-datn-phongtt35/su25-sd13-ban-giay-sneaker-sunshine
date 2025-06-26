@@ -273,7 +273,8 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import axios from 'axios';
+import axios from 'axios'; // Keep axios for external GHN API calls
+import apiClient from '@/utils/axiosInstance'; // Import your pre-configured API client
 import { ElMessage, ElMessageBox } from 'element-plus';
 import {
   ArrowLeft,
@@ -373,9 +374,10 @@ const disableFutureDates = (time) => {
   return time.getTime() > Date.now();
 };
 
+// Fetch customer details using apiClient
 const fetchCustomer = async () => {
   try {
-    const res = await axios.get(`http://localhost:8080/api/admin/customers/${customerId}`);
+    const res = await apiClient.get(`/admin/customers/${customerId}`);
     form.value = {
       ...res.data,
       dateOfBirth: res.data.dateOfBirth ? new Date(res.data.dateOfBirth) : null
@@ -386,10 +388,11 @@ const fetchCustomer = async () => {
   }
 };
 
+// Fetch customer addresses using apiClient
 const fetchAddresses = async () => {
   addressLoading.value = true;
   try {
-    const res = await axios.get(`http://localhost:8080/api/admin/customers/${customerId}/addresses`);
+    const res = await apiClient.get(`/admin/customers/${customerId}/addresses`);
     addresses.value = res.data || [];
   } catch (err) {
     console.error('Lỗi tải danh sách địa chỉ:', err);
@@ -400,11 +403,12 @@ const fetchAddresses = async () => {
   }
 };
 
+// Update customer details using apiClient
 const updateCustomer = async () => {
   try {
     await formRef.value.validate();
     submitting.value = true;
-    await axios.put(`http://localhost:8080/api/admin/customers/${customerId}`, {
+    await apiClient.put(`/admin/customers/${customerId}`, {
       ...form.value,
       dateOfBirth: form.value.dateOfBirth ? form.value.dateOfBirth.toISOString() : null
     });
@@ -448,12 +452,12 @@ const editAddress = async (address) => {
   addressForm.value = { ...address };
 
   // Set selected province and load districts
-  addressForm.value.provinceCode = address.provinceId;
+  addressForm.value.provinceCode = address.provinceId; // Assuming backend uses provinceId
   addressForm.value.provinceName = address.provinceName;
   await loadDistrictsForAddress(); // Load districts based on selected province
   
   // Set selected district and load wards
-  addressForm.value.districtCode = address.districtId;
+  addressForm.value.districtCode = address.districtId; // Assuming backend uses districtId
   addressForm.value.districtName = address.districtName;
   await loadWardsForAddress(); // Load wards based on selected district
 
@@ -463,7 +467,7 @@ const editAddress = async (address) => {
   addressFormVisible.value = true;
 };
 
-// Hàm lấy danh sách tỉnh/thành phố cho địa chỉ
+// Function to load provinces/cities for addresses using direct axios
 const loadProvincesForAddress = async () => {
   try {
     const res = await axios.post(
@@ -478,7 +482,7 @@ const loadProvincesForAddress = async () => {
   }
 };
 
-// Hàm lấy danh sách quận/huyện cho địa chỉ
+// Function to load districts/counties for addresses using direct axios
 const loadDistrictsForAddress = async () => {
   addressForm.value.districtCode = null;
   addressForm.value.districtName = '';
@@ -504,7 +508,7 @@ const loadDistrictsForAddress = async () => {
   }
 };
 
-// Hàm lấy danh sách phường/xã cho địa chỉ
+// Function to load wards/communes for addresses using direct axios
 const loadWardsForAddress = async () => {
   addressForm.value.wardCode = null;
   addressForm.value.wardName = '';
@@ -527,26 +531,27 @@ const loadWardsForAddress = async () => {
   }
 };
 
-// Xử lý khi chọn tỉnh/thành phố trong form địa chỉ
+// Handle province selection change in address form
 const handleProvinceChangeForAddress = () => {
   const selected = provinces.value.find(p => p.ProvinceID === addressForm.value.provinceCode);
   addressForm.value.provinceName = selected?.ProvinceName || '';
   loadDistrictsForAddress();
 };
 
-// Xử lý khi chọn quận/huyện trong form địa chỉ
+// Handle district selection change in address form
 const handleDistrictChangeForAddress = () => {
   const selected = districts.value.find(d => d.DistrictID === addressForm.value.districtCode);
   addressForm.value.districtName = selected?.DistrictName || '';
   loadWardsForAddress();
 };
 
-// Xử lý khi chọn phường/xã trong form địa chỉ
+// Handle ward selection change in address form
 const handleWardChangeForAddress = () => {
   const selected = wards.value.find(w => w.WardCode === addressForm.value.wardCode);
   addressForm.value.wardName = selected?.WardName || '';
 };
 
+// Save (add/update) address using apiClient
 const saveAddress = async () => {
   try {
     await addressFormRef.value.validate();
@@ -559,19 +564,19 @@ const saveAddress = async () => {
       districtName: addressForm.value.districtName,
       wardCode: addressForm.value.wardCode,
       wardName: addressForm.value.wardName,
-      houseName: addressForm.value.houseNumber,
+      houseName: addressForm.value.houseNumber, // Ensure this matches backend field name
       country: addressForm.value.country,
     };
 
     if (isEditingAddress.value) {
-      await axios.put(
-        `http://localhost:8080/api/admin/customers/${customerId}/addresses/${addressForm.value.id}`,
+      await apiClient.put(
+        `/admin/customers/${customerId}/addresses/${addressForm.value.id}`,
         addressDataToSend
       );
       ElMessage.success('Cập nhật địa chỉ thành công!');
     } else {
-      await axios.post(
-        `http://localhost:8080/api/admin/customers/${customerId}/addresses`,
+      await apiClient.post(
+        `/admin/customers/${customerId}/addresses`,
         addressDataToSend
       );
       ElMessage.success('Thêm địa chỉ thành công!');
@@ -591,6 +596,7 @@ const saveAddress = async () => {
   }
 };
 
+// Confirm and delete address using apiClient
 const confirmDeleteAddress = async (addressId) => {
   try {
     await ElMessageBox.confirm('Bạn có chắc chắn muốn xóa địa chỉ này?', 'Cảnh báo', {
@@ -598,7 +604,7 @@ const confirmDeleteAddress = async (addressId) => {
       cancelButtonText: 'Hủy',
       type: 'warning'
     });
-    await axios.delete(`http://localhost:8080/api/admin/customers/${customerId}/addresses/${addressId}`);
+    await apiClient.delete(`/admin/customers/${customerId}/addresses/${addressId}`);
     ElMessage.success('Xóa địa chỉ thành công!');
     fetchAddresses();
   } catch (err) {
@@ -611,6 +617,7 @@ const confirmDeleteAddress = async (addressId) => {
   }
 };
 
+// Set default address using apiClient
 const setDefaultAddress = async (addressId) => {
   try {
     await ElMessageBox.confirm('Bạn có chắc chắn muốn đặt địa chỉ này làm mặc định?', 'Cảnh báo', {
@@ -618,7 +625,7 @@ const setDefaultAddress = async (addressId) => {
       cancelButtonText: 'Hủy',
       type: 'warning'
     });
-    await axios.put(`http://localhost:8080/api/admin/customers/${customerId}/addresses/${addressId}/set-default`);
+    await apiClient.put(`/admin/customers/${customerId}/addresses/${addressId}/set-default`);
     ElMessage.success('Đặt địa chỉ mặc định thành công!');
     fetchAddresses(); // Refresh addresses to show the updated default
   } catch (err) {
@@ -633,14 +640,13 @@ const resetForm = () => {
 };
 
 const goBack = () => {
-  router.push('/customer');
+  router.push('/customer'); // Assuming '/customer' is the correct route for the customer list
 };
 
 onMounted(() => {
   fetchCustomer();
 });
 </script>
-
 <style scoped>
 .update-customer-container {
   max-width: 700px;

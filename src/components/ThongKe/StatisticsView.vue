@@ -129,6 +129,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import apiClient from '@/utils/axiosInstance'
 import {
   Calendar,
@@ -143,21 +144,20 @@ import LineChart from '@/components/charts/LineChart.vue'
 import PieChart from '@/components/charts/PieChart.vue'
 import DoughnutChart from '@/components/charts/DoughnutChart.vue'
 
-// Loading/Error
+const router = useRouter()
+
 const isLoading = ref(true)
 const error = ref(null)
 
-// Dữ liệu
 const currentYear = new Date().getFullYear()
 const monthlyRevenue = ref([])
 const yearlyRevenue = ref([])
 const orderTypeRevenue = ref([])
 const topProducts = ref([])
 const invoiceStatusStats = ref([])
-const todayRevenue = ref(0) // 👉 Thêm doanh thu hôm nay
+const todayRevenue = ref(0)
 const dateRange = ref([])
 
-// API Top sản phẩm
 const fetchTopProducts = async () => {
   try {
     const params = {}
@@ -165,21 +165,27 @@ const fetchTopProducts = async () => {
       params.start = `${dateRange.value[0]}T00:00:00`
       params.end = `${dateRange.value[1]}T23:59:59`
     }
-    const res = await apiClient.get('/statistics/top-products', { params })
+    const res = await apiClient.get('/admin/statistics/top-products', { params })
     topProducts.value = res.data
   } catch (e) {
     console.error('Lỗi khi tải top sản phẩm:', e)
-    error.value = e.message
+    if (e.response?.status === 403) {
+      router.push('/error')
+    } else {
+      error.value = e.message
+    }
   }
 }
 
-// 👉 API doanh thu hôm nay
 const fetchTodayRevenue = async () => {
   try {
-    const res = await apiClient.get('/statistics/revenue/today')
+    const res = await apiClient.get('/admin/statistics/revenue/today')
     todayRevenue.value = res.data
   } catch (e) {
     console.error('Lỗi khi tải doanh thu hôm nay:', e)
+    if (e.response?.status === 403) {
+      router.push('/error')
+    }
   }
 }
 
@@ -188,10 +194,10 @@ onMounted(async () => {
   error.value = null
   try {
     const [m, y, o, s] = await Promise.all([
-      apiClient.get('/statistics/monthly', { params: { year: currentYear } }),
-      apiClient.get('/statistics/yearly'),
-      apiClient.get('/statistics/order-type'),
-      apiClient.get('/statistics/status'),
+      apiClient.get('/admin/statistics/monthly', { params: { year: currentYear } }),
+      apiClient.get('/admin/statistics/yearly'),
+      apiClient.get('/admin/statistics/order-type'),
+      apiClient.get('/admin/statistics/status'),
     ])
     monthlyRevenue.value = m.data
     yearlyRevenue.value = y.data
@@ -199,16 +205,19 @@ onMounted(async () => {
     invoiceStatusStats.value = s.data
 
     await fetchTopProducts()
-    await fetchTodayRevenue() // 👉 Gọi API doanh thu hôm nay
+    await fetchTodayRevenue()
   } catch (e) {
     console.error(e)
-    error.value = e.message
+    if (e.response?.status === 403) {
+      router.push('/error')
+    } else {
+      error.value = e.message
+    }
   } finally {
     isLoading.value = false
   }
 })
 
-// Chart color
 const chartColors = {
   blue: '#3b82f6',
   green: '#22c55e',
@@ -220,7 +229,6 @@ const chartColors = {
   blue_bg: 'rgba(59, 130, 246, 0.2)',
 }
 
-// Chart config
 const monthlyRevenueChart = computed(() => ({
   labels: monthlyRevenue.value.map((i) => `T${i.month}`),
   datasets: [
@@ -289,6 +297,7 @@ const paidInvoicesCount = computed(
   () => invoiceStatusStats.value.find((s) => s.statusCode === 1)?.totalInvoices || 0,
 )
 </script>
+
 
 <style scoped>
 .chart-card {

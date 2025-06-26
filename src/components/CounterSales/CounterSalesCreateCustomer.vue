@@ -37,13 +37,23 @@
             clearable
           />
         </el-form-item>
+
+        <el-form-item label="Email" prop="email">
+          <el-input
+            v-model="customerForm.email"
+            type="email"
+            placeholder="Nhập email (tuỳ chọn)"
+            size="large"
+            autocomplete="email"
+            clearable
+          />
+        </el-form-item>
       </el-form>
 
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="closeDialog" :disabled="loading">Hủy</el-button>
           <el-button type="primary" @click="submitForm" :loading="loading">
-            <i v-if="!loading" class="fas fa-save me-1"></i>
             {{ loading ? 'Đang xử lý...' : 'Lưu Khách Hàng' }}
           </el-button>
         </span>
@@ -54,17 +64,16 @@
       v-model="confirmationDialogVisible"
       title="Khách hàng đã được tạo"
       width="400px"
-      :before-close="() => { confirmationDialogVisible = false }"
-      destroy-on-close
       center
-      align-center
+      destroy-on-close
     >
       <div class="text-success d-flex align-items-center mb-3">
         <el-icon class="me-2"><SuccessFilled /></el-icon>
         <span class="fw-semibold">Tạo khách hàng thành công!</span>
       </div>
       <p class="mb-1"><strong>Số điện thoại:</strong> {{ createdCustomer?.phone }}</p>
-      <p class="mb-3"><strong>Tên khách hàng:</strong> {{ createdCustomer?.customerName || '(Chưa cung cấp tên)' }}</p>
+      <p class="mb-1"><strong>Tên khách hàng:</strong> {{ createdCustomer?.customerName || '(Chưa cung cấp tên)' }}</p>
+      <p class="mb-3"><strong>Email:</strong> {{ createdCustomer?.email || '(Chưa cung cấp email)' }}</p>
       <el-button type="success" class="w-100" @click="selectCreatedCustomer">
         <el-icon class="me-2"><User /></el-icon>
         Sử dụng khách hàng này
@@ -75,9 +84,9 @@
 
 <script setup>
 import { ref, reactive, defineExpose, defineEmits } from 'vue';
-import apiClient from '../../utils/axiosInstance.js';
 import { ElMessage } from 'element-plus';
 import { SuccessFilled, User } from '@element-plus/icons-vue';
+import apiClient from '../../utils/axiosInstance.js';
 
 const dialogVisible = ref(false);
 const confirmationDialogVisible = ref(false);
@@ -89,38 +98,36 @@ const createdCustomer = ref(null);
 const customerForm = reactive({
   phone: '',
   name: '',
+  email: '',
 });
 
-// Validator tùy chỉnh để kiểm tra định dạng SĐT Việt Nam
+// --- VALIDATION ---
 const validatePhoneNumber = (rule, value, callback) => {
-  if (!value) {
-    return callback(new Error('Số điện thoại không được để trống.'));
-  }
-  // Regex cho SĐT di động 10 số của Việt Nam
+  if (!value) return callback(new Error('Số điện thoại không được để trống.'));
   const phoneRegex = /^(0[35789])\d{8}$/;
   if (!phoneRegex.test(value)) {
-    callback(new Error('Định dạng số điện thoại không hợp lệ. (Phải là 10 chữ số bắt đầu bằng 03, 05, 07, 08, 09)'));
-  } else {
-    callback(); // Hợp lệ
+    return callback(new Error('SĐT không hợp lệ (10 số, bắt đầu bằng 03, 05, 07, 08, 09)'));
   }
+  callback();
 };
 
-// Validator tùy chỉnh để kiểm tra tên không chỉ chứa khoảng trắng
 const validateName = (rule, value, callback) => {
-  if (!value) { // Tên khách hàng là bắt buộc
+  if (!value || value.trim().length === 0) {
     return callback(new Error('Tên khách hàng không được để trống.'));
   }
-  if (value.trim().length === 0) {
-    callback(new Error('Tên khách hàng không thể chỉ là khoảng trắng.'));
-  } else {
-    callback(); // Hợp lệ
-  }
+  callback();
 };
 
 const formRules = reactive({
   phone: [{ validator: validatePhoneNumber, trigger: 'blur' }],
-  // Cập nhật: Tên khách hàng giờ là bắt buộc
-  name: [{ validator: validateName, trigger: 'blur', required: true }],
+  name: [{ validator: validateName, trigger: 'blur' }],
+  email: [
+    {
+      type: 'email',
+      message: 'Email không hợp lệ.',
+      trigger: 'blur',
+    },
+  ],
 });
 
 const emit = defineEmits(['created', 'select-customer']);
@@ -129,10 +136,7 @@ function openDialog() {
   apiError.value = '';
   createdCustomer.value = null;
   confirmationDialogVisible.value = false;
-  // Reset form khi mở dialog
-  if (formRef.value) {
-    formRef.value.resetFields();
-  }
+  if (formRef.value) formRef.value.resetFields();
   dialogVisible.value = true;
 }
 
@@ -141,15 +145,13 @@ function closeDialog() {
 }
 
 function handleClose(done) {
-  if (!loading.value) {
-    done();
-  }
+  if (!loading.value) done();
 }
 
 async function submitForm() {
   if (!formRef.value) return;
   await formRef.value.validate(async (valid) => {
-    if (!valid) return; // Dừng lại nếu validation thất bại
+    if (!valid) return;
 
     loading.value = true;
     apiError.value = '';
@@ -157,17 +159,17 @@ async function submitForm() {
     try {
       const params = new URLSearchParams();
       params.append('phone', customerForm.phone);
-      // Không cần kiểm tra name.trim() nữa vì đã là bắt buộc
-      params.append('name', customerForm.name.trim()); 
+      params.append('name', customerForm.name.trim());
+      params.append('email', customerForm.email?.trim() || '');
 
       const res = await apiClient.post(`/admin/counter-sales/quick-create-customer?${params.toString()}`);
       createdCustomer.value = res.data;
       emit('created', res.data);
       dialogVisible.value = false;
       confirmationDialogVisible.value = true;
-      ElMessage.success('Tạo khách hàng mới thành công!');
+      ElMessage.success('Tạo khách hàng thành công!');
     } catch (e) {
-      apiError.value = e.response?.data?.message || e.message || 'Đã xảy ra lỗi. Vui lòng thử lại.';
+      apiError.value = e.response?.data?.message || e.message || 'Đã xảy ra lỗi.';
     } finally {
       loading.value = false;
     }
@@ -177,16 +179,11 @@ async function submitForm() {
 function selectCreatedCustomer() {
   emit('select-customer', createdCustomer.value);
   confirmationDialogVisible.value = false;
-  
-  // --- START: THAY ĐỔI YÊU CẦU ---
-  // Reset trực tiếp model của form sau khi chọn khách hàng.
-  // Điều này đảm bảo lần mở form tiếp theo, dữ liệu sẽ trống.
   customerForm.phone = '';
   customerForm.name = '';
-  // --- END: THAY ĐỔI YÊU CẦU ---
+  customerForm.email = '';
 }
 
-// Expose openDialog method to parent
 defineExpose({ openDialog });
 </script>
 
@@ -199,9 +196,6 @@ defineExpose({ openDialog });
 }
 .mb-3 {
   margin-bottom: 1rem;
-}
-.me-1 {
-  margin-right: 0.25rem;
 }
 .me-2 {
   margin-right: 0.5rem;

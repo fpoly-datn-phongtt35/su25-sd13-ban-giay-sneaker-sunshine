@@ -256,7 +256,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue';
-import axios from 'axios';
+import apiClient from '@/utils/axiosInstance'; // Import the configured axios instance
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Check, Refresh, ArrowLeft, Ticket, PriceTag, InfoFilled, Calendar, User } from '@element-plus/icons-vue';
 import { useRouter } from 'vue-router';
@@ -397,7 +397,7 @@ const parseCurrency = (value) => {
 
 const formatPercentage = (value) => {
   if (value === null || value === undefined) return '';
-  return `<span class="math-inline">\{value\.toFixed\(1\)\.replace\(/\\\.0</span>/, '')} %`;
+  return `${value.toFixed(1).replace(/\.0$/, '')} %`;
 };
 
 const parsePercentage = (value) => {
@@ -492,7 +492,8 @@ const handleVoucherTypeChange = () => {
 
 const fetchProducts = async () => {
   try {
-    const response = await axios.get('http://localhost:8080/api/admin/products/hien-thi');
+    // Use apiClient instead of axios
+    const response = await apiClient.get('/admin/products/hien-thi');
     products.value = response.data;
   } catch (error) {
     console.error('Lỗi khi tải danh sách sản phẩm:', error);
@@ -502,7 +503,8 @@ const fetchProducts = async () => {
 
 const fetchCategories = async () => {
   try {
-    const response = await axios.get('http://localhost:8080/api/admin/categories/hien-thi');
+    // Use apiClient instead of axios
+    const response = await apiClient.get('/admin/categories/hien-thi');
     categories.value = response.data;
   } catch (error) {
     console.error('Lỗi khi tải danh sách danh mục:', error);
@@ -512,7 +514,8 @@ const fetchCategories = async () => {
 
 const fetchCustomers = async () => {
   try {
-    const response = await axios.get('http://localhost:8080/api/admin/customers');
+    // Use apiClient instead of axios
+    const response = await apiClient.get('/admin/customers');
     customers.value = response.data;
   } catch (error) {
     console.error('Lỗi khi tải danh sách khách hàng:', error);
@@ -531,7 +534,8 @@ const submitForm = async () => {
     }).then(async () => {
       updateStatus();
       try {
-        await axios.post('http://localhost:8080/api/admin/vouchers/create', voucher);
+        // Use apiClient instead of axios
+        await apiClient.post('/admin/vouchers/create', voucher);
         ElMessage.success('Thêm voucher thành công!');
         router.push('/voucher');
         resetForm();

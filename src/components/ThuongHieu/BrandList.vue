@@ -70,9 +70,10 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import axios from 'axios'
+// Import your pre-configured API client
+import apiClient from '@/utils/axiosInstance' 
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Brush, Edit, CirclePlus, RefreshRight } from '@element-plus/icons-vue'
+import { Brush, Edit, CirclePlus, RefreshRight, Delete } from '@element-plus/icons-vue' // Added Delete icon
 
 const brands = ref([])
 const form = ref({ id: null, brandName: '' })
@@ -87,6 +88,8 @@ const rules = {
     { max: 50, message: 'Tên thương hiệu tối đa 50 ký tự', trigger: 'blur' },
     {
       validator: (_, value, callback) => {
+        // Unicode property escape \p{L} matches any kind of letter from any language.
+        // \d matches digits, \s matches whitespace.
         const pattern = /^[\p{L}\d\s]+$/u
         if (!pattern.test(value)) {
           callback(new Error('Tên thương hiệu không chứa ký tự đặc biệt'))
@@ -100,50 +103,68 @@ const rules = {
 }
 
 const fetchBrands = async () => {
+  loading.value = true; // Set loading state
   try {
-    const res = await axios.get('http://localhost:8080/api/admin/brand/hien-thi')
+    // Use apiClient for the GET request
+    const res = await apiClient.get('/admin/brand/hien-thi')
     brands.value = res.data
   } catch (err) {
-    ElMessage.error('Không thể tải danh sách thương hiệu')
+    console.error('Lỗi khi tải danh sách thương hiệu:', err);
+    ElMessage.error('Không thể tải danh sách thương hiệu');
+  } finally {
+    loading.value = false; // Reset loading state
   }
 }
 
 const resetForm = () => {
   form.value = { id: null, brandName: '' }
   isEditing.value = false
-  formRef.value?.resetFields()
+  formRef.value?.resetFields() // Safely reset form fields and validation status
+  ElMessage.info('Form đã được đặt lại.');
 }
 
 const handleSubmit = () => {
   formRef.value.validate(async (valid) => {
-    if (!valid) return
+    if (!valid) {
+      ElMessage.error('Vui lòng kiểm tra lại thông tin form.');
+      return;
+    }
 
     const brandNameTrimmed = form.value.brandName.trim().toLowerCase()
+    // Check for existing brand name, excluding the current brand if editing
     const existed = brands.value.some(
       (b) => b.brandName.trim().toLowerCase() === brandNameTrimmed && b.id !== form.value.id
     )
     if (existed) {
-      ElMessage.warning('Tên thương hiệu đã tồn tại')
-      return
+      ElMessage.warning('Tên thương hiệu đã tồn tại');
+      return;
     }
 
     loading.value = true
     try {
       if (isEditing.value) {
-        await axios.put(`http://localhost:8080/api/admin/brand/${form.value.id}`, null, {
+        // Use apiClient for the PUT request
+        await apiClient.put(`/admin/brand/${form.value.id}`, null, {
           params: { name: form.value.brandName }
         })
         ElMessage.success('Cập nhật thành công')
       } else {
-        await axios.post('http://localhost:8080/api/admin/brand', null, {
+        // Use apiClient for the POST request
+        await apiClient.post('/admin/brand', null, {
           params: { name: form.value.brandName }
         })
         ElMessage.success('Thêm mới thành công')
       }
-      await fetchBrands()
-      resetForm()
+      await fetchBrands() // Refresh the list
+      resetForm() // Clear the form
     } catch (err) {
-      ElMessage.error('Lỗi khi lưu dữ liệu')
+      console.error('Lỗi khi lưu dữ liệu:', err);
+      // Provide more specific error if available from backend
+      if (err.response && err.response.data && err.response.data.message) {
+        ElMessage.error(`Lỗi: ${err.response.data.message}`);
+      } else {
+        ElMessage.error('Lỗi khi lưu dữ liệu');
+      }
     } finally {
       loading.value = false
     }
@@ -151,23 +172,39 @@ const handleSubmit = () => {
 }
 
 const editBrand = (brand) => {
-  form.value = { ...brand }
-  isEditing.value = true
+  form.value = { ...brand } // Populate form with existing brand data
+  isEditing.value = true // Set editing mode
+  ElMessage.info(`Đang chỉnh sửa: ${brand.brandName}`);
 }
 
 const deleteBrand = async (id) => {
   try {
+    // Show confirmation dialog before deleting
     await ElMessageBox.confirm('Bạn có chắc muốn xóa thương hiệu này?', 'Xác nhận', {
       type: 'warning'
     })
-    await axios.delete(`http://localhost:8080/api/admin/brand/${id}`)
+    // Use apiClient for the DELETE request
+    await apiClient.delete(`/admin/brand/${id}`)
     ElMessage.success('Xóa thành công')
-    await fetchBrands()
+    await fetchBrands() // Refresh the list after deletion
+    // If the deleted item was the one being edited, reset the form
+    if (form.value.id === id) {
+      resetForm();
+    }
   } catch (err) {
-    ElMessage.error('Không thể xóa')
+    console.error('Lỗi khi xóa thương hiệu:', err);
+    // Handle user cancellation or API errors
+    if (err === 'cancel' || err === 'close') {
+      ElMessage.info('Đã hủy thao tác xóa.');
+    } else if (err.response && err.response.data && err.response.data.message) {
+      ElMessage.error(`Không thể xóa: ${err.response.data.message}`);
+    } else {
+      ElMessage.error('Không thể xóa');
+    }
   }
 }
 
+// Fetch brands when the component is mounted
 onMounted(() => {
   fetchBrands()
 })

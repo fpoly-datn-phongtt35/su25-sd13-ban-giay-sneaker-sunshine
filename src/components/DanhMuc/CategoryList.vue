@@ -55,34 +55,36 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import axios from 'axios'
+// Import your pre-configured API client
+import apiClient from '@/utils/axiosInstance'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Edit, Delete } from '@element-plus/icons-vue'
+import { Plus, Edit, Delete } from '@element-plus/icons-vue' // Ensure all used icons are imported
 
-// State
+// State variables for the component
 const categories = ref([])
-const dialogVisible = ref(false)
-const isEdit = ref(false)
-const editingId = ref(null)
-const formRef = ref()
+const dialogVisible = ref(false) // Controls the visibility of the add/edit dialog
+const isEdit = ref(false) // Flag to determine if we are editing or adding
+const editingId = ref(null) // Stores the ID of the category being edited
+const formRef = ref() // Reference to the Element Plus form component for validation
 
-// Form data
+// Form data for adding/editing a category
 const form = ref({
   categoryName: '',
   description: ''
 })
 
-// Rules
+// Validation rules for the category form
 const rules = {
   categoryName: [
     { required: true, message: 'Vui lòng nhập tên danh mục', trigger: 'blur' },
     { min: 3, message: 'Tên danh mục phải có ít nhất 3 ký tự', trigger: 'blur' },
     {
+      // Custom validator to check for duplicate category names (case-insensitive, excluding current item if editing)
       validator: (_, value, callback) => {
         const trimmed = value?.trim().toLowerCase()
         const exists = categories.value.some(c =>
           c.categoryName?.trim().toLowerCase() === trimmed &&
-          (!isEdit.value || c.id !== editingId.value)
+          (!isEdit.value || c.id !== editingId.value) // If editing, exclude the current item from duplication check
         )
         if (exists) {
           callback(new Error('Tên danh mục đã tồn tại'))
@@ -92,19 +94,28 @@ const rules = {
       },
       trigger: 'blur'
     }
+  ],
+  description: [
+    { max: 255, message: 'Mô tả không được vượt quá 255 ký tự', trigger: 'blur' }
   ]
 }
 
-// API
+// --- API Interactions ---
+
+// Fetches the list of categories from the backend
 const fetchCategories = async () => {
   try {
-    const res = await axios.get('http://localhost:8080/api/admin/categories/hien-thi')
+    // Use apiClient for GET request
+    const res = await apiClient.get('/admin/categories/hien-thi')
     categories.value = res.data
-  } catch {
-    ElMessage.error('Không thể tải danh sách danh mục')
+    ElMessage.success('Tải danh sách danh mục thành công')
+  } catch (err) {
+    console.error('Lỗi khi tải danh sách danh mục:', err);
+    ElMessage.error('Không thể tải danh sách danh mục');
   }
 }
 
+// Opens the dialog for adding a new category, resetting the form
 const openDialog = () => {
   isEdit.value = false
   form.value = {
@@ -112,8 +123,11 @@ const openDialog = () => {
     description: ''
   }
   dialogVisible.value = true
+  // Reset validation errors if any from previous interactions
+  formRef.value?.resetFields(); 
 }
 
+// Opens the dialog for editing an existing category, populating the form with data
 const editCategory = (category) => {
   isEdit.value = true
   editingId.value = category.id
@@ -122,68 +136,106 @@ const editCategory = (category) => {
     description: category.description
   }
   dialogVisible.value = true
+  // Reset validation errors if any from previous interactions
+  formRef.value?.clearValidate();
 }
 
-const formatDateToISOString = (date) => new Date(date).toISOString()
+// Helper function to format a Date object to ISO string
+const formatDateToISOString = (date) => date.toISOString()
 
-const submitForm = () => {
-  formRef.value.validate(async (valid) => {
-    if (!valid) return
+// Handles form submission for both adding and updating categories
+const submitForm = async () => {
+  // Validate the form
+  const valid = await formRef.value.validate()
+  if (!valid) {
+    ElMessage.error('Vui lòng kiểm tra lại thông tin form.');
+    return;
+  }
 
-    const now = formatDateToISOString(new Date())
-    const payload = {
-      ...form.value,
-      updatedDate: now
-    }
-    if (!isEdit.value) {
-      payload.createdDate = now
-    }
+  // Get current date for createdDate/updatedDate
+  const now = formatDateToISOString(new Date())
+  const payload = {
+    ...form.value,
+    updatedDate: now
+  }
+  // Only set createdDate if adding a new category
+  if (!isEdit.value) {
+    payload.createdDate = now
+  }
 
-    try {
-      await ElMessageBox.confirm(
-        isEdit.value
-          ? 'Bạn có chắc chắn muốn cập nhật danh mục này?'
-          : 'Bạn có chắc chắn muốn thêm mới danh mục này?',
-        'Xác nhận',
-        {
-          confirmButtonText: isEdit.value ? 'Cập nhật' : 'Thêm',
-          cancelButtonText: 'Hủy',
-          type: 'info'
-        }
-      )
-
-      if (isEdit.value) {
-        await axios.put(`http://localhost:8080/api/admin/categories/${editingId.value}`, payload)
-        ElMessage.success('Cập nhật thành công')
-      } else {
-        await axios.post('http://localhost:8080/api/admin/categories', payload)
-        ElMessage.success('Thêm mới thành công')
+  try {
+    // Show confirmation dialog before proceeding with API call
+    await ElMessageBox.confirm(
+      isEdit.value
+        ? 'Bạn có chắc chắn muốn cập nhật danh mục này?'
+        : 'Bạn có chắc chắn muốn thêm mới danh mục này?',
+      'Xác nhận',
+      {
+        confirmButtonText: isEdit.value ? 'Cập nhật' : 'Thêm',
+        cancelButtonText: 'Hủy',
+        type: 'info'
       }
+    );
 
-      dialogVisible.value = false
-      fetchCategories()
-    } catch (err) {
-      if (err !== 'cancel') ElMessage.error('Lưu thất bại')
+    // Perform API call based on whether it's an edit or add operation
+    if (isEdit.value) {
+      // Use apiClient for PUT request
+      await apiClient.put(`/admin/categories/${editingId.value}`, payload)
+      ElMessage.success('Cập nhật thành công')
+    } else {
+      // Use apiClient for POST request
+      await apiClient.post('/admin/categories', payload)
+      ElMessage.success('Thêm mới thành công')
     }
-  })
+
+    // Close dialog and refresh category list
+    dialogVisible.value = false
+    fetchCategories()
+  } catch (err) {
+    // Handle user cancellation (from ElMessageBox) or API errors
+    if (err === 'cancel' || err === 'close') {
+      ElMessage.info('Đã hủy thao tác.');
+    } else {
+      console.error('Lỗi khi lưu dữ liệu danh mục:', err);
+      // Display backend error message if available
+      if (err.response && err.response.data && err.response.data.message) {
+        ElMessage.error(`Lưu thất bại: ${err.response.data.message}`);
+      } else {
+        ElMessage.error('Lưu thất bại');
+      }
+    }
+  }
 }
 
-const confirmDelete = (id) => {
-  ElMessageBox.confirm('Bạn có chắc chắn muốn xóa danh mục này?', 'Cảnh báo', {
-    confirmButtonText: 'Xóa',
-    cancelButtonText: 'Hủy',
-    type: 'warning'
-  }).then(async () => {
-    try {
-      await axios.delete(`http://localhost:8080/api/admin/categories/${id}`)
-      ElMessage.success('Đã xóa thành công')
-      fetchCategories()
-    } catch {
-      ElMessage.error('Xóa thất bại')
+// Confirms and deletes a category
+const confirmDelete = async (id) => {
+  try {
+    await ElMessageBox.confirm('Bạn có chắc chắn muốn xóa danh mục này?', 'Cảnh báo', {
+      confirmButtonText: 'Xóa',
+      cancelButtonText: 'Hủy',
+      type: 'warning'
+    });
+
+    // Use apiClient for DELETE request
+    await apiClient.delete(`/admin/categories/${id}`)
+    ElMessage.success('Đã xóa thành công')
+    fetchCategories() // Refresh the list
+  } catch (err) {
+    // Handle user cancellation or API errors
+    if (err === 'cancel' || err === 'close') {
+      ElMessage.info('Đã hủy thao tác xóa.');
+    } else {
+      console.error('Lỗi khi xóa danh mục:', err);
+      if (err.response && err.response.data && err.response.data.message) {
+        ElMessage.error(`Xóa thất bại: ${err.response.data.message}`);
+      } else {
+        ElMessage.error('Xóa thất bại');
+      }
     }
-  })
+  }
 }
 
+// Fetch categories when the component is mounted
 onMounted(fetchCategories)
 </script>
 

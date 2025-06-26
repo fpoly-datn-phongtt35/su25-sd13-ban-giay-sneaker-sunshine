@@ -30,6 +30,7 @@ import CustomerList from '@/components/KhachHang/CustomerList.vue'
 import AddCustomer from '@/components/KhachHang/AddCustomer.vue'
 import UpdateCustomer from '@/components/KhachHang/UpdateCustomer.vue'
 import StatisticsView from '@/components/ThongKe/StatisticsView.vue'
+import OnlineSaleList from "@/components/OnlineSales/OnlineSaleList.vue";
 
 
 const routes = [
@@ -102,6 +103,8 @@ const routes = [
       { path: 'customer/update/:id', name: 'UpdateCustomer', component: UpdateCustomer },
 
       { path: 'statistics', name: 'Statistics', component: StatisticsView },
+
+      { path: 'sales-online', name: 'SaleOnlines', component: OnlineSaleList },
     ],
   },
 ]

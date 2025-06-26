@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ZaloPayResponse {
-    private String appTransId;     // ✅ Thêm dòng này
+    private String appTransId;
     private String orderUrl;
     private String zpTransToken;
     private int returnCode;

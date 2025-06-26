@@ -901,11 +901,14 @@ public class InvoiceServiceImpl implements InvoiceService {
             invoiceRepository.save(invoice);
         });
 
-
-        // Bước 5: Trả kết quả về FE
         return new InvoiceWithVnpayResponse(invoiceDisplay, vnpayResponse);
     }
 
+    @Override
+    public Page<InvoiceResponse> searchInvoices(Integer status,Integer orderType, LocalDateTime createdFrom, LocalDateTime createdTo, String phone, String code, Pageable pageable) {
+        Page<InvoiceResponse> invoices = invoiceRepository.searchInvoices(status,orderType,createdFrom,createdTo,phone,code,pageable);
+        return invoices;
+    }
 
 
 }

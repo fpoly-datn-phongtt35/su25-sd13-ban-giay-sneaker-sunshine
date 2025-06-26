@@ -100,7 +100,7 @@ public class ZaloPayService {
                 }
 
                 JSONObject jsonResponse = new JSONObject(result.toString());
-                log.info("📥 Phản hồi ZaloPay: {}", jsonResponse.toString(2));
+                log.info(" Phản hồi ZaloPay: {}", jsonResponse.toString(2));
 
                 int returnCode = jsonResponse.optInt("returncode");
                 String returnMessage = jsonResponse.optString("returnmessage");

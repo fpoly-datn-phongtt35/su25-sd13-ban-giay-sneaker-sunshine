@@ -123,7 +123,6 @@ public class ProductSearchRepository {
         if (!products.isEmpty()) {
             Set<Long> productIds = products.stream().map(Product::getId).collect(Collectors.toSet());
 
-            // Lấy ProductCategory kèm Category
             String productCategorySql = "SELECT pc FROM ProductCategory pc " +
                     "LEFT JOIN FETCH pc.category " +
                     "WHERE pc.product.id IN :productIds AND pc.status = 1";
@@ -133,7 +132,6 @@ public class ProductSearchRepository {
             Map<Long, List<ProductCategory>> categoryMap = productCategories.stream()
                     .collect(Collectors.groupingBy(pc -> pc.getProduct().getId()));
 
-            // Lấy ProductDetail kèm Color, Size, có lọc theo colorId & sizeId nếu có
             StringBuilder productDetailSql = new StringBuilder(
                     "SELECT pd FROM ProductDetail pd " +
                             "LEFT JOIN FETCH pd.color " +
@@ -160,7 +158,6 @@ public class ProductSearchRepository {
             Map<Long, List<ProductDetail>> detailMap = productDetails.stream()
                     .collect(Collectors.groupingBy(pd -> pd.getProduct().getId()));
 
-            // Gán data vào Product
             for (Product p : products) {
                 p.setProductCategories(categoryMap.getOrDefault(p.getId(), new ArrayList<>()));
                 p.setProductDetails(detailMap.getOrDefault(p.getId(), new ArrayList<>()));

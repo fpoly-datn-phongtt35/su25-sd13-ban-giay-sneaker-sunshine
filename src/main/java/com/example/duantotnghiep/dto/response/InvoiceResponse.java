@@ -19,15 +19,12 @@ public class InvoiceResponse {
     BigDecimal totalAmount;
     BigDecimal discountAmount;
     BigDecimal finalAmount;
-    @Size(max = 250)
     String description;
     Integer orderType;
     Integer status;
     LocalDateTime createdDate;
     LocalDateTime updatedDate;
-    @Size(max = 50)
     String createdBy;
-    @Size(max = 50)
     String updatedBy;
 
     private String customerName;
@@ -41,10 +38,21 @@ public class InvoiceResponse {
     private Long customerId;
 
     private VoucherResponse voucher;
-
-    private BigDecimal shippingFee; // 👈 Thêm trường này
+    private BigDecimal shippingFee;
 
     private List<InvoiceDetailResponse> invoiceDetails;
+
+    public InvoiceResponse(Long id, String invoiceCode, Integer status, Integer orderType,
+                           LocalDateTime createdDate, String customerName, String phone, BigDecimal totalAmount) {
+        this.id = id;
+        this.invoiceCode = invoiceCode;
+        this.status = status;
+        this.orderType = orderType;
+        this.createdDate = createdDate;
+        this.customerName = customerName;
+        this.phone = phone;
+        this.totalAmount = totalAmount;
+    }
 
 
 }

@@ -70,9 +70,6 @@ public class Employee {
     @Column(name = "email", nullable = false, length = 250)
     private String email;
 
-    @Column(name = "pass_word", nullable = false)
-    private String password;
-
     @NotNull
     @Column(name = "salary", nullable = false, precision = 18, scale = 3)
     private BigDecimal salary;

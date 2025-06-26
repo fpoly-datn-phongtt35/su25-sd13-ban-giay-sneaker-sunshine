@@ -64,8 +64,10 @@ public interface InvoiceService {
 
     void updateInvoiceStatusByAppTransId(String appTransId, int status);
 
-    void updateStatusIfPaid(String appTransId) throws Exception;
-
     @Transactional
     InvoiceWithVnpayResponse createInvoiceAndVnpay(InvoiceRequest request) throws Exception;
+    void updateStatusIfPaid(String appTransId) throws Exception;
+
+    Page<InvoiceResponse> searchInvoices(Integer status,Integer orderType, LocalDateTime createdFrom, LocalDateTime createdTo, String phone, String code, Pageable pageable);
+
 }

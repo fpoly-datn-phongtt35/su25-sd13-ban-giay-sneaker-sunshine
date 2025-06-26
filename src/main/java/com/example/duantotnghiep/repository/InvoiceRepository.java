@@ -1,5 +1,6 @@
 package com.example.duantotnghiep.repository;
 
+import com.example.duantotnghiep.dto.response.InvoiceResponse;
 import com.example.duantotnghiep.model.Invoice;
 import com.example.duantotnghiep.model.InvoiceDetail;
 import org.springframework.data.domain.Page;
@@ -7,11 +8,45 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
+
+    @Query("""
+    SELECT new com.example.duantotnghiep.dto.response.InvoiceResponse(
+        i.id,
+        i.invoiceCode,
+        i.status,
+        i.orderType,
+        i.createdDate,
+        i.customer.customerName,
+        i.customer.phone,
+        i.totalAmount
+    )
+    FROM Invoice i
+    WHERE (:status IS NULL OR i.status = :status)
+      AND (:orderType IS NULL OR i.orderType = :orderType)
+      AND (:createdFrom IS NULL OR i.createdDate >= :createdFrom)
+      AND (:createdTo IS NULL OR i.createdDate <= :createdTo)
+      AND (:phone IS NULL OR i.customer.phone LIKE %:phone%)
+      AND (:code IS NULL OR i.invoiceCode LIKE %:code%)
+      order by  i.createdDate desc 
+""")
+    Page<InvoiceResponse> searchInvoices(
+            @Param("status") Integer status,
+            @Param("orderType") Integer orderType,
+            @Param("createdFrom") LocalDateTime createdFrom,
+            @Param("createdTo") LocalDateTime createdTo,
+            @Param("phone") String phone,
+            @Param("code") String code,
+            Pageable pageable
+    );
+
+
     List<Invoice> findByStatus(int status);
 
     @Query("SELECT i FROM Invoice i LEFT JOIN i.customer c " +

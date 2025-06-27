@@ -19,8 +19,7 @@
         <el-descriptions-item label="Chất liệu">{{ product.materialName || 'Không có' }}</el-descriptions-item>
         <el-descriptions-item label="Cổ giày">{{ product.styleName || 'Không có' }}</el-descriptions-item>
         <el-descriptions-item label="Giới tính">{{ product.genderName || 'Không có' }}</el-descriptions-item>
-        <el-descriptions-item label="Giá bán buôn">{{ formatCurrency(product.originPrice) }}</el-descriptions-item>
-        <el-descriptions-item label="Giá bán lẻ">{{ formatCurrency(product.sellPrice) }}</el-descriptions-item>
+        <el-descriptions-item label="Giá bán">{{ formatCurrency(product.sellPrice) }}</el-descriptions-item>
         <el-descriptions-item label="Số lượng tồn kho">{{ product.quantity ?? 0 }}</el-descriptions-item>
         <el-descriptions-item label="Trạng thái">{{ product.status === 1 ? 'Hoạt động' : 'Ngừng hoạt động' }}</el-descriptions-item>
         <el-descriptions-item label="Mô tả">{{ product.description || 'Không có' }}</el-descriptions-item>

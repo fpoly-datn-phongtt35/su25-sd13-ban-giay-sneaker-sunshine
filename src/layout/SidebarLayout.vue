@@ -103,12 +103,9 @@
         </template>
         <el-menu-item index="/statistics">
           <el-icon><i class="bi bi-bar-chart"></i></el-icon>
-          <span>Tại quầy</span>
+          <span>Thống kê chi tiết</span>
         </el-menu-item>
-        <el-menu-item index="/statistics/online">
-          <el-icon><i class="bi bi-bar-chart-line"></i></el-icon>
-          <span>Online</span>
-        </el-menu-item>
+
       </el-sub-menu>
     </el-menu>
   </nav>

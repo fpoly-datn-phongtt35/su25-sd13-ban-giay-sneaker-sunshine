@@ -93,11 +93,19 @@ const rules = {
         const pattern = /^[\p{L}\d\s]+$/u
         if (!pattern.test(value)) {
           callback(new Error('Tên thương hiệu không chứa ký tự đặc biệt'))
-        } else {
-          callback()
+          return
         }
+        const nameTrimmed = value.trim().toLowerCase()
+        const duplicate = brands.value.some(
+          (b) => b.brandName.trim().toLowerCase() === nameTrimmed && b.id !== form.value.id
+        )
+        if (duplicate) {
+          callback(new Error('Tên thương hiệu đã tồn tại'))
+          return
+        }
+        callback()
       },
-      trigger: 'blur'
+      trigger: ['blur', 'change']
     }
   ]
 }
@@ -130,18 +138,19 @@ const handleSubmit = () => {
       return;
     }
 
-    const brandNameTrimmed = form.value.brandName.trim().toLowerCase()
-    // Check for existing brand name, excluding the current brand if editing
-    const existed = brands.value.some(
-      (b) => b.brandName.trim().toLowerCase() === brandNameTrimmed && b.id !== form.value.id
-    )
-    if (existed) {
-      ElMessage.warning('Tên thương hiệu đã tồn tại');
-      return;
-    }
+    const confirmMessage = isEditing.value
+      ? 'Bạn có chắc muốn cập nhật thương hiệu này?'
+      : 'Bạn có chắc muốn thêm mới thương hiệu này?'
 
-    loading.value = true
     try {
+      await ElMessageBox.confirm(confirmMessage, 'Xác nhận', {
+        confirmButtonText: 'Xác nhận',
+        cancelButtonText: 'Hủy',
+        type: 'info'
+      })
+
+      loading.value = true
+
       if (isEditing.value) {
         // Use apiClient for the PUT request
         await apiClient.put(`/admin/brand/${form.value.id}`, null, {
@@ -155,15 +164,12 @@ const handleSubmit = () => {
         })
         ElMessage.success('Thêm mới thành công')
       }
-      await fetchBrands() // Refresh the list
-      resetForm() // Clear the form
+
+      await fetchBrands()
+      resetForm()
     } catch (err) {
-      console.error('Lỗi khi lưu dữ liệu:', err);
-      // Provide more specific error if available from backend
-      if (err.response && err.response.data && err.response.data.message) {
-        ElMessage.error(`Lỗi: ${err.response.data.message}`);
-      } else {
-        ElMessage.error('Lỗi khi lưu dữ liệu');
+      if (err !== 'cancel') {
+        ElMessage.error('Lỗi khi lưu dữ liệu')
       }
     } finally {
       loading.value = false

@@ -146,13 +146,17 @@ const handleSubmit = async () => {
   loading.value = true // Set loading state for submission
   try {
     if (isEditing.value) {
-      // Use apiClient for the PUT request
-      await apiClient.put(`/admin/size/${form.value.id}`, null, {
+      await ElMessageBox.confirm('Bạn có chắc chắn muốn cập nhật kích thước này?', 'Xác nhận', {
+        confirmButtonText: 'Cập nhật',
+        cancelButtonText: 'Hủy',
+        type: 'info',
+      })
+
+      await axios.put(`http://localhost:8080/api/admin/size/${form.value.id}`, null, {
         params: { name: form.value.name },
       })
       ElMessage.success('Cập nhật thành công')
     } else {
-      // Use ElMessageBox.confirm for new entry confirmation
       await ElMessageBox.confirm('Bạn có chắc chắn muốn thêm mới kích thước?', 'Xác nhận', {
         confirmButtonText: 'Thêm',
         cancelButtonText: 'Hủy',
@@ -167,19 +171,14 @@ const handleSubmit = async () => {
     await fetchSizes(); // Refresh the list after successful operation
     resetForm(); // Clear the form
   } catch (error) {
-    console.error('Lỗi khi lưu dữ liệu kích thước:', error);
-    // Handle user cancellation (from ElMessageBox.confirm) or API errors
-    if (error === 'cancel' || error === 'close') {
-      ElMessage.info('Đã hủy thao tác.');
-    } else if (error.response && error.response.data && error.response.data.message) {
-      ElMessage.error(`Lỗi: ${error.response.data.message}`);
+    if (error !== 'cancel') {
+      ElMessage.error('Có lỗi xảy ra')
     } else {
-      ElMessage.error('Có lỗi xảy ra khi lưu dữ liệu.');
+      ElMessage.info('Đã hủy thao tác')
     }
-  } finally {
-    loading.value = false // Reset loading state
   }
 }
+
 
 const editSize = (size) => {
   // Map fetched 'sizeName' to form's 'name'

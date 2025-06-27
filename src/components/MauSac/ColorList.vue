@@ -89,19 +89,24 @@ const rules = {
       validator: (_, value, callback) => {
         const pattern = /^[\p{L}\d\s]+$/u;
         if (!pattern.test(value)) {
-          callback(new Error('Tên màu không chứa ký tự đặc biệt'));
-        } else {
-          callback();
+          callback(new Error('Tên màu không chứa ký tự đặc biệt'))
+          return
         }
+        const nameTrimmed = value.trim().toLowerCase()
+        const duplicate = colors.value.some(
+          (c) => c.colorName.trim().toLowerCase() === nameTrimmed && c.id !== form.value.id
+        )
+        if (duplicate) {
+          callback(new Error('Tên màu đã tồn tại'))
+          return
+        }
+        callback()
       },
-      trigger: 'blur',
-    },
-  ],
-};
+      trigger: ['blur', 'change']
+    }
+  ]
+}
 
-/**
- * Fetches the list of colors from the backend.
- */
 const fetchColors = async () => {
   try {
     loading.value = true;
@@ -132,36 +137,37 @@ const handleSubmit = () => {
   formRef.value.validate(async (valid) => {
     if (!valid) return;
 
-    const nameTrimmed = form.value.colorName.trim().toLowerCase();
-    const existed = colors.value.some(
-      (c) => c.colorName.trim().toLowerCase() === nameTrimmed && c.id !== form.value.id
-    );
+    const confirmMessage = isEditing.value
+      ? 'Bạn có chắc muốn cập nhật màu này?'
+      : 'Bạn có chắc muốn thêm mới màu này?'
 
-    if (existed) {
-      ElMessage.warning('Tên màu đã tồn tại');
-      return;
-    }
-
-    loading.value = true;
     try {
+      await ElMessageBox.confirm(confirmMessage, 'Xác nhận', {
+        confirmButtonText: 'Xác nhận',
+        cancelButtonText: 'Hủy',
+        type: 'info'
+      })
+
+      loading.value = true
+
       if (isEditing.value) {
-        // Update existing color: Send 'name' as a query parameter
-        await apiClient.put(`/admin/color/${form.value.id}`, null, {
-          params: { name: form.value.colorName } // Changed colorName to name
-        });
-        ElMessage.success('Cập nhật thành công');
+        await axios.put(`http://localhost:8080/api/admin/color/${form.value.id}`, null, {
+          params: { name: form.value.colorName }
+        })
+        ElMessage.success('Cập nhật thành công')
       } else {
-        // Add new color: Send 'name' as a query parameter
-        await apiClient.post('/admin/color', null, {
-          params: { name: form.value.colorName } // Changed colorName to name
-        });
-        ElMessage.success('Thêm mới thành công');
+        await axios.post('http://localhost:8080/api/admin/color', null, {
+          params: { name: form.value.colorName }
+        })
+        ElMessage.success('Thêm mới thành công')
       }
-      await fetchColors();
-      resetForm();
+
+      await fetchColors()
+      resetForm()
     } catch (err) {
-      console.error("Error saving color:", err);
-      ElMessage.error('Lỗi khi lưu dữ liệu');
+      if (err !== 'cancel') {
+        ElMessage.error('Lỗi khi lưu dữ liệu')
+      }
     } finally {
       loading.value = false;
     }

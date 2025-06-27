@@ -23,14 +23,14 @@
               <select v-model="searchVoucher.orderType" class="form-select form-select-sm">
                 <option :value="null">Tất cả loại đơn hàng</option>
                 <option :value="1">Tại quầy</option>
-                <option :value="0">Online</option>
+                <option :value="2">Online</option>
               </select>
             </div>
             <div class="col-md-2 col-sm-6">
               <select v-model="searchVoucher.voucherType" class="form-select form-select-sm">
                 <option :value="null">Tất cả loại</option>
                 <option :value="1">Công khai</option>
-                <option :value="0">Cá nhân</option>
+                <option :value="2">Cá nhân</option>
               </select>
             </div>
             <div class="col-md-3 col-sm-12">
@@ -295,8 +295,7 @@ const exportExcel = async () => {
   }
 
   try {
-    // Use apiClient for the POST request
-    const response = await apiClient.post('/vouchers/vcollect', { // Changed to apiClient
+    const response = await axios.post('http://localhost:8080/api/admin/vouchers/vcollect', {
       voucherIds: selectedVouchers.value
     }, {
       responseType: 'blob' // Expect binary data (Excel file)
@@ -359,7 +358,7 @@ const formatDiscountAmount = (row) =>
 const formatOrderType = (row) =>
   row.orderType === 1 ? 'Tại quầy' : row.orderType === 0 ? 'Online' : '-'
 const formatVoucherType = (row) =>
-  row.voucherType === 1 ? 'Công khai' : row.voucherType === 0 ? 'Cá nhân' : '-'
+  row.voucherType === 1 ? 'Công khai' : row.voucherType === 2 ? 'Cá nhân' : '-'
 
 const onAddVoucher = () => {
   router.push({ name: 'AddVoucher' })

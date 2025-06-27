@@ -528,8 +528,15 @@ const updateVoucher = async () => {
       maxDiscountValue: voucher.maxDiscountValue === 0 || voucher.maxDiscountValue === '' ? null : voucher.maxDiscountValue,
     }
 
-    // Use apiClient
-    const res = await apiClient.put(`/admin/vouchers/update/${voucherId}`, payload)
+    // Set fields to null if they are 0 or empty strings, as per backend expectation
+    if (payload.minOrderValue === 0 || payload.minOrderValue === '') payload.minOrderValue = null;
+    if (payload.maxDiscountValue === 0 || payload.maxDiscountValue === '') payload.maxDiscountValue = null;
+    if (payload.discountPercentage === 0 || payload.discountPercentage === '') payload.discountPercentage = null;
+    if (payload.discountAmount === 0 || payload.discountAmount === '') payload.discountAmount = null;
+
+    console.log('Payload sent:', payload); // Log the payload for debugging
+
+    const res = await axios.put(`http://localhost:8080/api/admin/vouchers/update/${voucherId}`, payload);
 
     if (res.status !== 200) {
       throw new Error(res.data.message || 'Cập nhật voucher thất bại')

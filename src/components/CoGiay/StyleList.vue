@@ -4,10 +4,11 @@
       <template #header>
         <div class="card-header">
           <el-icon><Brush /></el-icon>
-          <span>Quản lý kiểu dáng</span>
+          <span>Quản lý Cổ Giày</span>
         </div>
       </template>
 
+      <!-- Form -->
       <el-form
         :model="form"
         :rules="rules"
@@ -17,10 +18,10 @@
       >
         <el-row :gutter="20">
           <el-col :xs="24" :sm="18" :md="12" :lg="10">
-            <el-form-item label="Tên kiểu dáng" prop="styleName">
+            <el-form-item label="Tên cổ giày" prop="styleName">
               <el-input
                 v-model="form.styleName"
-                placeholder="Nhập tên kiểu dáng"
+                placeholder="Nhập tên cổ giày"
                 maxlength="50"
                 show-word-limit
                 clearable
@@ -33,35 +34,42 @@
           <el-button
             type="primary"
             :icon="isEditing ? Edit : CirclePlus"
-            @click="handleSubmit"
+            @click="confirmSubmit"
             :loading="loading"
           >
             {{ isEditing ? 'Cập nhật' : 'Thêm mới' }}
           </el-button>
-          <el-button type="warning" icon="RefreshRight" @click="resetForm">Làm mới</el-button>
+          <el-button type="warning" :icon="RefreshRight" @click="resetForm">
+            Làm mới
+          </el-button>
         </el-form-item>
       </el-form>
     </el-card>
 
     <el-divider content-position="left">Danh sách kiểu dáng</el-divider>
 
+    <!-- Table -->
     <el-table :data="styles" style="margin-top: 10px" border stripe>
       <el-table-column prop="id" label="ID" width="80" />
       <el-table-column prop="styleName" label="Tên kiểu dáng" />
       <el-table-column label="Hành động" width="200">
-        <template #default="scope">
+        <template #default="{ row }">
           <el-button
             type="primary"
-            icon="Edit"
+            :icon="Edit"
             size="small"
-            @click="editStyle(scope.row)"
-          >Sửa</el-button>
+            @click="editStyle(row)"
+          >
+            Sửa
+          </el-button>
           <el-button
             type="danger"
-            icon="Delete"
+            :icon="Delete"
             size="small"
-            @click="deleteStyle(scope.row.id)"
-          >Xóa</el-button>
+            @click="confirmDelete(row.id)"
+          >
+            Xóa
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -73,26 +81,30 @@ import { ref, onMounted } from 'vue'
 // Import your pre-configured API client
 import apiClient from '@/utils/axiosInstance'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Brush, Edit, CirclePlus, RefreshRight, Delete } from '@element-plus/icons-vue' // Ensure all used icons are imported
+import { Brush, Edit, CirclePlus, RefreshRight, Delete } from '@element-plus/icons-vue'
 
+// Trạng thái
 const styles = ref([])
 const form = ref({ id: null, styleName: '' }) // 'styleName' for the form input
 const isEditing = ref(false)
 const formRef = ref()
 const loading = ref(false) // Added loading state for better UX
 
+// Rule validate động
 const rules = {
   styleName: [
     { required: true, message: 'Tên kiểu dáng không được để trống', trigger: 'blur' },
-    { min: 2, message: 'Tên kiểu dáng tối thiểu 2 ký tự', trigger: 'blur' },
-    { max: 50, message: 'Tên kiểu dáng tối đa 50 ký tự', trigger: 'blur' },
+    { min: 2, message: 'Tối thiểu 2 ký tự', trigger: 'blur' },
+    { max: 50, message: 'Tối đa 50 ký tự', trigger: 'blur' },
     {
       validator: (_, value, callback) => {
-        // Unicode property escape \p{L} matches any kind of letter from any language.
-        // \d matches digits, \s matches whitespace.
-        const pattern = /^[\p{L}\d\s]+$/u
-        if (!pattern.test(value)) {
-          callback(new Error('Tên kiểu dáng không chứa ký tự đặc biệt'))
+        const trimmed = value.trim().toLowerCase()
+        const exists = styles.value.some(
+          (s) => s.styleName.trim().toLowerCase() === trimmed &&
+            (!isEditing.value || s.id !== form.value.id)
+        )
+        if (exists) {
+          callback(new Error('Tên kiểu dáng đã tồn tại'))
         } else {
           callback()
         }
@@ -102,44 +114,45 @@ const rules = {
   ]
 }
 
+// Gọi API lấy danh sách
 const fetchStyles = async () => {
   loading.value = true // Set loading state to true
   try {
     // Use apiClient for the GET request
     const res = await apiClient.get('/admin/style/hien-thi')
     styles.value = res.data
-    ElMessage.success('Tải danh sách kiểu dáng thành công.')
-  } catch (err) {
-    console.error('Lỗi khi tải danh sách kiểu dáng:', err);
-    ElMessage.error('Không thể tải danh sách kiểu dáng');
-  } finally {
-    loading.value = false; // Set loading state to false
+  } catch {
+    ElMessage.error('Không thể tải danh sách kiểu dáng')
   }
 }
 
+// Reset form
 const resetForm = () => {
   form.value = { id: null, styleName: '' }
   isEditing.value = false
-  formRef.value?.resetFields() // Safely reset form fields and validation status
-  ElMessage.info('Form đã được đặt lại.');
+  formRef.value?.resetFields()
 }
 
+// Xác nhận thêm/sửa
+const confirmSubmit = () => {
+  const action = isEditing.value ? 'Cập nhật' : 'Thêm mới'
+  ElMessageBox.confirm(
+    `Bạn có chắc chắn muốn ${action.toLowerCase()} kiểu dáng này?`,
+    'Xác nhận',
+    {
+      confirmButtonText: action,
+      cancelButtonText: 'Hủy',
+      type: 'info'
+    }
+  ).then(() => {
+    handleSubmit()
+  }).catch(() => {})
+}
+
+// Gửi dữ liệu form
 const handleSubmit = () => {
   formRef.value.validate(async (valid) => {
-    if (!valid) {
-      ElMessage.error('Vui lòng kiểm tra lại thông tin form.');
-      return;
-    }
-
-    const styleNameTrimmed = form.value.styleName.trim().toLowerCase()
-    // Check for existing style name, excluding the current style if editing
-    const existed = styles.value.some(
-      (s) => s.styleName.trim().toLowerCase() === styleNameTrimmed && s.id !== form.value.id
-    )
-    if (existed) {
-      ElMessage.warning('Tên kiểu dáng đã tồn tại');
-      return;
-    }
+    if (!valid) return
 
     loading.value = true // Set loading state for submission
     try {
@@ -156,56 +169,41 @@ const handleSubmit = () => {
         })
         ElMessage.success('Thêm mới thành công')
       }
-      await fetchStyles() // Refresh the list after successful operation
-      resetForm() // Clear the form
-    } catch (err) {
-      console.error('Lỗi khi lưu dữ liệu kiểu dáng:', err);
-      // Provide more specific error if available from backend
-      if (err.response && err.response.data && err.response.data.message) {
-        ElMessage.error(`Lỗi: ${err.response.data.message}`);
-      } else {
-        ElMessage.error('Lỗi khi lưu dữ liệu');
-      }
+      await fetchStyles()
+      resetForm()
+    } catch {
+      ElMessage.error('Lỗi khi lưu dữ liệu')
     } finally {
       loading.value = false
     }
   })
 }
 
+// Gán dữ liệu khi nhấn "Sửa"
 const editStyle = (style) => {
   form.value = { ...style } // Populate form with existing style data
   isEditing.value = true // Set editing mode
   ElMessage.info(`Đang chỉnh sửa: ${style.styleName}`);
 }
 
-const deleteStyle = async (id) => {
+// Xác nhận và xóa
+const confirmDelete = async (id) => {
   try {
-    // Show confirmation dialog before deleting
-    await ElMessageBox.confirm('Bạn có chắc muốn xóa kiểu dáng này?', 'Xác nhận', {
+    await ElMessageBox.confirm('Bạn có chắc muốn xóa kiểu dáng này?', 'Cảnh báo', {
+      confirmButtonText: 'Xóa',
+      cancelButtonText: 'Hủy',
       type: 'warning'
     })
     // Use apiClient for the DELETE request
     await apiClient.delete(`/admin/style/${id}`)
     ElMessage.success('Xóa thành công')
-    await fetchStyles() // Refresh the list after deletion
-    // If the deleted item was the one being edited, reset the form
-    if (form.value.id === id) {
-      resetForm();
-    }
-  } catch (err) {
-    console.error('Lỗi khi xóa kiểu dáng:', err);
-    // Handle user cancellation or API errors
-    if (err === 'cancel' || err === 'close') {
-      ElMessage.info('Đã hủy thao tác xóa.');
-    } else if (err.response && err.response.data && err.response.data.message) {
-      ElMessage.error(`Không thể xóa: ${err.response.data.message}`);
-    } else {
-      ElMessage.error('Không thể xóa');
-    }
+    await fetchStyles()
+  } catch {
+    ElMessage.error('Xóa thất bại')
   }
 }
 
-// Fetch styles when the component is mounted
+// Load dữ liệu ban đầu
 onMounted(() => {
   fetchStyles()
 })

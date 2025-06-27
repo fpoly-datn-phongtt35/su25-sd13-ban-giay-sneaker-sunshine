@@ -1,312 +1,288 @@
 <template>
-  <div class="container mt-5">
-    <!-- Button for going back -->
-    <div class="mb-3">
-      <button @click="goBack" class="btn btn-outline-secondary rounded-pill shadow-sm">
-        <i class="bi bi-arrow-left-circle"></i> Quay lại
-      </button>
+  <div class="container mx-auto mt-8 max-w-5xl px-4">
+    <div class="mb-6">
+      <el-button type="info" round @click="goBack" icon="el-icon-arrow-left">
+        Quay lại
+      </el-button>
     </div>
 
-    <!-- Update product form -->
-    <form @submit.prevent="openConfirmDialog" class="bg-light p-4 rounded shadow-lg">
-      <h2 class="text-center mb-4">Update Sản Phẩm</h2>
-
-      <div class="mb-3">
-        <label class="form-label text-primary">Chọn danh mục sản phẩm</label>
-        <multiselect
-          v-model="updateProduct.categoryIds"
-          :options="categoryList"
-          :multiple="true"
-          :close-on-select="false"
-          placeholder="Chọn danh mục"
-          label="categoryName"
-          track-by="id"
-          class="form-control"
-        />
-        <p class="mt-2">
-          Danh mục đã chọn:
-          <span v-if="updateProduct.categoryIds.length === 0">Chưa chọn</span>
-          <span v-else>{{ updateProduct.categoryIds.map((c) => c.categoryName).join(', ') }}</span>
-        </p>
-      </div>
-
-      <!-- Product Name -->
-      <div class="mb-3">
-        <label for="productName" class="form-label text-primary">Tên sản phẩm</label>
-        <input
-          type="text"
-          id="productName"
-          placeholder="Nhập tên sản phẩm"
-          v-model="updateProduct.productName"
-          class="form-control shadow-sm"
-        />
-      </div>
-
-      <!-- Material -->
-      <div class="mb-3">
-        <label for="material" class="form-label text-primary">Chọn Chất Liệu</label>
-        <select v-model="updateProduct.materialId" class="form-select shadow-sm">
-          <option v-for="mt in materialList" :key="mt.id" :value="mt.id">
-            {{ mt.materialName }}
-          </option>
-        </select>
-      </div>
-
-      <!-- Gender (Target Audience) -->
-      <div class="mb-3">
-        <label class="form-label text-primary">Dành cho: </label>
-        <div class="form-check form-check-inline">
-          <input
-            class="form-check-input"
-            type="radio"
-            id="genderMale"
-            value="1"
-            v-model="updateProduct.genderId"
-          />
-          <label class="form-check-label" for="genderMale">Nam</label>
+    <el-card class="shadow-lg">
+      <template #header>
+        <div class="text-center">
+          <h2 class="text-2xl font-bold text-blue-600">Cập nhật Sản Phẩm</h2>
         </div>
-        <div class="form-check form-check-inline">
-          <input
-            class="form-check-input"
-            type="radio"
-            id="genderFemale"
-            value="2"
-            v-model="updateProduct.genderId"
-          />
-          <label class="form-check-label" for="genderFemale">Nữ</label>
-        </div>
-        <div class="form-check form-check-inline">
-          <input
-            class="form-check-input"
-            type="radio"
-            id="genderBoth"
-            value="3"
-            v-model="updateProduct.genderId"
-          />
-          <label class="form-check-label" for="genderBoth">Cả nam và nữ</label>
-        </div>
-      </div>
-
-      <div class="mb-3">
-        <label for="supplier" class="form-label text-primary">Chọn nhà cung cấp</label>
-        <select v-model="updateProduct.supplierId" class="form-select shadow-sm">
-          <option v-for="sp in supplierList" :key="sp.id" :value="sp.id">
-            {{ sp.supplierName }}
-          </option>
-        </select>
-      </div>
-
-      <!-- Sole -->
-      <div class="mb-3">
-        <label for="sole" class="form-label text-primary">Chọn loại đế</label>
-        <select v-model="updateProduct.soleId" class="form-select shadow-sm">
-          <option v-for="sp in soleList" :key="sp.id" :value="sp.id">
-            {{ sp.soleName }}
-          </option>
-        </select>
-      </div>
-
-      <!-- Style -->
-      <div class="mb-3">
-        <label for="style" class="form-label text-primary">Chọn cổ giày</label>
-        <select v-model="updateProduct.styleId" class="form-select shadow-sm">
-          <option v-for="sp in styleList" :key="sp.id" :value="sp.id">
-            {{ sp.styleName }}
-          </option>
-        </select>
-      </div>
-
-      <!-- Brand -->
-      <div class="mb-3">
-        <label for="brand" class="form-label text-primary">Chọn thương hiệu</label>
-        <select v-model="updateProduct.brandId" class="form-select shadow-sm">
-          <option v-for="br in brandList" :key="br.id" :value="br.id">
-            {{ br.brandName }}
-          </option>
-        </select>
-      </div>
-
-      <div class="mb-3">
-        <label for="weight" class="form-label text-primary">Cân nặng (gram)</label>
-        <input
-          type="number"
-          id="weight"
-          v-model="updateProduct.weight"
-          class="form-control shadow-sm"
-          placeholder="Nhập cân nặng sản phẩm (gram)"
-          min="0"
-        />
-      </div>
-
-      <!-- Origin Price -->
-      <div class="mb-3">
-        <label for="originPrice" class="form-label text-primary">Giá bán buôn</label>
-        <input
-          type="number"
-          id="originPrice"
-          placeholder="Nhập giá gốc sản phẩm"
-          v-model="updateProduct.originPrice"
-          class="form-control shadow-sm"
-        />
-      </div>
-
-      <!-- Sell Price -->
-      <div class="mb-3">
-        <label for="sellPrice" class="form-label text-primary">Giá bán lẻ</label>
-        <input
-          type="number"
-          id="sellPrice"
-          placeholder="Nhập giá bán sản phẩm"
-          v-model="updateProduct.sellPrice"
-          class="form-control shadow-sm"
-          required
-        />
-      </div>
-
-      <!-- Note -->
-      <div class="mb-3">
-        <label for="note" class="form-label text-primary">Ghi chú sản phẩm</label>
-        <textarea
-          id="note"
-          placeholder="Ghi chú sản phẩm"
-          v-model="updateProduct.description"
-          rows="3"
-          class="form-control shadow-sm"
-        ></textarea>
-      </div>
-
-      <!-- Select Sizes -->
-      <div class="mb-3">
-        <label class="form-label text-primary">Kích thước</label>
-        <div v-for="size in sizeList" :key="size.id" class="form-check form-check-inline">
-          <input
-            type="checkbox"
-            class="form-check-input"
-            :value="size.id"
-            v-model="selectedSizes"
-            @change="generateProductDetails"
-          />
-          <label class="form-check-label">{{ size.sizeName }}</label>
-        </div>
-      </div>
-
-      <!-- Select Colors -->
-      <div class="mb-3">
-        <label class="form-label text-primary">Màu sắc</label>
-        <div v-for="color in colorList" :key="color.id" class="form-check form-check-inline">
-          <input
-            type="checkbox"
-            class="form-check-input"
-            :value="color.id"
-            v-model="selectedColors"
-            @change="generateProductDetails"
-          />
-          <label class="form-check-label">{{ color.colorName }}</label>
-        </div>
-      </div>
-
-      <!-- Product Details -->
-      <div v-for="(detail, index) in productDetails" :key="index" class="card mb-4 shadow-sm">
-        <div class="card-header bg-info text-white">
-          <strong>Chi Tiết Sản Phẩm {{ index + 1 }}</strong>
-        </div>
-        <div class="card-body">
-          <div class="mb-3">
-            <label class="form-label">Kích Thước</label>
-            <input type="text" :value="detail.sizeName" readonly class="form-control" />
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Màu Sắc</label>
-            <input type="text" :value="detail.colorName" readonly class="form-control" />
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Giá Bán</label>
-            <input type="number" v-model="detail.sellPrice" class="form-control" required />
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Số Lượng</label>
-            <input type="number" v-model="detail.quantity" class="form-control" required />
-          </div>
-        </div>
-      </div>
-
-      <!-- Image Upload and Display -->
-      <el-upload
-        class="upload-demo"
-        action="#"
-        :on-preview="handlePreview"
-        :on-change="handleFileChange"
-        :on-remove="handleFileRemove"
-        list-type="picture-card"
-        :limit="10"
-        :file-list="selectedFiles"
-        :auto-upload="false"
-        multiple
-        accept="image/*"
+      </template>
+      <el-form
+        :model="updateProduct"
+        ref="productForm"
+        :rules="rules"
+        label-position="top"
+        class="space-y-4"
       >
-        <el-button type="primary">Tải lên hình ảnh</el-button>
-      </el-upload>
+        <el-form-item label="Chọn danh mục sản phẩm" prop="categoryIds">
+          <multiselect
+            v-model="updateProduct.categoryIds"
+            :options="categoryList"
+            :multiple="true"
+            :close-on-select="false"
+            placeholder="Chọn danh mục"
+            label="categoryName"
+            track-by="id"
+            class="w-full border rounded"
+          />
+          <p class="mt-2 text-sm text-gray-500">
+            Danh mục đã chọn:
+            <span v-if="updateProduct.categoryIds.length === 0">Chưa chọn</span>
+            <span v-else>{{ updateProduct.categoryIds.map(c => c.categoryName).join(', ') }}</span>
+          </p>
+        </el-form-item>
 
-      <!-- Submit Button -->
-      <div class="text-center">
-        <button type="submit" class="btn btn-success btn-lg shadow-sm">Cập nhật sản phẩm</button>
-      </div>
-    </form>
+        <el-form-item label="Tên sản phẩm" prop="productName">
+          <el-input
+            v-model="updateProduct.productName"
+            placeholder="Nhập tên sản phẩm"
+            clearable
+          />
+        </el-form-item>
 
-    <!-- Confirmation Modal -->
-    <div
-      v-if="isModalVisible"
-      class="modal fade show d-block"
-      tabindex="-1"
-      role="dialog"
-      aria-labelledby="confirmDialogTitle"
-      aria-hidden="true"
-    >
-      <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-          <div class="modal-header bg-info text-white">
-            <h5 class="modal-title">Xác nhận</h5>
-            <button type="button" class="btn-close" @click="closeModal"></button>
+        <el-form-item label="Chọn chất liệu" prop="materialId">
+          <el-select v-model="updateProduct.materialId" placeholder="Chọn chất liệu" class="w-full">
+            <el-option
+              v-for="mt in materialList"
+              :key="mt.id"
+              :label="mt.materialName"
+              :value="mt.id"
+            />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="Dành cho" prop="genderId">
+          <el-radio-group v-model="updateProduct.genderId" class="flex space-x-4">
+            <el-radio :label="'1'">Nam</el-radio>
+            <el-radio :label="'2'">Nữ</el-radio>
+            <el-radio :label="'3'">Cả nam và nữ</el-radio>
+          </el-radio-group>
+        </el-form-item>
+
+        <el-form-item label="Chọn nhà cung cấp" prop="supplierId">
+          <el-select v-model="updateProduct.supplierId" placeholder="Chọn nhà cung cấp" class="w-full">
+            <el-option
+              v-for="sp in supplierList"
+              :key="sp.id"
+              :label="sp.supplierName"
+              :value="sp.id"
+            />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="Chọn loại đế" prop="soleId">
+          <el-select v-model="updateProduct.soleId" placeholder="Chọn loại đế" class="w-full">
+            <el-option
+              v-for="sp in soleList"
+              :key="sp.id"
+              :label="sp.soleName"
+              :value="sp.id"
+            />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="Chọn cổ giày" prop="styleId">
+          <el-select v-model="updateProduct.styleId" placeholder="Chọn cổ giày" class="w-full">
+            <el-option
+              v-for="sp in styleList"
+              :key="sp.id"
+              :label="sp.styleName"
+              :value="sp.id"
+            />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="Chọn thương hiệu" prop="brandId">
+          <el-select v-model="updateProduct.brandId" placeholder="Chọn thương hiệu" class="w-full">
+            <el-option
+              v-for="br in brandList"
+              :key="br.id"
+              :label="br.brandName"
+              :value="br.id"
+            />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="Cân nặng (gram)" prop="weight">
+          <el-input
+            type="number"
+            v-model.number="updateProduct.weight"
+            placeholder="Nhập cân nặng sản phẩm (gram)"
+            clearable
+            :min="0"
+          />
+        </el-form-item>
+
+        <el-form-item label="Giá bán" prop="sellPrice">
+          <el-input
+            type="number"
+            v-model.number="updateProduct.sellPrice"
+            placeholder="Nhập giá bán sản phẩm"
+            clearable
+            :min="0"
+          />
+        </el-form-item>
+
+        <el-form-item label="Ghi chú sản phẩm" prop="description">
+          <el-input
+            type="textarea"
+            v-model="updateProduct.description"
+            placeholder="Ghi chú sản phẩm"
+            :rows="3"
+            clearable
+          />
+        </el-form-item>
+
+        <el-form-item label="Kích thước" prop="selectedSizes">
+          <el-checkbox-group v-model="updateProduct.selectedSizes" @change="generateProductDetails">
+            <el-checkbox
+              v-for="size in sizeList"
+              :key="size.id"
+              :label="size.id"
+              class="mr-4 mb-2"
+            >
+              {{ size.sizeName }}
+            </el-checkbox>
+          </el-checkbox-group>
+        </el-form-item>
+
+        <el-form-item label="Màu sắc" prop="selectedColors">
+          <el-checkbox-group v-model="updateProduct.selectedColors" @change="generateProductDetails">
+            <el-checkbox
+              v-for="color in colorList"
+              :key="color.id"
+              :label="color.id"
+              class="mr-4 mb-2"
+            >
+              {{ color.colorName }}
+            </el-checkbox>
+          </el-checkbox-group>
+        </el-form-item>
+
+        <el-form-item v-if="updateProduct.selectedColors.length > 0" label="Hình ảnh theo màu sắc" class="color-image-form-item">
+          <div v-for="colorId in updateProduct.selectedColors" :key="colorId" class="color-image-group mb-6">
+            <h3 class="color-image-title text-lg font-semibold mb-3">
+              Hình ảnh cho màu: {{ getColorName(colorId) }}
+            </h3>
+            <div class="image-upload-wrapper">
+              <el-upload
+                action="#"
+                :on-preview="handlePreview"
+                :on-change="(file, fileList) => handleFileChange(file, fileList, colorId)"
+                :on-remove="(file, fileList) => handleFileRemove(file, fileList, colorId)"
+                list-type="picture-card"
+                :limit="10"
+                :file-list="colorImages[colorId] || []"
+                :auto-upload="false"
+                multiple
+                accept="image/*"
+              >
+                <template #default>
+                  <i class="el-icon-plus"></i>
+                </template>
+              </el-upload>
+            </div>
           </div>
-          <div class="modal-body">
-            <p>Bạn có chắc chắn muốn cập nhật sản phẩm này không?</p>
-          </div>
-          <div class="modal-footer">
-            <button @click="saveProduct" class="btn btn-success">Xác nhận</button>
-            <button @click="closeModal" class="btn btn-danger">Hủy</button>
-          </div>
+        </el-form-item>
+        
+        <el-form-item v-if="updateProduct.selectedColors.length > 0" prop="images">
+          <div style="display: none;"></div>
+        </el-form-item>
+
+        <div v-for="(detail, index) in productDetails" :key="index" class="mb-4">
+          <el-card shadow="hover">
+            <template #header>
+              <h3 class="text-lg font-semibold">
+                Chi tiết sản phẩm {{ index + 1 }}
+              </h3>
+            </template>
+            <div class="grid grid-cols-2 gap-4">
+              <el-form-item label="Kích thước">
+                <el-input :value="detail.sizeName" disabled />
+              </el-form-item>
+              <el-form-item label="Màu sắc">
+                <el-input :value="detail.colorName" disabled />
+              </el-form-item>
+              <el-form-item label="Giá bán" :prop="'productDetails.' + index + '.sellPrice'" :rules="rules.productDetailSellPrice">
+                <el-input
+                  type="number"
+                  v-model.number="detail.sellPrice"
+                  :min="0"
+                  clearable
+                />
+              </el-form-item>
+              <el-form-item label="Số lượng" :prop="'productDetails.' + index + '.quantity'" :rules="rules.productDetailQuantity">
+                <el-input
+                  type="number"
+                  v-model.number="detail.quantity"
+                  :min="0"
+                  clearable
+                />
+              </el-form-item>
+            </div>
+          </el-card>
         </div>
-      </div>
-    </div>
+
+        <el-form-item class="text-center">
+          <el-button type="success" @click="openConfirmDialog" size="large">
+            Cập nhật sản phẩm
+          </el-button>
+        </el-form-item>
+      </el-form>
+    </el-card>
+
+    <el-dialog
+      title="Xác nhận"
+      v-model="isModalVisible"
+      width="30%"
+      center
+      :before-close="closeModal"
+    >
+      <p>Bạn có chắc chắn muốn cập nhật sản phẩm này không?</p>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button type="danger" @click="closeModal">Hủy</el-button>
+          <el-button type="success" @click="saveProduct">Xác nhận</el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import axios from 'axios'
-import { ref, onMounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import Multiselect from 'vue-multiselect'
-import 'vue-multiselect/dist/vue-multiselect.min.css'
-import { ElNotification } from 'element-plus'
+import { ref, onMounted, watch } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
+import Multiselect from 'vue-multiselect';
+import 'vue-multiselect/dist/vue-multiselect.css';
+import { ElNotification } from 'element-plus';
+import axios from 'axios';
 
-const router = useRouter()
-const route = useRoute()
+// Router and Route
+const router = useRouter();
+const route = useRoute();
 
-const brandList = ref([])
-const materialList = ref([])
-const categoryList = ref([])
-const sizeList = ref([])
-const colorList = ref([])
-const soleList = ref([])
-const supplierList = ref([])
-const styleList = ref([])
+// Form reference
+const productForm = ref(null);
 
-const deletedImageIds = ref([]) // Lưu ID của các ảnh cũ bị xóa trên giao diện
-const isModalVisible = ref(false)
-const selectedFiles = ref([])
-const selectedSizes = ref([])
-const selectedColors = ref([])
-const productDetails = ref([])
+// Reactive state
+const brandList = ref([]);
+const materialList = ref([]);
+const categoryList = ref([]);
+const sizeList = ref([]);
+const colorList = ref([]);
+const soleList = ref([]);
+const supplierList = ref([]);
+const styleList = ref([]);
+const isModalVisible = ref(false);
+const colorImages = ref({}); // Stores images per colorId
+const deletedImageIds = ref([]); // Stores IDs of images to be deleted from the backend
+const oldColorIds = ref([]); // Stores IDs of colors that were previously selected but are now deselected
+const productDetails = ref([]);
 
 const updateProduct = ref({
   categoryIds: [],
@@ -321,9 +297,100 @@ const updateProduct = ref({
   weight: null,
   sellPrice: null,
   description: '',
-})
+  selectedSizes: [],
+  selectedColors: [],
+});
 
-// Hiển thị thông báo thành công
+// Form validation rules
+const rules = ref({
+  categoryIds: [
+    {
+      required: true,
+      message: 'Vui lòng chọn ít nhất một danh mục',
+      trigger: 'change',
+      validator: (rule, value, callback) => {
+        if (!value || value.length === 0) {
+          callback(new Error('Vui lòng chọn ít nhất một danh mục'));
+        } else {
+          callback();
+        }
+      },
+    },
+  ],
+  productName: [{ required: true, message: 'Vui lòng nhập tên sản phẩm', trigger: 'blur' }],
+  materialId: [{ required: true, message: 'Vui lòng chọn chất liệu', trigger: 'change' }],
+  supplierId: [{ required: true, message: 'Vui lòng chọn nhà cung cấp', trigger: 'change' }],
+  soleId: [{ required: true, message: 'Vui lòng chọn loại đế', trigger: 'change' }],
+  styleId: [{ required: true, message: 'Vui lòng chọn cổ giày', trigger: 'change' }],
+  brandId: [{ required: true, message: 'Vui lòng chọn thương hiệu', trigger: 'change' }],
+  genderId: [{ required: true, message: 'Vui lòng chọn đối tượng', trigger: 'change' }],
+  weight: [
+    { required: true, message: 'Vui lòng nhập cân nặng', trigger: 'blur' },
+    { type: 'number', min: 0, message: 'Cân nặng phải là số không âm', trigger: 'blur' },
+  ],
+  sellPrice: [
+    { required: true, message: 'Vui lòng nhập giá bán', trigger: 'blur' },
+    { type: 'number', min: 0, message: 'Giá bán phải là số không âm', trigger: 'blur' },
+  ],
+  description: [{ required: true, message: 'Vui lòng nhập mô tả sản phẩm', trigger: 'blur' }],
+  selectedSizes: [
+    {
+      required: true,
+      message: 'Vui lòng chọn ít nhất một kích thước',
+      trigger: 'change',
+      validator: (rule, value, callback) => {
+        if (!value || value.length === 0) {
+          callback(new Error('Vui lòng chọn ít nhất một kích thước'));
+        } else {
+          callback();
+        }
+      },
+    },
+  ],
+  selectedColors: [
+    {
+      required: true,
+      message: 'Vui lòng chọn ít nhất một màu sắc',
+      trigger: 'change',
+      validator: (rule, value, callback) => {
+        if (!value || value.length === 0) {
+          callback(new Error('Vui lòng chọn ít nhất một màu sắc'));
+        } else {
+          callback();
+        }
+      },
+    },
+  ],
+  // Custom rule for image validation
+  images: [
+    {
+      validator: (rule, value, callback) => {
+        for (const colorId of updateProduct.value.selectedColors) {
+          // Check if there are any files for this colorId (either existing or new)
+          const filesForColor = colorImages.value[colorId];
+          if (!filesForColor || filesForColor.length === 0) {
+            callback(new Error(`Vui lòng tải lên ít nhất một ảnh cho màu ${getColorName(colorId)}`));
+            return;
+          }
+        }
+        callback(); // All checks passed
+      },
+      trigger: 'change', // Trigger when file list changes
+    },
+  ],
+  // Rules for dynamically generated product details
+  productDetailSellPrice: [
+    { required: true, message: 'Giá bán không được để trống', trigger: 'blur' },
+    { type: 'number', min: 0, message: 'Giá bán phải là số không âm', trigger: 'blur' },
+  ],
+  productDetailQuantity: [
+    { required: true, message: 'Số lượng không được để trống', trigger: 'blur' },
+    { type: 'number', min: 0, message: 'Số lượng phải là số không âm', trigger: 'blur' },
+  ],
+});
+
+
+// Notification helpers
 const showSuccess = (message) => {
   ElNotification({
     title: 'Thành công',
@@ -331,10 +398,9 @@ const showSuccess = (message) => {
     type: 'success',
     duration: 3000,
     position: 'top-right',
-  })
-}
+  });
+};
 
-// Hiển thị thông báo lỗi
 const showError = (message) => {
   ElNotification({
     title: 'Lỗi',
@@ -342,417 +408,524 @@ const showError = (message) => {
     type: 'error',
     duration: 3000,
     position: 'top-right',
-  })
-}
+  });
+};
 
-// Mở dialog xác nhận
+// Modal controls
 const openConfirmDialog = () => {
-  isModalVisible.value = true
-}
+  productForm.value.validate(async (valid) => {
+    if (valid) {
+      // Additional validation for product details (quantity and sellPrice)
+      const invalidDetails = productDetails.value.some(detail =>
+        detail.quantity === null || detail.quantity === undefined || detail.quantity < 0 ||
+        detail.sellPrice === null || detail.sellPrice === undefined || detail.sellPrice < 0
+      );
+      if (invalidDetails) {
+        showError('Vui lòng nhập đầy đủ giá bán và số lượng cho tất cả chi tiết sản phẩm và đảm bảo chúng không âm!');
+        return;
+      }
+      isModalVisible.value = true;
+    } else {
+      showError('Vui lòng điền đầy đủ các trường bắt buộc hoặc sửa lỗi!');
+      // Scroll to the first invalid field
+      setTimeout(() => {
+        const isError = document.querySelector('.is-error');
+        if (isError) {
+          isError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
+    }
+  });
+};
 
-// Đóng dialog
 const closeModal = () => {
-  isModalVisible.value = false
-}
+  isModalVisible.value = false;
+};
 
-// Lấy danh mục sản phẩm
-const fetchCatgories = async () => {
+// API calls
+const fetchCategories = async () => {
   try {
-    const response = await axios.get('http://localhost:8080/api/admin/categories/hien-thi')
-    categoryList.value = response.data
+    const response = await axios.get('http://localhost:8080/api/admin/categories/hien-thi');
+    categoryList.value = response.data;
   } catch (error) {
-    console.error('Lỗi lấy danh mục:', error)
-    showError('Lỗi lấy danh mục sản phẩm!')
+    console.error('Error fetching categories:', error);
+    showError('Lỗi lấy danh mục sản phẩm!');
   }
-}
+};
 
-// Lấy chất liệu sản phẩm
-const fecthMaterial = async () => {
+const fetchMaterial = async () => {
   try {
-    const response = await axios.get('http://localhost:8080/api/admin/material/hien-thi')
-    materialList.value = response.data
+    const response = await axios.get('http://localhost:8080/api/admin/material/hien-thi');
+    materialList.value = response.data;
   } catch (error) {
-    console.error('Lỗi lấy chất liệu:', error)
-    showError('Lỗi lấy chất liệu sản phẩm!')
+    console.error('Error fetching materials:', error);
+    showError('Lỗi lấy chất liệu sản phẩm!');
   }
-}
+};
 
-// Lấy nhà cung cấp
-const fecthSupplier = async () => {
+const fetchSupplier = async () => {
   try {
-    const response = await axios.get('http://localhost:8080/api/admin/supplier/hien-thi')
-    supplierList.value = response.data
+    const response = await axios.get('http://localhost:8080/api/admin/supplier/hien-thi');
+    supplierList.value = response.data;
   } catch (error) {
-    console.error('Lỗi lấy nhà cung cấp:', error)
-    showError('Lỗi lấy nhà cung cấp!')
+    console.error('Error fetching suppliers:', error);
+    showError('Lỗi lấy nhà cung cấp!');
   }
-}
+};
 
-// Lấy thương hiệu sản phẩm
 const fetchBrand = async () => {
   try {
-    const response = await axios.get('http://localhost:8080/api/admin/brand/hien-thi')
-    brandList.value = response.data
+    const response = await axios.get('http://localhost:8080/api/admin/brand/hien-thi');
+    brandList.value = response.data;
   } catch (error) {
-    console.error('Lỗi lấy thương hiệu:', error)
-    showError('Lỗi lấy thương hiệu sản phẩm!')
+    console.error('Error fetching brands:', error);
+    showError('Lỗi lấy thương hiệu sản phẩm!');
   }
-}
+};
 
-// Lấy đế giày sản phẩm
 const fetchSole = async () => {
   try {
-    const response = await axios.get('http://localhost:8080/api/admin/sole/hien-thi')
-    soleList.value = response.data
+    const response = await axios.get('http://localhost:8080/api/admin/sole/hien-thi');
+    soleList.value = response.data;
   } catch (error) {
-    console.error('Lỗi lấy đế giày:', error)
-    showError('Lỗi lấy đế giày sản phẩm!')
+    console.error('Error fetching soles:', error);
+    showError('Lỗi lấy đế giày sản phẩm!');
   }
-}
+};
 
-// Lấy phong cách sản phẩm
 const fetchStyle = async () => {
   try {
-    const response = await axios.get('http://localhost:8080/api/admin/style/hien-thi')
-    styleList.value = response.data
+    const response = await axios.get('http://localhost:8080/api/admin/style/hien-thi');
+    styleList.value = response.data;
   } catch (error) {
-    console.error('Lỗi lấy phong cách:', error)
-    showError('Lỗi lấy phong cách sản phẩm!')
+    console.error('Error fetching styles:', error);
+    showError('Lỗi lấy phong cách sản phẩm!');
   }
-}
+};
 
-// Lấy kích thước và màu sắc
 const fetchSizesAndColors = async () => {
   try {
     const [sizesResponse, colorsResponse] = await Promise.all([
       axios.get('http://localhost:8080/api/admin/size/hien-thi'),
       axios.get('http://localhost:8080/api/admin/color/hien-thi'),
-    ])
-    sizeList.value = sizesResponse.data
-    colorList.value = colorsResponse.data
+    ]);
+    sizeList.value = sizesResponse.data;
+    colorList.value = colorsResponse.data;
   } catch (error) {
-    console.error('Lỗi lấy kích thước hoặc màu sắc:', error)
-    showError('Lỗi lấy kích thước hoặc màu sắc!')
+    console.error('Error fetching sizes or colors:', error);
+    showError('Lỗi lấy kích thước hoặc màu sắc!');
   }
-}
+};
 
-// Lấy dữ liệu sản phẩm theo ID
+const getColorName = (colorId) => {
+  const color = colorList.value.find((c) => c.id === colorId);
+  return color?.colorName || 'Không xác định';
+};
+
 const fetchProduct = async () => {
-  const id = route.params.id
+  const id = route.params.id;
   try {
-    const response = await axios.get(`http://localhost:8080/api/admin/products/${id}`)
-    const product = response.data
+    const response = await axios.get(`http://localhost:8080/api/admin/products/${id}`);
+    const product = response.data;
 
     updateProduct.value = {
-      categoryIds: product.categories?.map((cat) => ({ id: cat.id, categoryName: cat.categoryName })) || [],
+      categoryIds: product.categories?.map((cat) => ({
+        id: cat.id,
+        categoryName: cat.categoryName,
+      })) || [],
       productName: product.productName || '',
       materialId: product.materialId || null,
       styleId: product.styleId || null,
       supplierId: product.supplierId || null,
-      genderId: product.genderId || null,
+      genderId: product.genderId ? product.genderId.toString() : null, // Ensure genderId is string for radio
       soleId: product.soleId || null,
       brandId: product.brandId || null,
       originPrice: product.originPrice || null,
       weight: product.weight || null,
       sellPrice: product.sellPrice || null,
       description: product.description || '',
-    }
+      selectedSizes: [...new Set(product.productDetails?.map((detail) => detail.sizeId) || [])],
+      selectedColors: [...new Set(product.productDetails?.map((detail) => detail.colorId) || [])],
+    };
 
     productDetails.value = product.productDetails?.map((detail) => ({
+      id: detail.id,
       sizeId: detail.sizeId,
       colorId: detail.colorId,
       sizeName: detail.sizeName,
       colorName: detail.colorName,
       sellPrice: detail.sellPrice,
       quantity: detail.quantity,
-      id: detail.id,
-    })) || []
+    })) || [];
 
-    selectedSizes.value = [...new Set(productDetails.value.map((detail) => detail.sizeId))]
-    selectedColors.value = [...new Set(productDetails.value.map((detail) => detail.colorId))]
-
-    selectedFiles.value = product.productImages?.map((img, index) => ({
-      name: `image-${index + 1}`,
-      url: `data:image/png;base64,${img.image}`,
-      isOld: true,
-      id: img.id,
-      file: null,
-    })) || []
-
-    deletedImageIds.value = [] // Khởi tạo mảng ảnh bị xóa
+    colorImages.value = {};
+    product.productImages?.forEach((img) => {
+      if (img.status === '1') {
+        const colorId = img.colorId;
+        if (!colorImages.value[colorId]) {
+          colorImages.value[colorId] = [];
+        }
+        colorImages.value[colorId].push({
+          name: img.imageName,
+          url: img.image.startsWith('data:image')
+            ? img.image
+            : `data:image/png;base64,${img.image}`,
+          isOld: true, // Mark as existing image
+          id: img.id, // Store image ID
+          file: null, // No raw file for existing images
+        });
+      }
+    });
+    colorImages.value = { ...colorImages.value }; // Ensure reactivity
   } catch (error) {
-    console.error('Lỗi lấy dữ liệu sản phẩm:', error)
-    showError('Lỗi lấy dữ liệu sản phẩm!')
+    console.error('Error fetching product:', error);
+    showError('Lỗi lấy dữ liệu sản phẩm!');
   }
-}
+};
 
-// Tạo chi tiết sản phẩm
 const generateProductDetails = () => {
-  const existingDetails = [...productDetails.value]
-  productDetails.value = []
-  for (const sizeId of selectedSizes.value) {
-    for (const colorId of selectedColors.value) {
-      const size = sizeList.value.find((s) => s.id === sizeId)
-      const color = colorList.value.find((c) => c.id === colorId)
+  const existingDetails = [...productDetails.value]; // Copy current product details
+  const newProductDetails = [];
+  for (const sizeId of updateProduct.value.selectedSizes) {
+    for (const colorId of updateProduct.value.selectedColors) {
+      const size = sizeList.value.find((s) => s.id === sizeId);
+      const color = colorList.value.find((c) => c.id === colorId);
+
+      // Try to find an existing detail for this size/color combination
       const existingDetail = existingDetails.find(
         (detail) => detail.sizeId === sizeId && detail.colorId === colorId,
-      )
-      productDetails.value.push({
+      );
+
+      newProductDetails.push({
+        id: existingDetail?.id || null, // Preserve existing ID if available
         sizeId: sizeId,
         colorId: colorId,
         sizeName: size?.sizeName || '',
         colorName: color?.colorName || '',
-        sellPrice: existingDetail?.sellPrice || updateProduct.value.sellPrice || 0,
-        quantity: existingDetail?.quantity || 0,
-        id: existingDetail?.id || null,
-      })
+        // Preserve existing sellPrice/quantity, or use defaults
+        sellPrice: existingDetail?.sellPrice !== undefined ? existingDetail.sellPrice : updateProduct.value.sellPrice || 0,
+        quantity: existingDetail?.quantity !== undefined ? existingDetail.quantity : 0,
+      });
     }
   }
-}
+  // Update productDetails. Filter out details for deselected sizes/colors
+  productDetails.value = newProductDetails;
+};
 
-// Quay lại trang trước
+// Watch for changes in selectedColors to track deselected colors and their images
+watch(() => updateProduct.value.selectedColors, (newColors, oldColors) => {
+  const removedColorIds = oldColors.filter(
+    (colorId) => !newColors.includes(colorId)
+  );
+
+  removedColorIds.forEach((colorId) => {
+    // Add the deselected color's ID to oldColorIds
+    if (!oldColorIds.value.includes(colorId)) {
+      oldColorIds.value.push(colorId);
+    }
+
+    // Also collect image IDs associated with this deselected color
+    if (colorImages.value[colorId]) {
+      colorImages.value[colorId].forEach((img) => {
+        if (img.isOld && img.id && !deletedImageIds.value.includes(img.id)) {
+          deletedImageIds.value.push(img.id);
+        }
+      });
+      // Remove images for the deselected color from the local state
+      delete colorImages.value[colorId];
+    }
+  });
+  colorImages.value = { ...colorImages.value }; // Ensure reactivity for colorImages
+
+  // Re-run validation for images when colors change
+  if (productForm.value) {
+    productForm.value.validateField('images');
+  }
+}, { deep: true }); // Use deep watch for nested changes if needed, though shallow is often fine for array elements
+
+// Watch for changes in selectedSizes to regenerate product details
+watch(() => updateProduct.value.selectedSizes, () => {
+  generateProductDetails();
+});
+
+// Watch for changes in general sellPrice to update product details sellPrice
+watch(() => updateProduct.value.sellPrice, (newSellPrice) => {
+  // Only update if the new sellPrice is a valid number
+  if (typeof newSellPrice === 'number' && newSellPrice >= 0) {
+    productDetails.value.forEach(detail => {
+      // Only update if the detail's sellPrice wasn't specifically changed by the user
+      // or if it's currently 0 or null. This is a heuristic.
+      // A more robust solution might involve a flag on each detail.
+      if (detail.sellPrice === 0 || detail.sellPrice === null || detail.sellPrice === updateProduct.value.sellPrice) {
+        detail.sellPrice = newSellPrice;
+      }
+    });
+  }
+});
+
+
 const goBack = () => {
-  router.push('/product')
-}
+  router.push('/product');
+};
 
-// Xử lý khi chọn file trong el-upload
-const handleFileChange = (file, fileList) => {
-  // Kiểm tra kích thước file (giới hạn 5MB)
-  const maxSize = 5 * 1024 * 1024 // 5MB
+const handleFileChange = (file, fileList, colorId) => {
+  const maxSize = 5 * 1024 * 1024; // 5MB
   if (file.size > maxSize) {
-    showError(`Ảnh ${file.name} vượt quá kích thước tối đa (5MB)!`)
-    fileList.splice(fileList.indexOf(file), 1) // Xóa file khỏi fileList
-    return
+    showError(`Ảnh ${file.name} vượt quá kích thước tối đa (5MB)!`);
+    // Filter out the oversized file from fileList
+    colorImages.value[colorId] = fileList.filter(f => f.raw !== file.raw).map((item) => ({
+      name: item.name,
+      url: item.url || (item.raw ? URL.createObjectURL(item.raw) : ''),
+      file: item.raw || null,
+      isOld: item.isOld || false,
+      id: item.id || null,
+    }));
+    colorImages.value = { ...colorImages.value };
+    return;
   }
 
-  // Kiểm tra file trùng (dựa trên tên và kích thước)
-  const isDuplicate = selectedFiles.value.some(
+  const existingFilesForColor = colorImages.value[colorId] || [];
+  const isDuplicate = existingFilesForColor.some(
     (f) => f.name === file.name && f.file?.size === file.size && !f.isOld
-  )
+  );
+
   if (isDuplicate) {
-    showError(`Ảnh ${file.name} đã được chọn!`)
-    fileList.splice(fileList.indexOf(file), 1) // Xóa file trùng
-    return
+    showError(`Ảnh ${file.name} đã được chọn cho màu này!`);
+    // Filter out the duplicate file from fileList
+    colorImages.value[colorId] = fileList.filter(f => f.raw !== file.raw).map((item) => ({
+      name: item.name,
+      url: item.url || (item.raw ? URL.createObjectURL(item.raw) : ''),
+      file: item.raw || null,
+      isOld: item.isOld || false,
+      id: item.id || null,
+    }));
+    colorImages.value = { ...colorImages.value };
+    return;
   }
 
-  console.log('File mới:', file.name, 'Kích thước:', file.size, 'Tổng file:', fileList.length)
-  selectedFiles.value = fileList.map((item) => ({
+  if (!colorImages.value[colorId]) {
+    colorImages.value[colorId] = [];
+  }
+
+  colorImages.value[colorId] = fileList.map((item) => ({
     name: item.name,
     url: item.url || (item.raw ? URL.createObjectURL(item.raw) : ''),
     file: item.raw || null,
     isOld: item.isOld || false,
     id: item.id || null,
-  }))
-  console.log('selectedFiles sau khi thêm:', selectedFiles.value.map(f => ({ name: f.name, isOld: f.isOld })))
-}
+  }));
+  colorImages.value = { ...colorImages.value };
 
-// Xử lý khi xóa file
-const handleFileRemove = (file, fileList) => {
-  console.log('File xóa:', file.name, 'Tổng file còn lại:', fileList.length)
-  // Nếu xóa ảnh cũ, thêm ID vào deletedImageIds
-  if (file.isOld && file.id) {
-    if (!deletedImageIds.value.includes(file.id)) {
-      deletedImageIds.value.push(file.id)
-    }
+  // Re-run validation for images when files change
+  if (productForm.value) {
+    productForm.value.validateField('images');
   }
-  selectedFiles.value = fileList.map((item) => ({
+};
+
+const handleFileRemove = (file, fileList, colorId) => {
+  if (file.isOld && file.id && !deletedImageIds.value.includes(file.id)) {
+    deletedImageIds.value.push(file.id);
+  }
+  colorImages.value[colorId] = fileList.map((item) => ({
     name: item.name,
     url: item.url || (item.raw ? URL.createObjectURL(item.raw) : ''),
     file: item.raw || null,
     isOld: item.isOld || false,
     id: item.id || null,
-  }))
-  console.log('Danh sách deletedImageIds:', deletedImageIds.value)
-}
+  }));
+  colorImages.value = { ...colorImages.value };
 
-// Xử lý xem trước ảnh
+  // Re-run validation for images when files change
+  if (productForm.value) {
+    productForm.value.validateField('images');
+  }
+};
+
 const handlePreview = (file) => {
-  console.log('Xem trước:', file.name)
-  window.open(file.url, '_blank')
-}
+  window.open(file.url, '_blank');
+};
 
-// Lưu sản phẩm
 const saveProduct = async () => {
   try {
-    console.log('selectedFiles:', selectedFiles.value.map(f => ({ name: f.name, isOld: f.isOld, id: f.id })))
-    console.log('deletedImageIds:', deletedImageIds.value)
-    console.log('productDetails:', productDetails.value)
-
-    // Gộp các biến thể trùng sizeId + colorId
-    const mergedDetails = []
+    const mergedDetails = [];
+    // Ensure productDetails reflects only currently selected sizes/colors
     productDetails.value.forEach((detail) => {
-      const existing = mergedDetails.find(
-        (d) => d.sizeId === detail.sizeId && d.colorId === detail.colorId,
-      )
-      if (existing) {
-        existing.quantity += Number(detail.quantity)
-        existing.sellPrice = detail.sellPrice
-      } else {
-        mergedDetails.push({ ...detail })
+      const isSizeSelected = updateProduct.value.selectedSizes.includes(detail.sizeId);
+      const isColorSelected = updateProduct.value.selectedColors.includes(detail.colorId);
+
+      if (isSizeSelected && isColorSelected) {
+        mergedDetails.push({ ...detail });
       }
-    })
+    });
 
-    const totalQuantity = mergedDetails.reduce((sum, detail) => sum + Number(detail.quantity), 0)
-
+    const totalQuantity = mergedDetails.reduce((sum, detail) => sum + Number(detail.quantity), 0);
     if (totalQuantity <= 0) {
-      showError('Tổng số lượng của các biến thể sản phẩm phải lớn hơn 0!')
-      isModalVisible.value = false
-      return
+      showError('Tổng số lượng của các biến thể sản phẩm phải lớn hơn 0!');
+      isModalVisible.value = false;
+      return;
     }
 
-    const formData = new FormData()
-    formData.append('productName', updateProduct.value.productName || '')
-    formData.append('materialId', updateProduct.value.materialId || '')
-    formData.append('supplierId', updateProduct.value.supplierId || '')
-    formData.append('brandId', updateProduct.value.brandId || '')
-    formData.append('soleId', updateProduct.value.soleId || '')
-    formData.append('styleId', updateProduct.value.styleId || '')
-    formData.append('genderId', updateProduct.value.genderId || '')
-    formData.append('weight', updateProduct.value.weight || 0)
-    formData.append('originPrice', updateProduct.value.originPrice || 0)
-    formData.append('sellPrice', updateProduct.value.sellPrice || 0)
-    formData.append('quantity', totalQuantity)
-    formData.append('description', updateProduct.value.description || '')
+    const formData = new FormData();
+    formData.append('productName', updateProduct.value.productName || '');
+    formData.append('materialId', updateProduct.value.materialId || '');
+    formData.append('supplierId', updateProduct.value.supplierId || '');
+    formData.append('brandId', updateProduct.value.brandId || '');
+    formData.append('soleId', updateProduct.value.soleId || '');
+    formData.append('styleId', updateProduct.value.styleId || '');
+    formData.append('genderId', updateProduct.value.genderId || '');
+    formData.append('weight', updateProduct.value.weight || 0);
+    formData.append('originPrice', updateProduct.value.originPrice || 0);
+    formData.append('sellPrice', updateProduct.value.sellPrice || 0);
+    formData.append('quantity', totalQuantity);
+    formData.append('description', updateProduct.value.description || '');
 
-    const categories = Array.isArray(updateProduct.value.categoryIds)
-      ? updateProduct.value.categoryIds
-      : []
-    categories.forEach((cat, index) => {
-      const categoryId = typeof cat === 'object' && cat !== null ? cat.id : cat
-      formData.append(`categoryIds[${index}]`, categoryId)
-    })
-
-    if (!Array.isArray(mergedDetails)) {
-      console.error('mergedDetails không phải là mảng:', mergedDetails)
-      showError('Dữ liệu biến thể sản phẩm không hợp lệ!')
-      return
-    }
+    updateProduct.value.categoryIds.forEach((cat, index) => {
+      const categoryId = typeof cat === 'object' ? cat.id : cat;
+      formData.append(`categoryIds[${index}]`, categoryId);
+    });
 
     mergedDetails.forEach((detail, index) => {
       if (detail.id) {
-        formData.append(`productDetails[${index}].id`, detail.id)
+        formData.append(`productDetails[${index}].id`, detail.id);
       }
-      formData.append(`productDetails[${index}].sizeId`, detail.sizeId)
-      formData.append(`productDetails[${index}].colorId`, detail.colorId)
-      formData.append(`productDetails[${index}].sellPrice`, detail.sellPrice)
-      formData.append(`productDetails[${index}].quantity`, detail.quantity)
-    })
+      formData.append(`productDetails[${index}].sizeId`, detail.sizeId);
+      formData.append(`productDetails[${index}].colorId`, detail.colorId);
+      formData.append(`productDetails[${index}].sellPrice`, detail.sellPrice);
+      formData.append(`productDetails[${index}].quantity`, detail.quantity);
+    });
 
-    // Gửi ID của các ảnh bị xóa
+    // Append deleted image IDs
     if (deletedImageIds.value.length > 0) {
-      console.log('Gửi oldImageIds:', deletedImageIds.value)
       deletedImageIds.value.forEach((id, index) => {
-        formData.append(`oldImageIds[${index}]`, id)
-      })
-    } else {
-      console.log('Không có ảnh bị xóa, không gửi oldImageIds')
+        formData.append(`deletedImageIds[${index}]`, id);
+      });
     }
 
-    // Thêm ảnh mới
-    const newImages = selectedFiles.value.filter((fileObj) => fileObj.file && !fileObj.isOld)
-    console.log('Số ảnh mới:', newImages.length, newImages.map(f => f.name))
-    newImages.forEach((fileObj) => {
-      formData.append('productImages', fileObj.file)
-    })
-
-    // Log nội dung FormData
-    for (let [key, value] of formData.entries()) {
-      console.log(`FormData: ${key} =`, value instanceof File ? value.name : value)
+    // Append deselected color IDs
+    if (oldColorIds.value.length > 0) {
+      oldColorIds.value.forEach((id, index) => {
+        formData.append(`removedColorIds[${index}]`, id);
+      });
     }
 
-    const id = route.params.id
-    console.log('Gửi FormData tới server...')
+    let imageIndex = 0;
+    Object.entries(colorImages.value).forEach(([colorId, files]) => {
+      files
+        .filter((fileObj) => fileObj.file && !fileObj.isOld) // Only new files
+        .forEach((fileObj) => {
+          formData.append(`productImages[${imageIndex}].productImages`, fileObj.file);
+          formData.append(`productImages[${imageIndex}].colorId`, colorId);
+          imageIndex++;
+        });
+    });
+
+    const id = route.params.id;
     const response = await axios.put(`http://localhost:8080/api/admin/products/${id}`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    })
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
 
-    showSuccess('Cập nhật sản phẩm thành công!')
-    isModalVisible.value = false
-    console.log('Phản hồi server:', response.data)
+    showSuccess('Cập nhật sản phẩm thành công!');
+    isModalVisible.value = false;
+
+    // Reset state after successful update
+    updateProduct.value = {
+      categoryIds: [],
+      productName: '',
+      materialId: null,
+      styleId: null,
+      supplierId: null,
+      genderId: null,
+      soleId: null,
+      brandId: null,
+      originPrice: null,
+      weight: null,
+      sellPrice: null,
+      description: '',
+      selectedSizes: [],
+      selectedColors: [],
+    };
+    colorImages.value = {};
+    productDetails.value = [];
+    deletedImageIds.value = [];
+    oldColorIds.value = [];
 
     setTimeout(() => {
-      router.push('/product')
-    }, 3000)
+      router.push('/product');
+    }, 3000);
   } catch (error) {
-    console.error('Lỗi cập nhật sản phẩm:', error)
-    const errorMessage = error.response?.data?.error || 'Đã xảy ra lỗi khi cập nhật sản phẩm.'
-    showError(errorMessage)
-    isModalVisible.value = false
+    console.error('Error updating product:', error);
+    const errorMessage = error.response?.data?.error || 'Đã xảy ra lỗi khi cập nhật sản phẩm.';
+    showError(errorMessage);
+    isModalVisible.value = false;
   }
-}
+};
 
 onMounted(() => {
-  fetchBrand()
-  fecthMaterial()
-  fetchSizesAndColors()
-  fetchSole()
-  fetchStyle()
-  fetchCatgories()
-  fecthSupplier()
-  fetchProduct()
-})
+  fetchBrand();
+  fetchMaterial();
+  fetchSizesAndColors();
+  fetchSole();
+  fetchStyle();
+  fetchCategories();
+  fetchSupplier();
+  fetchProduct();
+});
 </script>
 
 <style scoped>
 .container {
-  max-width: 1200px;
+  max-width: 1280px;
 }
 
-.bg-light {
-  background-color: #f8f9fa;
+:deep(.el-form-item__label) {
+  font-weight: 600;
+  color: #374151;
 }
 
-.form-control,
-.form-select {
-  border-radius: 0.5rem;
+:deep(.el-card) {
+  border-radius: 8px;
 }
 
-.btn-success {
-  background-color: #28a745;
-  border-color: #28a745;
+:deep(.el-checkbox__label) {
+  color: #4b5563;
 }
 
-.btn-success:hover {
-  background-color: #218838;
-  border-color: #1e7e34;
+:deep(.el-button) {
+  transition: all 0.3s;
 }
 
-.selected-images {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-top: 10px;
+:deep(.el-dialog) {
+  border-radius: 8px;
 }
 
-.thumbnail {
-  position: relative;
+:deep(.el-upload--picture-card) {
+  background-color: #f9fafb;
+  border: 1px dashed #d1d5db;
   width: 100px;
   height: 100px;
-  overflow: hidden;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  line-height: 100px;
 }
 
-.thumbnail img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+:deep(.el-upload-list--picture-card .el-upload-list__item) {
+  width: 100px;
+  height: 100px;
 }
 
-.thumbnail button {
-  padding: 2px 6px;
+.color-image-form-item :deep(.el-form-item__content) {
+  display: block;
 }
 
-.modal-content {
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+.color-image-group {
+  display: block;
 }
 
-.modal-header {
-  border-top-left-radius: 8px;
-  border-top-right-radius: 8px;
+.color-image-title {
+  display: block;
+}
+
+.image-upload-wrapper .el-upload-list--picture-card {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 </style>

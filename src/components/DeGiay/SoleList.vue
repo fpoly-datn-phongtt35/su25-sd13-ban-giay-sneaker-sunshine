@@ -6,18 +6,15 @@
 
     <!-- Form Thêm / Sửa -->
     <div class="form-section">
-      <el-form :model="form" ref="formRef" label-width="120px">
-        <el-form-item
-          label="Tên loại đế"
-          :rules="[{ required: true, message: 'Tên không được để trống', trigger: 'blur' }]"
-        >
+      <el-form :model="form" :rules="rules" ref="formRef" label-width="120px">
+        <el-form-item label="Tên loại đế" prop="name">
           <el-input v-model="form.name" placeholder="Nhập tên loại đế..." />
         </el-form-item>
 
         <el-form-item>
-          <el-button type="primary" @click="handleSubmit">{{
-            isEditing ? 'Cập nhật' : 'Thêm mới'
-          }}</el-button>
+          <el-button type="primary" @click="handleSubmit">
+            {{ isEditing ? 'Cập nhật' : 'Thêm mới' }}
+          </el-button>
           <el-button @click="resetForm">Làm mới</el-button>
         </el-form-item>
       </el-form>
@@ -40,7 +37,6 @@
           {{ formatDateTime(scope.row.createdDate) }}
         </template>
       </el-table-column>
-
       <el-table-column label="Hành động" width="200">
         <template #default="scope">
           <el-button size="small" @click="editSole(scope.row)">Sửa</el-button>
@@ -63,27 +59,13 @@ const soles = ref([])
 const form = ref({ id: null, name: '' }) // 'name' for the form input
 const isEditing = ref(false)
 const formRef = ref(null)
-const loading = ref(false) // Added loading state for better UX
 
-// You might want to add validation rules for 'name' here, similar to other components
-// const rules = {
-//   name: [
-//     { required: true, message: 'Tên loại đế không được để trống', trigger: 'blur' },
-//     { min: 2, message: 'Tên loại đế tối thiểu 2 ký tự', trigger: 'blur' },
-//     { max: 50, message: 'Tên loại đế tối đa 50 ký tự', trigger: 'blur' },
-//     {
-//       validator: (_, value, callback) => {
-//         const pattern = /^[\p{L}\d\s]+$/u
-//         if (!pattern.test(value)) {
-//           callback(new Error('Tên loại đế không chứa ký tự đặc biệt'))
-//         } else {
-//           callback()
-//         }
-//       },
-//       trigger: 'blur'
-//     }
-//   ]
-// }
+const rules = {
+  name: [
+    { required: true, message: 'Tên không được để trống', trigger: 'blur' },
+    { min: 2, message: 'Tên phải có ít nhất 2 ký tự', trigger: 'blur' },
+  ],
+}
 
 const formatDateTime = (dateStr) => {
   if (!dateStr) return ''
@@ -120,19 +102,9 @@ const fetchSoles = async () => {
 }
 
 const handleSubmit = async () => {
-  // If you add rules and use formRef, uncomment the validation block below
-  // if (formRef.value) {
-  //   const valid = await formRef.value.validate();
-  //   if (!valid) {
-  //     ElMessage.error('Vui lòng kiểm tra lại thông tin form.');
-  //     return;
-  //   }
-  // }
-
-  if (!form.value.name || form.value.name.trim() === '') {
-    ElMessage.warning('Vui lòng nhập tên loại đế')
-    return
-  }
+  formRef.value.validate(async (valid) => {
+    if (!valid) return
+  
 
   // Optional: Check for duplicate names (case-insensitive, exclude current item if editing)
   const nameTrimmed = form.value.name.trim().toLowerCase();
@@ -147,8 +119,15 @@ const handleSubmit = async () => {
   loading.value = true // Set loading state for submission
   try {
     if (isEditing.value) {
-      // Use apiClient for the PUT request (no confirm for update as per original logic)
-      await apiClient.put(`/admin/sole/${form.value.id}`, null, {
+        // Thêm xác nhận trước khi cập nhật
+        await ElMessageBox.confirm('Bạn có chắc chắn muốn cập nhật loại đế này?', 'Xác nhận', {
+          confirmButtonText: 'Cập nhật',
+          cancelButtonText: 'Hủy',
+          type: 'warning',
+        })
+     
+      // Trường hợp cập nhật, không cần confirm
+      await axios.put(`http://localhost:8080/api/admin/sole/${form.value.id}`, null, {
         params: { name: form.value.name },
       })
       ElMessage.success('Cập nhật thành công')
@@ -158,33 +137,32 @@ const handleSubmit = async () => {
         confirmButtonText: 'Thêm',
         cancelButtonText: 'Hủy',
         type: 'info',
-      });
-      // Use apiClient for the POST request
-      await apiClient.post('/admin/sole', null, {
-        params: { name: form.value.name },
       })
-      ElMessage.success('Thêm mới thành công')
-    }
-    await fetchSoles() // Refresh the list after successful operation
-    resetForm() // Clear the form
+        .then(async () => {
+          await axios.post('http://localhost:8080/api/admin/sole', null, {
+            params: { name: form.value.name },
+          })
+          ElMessage.success('Thêm mới thành công')
+          await fetchSoles()
+          resetForm()
+        })
+
+        .catch(() => {
+          // Người dùng hủy thao tác
+          ElMessage.info('Thao tác đã bị hủy')
+        })
+}
   } catch (error) {
-    console.error('Lỗi khi lưu dữ liệu loại đế:', error)
-    // Handle user cancellation (from ElMessageBox.confirm) or API errors
-    if (error === 'cancel' || error === 'close') {
-      ElMessage.info('Đã hủy thao tác.')
-    } else if (error.response && error.response.data && error.response.data.message) {
-      ElMessage.error(`Lỗi: ${error.response.data.message}`);
-    } else {
-      ElMessage.error('Có lỗi xảy ra khi lưu dữ liệu.')
-    }
-  } finally {
-    loading.value = false // Reset loading state
+    ElMessage.error('Lỗi khi lưu dữ liệu')
   }
+  })
 }
 
 const editSole = (sole) => {
-  // Map fetched 'soleName' to form's 'name'
-  form.value = { id: sole.id, name: sole.soleName }
+  form.value = {
+    id: sole.id,
+    name: sole.soleName,
+  }
   isEditing.value = true
   ElMessage.info(`Đang chỉnh sửa: ${sole.soleName}`);
 }
@@ -196,32 +174,20 @@ const resetForm = () => {
   ElMessage.info('Form đã được đặt lại.');
 }
 
-const confirmDelete = async (id) => {
-  try {
-    await ElMessageBox.confirm('Bạn có chắc chắn muốn xóa loại đế này?', 'Xác nhận', {
-      confirmButtonText: 'Xóa',
-      cancelButtonText: 'Hủy',
-      type: 'warning',
+const confirmDelete = (id) => {
+  ElMessageBox.confirm('Bạn có chắc chắn muốn xóa?', 'Xác nhận', {
+    confirmButtonText: 'Xóa',
+    cancelButtonText: 'Hủy',
+    type: 'warning',
+  })
+    .then(async () => {
+      await axios.delete(`http://localhost:8080/api/admin/sole/${id}`)
+      ElMessage.success('Đã xóa thành công')
+      await fetchSoles()
     })
-    // Use apiClient for the DELETE request
-    await apiClient.delete(`/admin/sole/${id}`)
-    ElMessage.success('Đã xóa thành công')
-    await fetchSoles() // Refresh the list
-    // If the deleted item was the one being edited, reset the form
-    if (form.value.id === id) {
-      resetForm();
-    }
-  } catch (error) {
-    console.error('Lỗi khi xóa loại đế:', error)
-    // Handle user cancellation or API errors
-    if (error === 'cancel' || error === 'close') {
-      ElMessage.info('Đã hủy thao tác xóa.')
-    } else if (error.response && error.response.data && error.response.data.message) {
-      ElMessage.error(`Lỗi: ${error.response.data.message}`);
-    } else {
-      ElMessage.error('Lỗi khi xóa loại đế.')
-    }
-  }
+    .catch(() => {
+      ElMessage.info('Thao tác đã bị hủy')
+    })
 }
 
 onMounted(fetchSoles)

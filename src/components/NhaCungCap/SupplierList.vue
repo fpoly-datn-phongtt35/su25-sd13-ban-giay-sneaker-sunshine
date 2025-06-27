@@ -32,7 +32,9 @@
         </el-form-item>
 
         <el-form-item>
-          <el-button type="primary" @click="handleSubmit">{{ isEditing ? 'Cập nhật' : 'Thêm mới' }}</el-button>
+          <el-button type="primary" @click="handleSubmit">
+            {{ isEditing ? 'Cập nhật' : 'Thêm mới' }}
+          </el-button>
           <el-button @click="resetForm">Làm mới</el-button>
         </el-form-item>
       </el-form>
@@ -79,7 +81,6 @@ const isEditing = ref(false)
 const formRef = ref(null)
 const loading = ref(false) // Added loading state for API calls
 
-// Validation rules corresponding to DTO
 const rules = {
   supplierName: [
     { required: true, message: 'Tên nhà cung cấp là bắt buộc', trigger: 'blur' },
@@ -132,8 +133,17 @@ const handleSubmit = () => {
       return;
     }
 
-    loading.value = true // Set loading state for submission
+    const confirmMsg = isEditing.value
+      ? `Bạn có chắc chắn muốn cập nhật nhà cung cấp "${form.value.supplierName}"?`
+      : `Bạn có chắc chắn muốn thêm mới nhà cung cấp "${form.value.supplierName}"?`
+
     try {
+      await ElMessageBox.confirm(confirmMsg, 'Xác nhận', {
+        confirmButtonText: isEditing.value ? 'Cập nhật' : 'Thêm mới',
+        cancelButtonText: 'Hủy',
+        type: 'info',
+      })
+
       if (isEditing.value) {
         // Use apiClient for the PUT request
         await apiClient.put(`/admin/supplier/${form.value.id}`, form.value)
@@ -149,20 +159,15 @@ const handleSubmit = () => {
         await apiClient.post('/admin/supplier', form.value)
         ElMessage.success('Thêm mới thành công')
       }
-      await fetchSuppliers() // Refresh the list
-      resetForm() // Reset the form
+
+      await fetchSuppliers()
+      resetForm()
     } catch (error) {
-      console.error('Lỗi khi lưu dữ liệu nhà cung cấp:', error)
-      // Handle user cancellation or API errors
-      if (error === 'cancel' || error === 'close') {
-        ElMessage.info('Đã hủy thao tác.');
-      } else if (error.response && error.response.data && error.response.data.message) {
-        ElMessage.error(`Lỗi: ${error.response.data.message}`);
+      if (error !== 'cancel') {
+        ElMessage.error('Có lỗi xảy ra khi gửi dữ liệu!')
       } else {
-        ElMessage.error('Có lỗi xảy ra khi lưu dữ liệu!');
+        ElMessage.info('Đã hủy thao tác')
       }
-    } finally {
-      loading.value = false // Reset loading state
     }
   })
 }

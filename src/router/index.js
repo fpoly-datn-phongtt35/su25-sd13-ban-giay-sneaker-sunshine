@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHistory } from "vue-router";
 
 import MaterialList from '@/components/ChatLieu/MaterialList.vue'
 import StyleList from '@/components/CoGiay/StyleList.vue'
@@ -20,6 +20,7 @@ import ProductList from '@/components/SanPham/ProductList.vue'
 import UpdateProduct from '@/components/SanPham/UpdateProduct.vue'
 import BrandList from '@/components/ThuongHieu/BrandList.vue'
 import Dashboard from '@/layout/Dashboard.vue'
+
 import AddVoucher from '@/components/MaGiamGia/AddVoucher.vue'
 import UpdateVoucher from '@/components/MaGiamGia/UpdateVoucher.vue'
 import EmployeeList from '@/components/NhanVien/EmployeeList.vue'
@@ -30,6 +31,7 @@ import AddCustomer from '@/components/KhachHang/AddCustomer.vue'
 import UpdateCustomer from '@/components/KhachHang/UpdateCustomer.vue'
 import StatisticsView from '@/components/ThongKe/StatisticsView.vue'
 import Error403 from '@/components/404-error-main/Error403.vue'
+import OnlineSaleList from "@/components/OnlineSales/OnlineSaleList.vue";
 
 const routes = [
   {
@@ -52,19 +54,25 @@ const routes = [
   {
     path: '/',
     component: Dashboard,
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true , breadcrumb: "Dashboard" },
     children: [
-      { path: 'home', name: 'Home', component: TrangChu },
+      { path: "home", name: "Home", component: TrangChu , meta: {
+          breadcrumb: "Trang chủ",
+          parent: "Dashboard",
+        },},
+
+      { path: "product", name: "ProductList", component: ProductList },
+      { path: "product/add", name: "AddProduct", component: AddProduct },
+      { path: "product/update/:id", name: "UpdateProduct", component: UpdateProduct },
+      { path: "product/detail/:id", name: "DetailProduct", component: DetailProduct },
+      { path: "product/history", name: "ProductHistory", component: ProductHistory },
+
       { path: 'categories', name: 'Category', component: CategoryList },
+
       { path: 'voucher', name: 'VoucherList', component: VoucherList },
       { path: 'voucher/add', name: 'AddVoucher', component: AddVoucher },
       { path: 'voucher/update/:id', name: 'UpdateVoucher', component: UpdateVoucher },
 
-      { path: 'product', name: 'ProductList', component: ProductList },
-      { path: 'product/add', name: 'AddProduct', component: AddProduct },
-      { path: 'product/update/:id', name: 'UpdateProduct', component: UpdateProduct },
-      { path: 'product/detail/:id', name: 'DetailProduct', component: DetailProduct },
-      { path: 'product/history', name: 'ProductHistory', component: ProductHistory },
 
       { path: '/sales-counter/list', name: 'CounterSales', component: CounterSales },
       {
@@ -77,7 +85,6 @@ const routes = [
       // { path: "sales-online", name: "OnlineSaleDisplay", component: OnlineSale },
 
       { path: 'supplier', name: 'NhaCungCap', component: SupplierList },
-
       { path: 'style', name: 'KieuDang', component: StyleList },
       { path: 'sole', name: 'DeGiay', component: SoleList },
       { path: 'size', name: 'KichThuoc', component: SizeList },
@@ -90,15 +97,20 @@ const routes = [
       { path: 'color', name: 'Color', component: ColorList },
 
       { path: 'voucher', name: 'Voucher', component: VoucherList },
-      { path: 'customer/add', name: 'AddCustomer', component: AddCustomer },
+
+      { path: "employee", name: "Employee", component: EmployeeList },
+      { path: "employee/add", name: "AddEmployee", component: AddEmployee },
+      { path: "employee/update/:id", name: "UpdateEmployee", component: UpdateEmployee },
+
+      { path: "customer/add", name: "AddCustomer", component: AddCustomer },
+      { path: "customer", name: "CustomerList", component: CustomerList },
+      { path: "customer/update/:id", name: "UpdateCustomer", component: UpdateCustomer },
       { path: 'customer', name: 'CustomerList', component: CustomerList },
       { path: 'customer/update/:id', name: 'UpdateCustomer', component: UpdateCustomer },
 
-      { path: 'employee', name: 'Employee', component: EmployeeList },
-      { path: 'employee/add', name: 'AddEmployee', component: AddEmployee },
-      { path: 'employee/update/:id', name: 'UpdateEmployee', component: UpdateEmployee },
-
       { path: 'statistics', name: 'Statistics', component: StatisticsView },
+
+      { path: 'sales-online', name: 'SaleOnlines', component: OnlineSaleList },
     ],
   },
 ]

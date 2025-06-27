@@ -2,12 +2,22 @@
   <header class="bg-white text-gray-800 py-4 shadow-md">
     <div class="container d-flex align-items-center justify-content-between">
       <div class="d-flex align-items-center gap-1 flex-shrink-0">
-        <img :src="logoSrc" alt="Logo" class="h-10 w-10" /> 
-        <h1 class="m-0 fw-bold text-2xl text-nowrap">Sunshine Shop</h1> 
+        <!-- <img :src="logoSrc" alt="Logo" class="h-10 w-10" />  -->
+        <h1 class="m-0 fw-bold text-2xl text-nowrap">
+          <span class="text-blue">S</span>
+          <span class="text-red">h</span>
+          <span class="text-yellow">u</span>
+          <span class="text-green">n</span>
+          <span class="text-yellow">S</span>
+          <span class="text-blue">h</span>
+          <span class="text-red">i</span>
+          <span class="text-green">n</span>
+          <span class="text-blue">e</span>
+        </h1>
       </div>
 
-      <nav class="flex-grow-1 d-flex justify-content-start"> 
-        <ul class="nav gap-1 m-0 p-0 flex-nowrap align-items-center"> 
+      <nav class="flex-grow-1 d-flex justify-content-start">
+        <ul class="nav gap-1 m-0 p-0 flex-nowrap align-items-center">
           <li class="nav-item" v-for="link in navLinks" :key="link.path">
             <RouterLink
               :to="link.path"
@@ -20,7 +30,7 @@
         </ul>
       </nav>
 
-      <div class="d-flex align-items-center gap-4 flex-nowrap flex-shrink-0"> 
+      <div class="d-flex align-items-center gap-4 flex-nowrap flex-shrink-0">
         <div class="search-input-container">
           <el-input
             v-model.trim="searchQuery"
@@ -32,7 +42,12 @@
         </div>
 
         <div class="position-relative">
-          <button class="btn btn-link p-0 border-0 text-gray-700 header-icon-btn" @click="toggleUserDropdown" type="button" aria-label="Tài khoản">
+          <button
+            class="btn btn-link p-0 border-0 text-gray-700 header-icon-btn"
+            @click="toggleUserDropdown"
+            type="button"
+            aria-label="Tài khoản"
+          >
             <el-icon :size="24"><User /></el-icon>
           </button>
           <div
@@ -40,22 +55,44 @@
             class="user-dropdown-menu position-absolute bg-white shadow-lg rounded py-2 px-3"
           >
             <template v-if="user">
-              <span class="d-block text-center text-sm fw-semibold text-gray-700 mb-2">👋 {{ user.customerName || user.employeeName }}</span>
-              <RouterLink to="/don-hang" class="dropdown-item d-flex align-items-center gap-2 py-2 mb-1" @click="showUserOptions = false">
+              <span class="d-block text-center text-sm fw-semibold text-gray-700 mb-2"
+                >👋 {{ user.customerName || user.employeeName }}</span
+              >
+              <RouterLink
+                to="/don-hang"
+                class="dropdown-item d-flex align-items-center gap-2 py-2 mb-1"
+                @click="showUserOptions = false"
+              >
                 <i class="fas fa-receipt"></i> Đơn hàng
               </RouterLink>
-              <RouterLink to="/thong-tin-ca-nhan" class="dropdown-item d-flex align-items-center gap-2 py-2 mb-1" @click="showUserOptions = false">
+              <RouterLink
+                to="/thong-tin-ca-nhan"
+                class="dropdown-item d-flex align-items-center gap-2 py-2 mb-1"
+                @click="showUserOptions = false"
+              >
                 <i class="fas fa-user-circle"></i> Thông tin cá nhân
               </RouterLink>
-              <RouterLink to="/ma-giam-gia" class="dropdown-item d-flex align-items-center gap-2 py-2 mb-1" @click="showUserOptions = false">
+              <RouterLink
+                to="/ma-giam-gia"
+                class="dropdown-item d-flex align-items-center gap-2 py-2 mb-1"
+                @click="showUserOptions = false"
+              >
                 <i class="fas fa-tags"></i> Mã giảm giá
               </RouterLink>
-              <button class="btn btn-outline-danger btn-sm w-100 mt-2" @click="logout" type="button">
+              <button
+                class="btn btn-outline-danger btn-sm w-100 mt-2"
+                @click="logout"
+                type="button"
+              >
                 <i class="fas fa-sign-out-alt"></i> Đăng xuất
               </button>
             </template>
             <template v-else>
-              <button class="btn btn-outline-primary btn-sm w-100 mb-2" @click="openRegisterModal" type="button">
+              <button
+                class="btn btn-outline-primary btn-sm w-100 mb-2"
+                @click="openRegisterModal"
+                type="button"
+              >
                 <i class="fas fa-user-plus"></i> Đăng ký
               </button>
               <button class="btn btn-primary btn-sm w-100" @click="openLoginModal" type="button">
@@ -65,7 +102,11 @@
           </div>
         </div>
 
-        <RouterLink to="/cart" class="btn btn-link p-0 border-0 text-gray-700 position-relative header-icon-btn" aria-label="Giỏ hàng">
+        <RouterLink
+          to="/cart"
+          class="btn btn-link p-0 border-0 text-gray-700 position-relative header-icon-btn"
+          aria-label="Giỏ hàng"
+        >
           <el-icon :size="24"><ShoppingCart /></el-icon>
           <span
             v-if="cartCount > 0"
@@ -106,7 +147,6 @@
         <el-button type="primary" @click="performSearchAndCloseModal">Tìm kiếm</el-button>
       </template>
     </el-dialog>
-
   </header>
 </template>
 
@@ -121,21 +161,21 @@ import RegisterCustomerModal from '@/component/RegisterCustomerModal.vue'
 
 const router = useRouter()
 
-const logoSrc = ref('https://img.icons8.com/?size=100&id=juRF5DiUGr4p&format=png&color=000000')
+// const logoSrc = ref('https://img.icons8.com/?size=100&id=juRF5DiUGr4p&format=png&color=000000')
 const user = ref(null)
 const cartCount = ref(0)
 const searchQuery = ref('')
 const showLogin = ref(false)
 const showRegister = ref(false)
 const showUserOptions = ref(false)
-const showSearchModal = ref(false);
+const showSearchModal = ref(false)
 
 const navLinks = [
-  { path: '/', label: 'Trang chủ', icon: 'fas fa-home' },
-  { path: '/collections', label: 'Sản phẩm', icon: 'fas fa-box-open' },
-  { path: '/chinh-sach', label: 'Sản phẩm bán chạy', icon: 'fas fa-scroll' },
-  { path: '/gioi-thieu', label: 'Giới thiệu', icon: 'fas fa-info-circle' },
-  { path: '/lien-he', label: 'Liên hệ', icon: 'fas fa-phone-alt' },
+  { path: '/', label: 'Trang chủ' },
+  { path: '/collections', label: 'Sản phẩm' },
+  { path: '/chinh-sach', label: 'Sản phẩm bán chạy' },
+  { path: '/gioi-thieu', label: 'Giới thiệu' },
+  { path: '/lien-he', label: 'Liên hệ' },
   // { path: '/don-hang', label: 'Đơn hàng', icon: 'fas fa-receipt' },
 ]
 
@@ -143,12 +183,12 @@ onMounted(() => {
   const storedUser = localStorage.getItem('user')
   if (storedUser) user.value = JSON.parse(storedUser)
   updateCartCount()
-  document.addEventListener('click', closeUserDropdownOnClickOutside);
+  document.addEventListener('click', closeUserDropdownOnClickOutside)
 })
 
 onUnmounted(() => {
-  document.removeEventListener('click', closeUserDropdownOnClickOutside);
-});
+  document.removeEventListener('click', closeUserDropdownOnClickOutside)
+})
 
 watch(user, () => {
   updateCartCount()
@@ -159,40 +199,43 @@ function updateCartCount() {
     const userId = user.value?.id || 'guest'
     const cartKey = `cart_${userId}`
     const cart = JSON.parse(localStorage.getItem(cartKey) || '[]')
-    cartCount.value = Array.isArray(cart) ? cart.reduce((acc, item) => acc + (item.quantity || 0), 0) : 0
+    cartCount.value = Array.isArray(cart)
+      ? cart.reduce((acc, item) => acc + (item.quantity || 0), 0)
+      : 0
   } catch {
     cartCount.value = 0
   }
 }
 
 const toggleUserDropdown = (event) => {
-  event.stopPropagation();
-  showUserOptions.value = !showUserOptions.value;
-};
+  event.stopPropagation()
+  showUserOptions.value = !showUserOptions.value
+}
 
 const openLoginModal = () => {
-  showUserOptions.value = false;
-  showLogin.value = true;
-};
+  showUserOptions.value = false
+  showLogin.value = true
+}
 
 const openRegisterModal = () => {
-  showUserOptions.value = false;
-  showRegister.value = true;
-};
+  showUserOptions.value = false
+  showRegister.value = true
+}
 
 const closeUserDropdownOnClickOutside = (event) => {
   // Kiểm tra nếu click bên ngoài dropdown và không phải nút kích hoạt dropdown
-  if (showUserOptions.value &&
-      !event.target.closest('.user-dropdown-menu') &&
-      !event.target.closest('.header-icon-btn')
+  if (
+    showUserOptions.value &&
+    !event.target.closest('.user-dropdown-menu') &&
+    !event.target.closest('.header-icon-btn')
   ) {
-    showUserOptions.value = false;
+    showUserOptions.value = false
   }
-};
+}
 
 const openSearchModal = () => {
-  showSearchModal.value = true;
-};
+  showSearchModal.value = true
+}
 
 const performSearch = () => {
   const keyword = searchQuery.value.trim()
@@ -201,24 +244,24 @@ const performSearch = () => {
     return
   }
   router.push({ path: '/search-results', query: { q: keyword } })
-};
+}
 
 const performSearchAndCloseModal = () => {
-  performSearch();
-};
+  performSearch()
+}
 
 const handleLoggedIn = (userData) => {
   localStorage.setItem('user', JSON.stringify(userData))
   user.value = userData
   updateCartCount()
   ElMessage.success('Đăng nhập thành công!')
-  showLogin.value = false; // Đóng modal đăng nhập
+  showLogin.value = false // Đóng modal đăng nhập
 }
 
 const handleRegisterSuccess = () => {
   ElMessage.success('Đăng ký thành công! Vui lòng đăng nhập.')
   showLogin.value = true
-  showRegister.value = false; // Đóng modal đăng ký
+  showRegister.value = false // Đóng modal đăng ký
 }
 
 const logout = () => {
@@ -230,7 +273,7 @@ const logout = () => {
 
   user.value = null
   updateCartCount()
-  showUserOptions.value = false; // Đóng dropdown sau khi đăng xuất
+  showUserOptions.value = false // Đóng dropdown sau khi đăng xuất
 
   ElMessage.success('Đăng xuất thành công!')
   router.push('/')
@@ -239,6 +282,22 @@ const logout = () => {
 
 <style scoped>
 /* Đảm bảo container chính của header căn giữa các mục con theo chiều dọc và có một chút khoảng cách từ lề */
+.text-blue {
+  color: #4285f4;
+}
+
+.text-red {
+  color: #ea4335;
+}
+
+.text-yellow {
+  color: #fbbc05;
+}
+
+.text-green {
+  color: #34a853;
+}
+
 .container.d-flex {
   align-items: center;
   height: 70px; /* Chiều cao cố định của header */
@@ -365,7 +424,9 @@ nav ul {
   padding: 0.5rem 1rem;
   text-decoration: none;
   color: #333;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
   border-radius: 0.25rem; /* Bo tròn nhẹ các góc của mục */
 }
 
@@ -387,14 +448,16 @@ nav ul {
     height: auto;
   }
 
-  .d-flex.align-items-center.gap-1.flex-shrink-0 { /* Logo */
+  .d-flex.align-items-center.gap-1.flex-shrink-0 {
+    /* Logo */
     width: 100%;
     justify-content: center;
     margin-bottom: 1rem;
     order: 1;
   }
 
-  nav.flex-grow-1 { /* Menu Navigation */
+  nav.flex-grow-1 {
+    /* Menu Navigation */
     width: 100%;
     order: 2;
     margin-bottom: 1rem;
@@ -412,7 +475,8 @@ nav ul {
     padding: 0.4rem 0.6rem;
   }
 
-  .d-flex.align-items-center.gap-3.flex-nowrap.flex-shrink-0 { /* Các icon bên phải */
+  .d-flex.align-items-center.gap-3.flex-nowrap.flex-shrink-0 {
+    /* Các icon bên phải */
     width: 100%;
     order: 3;
     justify-content: center;

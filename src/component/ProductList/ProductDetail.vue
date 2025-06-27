@@ -176,13 +176,13 @@ const selectSize = (size) => {
 const handleAddToCart = () => {
   if (!selectedColor.value || !selectedSize.value) {
     ElMessage.warning('Vui lòng chọn màu sắc và kích thước!')
-    return
+    return false
   }
 
   const detail = findProductDetail()
   if (!detail) {
     ElMessage.error('Không tìm thấy sản phẩm với màu và kích thước đã chọn!')
-    return
+    return false
   }
 
   const item = {
@@ -200,14 +200,16 @@ const handleAddToCart = () => {
   addToCart(item)
   ElMessage.success('Đã thêm vào giỏ hàng!')
   quantity.value = 1
+  return true
 }
-
-
 
 const handleBuyNow = () => {
-  handleAddToCart()
-  router.push('/cart')
+  const added = handleAddToCart()
+  if (added) {
+    router.push('/cart')
+  }
 }
+
 </script>
 
 <style scoped>

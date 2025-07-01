@@ -36,7 +36,7 @@ public interface VoucherRepository extends JpaRepository<Voucher, Long> {
             @Param("categoryIds") Set<String> categoryIds
     );
 
-    List<Voucher> findByVoucherNameStartingWithAndStatus(String prefix, int status);
+    List<Voucher> findByStatus(Integer status);
     boolean existsByCustomerIdAndVoucherNameAndDiscountAmount(Long customerId, String voucherName, Integer discountAmount);
 
 }

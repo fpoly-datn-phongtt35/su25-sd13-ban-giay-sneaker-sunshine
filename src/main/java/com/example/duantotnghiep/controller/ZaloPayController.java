@@ -89,21 +89,6 @@ public class ZaloPayController {
         }
     }
 
-//    @GetMapping("/status-check")
-//    public ResponseEntity<?> checkAndUpdateStatus(@RequestParam String appTransId) {
-//        try {
-//            invoiceService.updateStatusIfPaid(appTransId); // Gọi service kiểm tra + cập nhật
-//            return ResponseEntity.ok(Map.of(
-//                    "message", "Đã kiểm tra trạng thái và cập nhật nếu cần",
-//                    "appTransId", appTransId
-//            ));
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-//                    .body(Map.of("error", "Lỗi khi kiểm tra trạng thái thanh toán", "message", e.getMessage()));
-//        }
-//    }
-
     @GetMapping("/status-check")
     public ResponseEntity<?> checkAndUpdateInvoiceStatus(@RequestParam String appTransId) {
         try {

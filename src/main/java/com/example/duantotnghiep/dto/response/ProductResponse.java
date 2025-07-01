@@ -20,20 +20,30 @@ public class ProductResponse {
     private Long id;
     private String productCode;
     private String productName;
+
     private String materialName;
-    private String materialId;
+    private Long materialId;
+
     private String brandName;
-    private String brandId;
+    private Long brandId;
+
     private String styleName;
-    private String styleId;
+    private Long styleId;
+
     private String genderName;
-    private String genderId;
+    private Long genderId;
+
     private String soleName;
-    private String soleId;
+    private Long soleId;
+
     private String supplierName;
-    private String supplierId;
+    private Long supplierId;
+
     private BigDecimal originPrice;
     private BigDecimal sellPrice;
+    private BigDecimal discountedPrice;    // Giá đã giảm
+    private Integer discountPercentage;    // % giảm
+
     private Integer quantity;
     private String description;
     private Integer status;
@@ -44,6 +54,7 @@ public class ProductResponse {
 
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "Asia/Ho_Chi_Minh")
     private Date updatedDate;
+
     private String createdBy;
     private String updatedBy;
 
@@ -51,5 +62,4 @@ public class ProductResponse {
     private List<ProductDetailResponse> productDetails;
     private List<ProductImageResponse> productImages;
     private List<CategoryResponse> categories;
-
 }

@@ -25,6 +25,7 @@ import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -137,14 +138,8 @@ public class CustomerServiceImpl implements CustomerService {
         Customer customer = customerRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Customer not found"));
 
-        // Lấy danh sách địa chỉ theo customerId
-        List<AddressCustomer> addresses = addressRepository.findAllByCustomerId(customer.getId());
-
-        // Gán địa chỉ đầu tiên nếu có
-        AddressCustomer address = null;
-        if (!addresses.isEmpty()) {
-            address = addresses.get(0);
-        }
+        // Tìm địa chỉ mặc định của khách hàng (nếu có)
+        AddressCustomer address = addressRepository.findFirstByCustomerIdAndDefaultAddressTrue(customer.getId());
 
         // Ánh xạ customer sang response DTO
         CustomerResponse response = customerMapper.toDto(customer);
@@ -163,8 +158,6 @@ public class CustomerServiceImpl implements CustomerService {
 
         return response;
     }
-
-
 
     @Override
     public List<CustomerResponse> getAllCustomers() {

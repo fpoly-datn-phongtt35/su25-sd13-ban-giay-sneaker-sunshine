@@ -166,10 +166,14 @@ public class CounterSalesController {
 
     @PostMapping("/{invoiceId}/checkout")
     public ResponseEntity<?> checkoutInvoice(@PathVariable Long invoiceId) {
-        invoiceService.checkout(invoiceId);
-        return ResponseEntity.ok("Thanh toán thành công");
+        try {
+            invoiceService.checkout(invoiceId);
+            return ResponseEntity.ok(Map.of("message", "Thanh toán thành công"));
+        } catch (RuntimeException ex) {
+            // Trả về lỗi rõ ràng cho FE đọc được: err.response.data.message
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
     }
-
 
     /**
      * Xóa giỏ hàng (hóa đơn) theo ID

@@ -11,10 +11,10 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @Getter
 @Setter
-public class DiscountCampaignStyleRequest {
+public class DiscountCampaignProductRequest {
     private Long id;
-    private Long styleId;
-    private String styleName;
-    private BigDecimal discountPercentage;
+    private Long productId;
+    private String productName;
     private BigDecimal discountAmount;
 }
+

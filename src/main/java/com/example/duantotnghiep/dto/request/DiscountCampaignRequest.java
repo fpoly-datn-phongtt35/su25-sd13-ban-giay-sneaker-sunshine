@@ -3,6 +3,7 @@ package com.example.duantotnghiep.dto.request;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -15,9 +16,10 @@ public class DiscountCampaignRequest {
     private LocalDateTime startDate;
     private LocalDateTime endDate;
     private Integer status;
+    private BigDecimal discountPercentage;
 
-    private List<DiscountCampaignBrandRequest> brands;
-    private List<DiscountCampaignStyleRequest> styles;
-    private List<DiscountCampaignScopeRequest> scopes;
+    private List<DiscountCampaignProductRequest> products;
+    private List<DiscountCampaignProductDetailRequest> productDetails;
 }
+
 

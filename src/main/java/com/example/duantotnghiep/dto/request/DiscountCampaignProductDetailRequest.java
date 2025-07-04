@@ -11,13 +11,10 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @Getter
 @Setter
-public class DiscountCampaignScopeRequest {
+public class DiscountCampaignProductDetailRequest {
     private Long id;
-    private String scopeType;
-    private BigDecimal discountPercentage;
+    private Long productDetailId;
+    private String productDetailName;
     private BigDecimal discountAmount;
-    private Long brandId;
-    private String brandName;
-    private Long styleId;
-    private String styleName;
 }
+

@@ -15,20 +15,31 @@ import java.util.List;
 @Getter
 @Setter
 public class ProductSearchResponse {
-    private Integer id;
-    private String productName;
+
+    // Thông tin cơ bản
+    private Long id;
     private String productCode;
+    private String productName;
     private String materialName;
     private String brandName;
     private String styleName;
     private String genderName;
     private String soleName;
     private String supplierName;
-    private BigDecimal originPrice;
+
+    // Giá & số lượng
     private BigDecimal sellPrice;
     private Integer quantity;
+
+    // Giảm giá
+    private Integer discountPercentage;
+    private BigDecimal discountedPrice;
+
+    // Mô tả & trọng lượng
     private String description;
     private BigDecimal weight;
+
+    // Trạng thái & metadata
     private Integer status;
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "Asia/Ho_Chi_Minh")
     private Date createdDate;
@@ -36,6 +47,9 @@ public class ProductSearchResponse {
     private Date updatedDate;
     private String createdBy;
     private String updatedBy;
+
+    // Danh sách liên quan
     private List<String> categoryNames;
     private List<ProductDetailResponse> productDetails;
 }
+

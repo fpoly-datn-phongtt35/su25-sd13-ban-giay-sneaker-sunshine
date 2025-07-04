@@ -55,7 +55,6 @@ public class ProductExcelExporter {
                 createCell(row, 7, product.getGenderName(), dataStyle);
                 createCell(row, 8, product.getSoleName(), dataStyle);
                 createCell(row, 9, product.getWeight(), dataStyle);
-                createCell(row, 10, product.getOriginPrice(), dataStyle);
                 createCell(row, 11, product.getSellPrice(), dataStyle);
                 createCell(row, 12, product.getQuantity(), dataStyle);
                 createCell(row, 13, product.getDescription(), dataStyle);

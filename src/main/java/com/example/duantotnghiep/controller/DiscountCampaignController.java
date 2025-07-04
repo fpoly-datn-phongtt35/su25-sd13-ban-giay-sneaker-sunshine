@@ -26,5 +26,18 @@ public class DiscountCampaignController {
     public DiscountCampaignResponse create(@RequestBody DiscountCampaignRequest dto) {
         return service.createDiscountCampaign(dto);
     }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<DiscountCampaignResponse> getDetail(@PathVariable Long id) {
+        DiscountCampaignResponse response = service.getDetail(id);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{id}/delete")
+    public ResponseEntity<Void> softDeleteCampaign(@PathVariable Long id) {
+        service.delete(id);
+        return ResponseEntity.ok().build();  // Trả về HTTP 200 OK
+    }
+
 }
 

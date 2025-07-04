@@ -68,13 +68,19 @@ public class CounterSalesController {
             @PathVariable Long invoiceId,
             @RequestBody AddToCartRequest request) {
         try {
-            invoiceService.addInvoiceDetails(invoiceId, request.getProductDetailId(), request.getQuantity());
+            invoiceService.addInvoiceDetails(
+                    invoiceId,
+                    request.getProductDetailId(),
+                    request.getQuantity(),
+                    request.getDiscountPercentage() != null ? request.getDiscountPercentage() : 0
+            );
             return ResponseEntity.ok().build();
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body("Thêm sản phẩm vào hóa đơn thất bại: " + e.getMessage());
         }
     }
+
 
     @GetMapping("/{productId}/attributes")
     public ResponseEntity<List<ProductAttributeResponse>> getProductAttributes(@PathVariable Long productId) {

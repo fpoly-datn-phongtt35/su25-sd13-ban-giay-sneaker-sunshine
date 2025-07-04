@@ -3,25 +3,30 @@ package com.example.duantotnghiep.model;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.Size;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.Nationalized;
 
-import java.time.Instant;
-import java.time.LocalDateTime;
+import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 @Getter
 @Setter
+@NoArgsConstructor
+@AllArgsConstructor
 @Entity
 @Table(name = "discount_campaign")
 public class DiscountCampaign {
@@ -46,20 +51,20 @@ public class DiscountCampaign {
     private String description;
 
     @Column(name = "start_date")
-    private LocalDateTime startDate;
+    private Date startDate;
 
     @Column(name = "end_date")
-    private LocalDateTime endDate;
+    private Date endDate;
 
     @Column(name = "status")
     private Integer status;
 
     @ColumnDefault("getdate()")
     @Column(name = "created_date")
-    private LocalDateTime createdDate;
+    private Date createdDate;
 
     @Column(name = "updated_date")
-    private LocalDateTime updatedDate;
+    private Date updatedDate;
 
     @Size(max = 100)
     @Nationalized
@@ -71,13 +76,12 @@ public class DiscountCampaign {
     @Column(name = "updated_by", length = 100)
     private String updatedBy;
 
-    @OneToMany(mappedBy = "campaign", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<DiscountCampaignScope> scopes = new ArrayList<>();
+    @Column(name = "discount_percentage", precision = 5, scale = 2)
+    private BigDecimal discountPercentage;
 
-    @OneToMany(mappedBy = "campaign", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    private List<DiscountCampaignStyle> styles = new ArrayList<>();
+    @OneToMany(mappedBy = "campaign", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<DiscountCampaignProduct> products = new ArrayList<>();
 
-    @OneToMany(mappedBy = "campaign", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    private List<DiscountCampaignBrand> brands = new ArrayList<>();
-
+    @OneToMany(mappedBy = "campaign", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<DiscountCampaignProductDetail> productDetails = new ArrayList<>();
 }

@@ -4,6 +4,8 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -19,7 +21,9 @@ public class DiscountCampaignResponse {
     private LocalDateTime startDate;
     private LocalDateTime endDate;
     private Integer status;
-    private List<DiscountCampaignScopeResponse> scopes;
-    private List<DiscountCampaignStyleResponse> styles;
-    private List<DiscountCampaignBrandResponse> brands;
+    private BigDecimal discountPercentage;
+    private List<DiscountCampaignProductResponse> products;
+    private List<DiscountCampaignProductDetailResponse> productDetails;
+
 }
+

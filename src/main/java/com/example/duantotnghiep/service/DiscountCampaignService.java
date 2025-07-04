@@ -9,6 +9,11 @@ import java.util.List;
 public interface DiscountCampaignService {
     List<DiscountCampaignResponse> getAll();
 
+    DiscountCampaignResponse getDetail(Long id);
+
+    @Transactional
+    void delete(Long id);
+
     @Transactional
     DiscountCampaignResponse createDiscountCampaign(DiscountCampaignRequest request);
 }

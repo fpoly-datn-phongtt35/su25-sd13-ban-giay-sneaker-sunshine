@@ -14,4 +14,7 @@ public interface DiscountCampaignRepository extends JpaRepository<DiscountCampai
     @Query("SELECT c FROM DiscountCampaign c WHERE c.startDate <= :now AND c.endDate >= :now AND c.status = 1")
     List<DiscountCampaign> findActiveCampaigns(@Param("now") LocalDateTime now);
 
+    @Query("SELECT c FROM DiscountCampaign c WHERE c.startDate > :now AND c.status = 0")
+    List<DiscountCampaign> findUpcomingCampaigns(@Param("now") LocalDateTime now);
+
 }

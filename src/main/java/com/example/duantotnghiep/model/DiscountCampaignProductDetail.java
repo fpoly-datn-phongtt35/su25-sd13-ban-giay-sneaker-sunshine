@@ -10,20 +10,23 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.Size;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.Nationalized;
 
 import java.math.BigDecimal;
-import java.time.Instant;
-import java.time.LocalDateTime;
+import java.util.Date;
 
 @Getter
 @Setter
+@NoArgsConstructor
+@AllArgsConstructor
 @Entity
-@Table(name = "discount_campaign_brand")
-public class DiscountCampaignBrand {
+@Table(name = "discount_campaign_product_detail")
+public class DiscountCampaignProductDetail {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
@@ -34,18 +37,15 @@ public class DiscountCampaignBrand {
     private DiscountCampaign campaign;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "brand_id")
-    private Brand brand;
-
-    @Column(name = "discount_percentage", precision = 5, scale = 2)
-    private BigDecimal discountPercentage;
+    @JoinColumn(name = "product_detail_id")
+    private ProductDetail productDetail;
 
     @ColumnDefault("getdate()")
     @Column(name = "created_date")
-    private LocalDateTime createdDate;
+    private Date createdDate;
 
     @Column(name = "updated_date")
-    private LocalDateTime updatedDate;
+    private Date updatedDate;
 
     @Size(max = 100)
     @Nationalized

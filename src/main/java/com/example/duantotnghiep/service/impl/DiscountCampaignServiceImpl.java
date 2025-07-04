@@ -1,26 +1,26 @@
 package com.example.duantotnghiep.service.impl;
 
 
-import com.example.duantotnghiep.dto.request.DiscountCampaignBrandRequest;
+import com.example.duantotnghiep.dto.request.DiscountCampaignProductRequest;
 import com.example.duantotnghiep.dto.request.DiscountCampaignRequest;
-import com.example.duantotnghiep.dto.request.DiscountCampaignScopeRequest;
-import com.example.duantotnghiep.dto.request.DiscountCampaignStyleRequest;
+import com.example.duantotnghiep.dto.request.DiscountCampaignProductDetailRequest;
 import com.example.duantotnghiep.dto.response.DiscountCampaignResponse;
 import com.example.duantotnghiep.mapper.DiscountCampaignMapper;
-import com.example.duantotnghiep.model.Brand;
 import com.example.duantotnghiep.model.DiscountCampaign;
-import com.example.duantotnghiep.model.DiscountCampaignBrand;
-import com.example.duantotnghiep.model.DiscountCampaignScope;
-import com.example.duantotnghiep.model.DiscountCampaignStyle;
-import com.example.duantotnghiep.model.Style;
-import com.example.duantotnghiep.repository.BrandRepository;
+import com.example.duantotnghiep.model.DiscountCampaignProduct;
+import com.example.duantotnghiep.model.DiscountCampaignProductDetail;
+import com.example.duantotnghiep.model.Product;
+import com.example.duantotnghiep.model.ProductDetail;
 import com.example.duantotnghiep.repository.DiscountCampaignRepository;
-import com.example.duantotnghiep.repository.StyleRepository;
+import com.example.duantotnghiep.repository.ProductDetailRepository;
+import com.example.duantotnghiep.repository.ProductRepository;
 import com.example.duantotnghiep.service.DiscountCampaignService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -31,8 +31,8 @@ public class DiscountCampaignServiceImpl implements DiscountCampaignService {
     private final DiscountCampaignRepository repository;
     private final DiscountCampaignMapper discountCampaignMapper;
     private final DiscountCampaignRepository discountCampaignRepository;
-    private final BrandRepository brandRepository;
-    private final StyleRepository styleRepository;
+    private final ProductRepository productRepository;
+    private final ProductDetailRepository productDetailRepository;
 
     @Override
     public List<DiscountCampaignResponse> getAll() {
@@ -42,72 +42,64 @@ public class DiscountCampaignServiceImpl implements DiscountCampaignService {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    public DiscountCampaignResponse getDetail(Long id) {
+        DiscountCampaign campaign = repository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đợt giảm giá với ID: " + id));
+
+        return discountCampaignMapper.toResponse(campaign);
+    }
+
+    @Transactional
+    @Override
+    public void delete(Long id) {
+        DiscountCampaign campaign = repository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đợt giảm giá với ID: " + id));
+
+        // Chuyển trạng thái từ 1 (hoạt động) sang 2 (đã xoá hoặc không hoạt động)
+        campaign.setStatus(2);
+        campaign.setUpdatedDate(new Date());
+
+        repository.save(campaign);
+    }
+
     @Transactional
     @Override
     public DiscountCampaignResponse createDiscountCampaign(DiscountCampaignRequest request) {
-        // Map trường cơ bản từ request → entity (không bao gồm brands/styles/scopes)
+        // 0) Gen campaignCode nếu chưa có
+        String campaignCode = (request.getCampaignCode() == null || request.getCampaignCode().trim().isEmpty())
+                ? "CAMPAIGN_" + java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"))
+                + "_" + ((int)(Math.random() * 9000) + 1000)
+                : request.getCampaignCode();
+
+        // 1) Map trường cơ bản
         DiscountCampaign campaign = discountCampaignMapper.toEntity(request);
+        campaign.setCampaignCode(campaignCode);
+        campaign.setStatus(1); // Active
+        campaign.setDiscountPercentage(request.getDiscountPercentage());
+        campaign.setDescription(request.getDescription());
 
-        // Lưu campaign trước để có ID
-        campaign = discountCampaignRepository.save(campaign);
-
-        // Xử lý scopes
-        if (request.getScopes() != null) {
-            for (DiscountCampaignScopeRequest scopeReq : request.getScopes()) {
-                DiscountCampaignScope scope = new DiscountCampaignScope();
-                scope.setScopeType(scopeReq.getScopeType());
-                scope.setDiscountPercentage(scopeReq.getDiscountPercentage());
-                scope.setCampaign(campaign); // set quan hệ cha
-
-                // Gán style hoặc brand nếu có
-                if ("STYLE".equalsIgnoreCase(scopeReq.getScopeType()) && scopeReq.getStyleId() != null) {
-                    Style style = styleRepository.findById(scopeReq.getStyleId())
-                            .orElseThrow(() -> new RuntimeException("Style not found with id: " + scopeReq.getStyleId()));
-                    scope.setStyle(style);
-                }
-
-                if ("BRAND".equalsIgnoreCase(scopeReq.getScopeType()) && scopeReq.getBrandId() != null) {
-                    Brand brand = brandRepository.findById(scopeReq.getBrandId())
-                            .orElseThrow(() -> new RuntimeException("Brand not found with id: " + scopeReq.getBrandId()));
-                    scope.setBrand(brand);
-                }
-
-                // Thêm vào list
-                campaign.getScopes().add(scope);
+        // 2) Xử lý products
+        if (request.getProducts() != null && !request.getProducts().isEmpty()) {
+            List<DiscountCampaignProduct> productList = new ArrayList<>();
+            for (DiscountCampaignProductRequest productReq : request.getProducts()) {
+                Product product = productRepository.findById(productReq.getProductId())
+                        .orElseThrow(() -> new RuntimeException("Product not found with id: " + productReq.getProductId()));
+                DiscountCampaignProduct dcp = new DiscountCampaignProduct();
+                dcp.setProduct(product);
+                dcp.setCampaign(campaign);
+                productList.add(dcp);
             }
+            campaign.setProducts(productList);
         }
 
-        // Xử lý brands
-        if (request.getBrands() != null) {
-            for (DiscountCampaignBrandRequest brandReq : request.getBrands()) {
-                Brand brand = brandRepository.findById(brandReq.getBrandId())
-                        .orElseThrow(() -> new RuntimeException("Brand not found with id: " + brandReq.getBrandId()));
-                DiscountCampaignBrand dcb = new DiscountCampaignBrand();
-                dcb.setBrand(brand);
-                dcb.setDiscountPercentage(brandReq.getDiscountPercentage());
-                dcb.setCampaign(campaign); // set quan hệ cha
-                campaign.getBrands().add(dcb);
-            }
-        }
+        // 4) Lưu campaign (cascade sẽ tự lưu quan hệ con)
+        DiscountCampaign savedCampaign = discountCampaignRepository.save(campaign);
 
-        // Xử lý styles
-        if (request.getStyles() != null) {
-            for (DiscountCampaignStyleRequest styleReq : request.getStyles()) {
-                Style style = styleRepository.findById(styleReq.getStyleId())
-                        .orElseThrow(() -> new RuntimeException("Style not found with id: " + styleReq.getStyleId()));
-                DiscountCampaignStyle dcs = new DiscountCampaignStyle();
-                dcs.setStyle(style);
-                dcs.setDiscountPercentage(styleReq.getDiscountPercentage());
-                dcs.setCampaign(campaign); // set quan hệ cha
-                campaign.getStyles().add(dcs);
-            }
-        }
-
-        // Lưu lại để cascade lưu các quan hệ con (nếu entity đã setup CascadeType.PERSIST hoặc ALL)
-        campaign = discountCampaignRepository.save(campaign);
-
-        // Trả về response
-        return discountCampaignMapper.toResponse(campaign);
+        // 5) Map sang response
+        return discountCampaignMapper.toResponse(savedCampaign);
     }
+
+
 
 }

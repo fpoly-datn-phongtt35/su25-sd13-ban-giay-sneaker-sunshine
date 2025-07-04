@@ -22,6 +22,8 @@ public class ProductDetailResponse {
     private String colorName;
     private String productDetailCode;
     private BigDecimal sellPrice;
+    private BigDecimal discountedPrice;       // thêm
+    private Integer discountPercentage;       // thêm
     private Integer quantity;
     private String description;
     private Integer status;

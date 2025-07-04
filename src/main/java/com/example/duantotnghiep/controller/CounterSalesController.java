@@ -68,13 +68,19 @@ public class CounterSalesController {
             @PathVariable Long invoiceId,
             @RequestBody AddToCartRequest request) {
         try {
-            invoiceService.addInvoiceDetails(invoiceId, request.getProductDetailId(), request.getQuantity());
+            invoiceService.addInvoiceDetails(
+                    invoiceId,
+                    request.getProductDetailId(),
+                    request.getQuantity(),
+                    request.getDiscountPercentage() != null ? request.getDiscountPercentage() : 0
+            );
             return ResponseEntity.ok().build();
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body("Thêm sản phẩm vào hóa đơn thất bại: " + e.getMessage());
         }
     }
+
 
     @GetMapping("/{productId}/attributes")
     public ResponseEntity<List<ProductAttributeResponse>> getProductAttributes(@PathVariable Long productId) {
@@ -166,10 +172,14 @@ public class CounterSalesController {
 
     @PostMapping("/{invoiceId}/checkout")
     public ResponseEntity<?> checkoutInvoice(@PathVariable Long invoiceId) {
-        invoiceService.checkout(invoiceId);
-        return ResponseEntity.ok("Thanh toán thành công");
+        try {
+            invoiceService.checkout(invoiceId);
+            return ResponseEntity.ok(Map.of("message", "Thanh toán thành công"));
+        } catch (RuntimeException ex) {
+            // Trả về lỗi rõ ràng cho FE đọc được: err.response.data.message
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
     }
-
 
     /**
      * Xóa giỏ hàng (hóa đơn) theo ID

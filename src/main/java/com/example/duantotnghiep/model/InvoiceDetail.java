@@ -16,6 +16,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
 
@@ -64,5 +65,14 @@ public class InvoiceDetail {
     @Size(max = 50)
     @Column(name = "updated_by", length = 50)
     private String updatedBy;
+
+    @Column(name = "sell_price")
+    private BigDecimal sellPrice;
+
+    @Column(name = "discounted_price")
+    private BigDecimal discountedPrice;
+
+    @Column(name = "discount_percentage")
+    private Integer discountPercentage;
 
 }

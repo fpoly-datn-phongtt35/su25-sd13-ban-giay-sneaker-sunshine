@@ -5,13 +5,16 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
+
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
 @Setter
-public class AddToCartRequest {
-    private Long invoiceId;
+public class DiscountCampaignProductDetailRequest {
+    private Long id;
     private Long productDetailId;
-    private Integer quantity;
-    private Integer discountPercentage; // ⭐ FE gửi lên
+    private String productDetailName;
+    private BigDecimal discountAmount;
 }
+

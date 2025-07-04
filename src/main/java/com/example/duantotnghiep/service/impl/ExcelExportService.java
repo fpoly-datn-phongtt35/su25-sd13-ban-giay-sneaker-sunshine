@@ -103,7 +103,7 @@ public class ExcelExportService {
     // Hàm tính tổng tiền
     private double calculateTotal(List<InvoiceDetailResponse> details) {
         return details.stream()
-                .mapToDouble(d -> d.getPrice().doubleValue() * d.getQuantity())
+                .mapToDouble(d -> d.getSellPrice().doubleValue() * d.getQuantity())
                 .sum();
     }
 

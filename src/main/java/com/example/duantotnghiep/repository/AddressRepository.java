@@ -9,6 +9,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface AddressRepository extends JpaRepository<AddressCustomer,Long> {
@@ -18,6 +19,6 @@ public interface AddressRepository extends JpaRepository<AddressCustomer,Long> {
     @Query("UPDATE AddressCustomer ca SET ca.defaultAddress = false WHERE ca.customer.id = :customerId")
     void clearDefaultAddress(@Param("customerId") Long customerId);
 
-    List<AddressCustomer> findAllByCustomerId(Long customerId);
+    AddressCustomer findFirstByCustomerIdAndDefaultAddressTrue(Long customerId);
 
 }

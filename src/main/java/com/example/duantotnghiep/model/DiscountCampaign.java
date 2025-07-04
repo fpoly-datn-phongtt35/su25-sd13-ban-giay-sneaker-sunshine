@@ -1,0 +1,87 @@
+package com.example.duantotnghiep.model;
+
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
+import jakarta.validation.constraints.Size;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import org.hibernate.annotations.ColumnDefault;
+import org.hibernate.annotations.Nationalized;
+
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Entity
+@Table(name = "discount_campaign")
+public class DiscountCampaign {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id", nullable = false)
+    private Long id;
+
+    @Size(max = 100)
+    @Nationalized
+    @Column(name = "campaign_code", length = 100)
+    private String campaignCode;
+
+    @Size(max = 255)
+    @Nationalized
+    @Column(name = "name")
+    private String name;
+
+    @Size(max = 500)
+    @Nationalized
+    @Column(name = "description", length = 500)
+    private String description;
+
+    @Column(name = "start_date")
+    private Date startDate;
+
+    @Column(name = "end_date")
+    private Date endDate;
+
+    @Column(name = "status")
+    private Integer status;
+
+    @ColumnDefault("getdate()")
+    @Column(name = "created_date")
+    private Date createdDate;
+
+    @Column(name = "updated_date")
+    private Date updatedDate;
+
+    @Size(max = 100)
+    @Nationalized
+    @Column(name = "created_by", length = 100)
+    private String createdBy;
+
+    @Size(max = 100)
+    @Nationalized
+    @Column(name = "updated_by", length = 100)
+    private String updatedBy;
+
+    @Column(name = "discount_percentage", precision = 5, scale = 2)
+    private BigDecimal discountPercentage;
+
+    @OneToMany(mappedBy = "campaign", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<DiscountCampaignProduct> products = new ArrayList<>();
+
+    @OneToMany(mappedBy = "campaign", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<DiscountCampaignProductDetail> productDetails = new ArrayList<>();
+}

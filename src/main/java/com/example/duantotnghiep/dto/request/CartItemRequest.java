@@ -5,6 +5,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
+
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
@@ -12,5 +14,9 @@ import lombok.Setter;
 public class CartItemRequest {
     private Long productDetailId;
     private Integer quantity;
+
+    private BigDecimal sellPrice;            // thêm
+    private BigDecimal discountedPrice;      // thêm
+    private Integer discountPercentage;      // thêm
 }
 

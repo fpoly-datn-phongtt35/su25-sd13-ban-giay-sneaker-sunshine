@@ -18,30 +18,47 @@
             :prefix-icon="Search"
             aria-label="Tìm kiếm sản phẩm"
           />
+          
           <el-table :data="products" stripe v-loading="productLoading" class="mt-3">
-            <el-table-column prop="productCode" label="Mã SP" width="100" />
-            <el-table-column prop="productName" label="Tên SP" />
-            <el-table-column label="Giá" width="120">
-              <template #default="{ row }">
-                {{ formatCurrency(row.sellPrice) }}
-              </template>
-            </el-table-column>
-            <el-table-column prop="quantity" label="Kho" width="80" />
-            <el-table-column label="Hành động" width="90" align="center">
-              <template #default="{ row }">
-                <el-button
-                  type="primary"
-                  :icon="Plus"
-                  circle
-                  @click="openProductDialog(row)"
-                  title="Thêm vào giỏ"
-                />
-              </template>
-            </el-table-column>
-            <template #empty>
-              <el-empty description="Không tìm thấy sản phẩm nào." />
-            </template>
-          </el-table>
+  <el-table-column prop="productCode" label="Mã SP" width="100" />
+  <el-table-column prop="productName" label="Tên SP" />
+  <el-table-column label="Giá" width="120">
+    <template #default="{ row }">
+      <div>
+        <span v-if="row.discountedPrice && row.discountedPrice !== row.sellPrice">
+          <span style="text-decoration: line-through; color: #888; font-size: 12px;">
+            {{ formatCurrency(row.sellPrice) }}
+          </span>
+          <br />
+          <span style="color: #f56c6c; font-weight: 600;">
+            {{ formatCurrency(row.discountedPrice) }}
+          </span>
+        </span>
+        <span v-else>
+          {{ formatCurrency(row.sellPrice) }}
+        </span>
+      </div>
+    </template>
+  </el-table-column>
+  <el-table-column prop="quantity" label="Kho" width="80" />
+  <el-table-column label="Hành động" width="90" align="center">
+    <template #default="{ row }">
+      <el-button
+        type="primary"
+        :icon="Plus"
+        circle
+        @click="openProductDialog(row)"
+        title="Thêm vào giỏ"
+      />
+    </template>
+  </el-table-column>
+
+  <template #empty>
+    <el-empty description="Không tìm thấy sản phẩm nào." />
+  </template>
+</el-table>
+
+
           <el-pagination
             v-if="pagination.totalPages > 1"
             class="mt-4 justify-content-center"
@@ -62,31 +79,53 @@
             </div>
           </template>
           <div v-if="invoiceDetails">
-            <el-table :data="invoiceDetails.details" stripe>
-              <el-table-column prop="productName" label="Tên SP" />
-              <el-table-column prop="size.sizeName" label="Size" width="80" />
-              <el-table-column prop="color.colorName" label="Màu" width="90" />
-              <el-table-column prop="quantity" label="SL" width="60" />
-              <el-table-column label="Giá" width="120">
-                <template #default="{ row }">
-                  {{ formatCurrency(row.price) }}
-                </template>
-              </el-table-column>
-              <el-table-column label="Hành động" width="90" align="center">
-                <template #default="{ row }">
-                  <el-button
-                    type="danger"
-                    :icon="Delete"
-                    circle
-                    @click="deleteCartItem(row.id)"
-                    title="Xóa sản phẩm"
-                  />
-                </template>
-              </el-table-column>
-              <template #empty>
-                <el-empty description="Giỏ hàng trống." />
-              </template>
-            </el-table>
+
+     <el-table :data="invoiceDetails.details" stripe class="mt-3">
+  <el-table-column prop="productName" label="Tên SP" />
+  <el-table-column prop="size.sizeName" label="Size" width="80" />
+  <el-table-column prop="color.colorName" label="Màu" width="90" />
+  <el-table-column prop="quantity" label="SL" width="60" />
+
+  <el-table-column label="Giá" width="120">
+    <template #default="{ row }">
+      <div>
+        <template v-if="row.discountedPrice && row.discountedPrice !== row.sellPrice">
+          <span style="text-decoration: line-through; color: #999; font-size: 12px;">
+            {{ formatCurrency(row.sellPrice) }}
+          </span>
+          <br />
+          <span style="color: #f56c6c; font-weight: 600;">
+            {{ formatCurrency(row.discountedPrice) }}
+          </span>
+        </template>
+        <template v-else>
+          <span>
+            {{ formatCurrency(row.sellPrice) }}
+          </span>
+        </template>
+      </div>
+    </template>
+  </el-table-column>
+
+  <el-table-column label="Hành động" width="90" align="center">
+    <template #default="{ row }">
+      <el-button
+        type="danger"
+        :icon="Delete"
+        circle
+        @click="deleteCartItem(row.id)"
+        title="Xóa sản phẩm"
+      />
+    </template>
+  </el-table-column>
+
+  <template #empty>
+    <el-empty description="Giỏ hàng trống." />
+  </template>
+</el-table>
+
+
+            
           </div>
           <el-empty v-else description="Đang tải giỏ hàng hoặc chưa có hóa đơn..." />
         </el-card>
@@ -174,7 +213,21 @@
           :key="voucher.id"
           class="d-flex justify-between align-items-center p-2 border-bottom"
         >
-          <span>Mã: <strong>{{ voucher.voucherCode }}</strong></span>
+          <div>
+            <div>Mã: <strong>{{ voucher.voucherCode }}</strong></div>
+            <div class="text-muted small">
+              Giảm:
+              <template v-if="voucher.discountPercentage">
+                {{ voucher.discountPercentage }}%
+                <template v-if="voucher.maxDiscountValue">
+                  (tối đa {{ formatCurrency(voucher.maxDiscountValue) }})
+                </template>
+              </template>
+              <template v-else>
+                {{ formatCurrency(voucher.discountAmount) }}
+              </template>
+            </div>
+          </div>
 
           <!-- BỎ CHỌN -->
           <el-button
@@ -207,6 +260,7 @@
     <el-empty v-else description="Không có voucher phù hợp." :image-size="60" />
   </div>
 </el-card>
+
 
 
           
@@ -366,6 +420,7 @@ const debounce = (fn, delay) => {
 const fetchInvoiceDetails = async (id) => {
   try {
     const { data } = await apiClient.get(`/admin/counter-sales/${id}/details`);
+    console.log(data.details); 
     invoiceDetails.value = data;
 
     if (data.invoice?.voucher) {
@@ -559,19 +614,15 @@ const checkoutInvoice = async () => {
     return;
   }
 
-  if (customerPaid.value < invoiceDetails.value.invoice.finalAmount) {
-    ElMessage.error('Số tiền khách đưa chưa đủ để thanh toán.');
-    return;
-  }
-
   isLoading.value = true;
+
   try {
     // 1. Gọi API thanh toán
-    await apiClient.post(`/admin/counter-sales/${invoiceId}/checkout`);
+    const response = await apiClient.post(`/admin/counter-sales/${invoiceId}/checkout`);
 
     // 2. Xác nhận in hóa đơn
     const confirmed = await ElMessageBox.confirm(
-      'Thanh toán thành công! Bạn có muốn in hóa đơn PDF không?',
+      response.data?.message || 'Thanh toán thành công! Bạn có muốn in hóa đơn PDF không?',
       'Thành công',
       {
         confirmButtonText: 'Có, In hóa đơn',
@@ -597,11 +648,19 @@ const checkoutInvoice = async () => {
       a.remove();
     }
 
-    // 4. Chuyển trang sau cùng
+    // 4. Chuyển trang
     router.push('/sales-counter/list');
+
   } catch (err) {
     console.error('Lỗi khi thanh toán:', err);
-    const message = err?.response?.data?.message || err?.message || 'Có lỗi xảy ra khi thanh toán.';
+    let message = 'Có lỗi xảy ra khi thanh toán.';
+
+    if (err.response?.data?.message) {
+      message = err.response.data.message;
+    } else if (err.message) {
+      message = err.message;
+    }
+
     ElMessage.error(message);
   } finally {
     isLoading.value = false;

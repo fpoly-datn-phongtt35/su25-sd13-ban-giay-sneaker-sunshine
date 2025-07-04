@@ -8,6 +8,20 @@ const route = useRoute()
 const status = ref(null)
 const message = ref('⏳ Đang kiểm tra trạng thái thanh toán...')
 
+// Enum chuỗi trạng thái trả về từ backend
+const STATUS = {
+  DANG_XU_LY: 'DANG_XU_LY',
+  HUY_DON: 'HUY_DON',
+  THAT_BAI: 'THAT_BAI'
+}
+
+// Thông báo tương ứng theo trạng thái
+const STATUS_MESSAGES = {
+  [STATUS.THAT_BAI]: '❌ Thanh toán thất bại!',
+  [STATUS.HUY_DON]: '🚫 Giao dịch đã bị hủy!',
+  [STATUS.DANG_XU_LY]: '✅ Thanh toán thành công!',
+}
+
 onMounted(async () => {
   const appTransId = route.query.app_trans_id
 
@@ -18,30 +32,41 @@ onMounted(async () => {
   }
 
   try {
-    // ✅ Gọi API để cập nhật trạng thái mới nhất từ ZaloPay
+    // Bước 1: Đồng bộ trạng thái mới nhất từ ZaloPay
     await axios.get('http://localhost:8080/api/payment/zalo/status-check', {
       params: { appTransId }
     })
 
-    // ✅ Gọi API lấy trạng thái hóa đơn từ DB
+    // Bước 2: Lấy trạng thái đơn hàng từ DB
     const res = await axios.get('http://localhost:8080/api/payment/zalo/invoice/status', {
       params: { appTransId }
     })
 
     status.value = res.data?.status
+    console.log('🧾 Trạng thái hóa đơn từ server:', status.value)
 
-    if (status.value === 1) {
-      message.value = '✅ Thanh toán thành công!'
-      ElMessage.success(message.value)
-    } else if (status.value === 11) {
-      message.value = '❌ Thanh toán thất bại hoặc bị hủy!'
-      ElMessage.error(message.value)
+    // Nếu có trạng thái hợp lệ
+    if (status.value && STATUS_MESSAGES[status.value]) {
+      message.value = STATUS_MESSAGES[status.value]
+
+      // Phân loại hiển thị
+      if ([STATUS.DANG_XU_LY].includes(status.value)) {
+        ElMessage.success(message.value)
+      } else if ([STATUS.THAT_BAI, STATUS.HUY_DON].includes(status.value)) {
+        ElMessage.error(message.value)
+      } else {
+        ElMessage.warning(message.value)
+      }
+
     } else {
-      message.value = '⏳ Đơn hàng đang xử lý...'
+      // Trạng thái không xác định
+      message.value = `❓ Không xác định trạng thái đơn hàng: ${status.value || 'null'}`
+      console.warn('⚠️ Trạng thái không xác định:', res.data)
       ElMessage.warning(message.value)
     }
+
   } catch (err) {
-    console.error(err)
+    console.error('❌ Lỗi khi kiểm tra trạng thái:', err)
     message.value = '❌ Không thể kiểm tra trạng thái đơn hàng'
     ElMessage.error(message.value)
   }

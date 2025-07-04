@@ -1,7 +1,12 @@
 package com.example.duantotnghiep.model;
 
+import com.example.duantotnghiep.state.TrangThaiChiTiet;
+import com.example.duantotnghiep.state.TrangThaiChiTietConverter;
+import com.example.duantotnghiep.state.TrangThaiTong;
+import com.example.duantotnghiep.state.TrangThaiTongConverter;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -19,6 +24,7 @@ import org.hibernate.annotations.Nationalized;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.Date;
 import java.util.List;
 
 @Getter
@@ -38,7 +44,7 @@ public class Invoice {
     @Column(name = "app_trans_id", length = 50, unique = true)
     private String appTransId;
 
-    @Column(name = "shipping_fee", precision = 18, scale = 3)
+    @Column(name = "shipping_fee")
     private BigDecimal shippingFee;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -66,14 +72,28 @@ public class Invoice {
     @Column(name = "order_type")
     private Integer orderType;
 
-    @Column(name = "status")
-    private Integer status;
+    @Convert(converter = TrangThaiTongConverter.class)
+    @Column(name = "status", nullable = false)
+    private TrangThaiTong status;
+
+    @Column(name = "is_paid")
+    private Boolean isPaid;
+
+    @Convert(converter = TrangThaiChiTietConverter.class)
+    @Column(name = "status_detail", nullable = false)
+    private TrangThaiChiTiet statusDetail;
+
+    @Column(name = "delivered_at")
+    private Date deliveredAt;
+
+    @Column(name = "delivery_address")
+    private String deliveryAddress;
 
     @Column(name = "created_date")
-    private LocalDateTime createdDate;
+    private Date createdDate;
 
     @Column(name = "updated_date")
-    private LocalDateTime updatedDate;
+    private Date updatedDate;
 
     @Size(max = 50)
     @Column(name = "created_by", length = 50)

@@ -8,7 +8,6 @@ public enum TrangThaiKhieuNai {
     DA_HUY(4, "Đã hủy khiếu nại"),
     DA_HOAN_TIEN(5, "Đã hoàn tiền sau khiếu nại"),
     DA_DOI_HANG(6, "Đã đổi hàng");
-
     private final int ma;
     private final String moTa;
 
@@ -34,12 +33,6 @@ public enum TrangThaiKhieuNai {
         throw new IllegalArgumentException("Mã trạng thái khiếu nại không hợp lệ: " + ma);
     }
 
-    /**
-     * Kiểm tra trạng thái hiện tại có thể chuyển sang trạng thái mới hay không.
-     *
-     * @param next Trạng thái kế tiếp
-     * @return true nếu được phép chuyển
-     */
     public boolean canTransitionTo(TrangThaiKhieuNai next) {
         return switch (this) {
             case CHO_XU_LY -> next == DANG_XU_LY || next == DA_HUY;

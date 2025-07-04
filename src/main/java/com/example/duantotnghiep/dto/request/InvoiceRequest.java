@@ -1,11 +1,14 @@
 package com.example.duantotnghiep.dto.request;
 
+import com.example.duantotnghiep.state.TrangThaiChiTiet;
+import com.example.duantotnghiep.state.TrangThaiTong;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.util.Date;
 import java.util.List;
 
 @AllArgsConstructor
@@ -19,8 +22,12 @@ public class InvoiceRequest {
     private BigDecimal discountAmount;
     private String description;
     private Integer orderType;
-    private Integer status;
+    private TrangThaiTong status;
     private Long voucherId;
-    private BigDecimal shippingFee; // ➕ Thêm dòng này
+    private BigDecimal shippingFee;
+    private Boolean isPaid;
+    private TrangThaiChiTiet statusDetail;
+    private Date deliveredAt;
+
 }
 

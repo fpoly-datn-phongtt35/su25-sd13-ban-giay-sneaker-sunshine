@@ -1,5 +1,7 @@
 package com.example.duantotnghiep.repository;
 
+import com.example.duantotnghiep.dto.response.InvoiceDetailOnline;
+import com.example.duantotnghiep.dto.response.InvoiceOnlineResponse;
 import com.example.duantotnghiep.model.Invoice;
 import com.example.duantotnghiep.model.InvoiceDetail;
 import com.example.duantotnghiep.model.ProductDetail;
@@ -19,27 +21,18 @@ public interface InvoiceDetailRepository extends JpaRepository<InvoiceDetail, Lo
     @Query("SELECT d FROM InvoiceDetail d WHERE d.invoice.invoiceCode = :invoiceCode")
     List<InvoiceDetail> findByInvoiceCodeQR(@Param("invoiceCode") String invoiceCode);
 
-    Optional<InvoiceDetail> findByInvoiceIdAndProductDetailId(Long invoiceId, Long productDetailId);
 
     Optional<InvoiceDetail> findByInvoiceAndProductDetail(Invoice invoice, ProductDetail productDetail);
     List<InvoiceDetail> findByInvoice(Invoice invoice);
 
-
-    @Query("SELECT d FROM InvoiceDetail d JOIN FETCH d.productDetail WHERE d.invoice = :invoice")
-    List<InvoiceDetail> findByInvoiceWithProductDetail(@Param("invoice") Invoice invoice);
-
     List<InvoiceDetail> findByInvoiceIdIn(Collection<Long> invoiceIds);
 
     @Query("""
-    SELECT pd.product.id, pd.product.productName, SUM(d.quantity)
-    FROM InvoiceDetail d
-    JOIN d.productDetail pd
-    JOIN d.invoice i
-    WHERE i.status = 1
-    AND i.createdDate BETWEEN :startDate AND :endDate
-    GROUP BY pd.product.id, pd.product.productName
-    ORDER BY SUM(d.quantity) DESC
+    select new com.example.duantotnghiep.dto.response.InvoiceDetailOnline(
+    id.id,id.invoiceCodeDetail,id.invoice.id,id.productDetail.id,id.productDetail.product.productName,id.productDetail.size.id,id.productDetail.size.sizeName,
+    id.productDetail.color.id,id.productDetail.color.colorName,id.quantity
+    ) from InvoiceDetail  id
+    where id.invoice.id =:invoiceId
 """)
-    List<Object[]> getTopSellingProducts(LocalDateTime startDate, LocalDateTime endDate, Pageable pageable);
-
+    List<InvoiceDetailOnline> findByInvoiceDetailOnline(@Param("invoiceId") Long invoiceId);
 }

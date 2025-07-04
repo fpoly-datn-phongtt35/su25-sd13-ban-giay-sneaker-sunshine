@@ -9,7 +9,7 @@ import lombok.Setter;
 @NoArgsConstructor
 @Getter
 @Setter
-public class CreateInvoiceRequest {
-    private Long customerId;
-    private Long employeeId;
+public class OrderRequest {
+    private Long invoiceId;
+    private String note;
 }

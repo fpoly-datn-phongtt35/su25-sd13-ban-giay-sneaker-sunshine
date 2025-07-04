@@ -1,4 +1,4 @@
-package com.example.duantotnghiep.dto.request;
+package com.example.duantotnghiep.dto.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -9,7 +9,7 @@ import lombok.Setter;
 @NoArgsConstructor
 @Getter
 @Setter
-public class CreateInvoiceRequest {
-    private Long customerId;
-    private Long employeeId;
+public class StatusCountResponse {
+    private String statusDetail;
+    private Long count;
 }

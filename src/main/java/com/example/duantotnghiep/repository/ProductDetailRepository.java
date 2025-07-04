@@ -1,5 +1,6 @@
 package com.example.duantotnghiep.repository;
 
+import com.example.duantotnghiep.dto.response.ProductDetailResponse;
 import com.example.duantotnghiep.model.ProductDetail;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -19,5 +20,6 @@ public interface ProductDetailRepository extends JpaRepository<ProductDetail,Lon
     List<ProductDetail> findByProductId(Long productId);
 
     List<ProductDetail> findByProductIdAndColorId(Long productId, Long colorId);
+
 
 }

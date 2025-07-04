@@ -19,6 +19,8 @@ import com.example.duantotnghiep.repository.*;
 import com.example.duantotnghiep.service.EmailService;
 import com.example.duantotnghiep.service.InvoiceService;
 import com.example.duantotnghiep.service.VoucherEmailService;
+import com.example.duantotnghiep.state.TrangThaiChiTiet;
+import com.example.duantotnghiep.state.TrangThaiTong;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.json.JSONObject;
@@ -27,6 +29,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -57,13 +60,13 @@ public class InvoiceServiceImpl implements InvoiceService {
     private final VoucherHistoryRepository voucherHistoryRepository;
     private final EmailService emailService;
 
-
     private final InvoiceMapper invoiceMapper;
     private static final String DEFAULT_CUSTOMER_NAME = "Khách lẻ";
     private final UserRepository userRepository;
     private final VoucherEmailService voucherEmailService;
     private final AddressRepository addressRepository;
     private final EmployeeRepository employeeRepository;
+    private final InvoiceTransactionRepository invoiceTransactionRepository;
     private final ZaloPayService zaloPayService;
     private final VnpayService vnpayService;
 
@@ -87,13 +90,14 @@ public class InvoiceServiceImpl implements InvoiceService {
         Invoice invoice = new Invoice();
         invoice.setInvoiceCode(generateInvoiceCode());
         invoice.setEmployee(employee);
-        invoice.setCreatedDate(LocalDateTime.now());
-        invoice.setStatus(0);
+        invoice.setCreatedDate(new Date());
+        invoice.setStatus(TrangThaiTong.DANG_XU_LY);
         invoice.setTotalAmount(BigDecimal.ZERO);
         invoice.setFinalAmount(BigDecimal.ZERO);
         invoice.setCreatedBy(username);
         invoice.setDescription("Hóa đơn bán tại quầy");
         invoice.setOrderType(0); // tại quầy
+        invoice.setIsPaid(false);
 
         invoiceRepository.save(invoice);
         return invoiceMapper.toInvoiceResponse(invoice);
@@ -159,7 +163,7 @@ public class InvoiceServiceImpl implements InvoiceService {
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy khách hàng với id: " + customerId));
 
         // Kiểm tra nếu khách hàng đã được gán vào hóa đơn khác có status = 0
-        boolean isCustomerAssigned = invoiceRepository.existsByCustomer_IdAndStatus(customerId, 0);
+        boolean isCustomerAssigned = invoiceRepository.existsByCustomer_IdAndStatus(customerId, TrangThaiTong.DANG_XU_LY);
 
         if (isCustomerAssigned) {
             throw new RuntimeException("Khách hàng đã được gán vào một hóa đơn đang xử lý (status = 0)");
@@ -206,11 +210,11 @@ public class InvoiceServiceImpl implements InvoiceService {
         invoiceDetailRepository.deleteAll(invoiceDetails);
 
         // 5. Cập nhật trạng thái hóa đơn là đã hủy (giả sử status=2 là hủy)
-        invoice.setStatus(2);
+        invoice.setStatus(TrangThaiTong.DA_HUY);
         invoice.setTotalAmount(BigDecimal.ZERO);
         invoice.setFinalAmount(BigDecimal.ZERO);
         invoice.setDiscountAmount(BigDecimal.ZERO);
-        invoice.setUpdatedDate(LocalDateTime.now());
+        invoice.setUpdatedDate(new Date());
         invoiceRepository.save(invoice);
     }
 
@@ -224,8 +228,9 @@ public class InvoiceServiceImpl implements InvoiceService {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
 
         // 2. Cập nhật trạng thái hóa đơn
-        invoice.setStatus(1); // Đã thanh toán
-        invoice.setUpdatedDate(LocalDateTime.now());
+        invoice.setStatus(TrangThaiTong.THANH_CONG); // Đã thanh toán
+        invoice.setIsPaid(true);
+        invoice.setUpdatedDate(new Date());
         invoice.setUpdatedBy(username);
 
         // 3. Xử lý nếu hóa đơn sử dụng voucher
@@ -254,7 +259,6 @@ public class InvoiceServiceImpl implements InvoiceService {
         // 4. Lưu hóa đơn cập nhật
         invoiceRepository.save(invoice);
 
-        // 5. 🎁 Xử lý tự động tặng voucher nếu đủ điều kiện
         if (invoice.getCustomer() != null) {
             BigDecimal totalAmount = invoice.getTotalAmount();
             Long customerId = invoice.getCustomer().getId();
@@ -296,14 +300,13 @@ public class InvoiceServiceImpl implements InvoiceService {
 
                     voucherRepository.save(newVoucher);
 
-                    // Gửi email thông báo qua VoucherEmailService
                     String email = invoice.getCustomer().getEmail();
                     if (email != null && !email.isEmpty()) {
                         voucherEmailService.sendVoucherNotificationEmail(
                                 email,
                                 invoice.getCustomer().getCustomerName(),
                                 totalAmount,
-                                matchedPromo.getDiscountAmount(),
+                                matchedPromo.getDiscountAmount() != null ? matchedPromo.getDiscountAmount() : 0,
                                 newVoucher.getVoucherCode(),
                                 newVoucher.getEndDate().toLocalDate()
                         );
@@ -329,7 +332,6 @@ public class InvoiceServiceImpl implements InvoiceService {
         // Xóa tất cả chi tiết hóa đơn
         invoiceDetailRepository.deleteAll(invoice.getInvoiceDetails());
 
-        // Làm trống danh sách chi tiết
         invoice.getInvoiceDetails().clear();
 
         // Reset tổng tiền về 0
@@ -378,9 +380,6 @@ public class InvoiceServiceImpl implements InvoiceService {
         invoiceRepository.save(invoice);
     }
 
-    /**
-     * Thêm hoặc cập nhật chi tiết hóa đơn (InvoiceDetail) với số lượng mới.
-     */
     @Transactional
     public void addInvoiceDetails(Long invoiceId, Long productDetailId, Integer quantity) {
         // 1. Lấy hóa đơn theo ID
@@ -467,8 +466,6 @@ public class InvoiceServiceImpl implements InvoiceService {
             throw new RuntimeException("Voucher không áp dụng cho khách hàng này");
         }
 
-        // Bỏ kiểm tra orderType vì invoice không có trường này
-
         // Tính tiền giảm
         BigDecimal discount = BigDecimal.ZERO;
         if (voucher.getDiscountPercentage() != null && voucher.getDiscountPercentage().compareTo(BigDecimal.ZERO) > 0) {
@@ -486,7 +483,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         invoice.setVoucher(voucher);
         invoice.setDiscountAmount(discount);
         invoice.setFinalAmount(invoice.getTotalAmount().subtract(discount));
-        invoice.setUpdatedDate(now);
+        invoice.setUpdatedDate(new Date());
         Invoice updatedInvoice = invoiceRepository.save(invoice);
 
         VoucherHistory history = new VoucherHistory();
@@ -516,7 +513,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         invoice.setVoucher(null);
         invoice.setDiscountAmount(BigDecimal.ZERO);
         invoice.setFinalAmount(invoice.getTotalAmount());
-        invoice.setUpdatedDate(LocalDateTime.now());
+        invoice.setUpdatedDate(new Date());
 
         // Lưu lại hóa đơn đã cập nhật
         return invoiceRepository.save(invoice);
@@ -533,6 +530,7 @@ public class InvoiceServiceImpl implements InvoiceService {
     }
 
     public Page<InvoiceResponse> getInvoicesByStatus(int status, int page, int size) {
+        TrangThaiTong statusEnum = TrangThaiTong.tuMa(status);
         // Lấy username từ SecurityContext
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
 
@@ -550,7 +548,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdDate").descending());
 
         // Truy vấn theo status và employeeId
-        Page<Invoice> invoicePage = invoiceRepository.findByStatusAndEmployeeId(status, employee.getId(), pageable);
+        Page<Invoice> invoicePage = invoiceRepository.findByStatusAndEmployeeId(statusEnum, employee.getId(), pageable);
 
         return invoicePage.map(invoiceMapper::toInvoiceResponse);
     }
@@ -562,7 +560,7 @@ public class InvoiceServiceImpl implements InvoiceService {
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy hóa đơn với ID: " + invoiceId));
         List<InvoiceDetail> details = invoiceDetailRepository.findByInvoiceId(invoiceId);
 
-        // ✅ Log ID khách hàng
+        // Log ID khách hàng
         if (invoice.getCustomer() != null) {
             System.out.println("ID khách hàng gắn với hóa đơn: " + invoice.getCustomer().getId());
         } else {
@@ -651,6 +649,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         // Chuyển createdDate thành startOfDay và startOfNextDay nếu có
         LocalDateTime startOfDay = null;
         LocalDateTime startOfNextDay = null;
+        TrangThaiTong statusEnum = TrangThaiTong.tuMa(status);
         if (createdDate != null) {
             startOfDay = createdDate.atStartOfDay(); // 00:00
             startOfNextDay = createdDate.plusDays(1).atStartOfDay(); // ngày tiếp theo 00:00
@@ -658,7 +657,7 @@ public class InvoiceServiceImpl implements InvoiceService {
 
         // Gọi repository để tìm kiếm
         Page<Invoice> page = invoiceRepository.searchByKeywordStatusAndCreatedDate(
-                keyword, status, startOfDay, startOfNextDay, pageable
+                keyword, statusEnum, startOfDay, startOfNextDay, pageable
         );
 
         // Chuyển sang DTO
@@ -753,12 +752,13 @@ public class InvoiceServiceImpl implements InvoiceService {
         Invoice invoice = new Invoice();
         invoice.setInvoiceCode("INV" + System.currentTimeMillis());
         invoice.setCustomer(customer);
-        invoice.setCreatedDate(LocalDateTime.now());
-        invoice.setUpdatedDate(LocalDateTime.now());
+        invoice.setCreatedDate(new Date());
+        invoice.setUpdatedDate(new Date());
         invoice.setDescription(request.getDescription());
         invoice.setOrderType(request.getOrderType());
-        invoice.setStatus(0); // Mặc định
-
+        invoice.setIsPaid(false);
+        invoice.setStatus(TrangThaiTong.DANG_XU_LY);
+        invoice.setStatusDetail(TrangThaiChiTiet.DANG_GIAO_DICH);
         invoice.setDiscountAmount(Optional.ofNullable(request.getDiscountAmount()).orElse(BigDecimal.ZERO));
         invoice.setShippingFee(Optional.ofNullable(request.getShippingFee()).orElse(BigDecimal.ZERO)); // ✅ thêm phí ship
 
@@ -770,7 +770,6 @@ public class InvoiceServiceImpl implements InvoiceService {
             voucherRepository.findById(request.getVoucherId()).ifPresent(invoice::setVoucher);
         }
 
-        // 4. Tạo danh sách chi tiết hóa đơn
         BigDecimal total = BigDecimal.ZERO;
         List<InvoiceDetail> details = new ArrayList<>();
 
@@ -793,7 +792,7 @@ public class InvoiceServiceImpl implements InvoiceService {
 
         invoice.setTotalAmount(total);
 
-        // ✅ Tính finalAmount = total - discount + phí ship
+        // Tính finalAmount = total - discount + phí ship
         invoice.setFinalAmount(total
                 .subtract(invoice.getDiscountAmount())
                 .add(invoice.getShippingFee()));
@@ -826,7 +825,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         // Bước 4: Cập nhật appTransId vào DB
         invoiceRepository.findById(invoiceId).ifPresent(invoice -> {
             invoice.setAppTransId(appTransId);
-            invoice.setUpdatedDate(LocalDateTime.now());
+            invoice.setUpdatedDate(new Date());
             invoiceRepository.save(invoice);
         });
 
@@ -837,7 +836,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         return new InvoiceWithZaloPayResponse(invoiceDisplay, zaloPayResponse);
     }
 
-//    @Async
+    //    @Async
 //    public void scheduleFailIfNotPaid(String appTransId) {
 //        Executors.newSingleThreadScheduledExecutor().schedule(() -> {
 //            Optional<Invoice> opt = invoiceRepository.findByAppTransId(appTransId);
@@ -854,27 +853,45 @@ public class InvoiceServiceImpl implements InvoiceService {
 //    }
 
     @Transactional
-    public void updateInvoiceStatusByAppTransId(String appTransId, int status) {
+    public void updateInvoiceStatusByAppTransId(String appTransId, Integer status,Integer statusDetail,Boolean isPaid) {
+        TrangThaiTong statusEnum = TrangThaiTong.tuMa(status);
+        TrangThaiChiTiet statusDetailEnum = TrangThaiChiTiet.tuMa(statusDetail);
         invoiceRepository.findByAppTransId(appTransId).ifPresent(invoice -> {
-            invoice.setStatus(status);
-            invoice.setUpdatedDate(LocalDateTime.now());
+            invoice.setIsPaid(isPaid);
+            invoice.setStatus(statusEnum);
+            invoice.setStatusDetail(statusDetailEnum);
+            invoice.setUpdatedDate(new Date());
+
+            InvoiceTransaction invoiceTransaction = new InvoiceTransaction();
+            invoiceTransaction.setTransactionCode("GD-" + UUID.randomUUID().toString().substring(0, 8));
+            invoiceTransaction.setInvoice(invoice);
+            invoiceTransaction.setAmount(invoice.getFinalAmount());
+            invoiceTransaction.setPaymentStatus(1);
+            invoiceTransaction.setPaymentMethod("Chuyển khoản");
+            invoiceTransaction.setTransactionType("Thanh toán trước");
+            invoiceTransaction.setNote(null);
+            invoiceTransaction.setPaymentTime(new Date());
+            invoiceTransactionRepository.save(invoiceTransaction);
             invoiceRepository.save(invoice);
         });
     }
 
     @Override
     public void updateStatusIfPaid(String appTransId) throws Exception {
-        JSONObject response = zaloPayService.queryOrder(appTransId); // ✅ gọi từ ZaloPayService
+        JSONObject response = zaloPayService.queryOrder(appTransId);
 
         int returnCode = response.optInt("returncode");
         int bcTransStatus = response.optInt("bctransstatus");
 
         if (returnCode == 1 && bcTransStatus == 1) {
-            updateInvoiceStatusByAppTransId(appTransId, 1); // PAID
-            log.info("✅ Đơn {} đã được cập nhật thành PAID từ kết quả query ZaloPay", appTransId);
-        } else {
-            log.warn("❌ Đơn {} chưa thanh toán (status={})", appTransId, bcTransStatus);
+            updateInvoiceStatusByAppTransId(appTransId, 0,0,true); // PAID
+            log.info(" Đơn {} đã được cập nhật thành PAID từ kết quả query ZaloPay", appTransId);
+        }else if (returnCode != 1) {
+            updateInvoiceStatusByAppTransId(appTransId, -1,-1,false); // FAIL
+        }  else {
+            log.warn(" Đơn {} chưa thanh toán (status={})", appTransId, bcTransStatus);
         }
+
     }
 
     @Transactional
@@ -896,8 +913,8 @@ public class InvoiceServiceImpl implements InvoiceService {
 
         // Bước 4: Lưu orderId vào DB
         invoiceRepository.findById(invoiceId).ifPresent(invoice -> {
-            invoice.setAppTransId(orderId); // ✅ dùng lại trường appTransId
-            invoice.setUpdatedDate(LocalDateTime.now());
+            invoice.setAppTransId(orderId); // dùng lại trường appTransId
+            invoice.setUpdatedDate(new Date());
             invoiceRepository.save(invoice);
         });
 
@@ -906,7 +923,10 @@ public class InvoiceServiceImpl implements InvoiceService {
 
     @Override
     public Page<InvoiceResponse> searchInvoices(Integer status,Integer orderType, LocalDateTime createdFrom, LocalDateTime createdTo, String phone, String code, Pageable pageable) {
-        Page<InvoiceResponse> invoices = invoiceRepository.searchInvoices(status,orderType,createdFrom,createdTo,phone,code,pageable);
+        System.out.println("status service: "+status);
+                TrangThaiChiTiet statusEnum  = TrangThaiChiTiet.tuMa(status);
+                System.out.println("status enum: "+statusEnum);
+        Page<InvoiceResponse> invoices = invoiceRepository.searchInvoices(statusEnum,orderType,createdFrom,createdTo,phone,code,pageable);
         return invoices;
     }
 

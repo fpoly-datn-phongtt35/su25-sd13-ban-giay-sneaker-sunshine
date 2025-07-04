@@ -1,6 +1,9 @@
 package com.example.duantotnghiep.model;
 
+import com.example.duantotnghiep.state.TrangThaiKhieuNai;
+import com.example.duantotnghiep.state.TrangThaiKhieuNaiConverter;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -18,6 +21,7 @@ import lombok.Setter;
 import org.hibernate.annotations.Nationalized;
 
 import java.time.Instant;
+import java.util.Date;
 
 @AllArgsConstructor
 @NoArgsConstructor
@@ -46,8 +50,9 @@ public class Complaint {
     @Column(name = "Reason", nullable = false)
     private String reason;
 
-    @Column(name = "Status")
-    private Integer status;
+    @Convert(converter = TrangThaiKhieuNaiConverter.class)
+    @Column(name = "Status", nullable = false)
+    private TrangThaiKhieuNai status;
 
     @Nationalized
     @Lob
@@ -55,10 +60,10 @@ public class Complaint {
     private String result;
 
     @Column(name = "created_date")
-    private Instant createdDate;
+    private Date createdDate;
 
     @Column(name = "updated_date")
-    private Instant updatedDate;
+    private Date updatedDate;
 
     @Size(max = 100)
     @Column(name = "created_by", length = 100)

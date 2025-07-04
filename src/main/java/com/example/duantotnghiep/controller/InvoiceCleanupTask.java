@@ -2,6 +2,7 @@ package com.example.duantotnghiep.controller;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Date;
 import java.util.List;
 
 import com.example.duantotnghiep.model.Invoice;
@@ -10,6 +11,7 @@ import com.example.duantotnghiep.model.ProductDetail;
 import com.example.duantotnghiep.repository.InvoiceDetailRepository;
 import com.example.duantotnghiep.repository.InvoiceRepository;
 import com.example.duantotnghiep.repository.ProductDetailRepository;
+import com.example.duantotnghiep.state.TrangThaiTong;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -30,7 +32,7 @@ public class InvoiceCleanupTask {
         LocalDateTime limitTime = LocalDateTime.now().minusMinutes(10);
 
         // Tìm hóa đơn status = 0 (chưa thanh toán), tạo trước hơn 10 phút
-        List<Invoice> expiredInvoices = invoiceRepository.findByStatusAndOrderTypeAndCreatedDateBefore(0, 0, limitTime);
+        List<Invoice> expiredInvoices = invoiceRepository.findByStatusAndOrderTypeAndCreatedDateBefore(TrangThaiTong.DANG_XU_LY, 0, limitTime);
 
         for (Invoice invoice : expiredInvoices) {
             List<InvoiceDetail> details = invoiceDetailRepository.findByInvoice(invoice);
@@ -45,12 +47,12 @@ public class InvoiceCleanupTask {
             invoiceDetailRepository.deleteAll(details);
 
             // Cập nhật trạng thái hóa đơn
-            invoice.setStatus(2); // 2 = đã hủy
-            invoice.setUpdatedDate(LocalDateTime.now());
+            invoice.setStatus(TrangThaiTong.DA_HUY); // 2 = đã hủy
+            invoice.setUpdatedDate(new Date());
             invoice.setTotalAmount(BigDecimal.ZERO);
             invoice.setFinalAmount(BigDecimal.ZERO);
             invoice.setDiscountAmount(BigDecimal.ZERO);
-            invoice.setUpdatedDate(LocalDateTime.now());
+            invoice.setUpdatedDate(new Date());
             invoiceRepository.save(invoice);
         }
 

@@ -1,6 +1,7 @@
 package com.example.duantotnghiep.state;
 
 public enum TrangThaiTong {
+    HUY_GIAO_DICH(-1,"Hủy giao dịch"),
     DANG_XU_LY(0, "Đang xử lý"),
     THANH_CONG(1, "Thành công"),
     DA_HUY(2, "Đã hủy"),
@@ -28,6 +29,15 @@ public enum TrangThaiTong {
             if (t.ma == ma) return t;
         }
         throw new IllegalArgumentException("Mã trạng thái tổng không hợp lệ: " + ma);
+    }
+
+    public static String fromValue(int value) {
+        for (TrangThaiTong status : TrangThaiTong.values()) {
+            if (status.getMa() == value) {
+                return status.getMoTa();
+            }
+        }
+        return "Không xác định";
     }
 }
 

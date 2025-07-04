@@ -87,10 +87,8 @@ public class ProductController {
     }
 
     @PutMapping("/restore/{id}")
-    public ResponseEntity<ProductResponse> restoreProduct(@PathVariable Long id,
-                                                         @ModelAttribute ProductRequest request
-    ) {
-        return ResponseEntity.ok(productService.restoreProduct(id, request));
+    public ResponseEntity<ProductResponse> restoreProduct(@PathVariable Long id) {
+        return ResponseEntity.ok(productService.restoreProduct(id));
     }
 
     // DELETE

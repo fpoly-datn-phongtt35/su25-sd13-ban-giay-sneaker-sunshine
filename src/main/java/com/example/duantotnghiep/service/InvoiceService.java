@@ -12,6 +12,8 @@ import com.example.duantotnghiep.dto.response.InvoiceWithZaloPayResponse;
 import com.example.duantotnghiep.dto.response.ProductAttributeResponse;
 import com.example.duantotnghiep.model.Customer;
 import com.example.duantotnghiep.model.Invoice;
+import com.example.duantotnghiep.state.TrangThaiChiTiet;
+import com.example.duantotnghiep.state.TrangThaiTong;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.transaction.annotation.Transactional;
@@ -62,7 +64,7 @@ public interface InvoiceService {
     @Transactional
     InvoiceWithZaloPayResponse createInvoiceAndZaloPay(InvoiceRequest request) throws Exception;
 
-    void updateInvoiceStatusByAppTransId(String appTransId, int status);
+    void updateInvoiceStatusByAppTransId(String appTransId, Integer status, Integer statusDetail,Boolean isPaid);
 
     @Transactional
     InvoiceWithVnpayResponse createInvoiceAndVnpay(InvoiceRequest request) throws Exception;

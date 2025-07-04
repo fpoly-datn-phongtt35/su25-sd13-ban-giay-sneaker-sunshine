@@ -2,6 +2,7 @@ package com.example.duantotnghiep.service.impl;
 
 import com.example.duantotnghiep.dto.response.InvoiceDetailResponse;
 import com.example.duantotnghiep.dto.response.InvoiceDisplayResponse;
+import com.example.duantotnghiep.state.TrangThaiTong;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
@@ -81,11 +82,10 @@ public class ExcelExportService {
                 row.createCell(4).setCellValue(currencyFormatter.format(calculateTotal(invoice.getDetails())));
                 row.getCell(4).setCellStyle(numberStyle);
 
-                // Lấy trạng thái dạng số từ invoice, ví dụ: invoice.getInvoice().getStatus()
-                int status = invoice.getInvoice().getStatus();  // Giả sử có getStatus() trả về int
+                TrangThaiTong status = invoice.getInvoice().getStatus();  // enum
+                String statusText = (status != null) ? status.getMoTa() : "Không xác định";
+                row.createCell(5).setCellValue(statusText);
 
-                // Chuyển trạng thái số sang text
-                String statusText = convertStatus(status);
 
                 row.createCell(5).setCellValue(statusText);
                 row.getCell(5).setCellStyle(textStyle);
@@ -107,19 +107,6 @@ public class ExcelExportService {
                 .sum();
     }
 
-    // Hàm chuyển trạng thái số thành chuỗi tương ứng
-    private String convertStatus(int status) {
-        switch (status) {
-            case 0:
-                return "Chờ xử lý";
-            case 1:
-                return "Đã thanh toán";
-            case 2:
-                return "Đã hủy";
-            default:
-                return "Không xác định";
-        }
-    }
 }
 
 

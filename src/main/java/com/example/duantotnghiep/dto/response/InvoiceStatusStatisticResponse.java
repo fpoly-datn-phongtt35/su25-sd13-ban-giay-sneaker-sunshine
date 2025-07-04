@@ -12,7 +12,7 @@ import lombok.Setter;
 @AllArgsConstructor
 @Builder
 public class InvoiceStatusStatisticResponse {
-    private Integer statusCode;      // vẫn giữ code nếu cần
-    private String status; // chuỗi hiển thị
-    private Long totalInvoices;  // số lượng hóa đơn
+    private Integer statusCode;
+    private String status;
+    private Long totalInvoices;
 }

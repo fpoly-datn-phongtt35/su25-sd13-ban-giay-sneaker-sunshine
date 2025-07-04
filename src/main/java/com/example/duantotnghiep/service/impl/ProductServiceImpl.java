@@ -367,130 +367,18 @@ public class ProductServiceImpl implements ProductService {
         return response;
     }
 
-
     @Transactional(rollbackFor = Throwable.class)
     @Override
-    public ProductResponse restoreProduct(Long id, ProductRequest request) {
-        // 1. Find and update basic product status
+    public ProductResponse restoreProduct(Long id) {
         Product existingProduct = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm với id: " + id));
 
-        productMapper.updateEntityFromRequest(request, existingProduct);
+        existingProduct.setStatus(1);
+        productRepository.save(existingProduct);
 
-        if (existingProduct.getStatus() == 0) {
-            existingProduct.setStatus(1); // Restore status to active
-            existingProduct.setUpdatedDate(new Date());
-            existingProduct.setUpdatedBy("admin");
-        } else {
-            existingProduct.setUpdatedDate(new Date());
-            existingProduct.setUpdatedBy("admin");
-        }
-        Product updatedProduct = productRepository.save(existingProduct);
-
-        List<ProductDetail> allCurrentDetails = productDetailRepository.findByProductId(updatedProduct.getId());
-        Map<AbstractMap.SimpleImmutableEntry<Long, Long>, ProductDetail> currentDetailsMap = allCurrentDetails.stream()
-                .collect(Collectors.toMap(
-                        pd -> new AbstractMap.SimpleImmutableEntry<>(pd.getColor().getId(), pd.getSize().getId()),
-                        pd -> pd
-                ));
-
-        List<ProductDetail> detailsToSave = new ArrayList<>();
-
-        if (request.getProductDetails() != null && !request.getProductDetails().isEmpty()) {
-            for (ProductDetailRequest newDetailRequest : request.getProductDetails()) {
-                AbstractMap.SimpleImmutableEntry<Long, Long> detailKey =
-                        new AbstractMap.SimpleImmutableEntry<>(newDetailRequest.getColorId(), newDetailRequest.getSizeId());
-
-                ProductDetail foundDetail = currentDetailsMap.get(detailKey);
-
-                if (foundDetail != null) {
-
-                    boolean changed = false;
-                    if (!Objects.equals(foundDetail.getQuantity(), newDetailRequest.getQuantity())) {
-                        foundDetail.setQuantity(newDetailRequest.getQuantity());
-                        changed = true;
-                    }
-                    if (!Objects.equals(foundDetail.getSellPrice(), newDetailRequest.getSellPrice())) {
-                        foundDetail.setSellPrice(newDetailRequest.getSellPrice());
-                        changed = true;
-                    }
-                    if (foundDetail.getStatus() == 0) { // Restore if currently soft-deleted
-                        foundDetail.setStatus(1);
-                        changed = true;
-                    }
-
-                    if (changed) {
-                        foundDetail.setUpdatedBy("admin");
-                        foundDetail.setUpdatedDate(new Date());
-                    }
-                    detailsToSave.add(foundDetail);
-                } else {
-                    ProductDetail newEntity = productDetailMapper.fromRequest(newDetailRequest);
-                    newEntity.setProduct(updatedProduct);
-                    newEntity.setStatus(1); // Active by default for new creations
-                    newEntity.setCreatedBy("admin");
-                    newEntity.setCreatedDate(new Date());
-                    newEntity.setUpdatedBy("admin");
-                    newEntity.setUpdatedDate(new Date());
-                    detailsToSave.add(newEntity);
-                }
-            }
-        }
-        // Save all product details changes
-        if (!detailsToSave.isEmpty()) {
-            productDetailRepository.saveAll(detailsToSave);
-        }
-        updatedProduct.setProductDetails(detailsToSave.stream().filter(pd -> pd.getStatus() == 1).collect(Collectors.toList()));
-
-
-        // 3. Process Product Images (add new images only)
-        List<ProductImage> newImagesToSave = new ArrayList<>();
-
-        if (request.getProductImages() != null && !request.getProductImages().isEmpty()) {
-            for (ProductImageRequest imageRequest : request.getProductImages()) {
-                // Validate essential data for a new image
-                if (imageRequest.getColorId() == null || imageRequest.getProductImages() == null || imageRequest.getProductImages().isEmpty()) {
-                    continue; // Skip if essential information is missing
-                }
-                try {
-                    Color color = colorRepository.findById(imageRequest.getColorId())
-                            .orElseThrow(() -> new IllegalArgumentException("Màu sắc không tồn tại cho ảnh mới: " + imageRequest.getColorId()));
-
-                    ProductImage newImage = new ProductImage();
-                    newImage.setImage(imageRequest.getProductImages().getBytes());
-                    newImage.setImageName(imageRequest.getProductImages().getOriginalFilename());
-                    newImage.setStatus(1); // New images are always active
-                    newImage.setCreatedDate(new Date());
-                    newImage.setCreatedBy("admin");
-                    newImage.setUpdatedBy("admin");
-                    newImage.setUpdatedDate(new Date());
-                    newImage.setColor(color);
-                    newImage.setProduct(updatedProduct);
-                    newImagesToSave.add(newImage);
-                } catch (IOException e) {
-                    throw new RuntimeException("Lỗi khi xử lý ảnh mới: " + e.getMessage(), e);
-                }
-            }
-        }
-        // Save all new product images to the database
-        if (!newImagesToSave.isEmpty()) {
-            productImageRepository.saveAll(newImagesToSave);
-        }
-        // After adding new images, retrieve the active images to update updatedProduct.productImages
-        updatedProduct.setProductImages(productImageRepository.findByProductIdAndStatus(updatedProduct.getId(), 1));
-
-
-        // 4. (Removed) Logic for processing removedColorIds is no longer needed here,
-        // as it's handled in other parts of your application.
-
-
-        // 5. Create final response
-        // Re-fetch the product to ensure all relationships are fully updated and reflect the latest state
-        Product finalProduct = productRepository.findById(updatedProduct.getId()).orElseThrow(
-                () -> new RuntimeException("Không tìm thấy sản phẩm sau khi cập nhật với id: " + updatedProduct.getId()));
-
-        return productMapper.toResponse(finalProduct);
+        return productMapper.toResponse(existingProduct);
     }
+
 
     @Transactional(rollbackFor = Throwable.class)
     @Override
@@ -506,18 +394,7 @@ public class ProductServiceImpl implements ProductService {
         product.setUpdatedDate(new Date());
         product.setUpdatedBy("admin");
 
-        // chi tiết
-        List<ProductDetail> productDetails = product.getProductDetails();
-        if (productDetails != null && !productDetails.isEmpty()) {
-            productDetails.forEach(d -> {
-                d.setStatus(0);
-                d.setUpdatedDate(new Date());
-                d.setUpdatedBy("admin");
-            });
-        }
-
         productRepository.save(product);
-        if (productDetails != null) productDetailRepository.saveAll(productDetails);
     }
 
     @Override

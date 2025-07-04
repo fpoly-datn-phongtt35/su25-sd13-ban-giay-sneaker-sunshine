@@ -7,6 +7,7 @@ import com.example.duantotnghiep.dto.response.TopProductResponse;
 import com.example.duantotnghiep.dto.response.YearlyRevenueResponse;
 import com.example.duantotnghiep.repository.InvoiceRepository;
 import com.example.duantotnghiep.service.StatisticService;
+import com.example.duantotnghiep.state.TrangThaiTong;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -26,7 +27,7 @@ public class StatisticServiceImpl implements StatisticService {
 
     @Override
     public List<MonthlyRevenueResponse> getMonthlyRevenue(int year) {
-        return invoiceRepository.getMonthlyRevenue(year).stream()
+        return invoiceRepository.getMonthlyRevenue(year,TrangThaiTong.THANH_CONG).stream()
                 .map(obj -> MonthlyRevenueResponse.builder()
                         .month((Integer) obj[0])
                         .year(year)
@@ -37,7 +38,7 @@ public class StatisticServiceImpl implements StatisticService {
 
     @Override
     public List<YearlyRevenueResponse> getYearlyRevenue() {
-        return invoiceRepository.getYearlyRevenue().stream()
+        return invoiceRepository.getYearlyRevenue(TrangThaiTong.THANH_CONG).stream()
                 .map(obj -> YearlyRevenueResponse.builder()
                         .year((Integer) obj[0])
                         .totalRevenue(((BigDecimal) obj[1]).longValue())
@@ -47,7 +48,7 @@ public class StatisticServiceImpl implements StatisticService {
 
     @Override
     public List<OrderTypeRevenueResponse> getRevenueByOrderType() {
-        return invoiceRepository.getRevenueByOrderType().stream()
+        return invoiceRepository.getRevenueByOrderType(TrangThaiTong.THANH_CONG).stream()
                 .map(obj -> OrderTypeRevenueResponse.builder()
                         .orderType((Integer) obj[0]) // sửa ở đây
                         .totalRevenue(((BigDecimal) obj[1]).longValue())
@@ -58,7 +59,7 @@ public class StatisticServiceImpl implements StatisticService {
     @Override
     public List<TopProductResponse> getTopProducts(LocalDateTime start, LocalDateTime end, int limit) {
         Pageable pageable = (Pageable) PageRequest.of(0, limit);
-        return invoiceRepository.getTopSellingProducts(start, end, pageable).stream()
+        return invoiceRepository.getTopSellingProducts(TrangThaiTong.THANH_CONG,start, end,pageable).stream()
                 .map(obj -> TopProductResponse.builder()
                         .productId((Long) obj[0])
                         .productName((String) obj[1])
@@ -94,7 +95,7 @@ public class StatisticServiceImpl implements StatisticService {
     public Long getTodayRevenue() {
         LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
         LocalDateTime endOfDay = startOfDay.plusDays(1);
-        return invoiceRepository.getTodayRevenue(startOfDay, endOfDay);
+        return invoiceRepository.getTodayRevenue(startOfDay, endOfDay, TrangThaiTong.THANH_CONG);
     }
 
 

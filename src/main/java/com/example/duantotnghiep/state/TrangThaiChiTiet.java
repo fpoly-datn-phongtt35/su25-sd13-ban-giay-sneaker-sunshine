@@ -4,19 +4,19 @@ import java.util.Calendar;
 import java.util.Date;
 
 public enum TrangThaiChiTiet {
+    DANG_GIAO_DICH(-3,"Đang giao dịch"),
     HUY_DON(-2, "Hủy đơn hàng"),
     HUY_GIAO_DICH(-1, "Hủy giao dịch"),
-    DANG_XU_LY(0, "Đang xử lý"),
-    CHO_XAC_NHAN(1, "Chờ xác nhận"),
-    DA_XAC_NHAN(2, "Đã xác nhận"),
-    CHO_NHAP_HANG(3, "Chờ nhập hàng"),
-    DANG_CHUAN_BI_HANG(4, "Đang chuẩn bị hàng"),
-    DANG_GIAO_HANG(5, "Đang giao hàng"),
-    GIAO_THANH_CONG(6, "Giao hàng thành công"),
-    GIAO_THAT_BAI(7, "Giao hàng thất bại"),
-    MAT_HANG(11, "Mất hàng"),
-    DA_HOAN_TIEN(13, "Đã hoàn tiền"),
-    DA_HOAN_THANH(14, "Đã hoàn thành");
+    CHO_XU_LY(0, "Chờ xử lý"),
+    DA_XU_LY(1, "Đã xử lý"),
+    CHO_NHAP_HANG(2, "Chờ nhập hàng"),
+    CHO_GIAO_HANG(3, "Chờ giao hàng"),
+    DANG_GIAO_HANG(4, "Đang giao hàng"),
+    GIAO_THANH_CONG(5, "Giao hàng thành công"),
+    GIAO_THAT_BAI(6, "Giao hàng thất bại"),
+    MAT_HANG(7, "Mất hàng"),
+    DA_HOAN_TIEN(8, "Đã hoàn tiền"),
+    DA_HOAN_THANH(9, "Đã hoàn thành");
 
     private final int ma;
     private final String moTa;
@@ -43,18 +43,18 @@ public enum TrangThaiChiTiet {
 
     public boolean canTransitionTo(TrangThaiChiTiet next) {
         if (next == HUY_DON) {
-            return this == DANG_XU_LY || this == CHO_XAC_NHAN || this == DA_XAC_NHAN;
+            return this == CHO_XU_LY;
         }
 
-        if (next == HUY_GIAO_DICH) {
-            return this == DANG_XU_LY || this == CHO_XAC_NHAN;
+        if(next == HUY_GIAO_DICH){
+            return this == DANG_GIAO_DICH;
         }
 
         return switch (this) {
-            case DANG_XU_LY -> next == CHO_XAC_NHAN;
-            case CHO_XAC_NHAN -> next == DA_XAC_NHAN;
-            case DA_XAC_NHAN -> next == CHO_NHAP_HANG || next == DANG_CHUAN_BI_HANG;
-            case CHO_NHAP_HANG, DANG_CHUAN_BI_HANG -> next == DANG_GIAO_HANG;
+            case CHO_XU_LY -> next == DA_XU_LY;
+            case DA_XU_LY -> next == CHO_NHAP_HANG || next == CHO_GIAO_HANG;
+            case CHO_NHAP_HANG -> next == CHO_GIAO_HANG;
+            case CHO_GIAO_HANG -> next == DANG_GIAO_HANG;
             case DANG_GIAO_HANG -> next == GIAO_THANH_CONG || next == GIAO_THAT_BAI || next == MAT_HANG;
             case GIAO_THAT_BAI, MAT_HANG -> next == DA_HOAN_TIEN;
             case DA_HOAN_TIEN -> next == DA_HOAN_THANH;
@@ -71,12 +71,6 @@ public enum TrangThaiChiTiet {
         };
     }
 
-    /**
-     * Kiểm tra xem đơn hàng có thể khiếu nại không (trong 7 ngày sau khi giao hàng thành công).
-     *
-     * @param deliveredAt ngày giao hàng
-     * @return true nếu trong 7 ngày kể từ ngày giao hàng thành công
-     */
     public boolean coTheKhieuNai(Date deliveredAt) {
         if (this != GIAO_THANH_CONG || deliveredAt == null) return false;
 
@@ -85,7 +79,6 @@ public enum TrangThaiChiTiet {
         cal.add(Calendar.DAY_OF_YEAR, 7);
         Date hanKhieuNai = cal.getTime();
 
-        Date now = new Date();
-        return now.before(hanKhieuNai);
+        return new Date().before(hanKhieuNai);
     }
 }

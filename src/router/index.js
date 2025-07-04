@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from "vue-router";
+import { createRouter, createWebHistory } from 'vue-router'
 
 import MaterialList from '@/components/ChatLieu/MaterialList.vue'
 import StyleList from '@/components/CoGiay/StyleList.vue'
@@ -33,6 +33,8 @@ import StatisticsView from '@/components/ThongKe/StatisticsView.vue'
 import Error403 from '@/components/404-error-main/Error403.vue'
 import OnlineSaleList from "@/components/OnlineSales/OnlineSaleList.vue";
 import OrderStatus from "@/components/OnlineSales/OrderStatus.vue";
+import DiscountCampaignList from '@/components/DotGiamGia/DiscountCampaignList.vue'
+import DiscountCampaignAdd from '@/components/DotGiamGia/DiscountCampaignAdd.vue'
 
 const routes = [
   {
@@ -45,7 +47,7 @@ const routes = [
     component: Login,
   },
 
-   {
+  {
     path: '/error',
     name: 'Error403',
     component: Error403,
@@ -55,25 +57,29 @@ const routes = [
   {
     path: '/',
     component: Dashboard,
-    meta: { requiresAuth: true , breadcrumb: "Dashboard" },
+    meta: { requiresAuth: true, breadcrumb: 'Dashboard' },
     children: [
-      { path: "home", name: "Home", component: TrangChu , meta: {
-          breadcrumb: "Trang chủ",
-          parent: "Dashboard",
-        },},
+      {
+        path: 'home',
+        name: 'Home',
+        component: TrangChu,
+        meta: {
+          breadcrumb: 'Trang chủ',
+          parent: 'Dashboard',
+        },
+      },
 
-      { path: "product", name: "ProductList", component: ProductList },
-      { path: "product/add", name: "AddProduct", component: AddProduct },
-      { path: "product/update/:id", name: "UpdateProduct", component: UpdateProduct },
-      { path: "product/detail/:id", name: "DetailProduct", component: DetailProduct },
-      { path: "product/history", name: "ProductHistory", component: ProductHistory },
+      { path: 'product', name: 'ProductList', component: ProductList },
+      { path: 'product/add', name: 'AddProduct', component: AddProduct },
+      { path: 'product/update/:id', name: 'UpdateProduct', component: UpdateProduct },
+      { path: 'product/detail/:id', name: 'DetailProduct', component: DetailProduct },
+      { path: 'product/history', name: 'ProductHistory', component: ProductHistory },
 
       { path: 'categories', name: 'Category', component: CategoryList },
 
       { path: 'voucher', name: 'VoucherList', component: VoucherList },
       { path: 'voucher/add', name: 'AddVoucher', component: AddVoucher },
       { path: 'voucher/update/:id', name: 'UpdateVoucher', component: UpdateVoucher },
-
 
       { path: '/sales-counter/list', name: 'CounterSales', component: CounterSales },
       {
@@ -99,20 +105,24 @@ const routes = [
 
       { path: 'voucher', name: 'Voucher', component: VoucherList },
 
-      { path: "employee", name: "Employee", component: EmployeeList },
-      { path: "employee/add", name: "AddEmployee", component: AddEmployee },
-      { path: "employee/update/:id", name: "UpdateEmployee", component: UpdateEmployee },
+      { path: 'employee', name: 'Employee', component: EmployeeList },
+      { path: 'employee/add', name: 'AddEmployee', component: AddEmployee },
+      { path: 'employee/update/:id', name: 'UpdateEmployee', component: UpdateEmployee },
 
-      { path: "customer/add", name: "AddCustomer", component: AddCustomer },
-      { path: "customer", name: "CustomerList", component: CustomerList },
-      { path: "customer/update/:id", name: "UpdateCustomer", component: UpdateCustomer },
+      { path: 'customer/add', name: 'AddCustomer', component: AddCustomer },
+      { path: 'customer', name: 'CustomerList', component: CustomerList },
+      { path: 'customer/update/:id', name: 'UpdateCustomer', component: UpdateCustomer },
       { path: 'customer', name: 'CustomerList', component: CustomerList },
       { path: 'customer/update/:id', name: 'UpdateCustomer', component: UpdateCustomer },
 
       { path: 'statistics', name: 'Statistics', component: StatisticsView },
 
       { path: 'sales-online', name: 'SaleOnlines', component: OnlineSaleList },
-      { path: 'sales-online/:invoiceId', name: 'InvoiceStatus', component: OrderStatus }
+      { path: 'sales-online/:invoiceId', name: 'InvoiceStatus', component: OrderStatus },
+
+      { path: '/discount-campaigns', name: 'DiscountCampaignList', component: DiscountCampaignList },
+      { path: '/discount-campaigns/add', name: 'DiscountCampaignAdd', component: DiscountCampaignAdd },
+
     ],
   },
 ]

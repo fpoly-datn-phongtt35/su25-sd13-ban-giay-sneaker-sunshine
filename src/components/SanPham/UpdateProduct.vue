@@ -189,7 +189,7 @@
             </div>
           </div>
         </el-form-item>
-        
+
         <el-form-item v-if="updateProduct.selectedColors.length > 0" prop="images">
           <div style="display: none;"></div>
         </el-form-item>
@@ -214,6 +214,7 @@
                   v-model.number="detail.sellPrice"
                   :min="0"
                   clearable
+                  disabled
                 />
               </el-form-item>
               <el-form-item label="Số lượng" :prop="'productDetails.' + index + '.quantity'" :rules="rules.productDetailQuantity">
@@ -378,13 +379,11 @@ const rules = ref({
       trigger: 'change', // Trigger when file list changes
     },
   ],
-  // Rules for dynamically generated product details
+  // Rules for dynamically generated product details (removed 'required')
   productDetailSellPrice: [
-    { required: true, message: 'Giá bán không được để trống', trigger: 'blur' },
     { type: 'number', min: 0, message: 'Giá bán phải là số không âm', trigger: 'blur' },
   ],
   productDetailQuantity: [
-    { required: true, message: 'Số lượng không được để trống', trigger: 'blur' },
     { type: 'number', min: 0, message: 'Số lượng phải là số không âm', trigger: 'blur' },
   ],
 });
@@ -415,15 +414,23 @@ const showError = (message) => {
 const openConfirmDialog = () => {
   productForm.value.validate(async (valid) => {
     if (valid) {
-      // Additional validation for product details (quantity and sellPrice)
+      // **Thêm validation tùy chỉnh cho productDetails ở đây**
       const invalidDetails = productDetails.value.some(detail =>
         detail.quantity === null || detail.quantity === undefined || detail.quantity < 0 ||
         detail.sellPrice === null || detail.sellPrice === undefined || detail.sellPrice < 0
       );
+
       if (invalidDetails) {
         showError('Vui lòng nhập đầy đủ giá bán và số lượng cho tất cả chi tiết sản phẩm và đảm bảo chúng không âm!');
-        return;
+        return; // Dừng lại nếu có lỗi
       }
+
+      const totalQuantity = productDetails.value.reduce((sum, detail) => sum + Number(detail.quantity), 0);
+      if (totalQuantity <= 0) {
+        showError('Tổng số lượng của các biến thể sản phẩm phải lớn hơn 0!');
+        return; // Dừng lại nếu tổng số lượng không hợp lệ
+      }
+
       isModalVisible.value = true;
     } else {
       showError('Vui lòng điền đầy đủ các trường bắt buộc hoặc sửa lỗi!');
@@ -537,7 +544,7 @@ const fetchProduct = async () => {
       materialId: product.materialId || null,
       styleId: product.styleId || null,
       supplierId: product.supplierId || null,
-      genderId: product.genderId ? product.genderId.toString() : null, // Ensure genderId is string for radio
+      genderId: product.genderId ? product.genderId.toString() : null, 
       soleId: product.soleId || null,
       brandId: product.brandId || null,
       originPrice: product.originPrice || null,
@@ -570,13 +577,13 @@ const fetchProduct = async () => {
           url: img.image.startsWith('data:image')
             ? img.image
             : `data:image/png;base64,${img.image}`,
-          isOld: true, // Mark as existing image
-          id: img.id, // Store image ID
-          file: null, // No raw file for existing images
+          isOld: true, 
+          id: img.id, 
+          file: null, 
         });
       }
     });
-    colorImages.value = { ...colorImages.value }; // Ensure reactivity
+    colorImages.value = { ...colorImages.value }; 
   } catch (error) {
     console.error('Error fetching product:', error);
     showError('Lỗi lấy dữ liệu sản phẩm!');
@@ -584,35 +591,32 @@ const fetchProduct = async () => {
 };
 
 const generateProductDetails = () => {
-  const existingDetails = [...productDetails.value]; // Copy current product details
+  const existingDetails = [...productDetails.value]; 
   const newProductDetails = [];
+
   for (const sizeId of updateProduct.value.selectedSizes) {
     for (const colorId of updateProduct.value.selectedColors) {
       const size = sizeList.value.find((s) => s.id === sizeId);
       const color = colorList.value.find((c) => c.id === colorId);
 
-      // Try to find an existing detail for this size/color combination
       const existingDetail = existingDetails.find(
         (detail) => detail.sizeId === sizeId && detail.colorId === colorId,
       );
 
       newProductDetails.push({
-        id: existingDetail?.id || null, // Preserve existing ID if available
+        id: existingDetail?.id || null, 
         sizeId: sizeId,
         colorId: colorId,
         sizeName: size?.sizeName || '',
         colorName: color?.colorName || '',
-        // Preserve existing sellPrice/quantity, or use defaults
-        sellPrice: existingDetail?.sellPrice !== undefined ? existingDetail.sellPrice : updateProduct.value.sellPrice || 0,
-        quantity: existingDetail?.quantity !== undefined ? existingDetail.quantity : 0,
+        sellPrice: existingDetail ? existingDetail.sellPrice : (updateProduct.value.sellPrice || 0),
+        quantity: existingDetail ? existingDetail.quantity : 0,
       });
     }
   }
-  // Update productDetails. Filter out details for deselected sizes/colors
   productDetails.value = newProductDetails;
 };
 
-// Watch for changes in selectedColors to track deselected colors and their images
 watch(() => updateProduct.value.selectedColors, (newColors, oldColors) => {
   const removedColorIds = oldColors.filter(
     (colorId) => !newColors.includes(colorId)
@@ -641,7 +645,7 @@ watch(() => updateProduct.value.selectedColors, (newColors, oldColors) => {
   if (productForm.value) {
     productForm.value.validateField('images');
   }
-}, { deep: true }); // Use deep watch for nested changes if needed, though shallow is often fine for array elements
+}, { deep: true });
 
 // Watch for changes in selectedSizes to regenerate product details
 watch(() => updateProduct.value.selectedSizes, () => {
@@ -649,14 +653,13 @@ watch(() => updateProduct.value.selectedSizes, () => {
 });
 
 // Watch for changes in general sellPrice to update product details sellPrice
+// Only update if the new sellPrice is a valid number AND the detail's sellPrice hasn't been explicitly set (i.e., it's still the default 0 or null)
 watch(() => updateProduct.value.sellPrice, (newSellPrice) => {
-  // Only update if the new sellPrice is a valid number
   if (typeof newSellPrice === 'number' && newSellPrice >= 0) {
     productDetails.value.forEach(detail => {
-      // Only update if the detail's sellPrice wasn't specifically changed by the user
-      // or if it's currently 0 or null. This is a heuristic.
-      // A more robust solution might involve a flag on each detail.
-      if (detail.sellPrice === 0 || detail.sellPrice === null || detail.sellPrice === updateProduct.value.sellPrice) {
+      // If the detail's sellPrice is 0 or null/undefined (meaning it hasn't been specifically updated)
+      // or if it matches the previous global sellPrice, then update it.
+      if (detail.sellPrice === 0 || detail.sellPrice === null || detail.sellPrice === undefined) {
         detail.sellPrice = newSellPrice;
       }
     });
@@ -685,8 +688,9 @@ const handleFileChange = (file, fileList, colorId) => {
   }
 
   const existingFilesForColor = colorImages.value[colorId] || [];
+  // Check for duplicate names (excluding old files for name comparison if needed, or refine comparison)
   const isDuplicate = existingFilesForColor.some(
-    (f) => f.name === file.name && f.file?.size === file.size && !f.isOld
+    (f) => f.name === file.name && (!f.file || f.file.size === file.size) // Compare based on name and size for new files
   );
 
   if (isDuplicate) {
@@ -707,12 +711,13 @@ const handleFileChange = (file, fileList, colorId) => {
     colorImages.value[colorId] = [];
   }
 
+  // Update the file list for the specific color, including new raw files and existing ones
   colorImages.value[colorId] = fileList.map((item) => ({
     name: item.name,
     url: item.url || (item.raw ? URL.createObjectURL(item.raw) : ''),
-    file: item.raw || null,
-    isOld: item.isOld || false,
-    id: item.id || null,
+    file: item.raw || null, // raw file is present for new uploads
+    isOld: item.isOld || false, // 'isOld' flag for existing images
+    id: item.id || null, // ID for existing images
   }));
   colorImages.value = { ...colorImages.value };
 
@@ -758,12 +763,7 @@ const saveProduct = async () => {
       }
     });
 
-    const totalQuantity = mergedDetails.reduce((sum, detail) => sum + Number(detail.quantity), 0);
-    if (totalQuantity <= 0) {
-      showError('Tổng số lượng của các biến thể sản phẩm phải lớn hơn 0!');
-      isModalVisible.value = false;
-      return;
-    }
+    // **Đoạn kiểm tra totalQuantity đã được di chuyển lên openConfirmDialog**
 
     const formData = new FormData();
     formData.append('productName', updateProduct.value.productName || '');
@@ -776,7 +776,7 @@ const saveProduct = async () => {
     formData.append('weight', updateProduct.value.weight || 0);
     formData.append('originPrice', updateProduct.value.originPrice || 0);
     formData.append('sellPrice', updateProduct.value.sellPrice || 0);
-    formData.append('quantity', totalQuantity);
+    formData.append('quantity', mergedDetails.reduce((sum, detail) => sum + Number(detail.quantity), 0)); // Calculate total quantity here
     formData.append('description', updateProduct.value.description || '');
 
     updateProduct.value.categoryIds.forEach((cat, index) => {
@@ -811,7 +811,7 @@ const saveProduct = async () => {
     let imageIndex = 0;
     Object.entries(colorImages.value).forEach(([colorId, files]) => {
       files
-        .filter((fileObj) => fileObj.file && !fileObj.isOld) // Only new files
+        .filter((fileObj) => fileObj.file && !fileObj.isOld) // Only new files (have raw file and are not marked as old)
         .forEach((fileObj) => {
           formData.append(`productImages[${imageIndex}].productImages`, fileObj.file);
           formData.append(`productImages[${imageIndex}].colorId`, colorId);
@@ -827,7 +827,9 @@ const saveProduct = async () => {
     showSuccess('Cập nhật sản phẩm thành công!');
     isModalVisible.value = false;
 
-    // Reset state after successful update
+    // Reset state after successful update to ensure clean form for potential re-edits or new creations if navigating within same component
+    // However, since we are routing back, a full reset might not be strictly necessary here,
+    // but it's good practice for component reusability.
     updateProduct.value = {
       categoryIds: [],
       productName: '',

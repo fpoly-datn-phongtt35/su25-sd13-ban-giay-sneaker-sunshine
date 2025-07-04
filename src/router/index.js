@@ -32,6 +32,7 @@ import UpdateCustomer from '@/components/KhachHang/UpdateCustomer.vue'
 import StatisticsView from '@/components/ThongKe/StatisticsView.vue'
 import Error403 from '@/components/404-error-main/Error403.vue'
 import OnlineSaleList from "@/components/OnlineSales/OnlineSaleList.vue";
+import OrderStatus from "@/components/OnlineSales/OrderStatus.vue";
 
 const routes = [
   {
@@ -111,6 +112,7 @@ const routes = [
       { path: 'statistics', name: 'Statistics', component: StatisticsView },
 
       { path: 'sales-online', name: 'SaleOnlines', component: OnlineSaleList },
+      { path: 'sales-online/:invoiceId', name: 'InvoiceStatus', component: OrderStatus }
     ],
   },
 ]

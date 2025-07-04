@@ -1,75 +1,105 @@
 <template>
-  <div class="p-4">
-    <!-- Bộ lọc -->
-    <el-card class="mb-4">
-      <el-form :inline="true" :model="filters" class="demo-form-inline">
-        <el-form-item label="Tìm kiếm">
-          <el-input v-model="filters.search" placeholder="Mã hóa đơn / khách hàng" clearable />
-        </el-form-item>
-        <el-form-item label="Loại đơn">
-          <el-select v-model="filters.orderType" placeholder="Chọn loại">
-            <el-option label="Tất cả" value="" />
-            <el-option label="ONLINE" value="1" />
-            <el-option label="OFFLINE" value="0" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="Ngày">
-          <el-date-picker
-            v-model="filters.dateRange"
-            type="daterange"
-            range-separator="Đến"
-            start-placeholder="Từ"
-            end-placeholder="Đến"
-            value-format="YYYY-MM-DD"
+  <div class="p-4 bg-light">
+    <!-- Bộ lọc tìm kiếm -->
+    <el-card class="mb-4 shadow-sm card-filter">
+      <el-form
+        :inline="true"
+        :model="filters"
+        class="form-bar flex flex-wrap items-end gap-4"
+        label-position="top"
+      >
+        <el-form-item label="Tìm kiếm (Mã / Khách hàng)" class="w-64">
+          <el-input
+            v-model="filters.search"
+            placeholder="Nhập mã hoặc tên khách hàng"
+            clearable
+            prefix-icon="el-icon-search"
           />
         </el-form-item>
+
+        <el-form-item label="Khoảng thời gian tạo" class="w-96">
+          <el-date-picker
+            v-model="filters.dateRange"
+            type="datetimerange"
+            range-separator="→"
+            start-placeholder="Từ ngày"
+            end-placeholder="Đến ngày"
+            value-format="YYYY-MM-DD HH:mm:ss"
+            format="DD/MM/YYYY HH:mm:ss"
+            clearable
+            class="w-full"
+            unlink-panels
+          />
+        </el-form-item>
+
         <el-form-item>
-          <el-button type="primary" @click="search">Tìm kiếm</el-button>
-          <el-button @click="resetFilters">Làm mới</el-button>
+          <el-button type="primary" icon="el-icon-search" @click="search">Tìm kiếm</el-button>
+          <el-button icon="el-icon-refresh" @click="resetFilters">Làm mới</el-button>
         </el-form-item>
       </el-form>
     </el-card>
 
     <!-- Tabs trạng thái -->
-    <el-tabs v-model="currentTab" @tab-change="search" type="border-card" class="mb-4">
+    <el-tabs
+      v-model="currentTab"
+      @tab-change="search"
+      type="border-card"
+      class="mb-4 shadow-sm"
+    >
       <el-tab-pane
         v-for="tab in tabs"
         :key="tab.key"
-        :label="`${tab.label}`"
+        :label="`${tab.label} (${tab.count})`"
         :name="tab.key"
       />
     </el-tabs>
 
-    <!-- Bảng hóa đơn -->
-    <el-table :data="invoices" v-loading="loading" border stripe>
-      <el-table-column label="STT" type="index" width="60" />
-      <el-table-column prop="invoiceCode" label="Mã hóa đơn" />
+    <!-- Bảng dữ liệu -->
+    <el-table
+      :data="invoices"
+      v-loading="loading"
+      border
+      stripe
+      class="shadow-sm"
+      row-class-name="table-row"
+      height="auto"
+    >
+      <el-table-column label="#" type="index" width="60" align="center" />
+      <el-table-column prop="invoiceCode" label="Mã hóa đơn" width="160" />
       <el-table-column prop="customerName" label="Khách hàng" />
-      <el-table-column prop="phone" label="SĐT" />
-      <el-table-column prop="orderType" label="Loại đơn">
+      <el-table-column prop="phone" label="SĐT" width="130" />
+      <el-table-column label="Ngày tạo" width="220">
         <template #default="scope">
-          <el-tag :type="scope.row.orderType === 1 ? 'success' : 'info'" effect="plain">
-            {{ scope.row.orderType === 1 ? 'ONLINE' : 'OFFLINE' }}
-          </el-tag>
+          <el-tooltip
+            effect="dark"
+            :content="formatDateTime(scope.row.createdDate)"
+            placement="top"
+          >
+            <span>{{ formatDateTime(scope.row.createdDate) }}</span>
+          </el-tooltip>
         </template>
       </el-table-column>
-      <el-table-column prop="createdDate" label="Ngày tạo" />
-      <el-table-column prop="totalAmount" label="Tổng tiền">
+      <el-table-column prop="totalAmount" label="Tổng tiền" width="150" align="right">
         <template #default="scope">
           {{ scope.row.totalAmount.toLocaleString() }} ₫
         </template>
       </el-table-column>
-      <el-table-column prop="status" label="Trạng thái">
+      <el-table-column label="Hành động" width="160" align="center">
         <template #default="scope">
-          <el-tag :type="statusTag(scope.row.status)">
-            {{ statusCodeToLabel(scope.row.status) }}
-          </el-tag>
+          <el-button
+            size="small"
+            type="primary"
+            icon="el-icon-view"
+            @click="goToStatusPage(scope.row.id)"
+          >
+            Chi tiết
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
 
     <!-- Phân trang -->
-    <div class="d-flex justify-content-end mt-4">
+    <div class="d-flex justify-end mt-4">
       <el-pagination
         background
         layout="prev, pager, next"
@@ -84,65 +114,72 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import axios from 'axios'
+import { useRouter } from 'vue-router'
+import dayjs from 'dayjs'
 import apiClient from '@/utils/axiosInstance'
 
-// Filters & Tabs
+const router = useRouter()
+
 const filters = ref({
   search: '',
-  orderType: '',
   dateRange: []
 })
 
-const currentTab = ref('ALL')
-const tabs = [
-  { key: 'ALL', label: 'Tất cả' },
-  { key: 'WAITING', label: 'Chờ xác nhận' },
-  { key: 'CONFIRMED', label: 'Đã xác nhận' },
-  { key: 'DELIVERING', label: 'Đang giao hàng' },
-  { key: 'COMPLETED', label: 'Đã hoàn thành' },
-  { key: 'CANCELLED', label: 'Đã hủy' }
-]
-
-// Data & Pagination
-const invoices = ref([])
-const loading = ref(false)
+const currentTab = ref('CHO_XU_LY')
 const page = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
+const invoices = ref([])
+const loading = ref(false)
+const statusCounts = ref([])
 
-// Status mapping
-const statusLabelToCode = (label) => ({
-  WAITING: 0,
-  CONFIRMED: 1,
-  DELIVERING: 2,
-  COMPLETED: 3,
-  CANCELLED: 4
-})[label] ?? null
+const tabs = ref([
+  { key: 'CHO_XU_LY', label: 'Chờ xử lý', count: 0 },
+  { key: 'DA_XU_LY', label: 'Đã xử lý', count: 0 },
+  { key: 'CHO_GIAO_HANG', label: 'Chờ giao hàng', count: 0 },
+  { key: 'DANG_GIAO_HANG', label: 'Đang giao hàng', count: 0 },
+  { key: 'GIAO_THANH_CONG', label: 'Giao hàng thành công', count: 0 },
+  { key: 'GIAO_THAT_BAI', label: 'Giao hàng thất bại', count: 0 },
+  { key: 'DA_HOAN_THANH', label: 'Đã hoàn thành', count: 0 },
+  { key: 'HUY_DON', label: 'Đơn hàng hủy', count: 0 }
+])
 
-const statusCodeToLabel = (code) => ({
-  0: 'Chờ xác nhận',
-  1: 'Đã xác nhận',
-  2: 'Đang giao hàng',
-  3: 'Đã hoàn thành',
-  4: 'Đã hủy'
-})[code] ?? 'Không rõ'
+const statusLabelToCode = (label) => {
+  const map = {
+    'DANG_GIAO_DICH': -3,
+    'HUY_DON': -2,
+    'HUY_GIAO_DICH': -1,
+    'CHO_XU_LY': 0,
+    'DA_XU_LY': 1,
+    'CHO_GIAO_HANG': 3,
+    'DANG_GIAO_HANG': 4,
+    'GIAO_THANH_CONG': 5,
+    'GIAO_THAT_BAI': 6,
+    'MAT_HANG': 7,
+    'DA_HOAN_TIEN': 8,
+    'DA_HOAN_THANH': 9
+  }
+  return map[label] ?? null
+}
 
-const statusTag = (code) => ({
-  0: 'warning',
-  1: '',
-  2: 'info',
-  3: 'success',
-  4: 'danger'
-})[code] ?? ''
+const fetchStatusCounts = async () => {
+  try {
+    const res = await apiClient.get('/admin/online-sales/count-by-status')
+    statusCounts.value = res.data || []
+    tabs.value = tabs.value.map(tab => {
+      const found = statusCounts.value.find(i => i.statusDetail === tab.key)
+      return { ...tab, count: found ? found.count : 0 }
+    })
+  } catch (err) {
+    console.error('Lỗi lấy số lượng trạng thái:', err)
+  }
+}
 
-// Search API
 const search = async () => {
   loading.value = true
   try {
     const params = {
-      status: currentTab.value !== 'ALL' ? statusLabelToCode(currentTab.value) : null,
-      orderType: filters.value.orderType || null,
+      status: statusLabelToCode(currentTab.value),
       phone: filters.value.search || null,
       code: filters.value.search || null,
       createdFrom: filters.value.dateRange[0] || null,
@@ -150,41 +187,78 @@ const search = async () => {
       page: page.value - 1,
       size: pageSize.value
     }
-    const response = await apiClient.get('/admin/online-sales/search', { params })
-    invoices.value = response.data.content
-    total.value = response.data.totalElements
-  } catch (e) {
-    console.error('Lỗi khi tải dữ liệu:', e)
+    const res = await apiClient.get('/admin/online-sales/search', { params })
+    invoices.value = res.data.content
+    total.value = res.data.totalElements
+    await fetchStatusCounts()
+  } catch (err) {
+    console.error('Lỗi tìm kiếm:', err)
   } finally {
     loading.value = false
   }
 }
 
-// Pagination handler
+const resetFilters = () => {
+  filters.value = { search: '', dateRange: [] }
+  page.value = 1
+  search()
+}
+
 const handlePageChange = (val) => {
   page.value = val
   search()
 }
 
-// Reset
-const resetFilters = () => {
-  filters.value = {
-    search: '',
-    orderType: '',
-    dateRange: []
-  }
-  page.value = 1
-  search()
+const goToStatusPage = (invoiceId) => {
+  router.push({ name: 'InvoiceStatus', params: { invoiceId } })
 }
 
-// Initial load
+const formatDateTime = (dateStr) => {
+  return dayjs(dateStr).format('DD/MM/YYYY HH:mm:ss')
+}
+
 onMounted(() => {
   search()
 })
 </script>
 
 <style scoped>
-.el-card {
-  background-color: #fdfdfd;
+.form-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-end;
+}
+
+.card-filter {
+  border-radius: 12px;
+  background-color: #fff;
+  padding: 16px;
+}
+
+.el-table .table-row:hover {
+  background-color: #f5f7fa;
+}
+
+.justify-end {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.bg-light {
+  background-color: #fafafa;
+  min-height: 100vh;
+}
+
+.w-64 {
+  width: 256px;
+}
+
+.w-96 {
+  width: 384px;
+}
+
+.w-full {
+  width: 100%;
 }
 </style>

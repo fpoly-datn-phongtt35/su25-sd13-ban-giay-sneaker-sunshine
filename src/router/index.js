@@ -1,3 +1,4 @@
+import ChiTietDonHang from '@/component/DonHang/ChiTietDonHang.vue'
 import DonHang from '@/component/DonHang/DonHang.vue'
 import Home from '@/component/Home/Home.vue'
 import ThongTinCaNhan from '@/component/Personal/ThongTinCaNhan.vue'
@@ -19,6 +20,7 @@ const routes = [
   { path: '/thong-tin-ca-nhan', name: 'Personal', component: ThongTinCaNhan },
   { path: '/ma-giam-gia', name: 'Voucher', component: MaGiamGia },
   { path: '/don-hang', name: 'DonHang', component: DonHang },
+  { path: '/don-hang/:id', name: 'ChiTietDonHang', component: ChiTietDonHang, props: true }
 ]
 
 const router = createRouter({

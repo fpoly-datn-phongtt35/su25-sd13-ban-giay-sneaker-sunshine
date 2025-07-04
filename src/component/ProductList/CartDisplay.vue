@@ -107,14 +107,12 @@ import { getCart, saveCart, clearCart } from '@/utils/cart'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Delete, Picture, Back, Wallet, Shop } from '@element-plus/icons-vue'
 
-// Initialize router and cart state
 const router = useRouter()
 const cartItems = ref([])
 
-// Load cart when component mounts
 onMounted(() => {
   cartItems.value = getCart()
-  console.log('📦 Giỏ hàng khi load:', cartItems.value)
+  console.log(' Giỏ hàng khi load:', cartItems.value)
 })
 
 // Watch for changes in cartItems and save to local storage
@@ -122,7 +120,6 @@ watch(cartItems, (newCart) => {
   saveCart(newCart)
 }, { deep: true }) // Deep watch to detect changes within objects in the array
 
-// Function to format currency (VND)
 const formatPrice = (value) => {
   return new Intl.NumberFormat('vi-VN', {
     style: 'currency',
@@ -168,7 +165,6 @@ const removeItem = (item) => {
     })
 }
 
-// Confirm and clear all items from the cart
 const confirmClearAll = () => {
   ElMessageBox.confirm(
     'Bạn có chắc chắn muốn xóa tất cả sản phẩm khỏi giỏ hàng?',
@@ -189,12 +185,10 @@ const confirmClearAll = () => {
     })
 }
 
-// Calculate total amount of items in the cart
 const calculateTotal = () => {
   return cartItems.value.reduce((total, item) => total + item.price * item.quantity, 0)
 }
 
-// Navigate to checkout page, checking for empty cart first
 const goToCheckout = () => {
   if (cartItems.value.length === 0) {
     ElMessage.warning('Giỏ hàng của bạn đang trống! Vui lòng thêm sản phẩm để thanh toán.')
@@ -229,7 +223,7 @@ const goToCheckout = () => {
 .cart-table {
   margin-bottom: 25px;
   border-radius: 6px;
-  overflow: hidden; /* Ensures border-radius applies to table content */
+  overflow: hidden; 
 }
 
 .cart-product-thumbnail {
@@ -262,7 +256,7 @@ const goToCheckout = () => {
   font-weight: 600;
   color: #444;
   font-size: 16px;
-  display: block; /* Ensures it takes full width for wrapping */
+  display: block; 
   margin-bottom: 4px;
 }
 

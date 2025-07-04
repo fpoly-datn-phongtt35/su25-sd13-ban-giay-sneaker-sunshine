@@ -20,14 +20,26 @@
       </div>
     </el-col>
 
-    <!-- Thông tin -->
+    <!-- Thông tin sản phẩm -->
     <el-col :span="12">
       <h2 class="product-name">{{ product.productName }}</h2>
       <p class="product-code">Mã SP: {{ product.productCode }}</p>
-      <p class="product-price">{{ formatPrice(product.sellPrice) }}</p>
+
+      <!-- Giá -->
+      <div class="product-prices">
+        <span
+          v-if="showOriginalPrice"
+          class="original-price"
+        >
+          {{ formatPrice(product.sellPrice) }}
+        </span>
+        <span class="discounted-price">
+          {{ formatPrice(finalDiscountedPrice) }}
+        </span>
+      </div>
 
       <!-- Màu sắc -->
-      <div v-if="uniqueColors.length">
+      <div v-if="uniqueColors.length" style="margin-top: 10px;">
         <span>Màu sắc:</span>
         <div>
           <el-tag
@@ -101,6 +113,7 @@ import { addToCart } from '@/utils/cart'
 
 const route = useRoute()
 const router = useRouter()
+
 const product = ref({})
 const mainImage = ref('/no-image.jpg')
 
@@ -108,11 +121,17 @@ const selectedColor = ref(null)
 const selectedSize = ref(null)
 const quantity = ref(1)
 
+// 👉 Thêm biến discountPercentage
+const discountPercentage = ref(0)
+
 onMounted(async () => {
   try {
     const id = route.params.id
-    const res = await axios.get(`http://localhost:8080/api/admin/products/${id}`)
+    const res = await axios.get(`http://localhost:8080/api/online-sale/${id}`)
     product.value = res.data
+
+    // ✅ Lấy discountPercentage từ BE (giả sử trả về res.data.discountPercentage)
+    discountPercentage.value = res.data.discountPercentage || 0
 
     if (product.value.productImages?.length > 0) {
       mainImage.value = getImage(product.value.productImages[0])
@@ -126,42 +145,36 @@ onMounted(async () => {
   }
 })
 
-// Lấy ảnh base64
 const getImage = (img) =>
   img?.image ? `data:image/jpeg;base64,${img.image}` : '/no-image.jpg'
 
-// Cập nhật ảnh chính
-const setMainImage = (img) => {
-  mainImage.value = getImage(img)
-}
-
-// Format giá tiền
 const formatPrice = (price) =>
-  new Intl.NumberFormat('vi-VN', {
-    style: 'currency',
-    currency: 'VND',
-  }).format(price || 0)
+  new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price || 0)
 
-// Lấy danh sách màu duy nhất
+const finalDiscountedPrice = computed(() => {
+  const price = product.value.discountedPrice
+  return price && price > 0 ? price : product.value.sellPrice
+})
+
+const showOriginalPrice = computed(() => {
+  return product.value.sellPrice !== finalDiscountedPrice.value
+})
+
 const uniqueColors = computed(() => {
   const details = product.value.productDetails || []
-  return [...new Set(details.map((d) => d.colorName))]
+  return [...new Set(details.map(d => d.colorName))]
 })
 
 const filteredSizes = computed(() => {
   const details = product.value.productDetails || []
   return details
-    .filter((d) => d.colorName === selectedColor.value)
-    .map((d) => d.sizeName)
+    .filter(d => d.colorName === selectedColor.value)
+    .map(d => d.sizeName)
 })
 
 const findProductDetail = () => {
   const details = product.value.productDetails || []
-  return details.find(
-    (d) =>
-      d.colorName === selectedColor.value &&
-      d.sizeName === selectedSize.value
-  )
+  return details.find(d => d.colorName === selectedColor.value && d.sizeName === selectedSize.value)
 }
 
 const selectColor = (color) => {
@@ -181,10 +194,15 @@ const handleAddToCart = () => {
 
   const detail = findProductDetail()
   if (!detail) {
-    ElMessage.error('Không tìm thấy sản phẩm với màu và kích thước đã chọn!')
+    ElMessage.error('Không tìm thấy sản phẩm với màu & kích thước đã chọn!')
     return false
   }
 
+  const finalPrice = detail.discountedPrice && detail.discountedPrice > 0
+    ? detail.discountedPrice
+    : (detail.sellPrice || finalDiscountedPrice.value)
+
+  // ✅ Thêm discountPercentage từ biến ref
   const item = {
     productDetailId: detail.id,
     productId: product.value.id,
@@ -193,7 +211,10 @@ const handleAddToCart = () => {
     image: mainImage.value,
     color: selectedColor.value,
     size: selectedSize.value,
-    price: detail.sellPrice || product.value.sellPrice,
+    price: finalPrice,
+    sellPrice: detail.sellPrice || product.value.sellPrice,
+    discountedPrice: detail.discountedPrice || product.value.discountedPrice,
+    discountPercentage: discountPercentage.value, // <-- lấy từ BE
     quantity: quantity.value,
   }
 
@@ -209,8 +230,8 @@ const handleBuyNow = () => {
     router.push('/cart')
   }
 }
-
 </script>
+
 
 <style scoped>
 .thumbnail {
@@ -229,9 +250,23 @@ const handleBuyNow = () => {
   font-size: 24px;
   font-weight: bold;
 }
-.product-price {
+.product-code {
+  margin-bottom: 5px;
+}
+.product-prices {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+}
+.original-price {
+  color: #999;
+  text-decoration: line-through;
+  font-size: 16px;
+}
+.discounted-price {
+  color: #e53935;
+  font-weight: 600;
   font-size: 20px;
-  color: #c00;
-  margin-bottom: 10px;
 }
 </style>

@@ -385,34 +385,41 @@ const handleSubmit = () => {
       return
     }
 
-    isSubmitting.value = true;
-    let loadingInstance = ElLoading.service({ fullscreen: true, text: 'Đang đặt hàng...' });
-
-    const payload = {
-      customerInfo: {
-        ...form.value,
-        address: {
-          ...form.value.address,
-          provinceName: provinces.value.find(p => p.ProvinceID === form.value.address.provinceCode)?.ProvinceName || '',
-          districtName: districts.value.find(d => d.DistrictID === form.value.address.districtCode)?.DistrictName || '',
-          wardName: wards.value.find(w => w.WardCode === form.value.address.wardCode)?.WardName || '',
-        }
-      },
-      items: cartItems.value.map((item) => ({
-        productDetailId: item.productDetailId,
-        quantity: item.quantity,
-      })),
-      discountAmount: 0,
-      description: form.value.description,
-      orderType: 1,
-      status: 1,
-      employeeId: null,
-      shippingFee: shippingFee.value,
-    }
+    isSubmitting.value = true
+    const loadingInstance = ElLoading.service({ fullscreen: true, text: 'Đang đặt hàng...' })
 
     try {
+      // Chuẩn bị dữ liệu payload gửi lên server
+      const payload = {
+        customerInfo: {
+          ...form.value,
+          address: {
+            ...form.value.address,
+            provinceName: provinces.value.find(p => p.ProvinceID === form.value.address.provinceCode)?.ProvinceName || '',
+            districtName: districts.value.find(d => d.DistrictID === form.value.address.districtCode)?.DistrictName || '',
+            wardName: wards.value.find(w => w.WardCode === form.value.address.wardCode)?.WardName || '',
+          }
+        },
+        items: cartItems.value.map(item => ({
+          productDetailId: item.productDetailId,
+          quantity: item.quantity,
+          // ✅ Nếu muốn gửi thêm giá gốc & giá giảm về BE:
+          sellPrice: item.sellPrice,
+          discountedPrice: item.discountedPrice,
+          discountPercentage: item.discountPercentage,
+        })),
+        discountAmount: 0,
+        description: form.value.description,
+        orderType: 1,        // Mặc định: đơn online
+        status: 1,           // Mặc định
+        employeeId: null,
+        shippingFee: shippingFee.value
+      }
+
+      console.log('🚀 Payload gửi lên server:', JSON.stringify(payload, null, 2))
+
       if (paymentMethod.value === 1) {
-        // ZaloPay
+        // 👉 ZaloPay
         const res = await axios.post('http://localhost:8080/api/payment/zalo/create', payload)
         const zaloPay = res.data?.zaloPay
 
@@ -425,23 +432,26 @@ const handleSubmit = () => {
         } else {
           ElMessage.error('❌ Không nhận được URL thanh toán từ ZaloPay. Vui lòng thử lại.')
         }
+
       } else {
-        // COD
+        // 👉 Thanh toán COD
         await axios.post('http://localhost:8080/api/online-sale/checkout', payload)
         clearCart()
         cartItems.value = []
         ElMessage.success('✅ Đặt hàng thành công! Đơn hàng của bạn sẽ sớm được giao.')
         router.push('/don-hang')
       }
+
     } catch (err) {
       console.error('❌ Lỗi đặt hàng:', err)
       ElMessage.error(`❌ Đặt hàng thất bại: ${err?.response?.data?.message || 'Có lỗi xảy ra, vui lòng thử lại.'}`)
     } finally {
-      isSubmitting.value = false;
-      loadingInstance.close();
+      isSubmitting.value = false
+      loadingInstance.close()
     }
   })
 }
+
 </script>
 
 <style scoped>

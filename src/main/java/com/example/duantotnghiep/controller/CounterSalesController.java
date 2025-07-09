@@ -3,20 +3,14 @@ package com.example.duantotnghiep.controller;
 import com.example.duantotnghiep.dto.PaymentSummary;
 import com.example.duantotnghiep.dto.request.AddToCartRequest;
 import com.example.duantotnghiep.dto.request.AssignCustomerRequest;
-import com.example.duantotnghiep.dto.request.CreateInvoiceRequest;
 import com.example.duantotnghiep.dto.response.CustomerResponse;
-import com.example.duantotnghiep.dto.response.InvoiceCheckoutResponse;
-import com.example.duantotnghiep.dto.response.InvoiceDetailResponse;
 import com.example.duantotnghiep.dto.response.InvoiceDisplayResponse;
 import com.example.duantotnghiep.dto.response.InvoiceResponse;
 import com.example.duantotnghiep.dto.response.ProductAttributeResponse;
-import com.example.duantotnghiep.dto.response.ProductResponse;
 import com.example.duantotnghiep.dto.response.VoucherResponse;
 import com.example.duantotnghiep.mapper.VoucherMapper;
 import com.example.duantotnghiep.model.Invoice;
 import com.example.duantotnghiep.service.impl.InvoiceServiceImpl;
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
@@ -81,6 +75,13 @@ public class CounterSalesController {
         }
     }
 
+    @PutMapping("/invoice-details/{id}/quantity")
+    public ResponseEntity<InvoiceDisplayResponse> updateQuantity(
+            @PathVariable("id") Long invoiceDetailId,
+            @RequestParam("quantity") Integer newQuantity) {
+        InvoiceDisplayResponse response = invoiceService.updateInvoiceDetailQuantity(invoiceDetailId, newQuantity);
+        return ResponseEntity.ok(response);
+    }
 
     @GetMapping("/{productId}/attributes")
     public ResponseEntity<List<ProductAttributeResponse>> getProductAttributes(@PathVariable Long productId) {

@@ -3,19 +3,14 @@ package com.example.duantotnghiep.controller;
 import com.example.duantotnghiep.dto.request.InvoiceRequest;
 import com.example.duantotnghiep.dto.response.InvoiceDisplayResponse;
 import com.example.duantotnghiep.dto.response.ProductResponse;
-import com.example.duantotnghiep.dto.response.ZaloPayResponse;
 import com.example.duantotnghiep.model.Invoice;
-import com.example.duantotnghiep.repository.CustomerRepository;
 import com.example.duantotnghiep.repository.InvoiceRepository;
 import com.example.duantotnghiep.service.InvoiceService;
 import com.example.duantotnghiep.service.ProductService;
 import com.example.duantotnghiep.service.impl.InvoiceEmailService;
-import com.example.duantotnghiep.service.impl.ZaloPayService;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,9 +18,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/online-sale")

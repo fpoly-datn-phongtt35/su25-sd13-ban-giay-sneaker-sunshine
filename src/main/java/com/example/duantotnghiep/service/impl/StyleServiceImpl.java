@@ -1,8 +1,5 @@
 package com.example.duantotnghiep.service.impl;
 
-import com.example.duantotnghiep.model.Brand;
-import com.example.duantotnghiep.model.Size;
-import com.example.duantotnghiep.model.Sole;
 import com.example.duantotnghiep.model.Style;
 import com.example.duantotnghiep.repository.StyleRepository;
 import com.example.duantotnghiep.service.StyleService;

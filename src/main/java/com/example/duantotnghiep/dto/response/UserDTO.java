@@ -4,7 +4,6 @@ import com.example.duantotnghiep.model.Customer;
 import com.example.duantotnghiep.model.Employee;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;

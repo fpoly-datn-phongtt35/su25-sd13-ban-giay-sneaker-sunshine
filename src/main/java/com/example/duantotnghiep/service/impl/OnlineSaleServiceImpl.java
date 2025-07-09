@@ -1,6 +1,5 @@
 package com.example.duantotnghiep.service.impl;
 
-import com.example.duantotnghiep.dto.request.OrderRequest;
 import com.example.duantotnghiep.dto.response.InvoiceDetailOnline;
 import com.example.duantotnghiep.dto.response.InvoiceOnlineResponse;
 import com.example.duantotnghiep.dto.response.InvoiceTransactionResponse;
@@ -12,7 +11,6 @@ import com.example.duantotnghiep.model.Invoice;
 import com.example.duantotnghiep.model.InvoiceTransaction;
 import com.example.duantotnghiep.model.OrderStatusHistory;
 import com.example.duantotnghiep.model.User;
-import com.example.duantotnghiep.repository.EmployeeRepository;
 import com.example.duantotnghiep.repository.InvoiceDetailRepository;
 import com.example.duantotnghiep.repository.InvoiceRepository;
 import com.example.duantotnghiep.repository.InvoiceRepository2;
@@ -25,10 +23,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
-import java.math.BigDecimal;
 import java.util.Date;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 

@@ -1,9 +1,7 @@
 package com.example.duantotnghiep.repository;
 
-import com.example.duantotnghiep.dto.response.InvoiceOnlineResponse;
 import com.example.duantotnghiep.dto.response.InvoiceResponse;
 import com.example.duantotnghiep.model.Invoice;
-import com.example.duantotnghiep.model.InvoiceDetail;
 import com.example.duantotnghiep.state.TrangThaiChiTiet;
 import com.example.duantotnghiep.state.TrangThaiTong;
 import org.springframework.data.domain.Page;
@@ -13,7 +11,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;

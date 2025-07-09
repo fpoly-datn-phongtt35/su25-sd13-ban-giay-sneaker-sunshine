@@ -72,19 +72,12 @@ public class StatisticServiceImpl implements StatisticService {
     public List<InvoiceStatusStatisticResponse> getInvoiceStatusStatistics() {
         return invoiceRepository.countInvoicesByStatus().stream()
                 .map(obj -> {
-                    Integer statusCode = (Integer) obj[0];
+                    TrangThaiTong statusEnum = (TrangThaiTong) obj[0]; // cast đúng kiểu
                     Long total = (Long) obj[1];
 
-                    String statusText = switch (statusCode) {
-                        case 0 -> "Chờ xử lý";
-                        case 1 -> "Đã thanh toán";
-                        case 2 -> "Đã hủy";
-                        default -> "Không xác định";
-                    };
-
                     return InvoiceStatusStatisticResponse.builder()
-                            .statusCode(statusCode)
-                            .status(statusText)
+                            .statusCode(statusEnum.getMa())       // lấy mã int
+                            .status(statusEnum.getMoTa())         // lấy mô tả
                             .totalInvoices(total)
                             .build();
                 })

@@ -1,10 +1,7 @@
 package com.example.duantotnghiep.repository;
 
-import com.example.duantotnghiep.dto.request.ProductSearchRequest;
-import com.example.duantotnghiep.dto.request.VoucherRequest;
 import com.example.duantotnghiep.dto.request.VoucherSearchRequest;
 import com.example.duantotnghiep.dto.response.PaginationDTO;
-import com.example.duantotnghiep.dto.response.ProductSearchResponse;
 import com.example.duantotnghiep.dto.response.VoucherResponse;
 import com.example.duantotnghiep.mapper.PaginationMapper;
 import com.example.duantotnghiep.mapper.VoucherMapper;

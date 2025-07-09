@@ -2,9 +2,6 @@ package com.example.duantotnghiep.controller;
 
 import com.example.duantotnghiep.dto.request.SupplierRequest;
 import com.example.duantotnghiep.dto.response.SupplierResponse;
-import com.example.duantotnghiep.model.Style;
-import com.example.duantotnghiep.model.Supplier;
-import com.example.duantotnghiep.service.StyleService;
 import com.example.duantotnghiep.service.SupplierService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;

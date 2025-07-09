@@ -1,7 +1,6 @@
 package com.example.duantotnghiep.repository;
 
 import com.example.duantotnghiep.dto.response.InvoiceDetailOnline;
-import com.example.duantotnghiep.dto.response.InvoiceOnlineResponse;
 import com.example.duantotnghiep.model.Invoice;
 import com.example.duantotnghiep.model.InvoiceDetail;
 import com.example.duantotnghiep.model.ProductDetail;
@@ -9,8 +8,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import java.awt.print.Pageable;
-import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -23,7 +20,7 @@ public interface InvoiceDetailRepository extends JpaRepository<InvoiceDetail, Lo
 
 
     Optional<InvoiceDetail> findByInvoiceAndProductDetail(Invoice invoice, ProductDetail productDetail);
-    List<InvoiceDetail> findByInvoice(Invoice invoice);
+    List<InvoiceDetail> findByInvoiceAndStatus(Invoice invoice, Integer status);
 
     List<InvoiceDetail> findByInvoiceIdIn(Collection<Long> invoiceIds);
 

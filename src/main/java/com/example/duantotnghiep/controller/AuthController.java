@@ -3,7 +3,6 @@ package com.example.duantotnghiep.controller;
 import com.example.duantotnghiep.dto.request.CustomerRequest;
 import com.example.duantotnghiep.dto.request.LoginRequest;
 import com.example.duantotnghiep.dto.response.CustomerResponse;
-import com.example.duantotnghiep.dto.response.LoginResponse;
 import com.example.duantotnghiep.securiry.AuthService;
 import com.example.duantotnghiep.service.CustomerService;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +29,11 @@ public class AuthController {
     public ResponseEntity<CustomerResponse> registerCustomer(@RequestBody CustomerRequest request) {
         CustomerResponse response = customerService.createCustomer(request);
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/login-user") // Cái này chỉ cho USER (role = 3)
+    public ResponseEntity<?> loginUser(@RequestBody LoginRequest request) {
+        return ResponseEntity.ok(authService.loginUserOnly(request)); // bạn tách logic tại đây
     }
 }
 

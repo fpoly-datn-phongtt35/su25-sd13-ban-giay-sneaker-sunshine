@@ -1,9 +1,7 @@
 package com.example.duantotnghiep.controller;
 
 import com.example.duantotnghiep.model.Brand;
-import com.example.duantotnghiep.model.Color;
 import com.example.duantotnghiep.service.BrandService;
-import com.example.duantotnghiep.service.ColorService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

@@ -1,14 +1,10 @@
 package com.example.duantotnghiep.mapper;
 
 import com.example.duantotnghiep.dto.request.CustomerRequest;
-import com.example.duantotnghiep.dto.response.UserDTO;
-import com.example.duantotnghiep.model.User;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
-
 import com.example.duantotnghiep.dto.request.EmployeeRequest;
 import com.example.duantotnghiep.dto.response.CustomerResponse;
 import com.example.duantotnghiep.dto.response.EmployeeResponse;
+import com.example.duantotnghiep.dto.response.UserDTO;
 import com.example.duantotnghiep.model.Customer;
 import com.example.duantotnghiep.model.Employee;
 import com.example.duantotnghiep.model.User;

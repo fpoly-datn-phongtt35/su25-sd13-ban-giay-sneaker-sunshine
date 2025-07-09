@@ -6,7 +6,6 @@ import com.example.duantotnghiep.dto.response.AddressCustomerResponse;
 import com.example.duantotnghiep.dto.response.CustomerResponse;
 import com.example.duantotnghiep.mapper.AddressMapper;
 import com.example.duantotnghiep.mapper.CustomerMapper;
-import com.example.duantotnghiep.mapper.InvoiceMapper;
 import com.example.duantotnghiep.mapper.UserMapper;
 import com.example.duantotnghiep.model.AddressCustomer;
 import com.example.duantotnghiep.model.Customer;
@@ -25,7 +24,6 @@ import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service

@@ -1,7 +1,5 @@
 package com.example.duantotnghiep.service.impl;
 
-import com.example.duantotnghiep.model.Brand;
-import com.example.duantotnghiep.model.Color;
 import com.example.duantotnghiep.model.Material;
 import com.example.duantotnghiep.repository.MaterialRepository;
 import com.example.duantotnghiep.service.MaterialService;

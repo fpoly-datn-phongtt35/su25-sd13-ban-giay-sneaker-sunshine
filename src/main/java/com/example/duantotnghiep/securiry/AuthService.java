@@ -69,6 +69,19 @@ public class AuthService {
             throw new RuntimeException("❌ Lỗi đăng nhập: " + e.getMessage());
         }
     }
+
+    public LoginResponse loginUserOnly(LoginRequest request) {
+        LoginResponse response = login(request); // dùng lại logic cũ
+        User user = userRepository.findByUsername(request.getUsername())
+                .orElseThrow(() -> new RuntimeException("❌ Không tìm thấy người dùng"));
+
+        if (user.getRole() != 3) {
+            throw new RuntimeException("❌ Chỉ người dùng mới được phép đăng nhập");
+        }
+
+        return response;
+    }
+
 }
 
 

@@ -1,12 +1,9 @@
 package com.example.duantotnghiep.service.impl;
 
-import com.example.duantotnghiep.model.Brand;
-import com.example.duantotnghiep.model.Size;
 import com.example.duantotnghiep.model.Sole;
 import com.example.duantotnghiep.repository.SoleRepository;
 import com.example.duantotnghiep.service.SoleService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Repository;
 import org.springframework.stereotype.Service;
 
 import java.text.SimpleDateFormat;

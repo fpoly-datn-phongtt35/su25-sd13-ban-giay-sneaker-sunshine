@@ -4,10 +4,8 @@ import com.example.duantotnghiep.dto.request.AddressCustomerRequest;
 import com.example.duantotnghiep.dto.request.CustomerRequest;
 import com.example.duantotnghiep.dto.response.AddressCustomerResponse;
 import com.example.duantotnghiep.dto.response.CustomerResponse;
-import com.example.duantotnghiep.model.Customer;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 

@@ -66,7 +66,7 @@ public class CustomerController {
     }
 
     @GetMapping("/phan-trang")
-    public ResponseEntity<org.springframework.data.domain.Page<CustomerResponse>> getCustomersByStatus(
+    public ResponseEntity<Page<CustomerResponse>> getCustomersByStatus(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {

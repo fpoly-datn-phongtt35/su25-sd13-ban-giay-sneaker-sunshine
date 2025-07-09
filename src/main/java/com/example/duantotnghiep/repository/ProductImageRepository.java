@@ -1,7 +1,6 @@
 package com.example.duantotnghiep.repository;
 
 import com.example.duantotnghiep.model.Product;
-import com.example.duantotnghiep.model.ProductDetail;
 import com.example.duantotnghiep.model.ProductImage;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;

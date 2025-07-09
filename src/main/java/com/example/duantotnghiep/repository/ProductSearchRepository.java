@@ -5,7 +5,6 @@ import com.example.duantotnghiep.dto.response.PaginationDTO;
 import com.example.duantotnghiep.dto.response.ProductSearchResponse;
 import com.example.duantotnghiep.mapper.PaginationMapper;
 import com.example.duantotnghiep.mapper.ProductMapper;
-import com.example.duantotnghiep.model.Category;
 import com.example.duantotnghiep.model.Product;
 import com.example.duantotnghiep.model.ProductCategory;
 import com.example.duantotnghiep.model.ProductDetail;
@@ -15,7 +14,6 @@ import jakarta.persistence.TypedQuery;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 

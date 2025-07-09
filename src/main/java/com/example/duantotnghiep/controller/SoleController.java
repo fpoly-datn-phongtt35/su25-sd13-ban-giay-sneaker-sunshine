@@ -1,9 +1,7 @@
 package com.example.duantotnghiep.controller;
 
 import com.example.duantotnghiep.model.Sole;
-import com.example.duantotnghiep.model.Style;
 import com.example.duantotnghiep.service.SoleService;
-import com.example.duantotnghiep.service.StyleService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

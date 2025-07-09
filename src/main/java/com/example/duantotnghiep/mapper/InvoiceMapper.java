@@ -1,7 +1,14 @@
 package com.example.duantotnghiep.mapper;
 
-import com.example.duantotnghiep.dto.response.*;
-import com.example.duantotnghiep.model.*;
+import com.example.duantotnghiep.dto.response.CustomerResponse;
+import com.example.duantotnghiep.dto.response.InvoiceDetailResponse;
+import com.example.duantotnghiep.dto.response.InvoiceDisplayResponse;
+import com.example.duantotnghiep.dto.response.InvoiceResponse;
+import com.example.duantotnghiep.dto.response.ProductAttributeResponse;
+import com.example.duantotnghiep.model.Customer;
+import com.example.duantotnghiep.model.Invoice;
+import com.example.duantotnghiep.model.InvoiceDetail;
+import com.example.duantotnghiep.model.ProductDetail;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.Named;
@@ -25,12 +32,15 @@ public interface InvoiceMapper {
     @Mapping(target = "categoryName", source = "productDetail.product.productCategories", qualifiedByName = "getFirstCategoryName")
     @Mapping(target = "size", source = "productDetail.size")
     @Mapping(target = "color", source = "productDetail.color")
-    @Mapping(target = "sellPrice", source = "productDetail.sellPrice")
+    @Mapping(target = "sellPrice", source = "sellPrice")
+    @Mapping(target = "discountedPrice", source = "discountedPrice")
+    @Mapping(target = "discountPercentage", source = "discountPercentage")
     @Mapping(target = "quantity", source = "quantity")
-    // Tổng giá gốc = sellPrice * quantity
-    @Mapping(target = "totalPrice", expression = "java(invoiceDetail.getProductDetail().getSellPrice().multiply(java.math.BigDecimal.valueOf(invoiceDetail.getQuantity())))")
+    @Mapping(target = "invoiceCodeDetail", source = "invoiceCodeDetail")
     @Mapping(target = "customerName", expression = "java(invoiceDetail.getInvoice().getCustomer() != null ? invoiceDetail.getInvoice().getCustomer().getCustomerName() : \"Khách lẻ\")")
-    // ⭐ Các trường discountPercentage, discountAmount, discountedPrice, finalTotalPrice sẽ tính và set ở service sau
+    @Mapping(target = "totalPrice", expression = "java(invoiceDetail.getSellPrice() != null ? invoiceDetail.getSellPrice().multiply(java.math.BigDecimal.valueOf(invoiceDetail.getQuantity())) : null)")
+    @Mapping(target = "discountAmount", expression = "java((invoiceDetail.getSellPrice() != null && invoiceDetail.getDiscountPercentage() != null) ? invoiceDetail.getSellPrice().multiply(java.math.BigDecimal.valueOf(invoiceDetail.getDiscountPercentage())).divide(java.math.BigDecimal.valueOf(100)) : null)")
+    @Mapping(target = "finalTotalPrice", expression = "java(invoiceDetail.getDiscountedPrice() != null ? invoiceDetail.getDiscountedPrice().multiply(java.math.BigDecimal.valueOf(invoiceDetail.getQuantity())) : null)")
     InvoiceDetailResponse toInvoiceDetailResponse(InvoiceDetail invoiceDetail);
 
     // ============ ProductDetail -> ProductAttributeResponse ============
@@ -72,5 +82,6 @@ public interface InvoiceMapper {
         return new InvoiceDisplayResponse(invoiceResponse, detailResponses);
     }
 }
+
 
 

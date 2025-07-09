@@ -1,9 +1,9 @@
 package com.example.duantotnghiep.mapper;
 
 import com.example.duantotnghiep.dto.request.DiscountCampaignRequest;
+import com.example.duantotnghiep.dto.response.DiscountCampaignProductDetailResponse;
 import com.example.duantotnghiep.dto.response.DiscountCampaignProductResponse;
 import com.example.duantotnghiep.dto.response.DiscountCampaignResponse;
-import com.example.duantotnghiep.dto.response.DiscountCampaignProductDetailResponse;
 import com.example.duantotnghiep.model.DiscountCampaign;
 import com.example.duantotnghiep.model.DiscountCampaignProduct;
 import com.example.duantotnghiep.model.DiscountCampaignProductDetail;

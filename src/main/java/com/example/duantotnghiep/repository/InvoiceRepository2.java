@@ -1,12 +1,9 @@
 package com.example.duantotnghiep.repository;
 
 import com.example.duantotnghiep.dto.response.InvoiceOnlineResponse;
-import com.example.duantotnghiep.mapper.ProductMapper;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.NoResultException;
 import jakarta.persistence.PersistenceContext;
-import jakarta.persistence.Query;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;

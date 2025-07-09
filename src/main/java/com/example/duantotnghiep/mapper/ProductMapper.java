@@ -11,20 +11,15 @@ import com.example.duantotnghiep.model.ProductCategory;
 import com.example.duantotnghiep.model.Sole;
 import com.example.duantotnghiep.model.Style;
 import com.example.duantotnghiep.model.Supplier;
-import com.example.duantotnghiep.model.Sole;
-import com.example.duantotnghiep.model.Style;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 import org.mapstruct.NullValuePropertyMappingStrategy;
-import org.mapstruct.ReportingPolicy;
-
 
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import java.util.List;
 @Mapper(
         componentModel = "spring",
         uses = {CategoryMapper.class, ProductImageMapper.class, ProductDetailMapper.class},

@@ -1,6 +1,5 @@
 package com.example.duantotnghiep.dto.response;
 
-import com.example.duantotnghiep.state.TrangThaiChiTiet;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;

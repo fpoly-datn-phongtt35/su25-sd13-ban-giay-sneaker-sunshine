@@ -1,6 +1,5 @@
 package com.example.duantotnghiep.service.impl;
 
-import com.example.duantotnghiep.model.Brand;
 import com.example.duantotnghiep.model.Gender;
 import com.example.duantotnghiep.repository.GenderRepository;
 import com.example.duantotnghiep.service.GenderService;

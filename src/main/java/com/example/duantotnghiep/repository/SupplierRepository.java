@@ -1,6 +1,5 @@
 package com.example.duantotnghiep.repository;
 
-import com.example.duantotnghiep.model.Style;
 import com.example.duantotnghiep.model.Supplier;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;

@@ -1,10 +1,5 @@
 package com.example.duantotnghiep.controller;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.Date;
-import java.util.List;
-
 import com.example.duantotnghiep.model.Invoice;
 import com.example.duantotnghiep.model.InvoiceDetail;
 import com.example.duantotnghiep.model.ProductDetail;
@@ -15,6 +10,11 @@ import com.example.duantotnghiep.state.TrangThaiTong;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.Date;
+import java.util.List;
 
 @Component
 @RequiredArgsConstructor
@@ -35,7 +35,7 @@ public class InvoiceCleanupTask {
         List<Invoice> expiredInvoices = invoiceRepository.findByStatusAndOrderTypeAndCreatedDateBefore(TrangThaiTong.DANG_XU_LY, 0, limitTime);
 
         for (Invoice invoice : expiredInvoices) {
-            List<InvoiceDetail> details = invoiceDetailRepository.findByInvoice(invoice);
+            List<InvoiceDetail> details = invoiceDetailRepository.findByInvoiceAndStatus(invoice, 1);
 
             for (InvoiceDetail detail : details) {
                 ProductDetail productDetail = detail.getProductDetail();

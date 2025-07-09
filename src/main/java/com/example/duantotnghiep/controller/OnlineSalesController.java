@@ -1,11 +1,9 @@
 package com.example.duantotnghiep.controller;
 
-import com.example.duantotnghiep.dto.request.OrderRequest;
 import com.example.duantotnghiep.dto.response.InvoiceOnlineResponse;
 import com.example.duantotnghiep.dto.response.InvoiceResponse;
 import com.example.duantotnghiep.dto.response.OrderStatusHistoryResponse;
 import com.example.duantotnghiep.dto.response.StatusCountResponse;
-import com.example.duantotnghiep.model.Invoice;
 import com.example.duantotnghiep.service.InvoiceService;
 import com.example.duantotnghiep.service.impl.OnlineSaleServiceImpl;
 import lombok.RequiredArgsConstructor;
@@ -17,9 +15,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;

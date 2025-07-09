@@ -3,7 +3,6 @@ package com.example.duantotnghiep.service.impl;
 import com.example.duantotnghiep.dto.request.SupplierRequest;
 import com.example.duantotnghiep.dto.response.SupplierResponse;
 import com.example.duantotnghiep.mapper.SupplierMapper;
-import com.example.duantotnghiep.model.Brand;
 import com.example.duantotnghiep.model.Supplier;
 import com.example.duantotnghiep.repository.SupplierRepository;
 import com.example.duantotnghiep.service.SupplierService;

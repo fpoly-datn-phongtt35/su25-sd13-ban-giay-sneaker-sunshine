@@ -19,7 +19,6 @@ import lombok.Setter;
 import org.hibernate.annotations.Nationalized;
 
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -119,6 +118,6 @@ public class Voucher {
     private Category category;
 
     @OneToMany(mappedBy = "voucher")
-    private Set<com.example.duantotnghiep.model.VoucherHistory> voucherHistories = new LinkedHashSet<>();
+    private Set<VoucherHistory> voucherHistories = new LinkedHashSet<>();
 
 }

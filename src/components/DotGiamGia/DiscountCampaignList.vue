@@ -3,7 +3,7 @@
     <el-header class="flex justify-between items-center mb-4">
       <h1 class="text-2xl font-bold">Danh sách đợt giảm giá</h1>
       <el-button type="primary" @click="goToAddPage">
-        + Thêm đợt giảm giá
+         Thêm đợt giảm giá
       </el-button>
     </el-header>
 
@@ -19,11 +19,14 @@
             <template #default="{ row }"> {{ row.discountPercentage }}% </template>
           </el-table-column>
           <el-table-column prop="description" label="Mô tả"></el-table-column>
-          <el-table-column label="Thời gian" width="240">
+
+          <!-- ✅ Hiển thị ngày giờ đúng -->
+          <el-table-column label="Thời gian" width="300">
             <template #default="{ row }">
-              {{ formatDate(row.startDate) }} → {{ formatDate(row.endDate) }}
+              {{ formatDateTime(row.startDate) }} → {{ formatDateTime(row.endDate) }}
             </template>
           </el-table-column>
+
           <el-table-column prop="status" label="Trạng thái" width="150">
             <template #default="{ row }">
               <el-tag :type="statusTagType(row.status)">
@@ -32,12 +35,11 @@
             </template>
           </el-table-column>
 
-          <!-- ✅ Thêm cột hành động -->
           <el-table-column label="Hành động" width="180">
             <template #default="{ row }">
-              <el-button 
-                size="small" 
-                type="warning" 
+              <el-button
+                size="small"
+                type="warning"
                 @click="changeStatus(row)">
                 Chuyển trạng thái
               </el-button>
@@ -48,6 +50,7 @@
     </el-main>
   </el-container>
 </template>
+
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
@@ -58,10 +61,17 @@ const campaigns = ref([]);
 const loading = ref(true);
 const router = useRouter();
 
-const formatDate = (dateStr) => {
+// ✅ Hàm mới hiển thị ngày + giờ
+const formatDateTime = (dateStr) => {
   if (!dateStr) return '';
   const date = new Date(dateStr);
-  return date.toLocaleDateString('vi-VN');
+  return date.toLocaleString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 };
 
 const statusText = (status) => {
@@ -99,12 +109,11 @@ const loadCampaigns = async () => {
   }
 };
 
-// ✅ Hàm đổi trạng thái
 const changeStatus = async (campaign) => {
   try {
     await axios.post(`http://localhost:8080/api/admin/campaigns/${campaign.id}/delete`);
     ElMessage.success('Đã chuyển trạng thái thành công!');
-    await loadCampaigns(); // reload lại danh sách sau khi đổi trạng thái
+    await loadCampaigns();
   } catch (error) {
     console.error('Lỗi khi chuyển trạng thái:', error);
     ElMessage.error('Không thể chuyển trạng thái!');

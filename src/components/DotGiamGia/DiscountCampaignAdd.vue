@@ -1,97 +1,86 @@
 <template>
-  <el-container class="min-h-screen bg-gray-100 p-4 sm:p-6 lg:p-8 font-inter">
-    <el-main class="w-full max-w-6xl mx-auto">
-      <el-card class="rounded-lg shadow-xl p-6 sm:p-8">
+  <el-container class="page-container">
+    <el-main>
+      <el-card class="form-card" shadow="lg">
         <template #header>
-          <h1 class="text-2xl sm:text-3xl font-bold text-gray-800 text-center">Tạo đợt giảm giá mới</h1>
+          <div class="card-header">
+            <h1>Tạo đợt giảm giá mới</h1>
+          </div>
         </template>
 
-        <el-form :model="form" @submit.prevent="createCampaign" label-width="150px" label-position="top">
-          <el-row :gutter="20" class="mb-6">
+        <el-form :model="form" @submit.prevent="createCampaign" label-position="top">
+          <el-row :gutter="40" class="flex-row">
             <el-col :span="24" :md="12">
-              <el-form-item label="Tên đợt giảm giá" class="mb-4">
-                <el-input v-model="form.name" placeholder="Nhập tên đợt giảm giá" class="rounded-md"></el-input>
+              <el-form-item label="Tên đợt giảm giá" required>
+                <el-input v-model="form.name" placeholder="Ví dụ: Khuyến mãi Black Friday"></el-input>
               </el-form-item>
 
-              <el-form-item label="Giá trị giảm (%)" class="mb-4">
+              <el-form-item label="Giá trị giảm (%)" required>
                 <el-input-number
                   v-model="form.discountPercentage"
                   :min="0"
                   :max="100"
                   controls-position="right"
                   placeholder="%"
-                  class="w-full rounded-md"
+                  style="width: 100%;"
                 ></el-input-number>
               </el-form-item>
 
-              <el-form-item label="Ghi chú" class="mb-4">
+              <el-form-item label="Thời gian diễn ra" required>
+                 <el-date-picker
+                    v-model="dateRange"
+                    type="datetimerange"
+                    range-separator="Đến"
+                    start-placeholder="Ngày giờ bắt đầu"
+                    end-placeholder="Ngày giờ kết thúc"
+                    format="YYYY-MM-DD HH:mm:ss"
+                    value-format="YYYY-MM-DDTHH:mm:ss"
+                    style="width: 100%;"
+                  />
+              </el-form-item>
+              
+              <el-form-item label="Ghi chú">
                 <el-input
                   v-model="form.description"
                   type="textarea"
-                  :rows="3"
-                  placeholder="Nhập ghi chú..."
-                  class="rounded-md"
+                  :rows="4"
+                  placeholder="Nhập ghi chú hoặc mô tả cho đợt giảm giá..."
                 ></el-input>
-              </el-form-item>
-
-              <el-form-item label="Thời gian" class="mb-4">
-                <div class="flex flex-col md:flex-row gap-4 w-full">
-                  <el-date-picker
-                    v-model="form.startDate"
-                    type="datetime"
-                    placeholder="Ngày bắt đầu"
-                    format="YYYY-MM-DD HH:mm:ss"
-                    value-format="YYYY-MM-DDTHH:mm:ss"
-                    class="flex-1 rounded-md"
-                  ></el-date-picker>
-                  <el-date-picker
-                    v-model="form.endDate"
-                    type="datetime"
-                    placeholder="Ngày kết thúc"
-                    format="YYYY-MM-DD HH:mm:ss"
-                    value-format="YYYY-MM-DDTHH:mm:ss"
-                    class="flex-1 rounded-md"
-                  ></el-date-picker>
-                </div>
               </el-form-item>
             </el-col>
 
-            <el-col :span="24" :md="12">
-              <el-form-item label="Sản phẩm áp dụng" class="mb-4">
-                <div class="w-full bg-gray-50 p-4 rounded-lg border border-gray-200 min-h-[200px]">
-                  <h3 class="text-lg font-semibold mb-3 text-gray-700">Chọn sản phẩm</h3>
-                  <div v-if="loadingProducts" class="text-gray-500 text-center py-10">Đang tải sản phẩm...</div>
-                  <div v-else-if="products.length === 0" class="text-gray-500 text-center py-10">
-                    Không tìm thấy sản phẩm nào.
-                  </div>
-                  <div v-else class="w-full">
-                    <el-table
-                      :data="products"
-                      style="width: 100%"
-                      border
-                      @selection-change="handleProductSelectionChange"
-                      class="rounded-lg overflow-hidden"
-                    >
-                      <el-table-column type="selection" width="55"></el-table-column>
-                      <el-table-column type="index" label="STT" width="80" align="center"></el-table-column>
-                      <el-table-column prop="productName" label="Tên sản phẩm"></el-table-column>
-                      <el-table-column prop="quantity" label="Số lượng" width="100" align="center"></el-table-column>
-                    </el-table>
-                  </div>
+            <el-col :span="24" :md="12" class="stretch-col">
+              <el-form-item label="Sản phẩm áp dụng" required class="stretch-form-item">
+                <div class="product-selection-container">
+                  <el-table
+                    v-loading="loadingProducts"
+                    :data="products"
+                    @selection-change="handleProductSelectionChange"
+                    border
+                    style="width: 100%"
+                    height="100%"
+                  >
+                    <el-table-column type="selection" width="55" align="center"></el-table-column>
+                    <el-table-column type="index" label="STT" width="60" align="center"></el-table-column>
+                    <el-table-column prop="productName" label="Tên sản phẩm" show-overflow-tooltip></el-table-column>
+                    <el-table-column prop="quantity" label="Số lượng tồn" width="120" align="center"></el-table-column>
+                  </el-table>
+                   <div v-if="!loadingProducts && products.length === 0" class="empty-state">
+                     Không có sản phẩm để hiển thị.
+                   </div>
                 </div>
               </el-form-item>
             </el-col>
           </el-row>
 
-          <el-form-item class="flex justify-center mt-6">
-            <el-button
-              type="primary"
-              @click="createCampaign"
-              class="w-full sm:w-auto px-8 py-3 text-lg rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
-            >
-              Thêm mới
-            </el-button>
-          </el-form-item>
+          <el-row>
+             <el-col :span="24" class="form-actions">
+                <el-button @click="goBack" size="large"> Quay lại</el-button>
+                <el-button type="primary" @click="createCampaign" size="large">
+                  Tạo mới đợt giảm giá
+                </el-button>
+             </el-col>
+          </el-row>
         </el-form>
       </el-card>
     </el-main>
@@ -99,11 +88,11 @@
 </template>
 
 <script setup>
-import { reactive, ref, onMounted } from 'vue';
+import { reactive, ref, onMounted, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import axios from 'axios';
 import {
   ElContainer,
-  ElHeader, // Not directly used in template, but good to keep if header is part of overall layout
   ElMain,
   ElForm,
   ElFormItem,
@@ -116,28 +105,12 @@ import {
   ElMessage,
   ElRow,
   ElCol,
-  ElCard // Added ElCard
+  ElCard,
+  ElLoading
 } from 'element-plus';
 
-// Load Tailwind CSS
-const loadTailwind = () => {
-  const script = document.createElement('script');
-  script.src = 'https://cdn.tailwindcss.com';
-  document.head.appendChild(script);
-};
-
-// Load Inter font
-const loadInterFont = () => {
-  const link = document.createElement('link');
-  link.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap';
-  link.rel = 'stylesheet';
-  document.head.appendChild(link);
-};
-
-onMounted(() => {
-  loadTailwind();
-  loadInterFont();
-});
+const vLoading = ElLoading.directive;
+const router = useRouter();
 
 const form = reactive({
   name: '',
@@ -145,12 +118,25 @@ const form = reactive({
   description: '',
   startDate: '',
   endDate: '',
-  products: [] // This will store the selected product IDs
+  products: []
 });
 
 const products = ref([]);
 const loadingProducts = ref(true);
-const selectedProducts = ref([]);
+
+const dateRange = computed({
+  get() {
+    return form.startDate && form.endDate ? [form.startDate, form.endDate] : [];
+  },
+  set(val) {
+    if (val && val.length === 2) {
+      [form.startDate, form.endDate] = val;
+    } else {
+      form.startDate = '';
+      form.endDate = '';
+    }
+  }
+});
 
 onMounted(async () => {
   try {
@@ -165,103 +151,113 @@ onMounted(async () => {
 });
 
 const handleProductSelectionChange = (selection) => {
-  selectedProducts.value = selection;
+  form.products = selection.map(p => ({ productId: p.id }));
+};
+
+const goBack = () => {
+  router.back();
 };
 
 const createCampaign = async () => {
+  if (!form.name || form.discountPercentage === null || !form.startDate || !form.endDate) {
+    ElMessage.warning('Vui lòng điền đầy đủ các trường thông tin bắt buộc.');
+    return;
+  }
+  if (form.products.length === 0) {
+    ElMessage.warning('Vui lòng chọn ít nhất một sản phẩm để áp dụng giảm giá.');
+    return;
+  }
+  if (new Date(form.startDate) >= new Date(form.endDate)) {
+    ElMessage.error('Ngày bắt đầu phải trước ngày kết thúc.');
+    return;
+  }
+
   try {
-    form.products = selectedProducts.value.map(p => ({
-      productId: p.id
-    }));
-
-    if (!form.name || form.discountPercentage === null || !form.startDate || !form.endDate || form.products.length === 0) {
-      ElMessage.warning('Vui lòng điền đầy đủ thông tin và chọn ít nhất một sản phẩm.');
-      return;
-    }
-
-    // Basic date validation: ensure start date is before end date
-    if (new Date(form.startDate) >= new Date(form.endDate)) {
-      ElMessage.error('Ngày bắt đầu phải trước ngày kết thúc.');
-      return;
-    }
-
     await axios.post('http://localhost:8080/api/admin/campaigns', form);
     ElMessage.success('Tạo đợt giảm giá thành công!');
-
-    // Reset form after successful submission
-    form.name = '';
-    form.discountPercentage = null;
-    form.description = '';
-    form.startDate = '';
-    form.endDate = '';
-    form.products = [];
-    selectedProducts.value = [];
+    goBack();
   } catch (error) {
     console.error('Lỗi tạo đợt giảm giá:', error);
-    // More specific error message if available from backend
-    const errorMessage = error.response?.data?.message || 'Lỗi khi tạo đợt giảm giá!';
+    const errorMessage = error.response?.data?.message || 'Đã xảy ra lỗi khi tạo đợt giảm giá!';
     ElMessage.error(errorMessage);
   }
 };
 </script>
 
 <style scoped>
-/* Base styles for Element Plus components, overridden by Tailwind where applicable */
-.font-inter {
-  font-family: 'Inter', sans-serif;
+.page-container {
+  padding: 24px;
+  background-color: #f0f2f5;
+  min-height: 100vh;
 }
 
-/* Custom styles for rounded corners on Element Plus components */
-/* These target internal Element Plus elements to ensure consistent rounding */
-:deep(.el-input__wrapper),
-:deep(.el-textarea__inner),
-:deep(.el-input-number),
-:deep(.el-date-editor),
-:deep(.el-table),
-:deep(.el-button) {
-  border-radius: 0.5rem !important; /* rounded-lg */
+.form-card {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  border-radius: 8px;
 }
 
-/* Specific adjustments for date pickers to ensure flex-1 works well */
-:deep(.el-date-editor.el-input) {
-  width: 100%; /* Ensure it takes full width within its flex item */
+:deep(.el-card__body) {
+  padding: 30px;
 }
 
-/* Adjust table header background and text color for better aesthetics */
-:deep(.el-table th.el-table__cell) {
-  background-color: #f8f8f8 !important; /* Light gray background for headers */
-  color: #333 !important; /* Darker text for headers */
+.card-header {
+  text-align: center;
+}
+
+.card-header h1 {
+  margin: 0 0 10px 0;
+  font-size: 26px;
+  color: #303133;
   font-weight: 600;
 }
 
-/* Add a subtle hover effect to table rows */
-:deep(.el-table__row:hover) {
-  background-color: #f5f5f5 !important;
+/* Các thay đổi chính để căn chỉnh */
+.flex-row {
+  display: flex;
+  flex-wrap: wrap;
 }
 
-/* Ensure form item labels are styled correctly for 'top' position */
-:deep(.el-form-item__label) {
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 0.5rem; /* Space between label and input */
+.stretch-col {
+  display: flex;
+  flex-direction: column;
 }
 
-/* Style for the product selection box */
-.product-selection-box {
-  background-color: #f9fafb; /* Light background */
-  border: 1px solid #e5e7eb; /* Light border */
-  border-radius: 0.75rem; /* Rounded corners */
-  padding: 1.5rem; /* Padding inside the box */
-  min-height: 250px; /* Minimum height for visual consistency */
+.stretch-form-item {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1; /* Quan trọng: cho phép item này lớn lên */
+  margin-bottom: 0; /* Xóa margin cuối cùng để vừa vặn */
 }
 
-/* Responsive adjustments for the main container padding */
-@media (max-width: 640px) {
-  .el-container {
-    padding: 1rem; /* Smaller padding on small screens */
-  }
-  .el-card {
-    padding: 1.5rem; /* Smaller card padding on small screens */
-  }
+:deep(.stretch-form-item .el-form-item__content) {
+  flex-grow: 1;
+}
+
+.product-selection-container {
+  flex-grow: 1; /* Quan trọng: cho phép container này lớn lên */
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  padding: 10px;
+  position: relative;
+}
+/* Kết thúc thay đổi */
+
+.empty-state {
+  margin: auto;
+  color: #909399;
+  font-size: 14px;
+}
+
+.form-actions {
+  text-align: right;
+  margin-top: 30px;
+}
+
+.form-actions .el-button + .el-button {
+  margin-left: 12px;
 }
 </style>

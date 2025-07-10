@@ -139,59 +139,75 @@
       @size-change="handleSizeChange"
     />
 
-    <el-dialog v-model="dialogVisible" title="Chi tiết hóa đơn" width="60%" destroy-on-close>
-      <template #header="{ close, titleId, titleClass }">
-        <div class="my-header">
-          <h4 :id="titleId" :class="titleClass">
-            Chi tiết hóa đơn #{{ selectedInvoice?.invoiceCode || selectedInvoice?.id }}
-          </h4>
-        </div>
-      </template>
-      <div v-if="selectedInvoice">
-        <el-row :gutter="20" class="mb-2">
-          <el-col :span="12">
-            <strong>Khách hàng:</strong> {{ selectedInvoice.customerName || 'Khách lẻ' }}
-          </el-col>
-          <el-col :span="12">
-            <strong>Nhân viên:</strong> {{ selectedInvoice.employeeName || '---' }}
-          </el-col>
-        </el-row>
-        <el-row :gutter="20" class="mb-3">
-          <el-col :span="12">
-            <strong>Ngày tạo:</strong> {{ formatDate(selectedInvoice.createdDate) }}
-          </el-col>
-          <el-col :span="12">
-            <strong>Ghi chú:</strong> {{ selectedInvoice.description || '---' }}
-          </el-col>
-        </el-row>
+  <el-dialog v-model="dialogVisible" title="Chi tiết hóa đơn" width="60%" destroy-on-close>
+  <template #header="{ close, titleId, titleClass }">
+    <div class="my-header">
+      <h4 :id="titleId" :class="titleClass">
+        Chi tiết hóa đơn #{{ selectedInvoice?.invoiceCode || selectedInvoice?.id }}
+      </h4>
+    </div>
+  </template>
 
-        <el-table :data="invoiceDetails" border size="small">
-          <el-table-column property="productName" label="Sản phẩm" />
-          <el-table-column property="quantity" label="Số lượng" align="right" />
-          <el-table-column label="Giá bán" align="right">
-            <template #default="scope">{{ formatCurrency(scope.row.price) }}</template>
-          </el-table-column>
-          <el-table-column label="Thành tiền" align="right">
-            <template #default="scope">
-              {{ formatCurrency(scope.row.price * scope.row.quantity) }}
-            </template>
-          </el-table-column>
-        </el-table>
+  <div v-if="selectedInvoice">
+    <el-row :gutter="20" class="mb-2">
+      <el-col :span="12">
+        <strong>Khách hàng:</strong> {{ selectedInvoice.customerName || 'Khách lẻ' }}
+      </el-col>
+      <el-col :span="12">
+        <strong>Nhân viên:</strong> {{ selectedInvoice.employeeName || '---' }}
+      </el-col>
+    </el-row>
 
-        <div class="mt-4 text-end">
-          <p><strong>Tổng tiền:</strong> {{ formatCurrency(selectedInvoice.totalAmount) }}</p>
-          <p><strong>Giảm giá:</strong> {{ formatCurrency(selectedInvoice.discountAmount) }}</p>
-          <h4 class="mt-2">
-            <strong>Thành tiền:</strong> {{ formatCurrency(selectedInvoice.finalAmount) }}
-          </h4>
-        </div>
-      </div>
-      <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="dialogVisible = false">Đóng</el-button>
-        </span>
-      </template>
-    </el-dialog>
+    <el-row :gutter="20" class="mb-3">
+      <el-col :span="12">
+        <strong>Ngày tạo:</strong> {{ formatDate(selectedInvoice.createdDate) }}
+      </el-col>
+      <el-col :span="12">
+        <strong>Ghi chú:</strong> {{ selectedInvoice.description || '---' }}
+      </el-col>
+    </el-row>
+
+    <el-table :data="invoiceDetails" border size="small">
+      <el-table-column property="productName" label="Sản phẩm" />
+      <el-table-column property="quantity" label="Số lượng" align="right" />
+      <el-table-column label="Giá bán" align="right">
+        <template #default="scope">
+          <template v-if="scope.row.discountedPrice !== null">
+            <del class="text-gray-500 me-1">{{ formatCurrency(scope.row.sellPrice) }}</del>
+            <span class="text-danger">{{ formatCurrency(scope.row.discountedPrice) }}</span>
+          </template>
+          <template v-else>
+            {{ formatCurrency(scope.row.sellPrice) }}
+          </template>
+        </template>
+      </el-table-column>
+      <el-table-column label="Thành tiền" align="right">
+        <template #default="scope">
+          {{
+            formatCurrency(
+              (scope.row.discountedPrice !== null ? scope.row.discountedPrice : scope.row.sellPrice) * scope.row.quantity
+            )
+          }}
+        </template>
+      </el-table-column>
+    </el-table>
+
+    <div class="mt-4 text-end">
+      <p><strong>Tổng tiền:</strong> {{ formatCurrency(selectedInvoice.totalAmount) }}</p>
+      <p><strong>Giảm giá:</strong> {{ formatCurrency(selectedInvoice.discountAmount) }}</p>
+      <h4 class="mt-2">
+        <strong>Thành tiền:</strong> {{ formatCurrency(selectedInvoice.finalAmount) }}
+      </h4>
+    </div>
+  </div>
+
+  <template #footer>
+    <span class="dialog-footer">
+      <el-button @click="dialogVisible = false">Đóng</el-button>
+    </span>
+  </template>
+</el-dialog>
+
   </div>
 </template>
 

@@ -41,7 +41,6 @@
       >
         <el-table-column prop="sizeName" label="Size" width="80" />
         <el-table-column prop="colorName" label="Màu sắc" width="100" />
-        <el-table-column prop="productDetailCode" label="Mã chi tiết" />
         <el-table-column label="Giá bán" width="120">
           <template #default="{ row }">{{ formatCurrency(row.sellPrice) }}</template>
         </el-table-column>

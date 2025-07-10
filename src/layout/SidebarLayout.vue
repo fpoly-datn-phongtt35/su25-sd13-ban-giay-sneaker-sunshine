@@ -11,7 +11,7 @@
           alt="Logo"
           class="logo-img"
         />
-        <span class="logo-text">Clothing Store</span>
+        <span class="logo-text">SunShine</span>
       </div>
 
       <el-menu-item index="/home">

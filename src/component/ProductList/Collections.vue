@@ -18,6 +18,10 @@
                 class="modern-product-image"
                 alt="Ảnh sản phẩm"
               />
+              <!-- Thêm discount badge -->
+              <div v-if="product.discountPercentage > 0" class="discount-badge">
+                -{{ product.discountPercentage }}%
+              </div>
               <div class="modern-cart-overlay">
                 <el-button
                   type="primary"
@@ -234,5 +238,20 @@ const goToDetail = (id) => {
   color: #e53935;
   font-weight: 600;
   font-size: 16px;
+}
+.discount-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background-color: #f56c6c; /* màu đỏ hoặc màu bạn muốn */
+  color: #fff;
+  padding: 2px 6px;
+  font-size: 12px;
+  border-radius: 4px;
+  font-weight: bold;
+  z-index: 1;
+}
+.modern-image-container {
+  position: relative; /* quan trọng để absolute hoạt động */
 }
 </style>

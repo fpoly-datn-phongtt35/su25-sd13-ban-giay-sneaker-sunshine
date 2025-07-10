@@ -90,7 +90,7 @@ const handleLogin = async () => {
     await loginFormRef.value.validate()
     loading.value = true
 
-    const res = await axios.post('http://localhost:8080/api/auth/login', loginForm.value)
+    const res = await axios.post('http://localhost:8080/api/auth/login-user', loginForm.value)
     const { token, employeeName, customerName, id } = res.data
 
     console.log('id:', id)

@@ -5,7 +5,6 @@
         <!-- <img :src="logoSrc" alt="Logo" class="h-10 w-10" />  -->
         <h1 class="m-0 fw-bold text-2xl text-nowrap">
           <span class="text-blue">S</span>
-          <span class="text-red">h</span>
           <span class="text-yellow">u</span>
           <span class="text-green">n</span>
           <span class="text-yellow">S</span>

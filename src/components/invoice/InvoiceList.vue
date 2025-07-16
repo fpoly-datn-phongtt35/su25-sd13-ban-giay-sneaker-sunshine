@@ -343,13 +343,15 @@ const viewInvoiceDetails = async (invoiceId) => {
   try {
     const res = await apiClient.get(`/admin/invoices/${invoiceId}/detail`)
     selectedInvoice.value = res.data.invoice || res.data
-    invoiceDetails.value = res.data.details || []
+    // ✅ Lấy từ invoice.invoiceDetails thay vì res.data.details
+    invoiceDetails.value = res.data.invoice?.invoiceDetails || []
     dialogVisible.value = true
   } catch (err) {
     console.error('Lỗi khi xem chi tiết hóa đơn:', err)
     Swal.fire('Lỗi', 'Không thể tải chi tiết hóa đơn.', 'error')
   }
 }
+
 
 const printInvoice = (invoiceId) => {
   if (!invoiceId) {

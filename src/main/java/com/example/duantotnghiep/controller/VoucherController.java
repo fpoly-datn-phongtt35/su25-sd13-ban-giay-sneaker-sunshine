@@ -4,6 +4,8 @@ import com.example.duantotnghiep.dto.request.VoucherRequest;
 import com.example.duantotnghiep.dto.request.VoucherSearchRequest;
 import com.example.duantotnghiep.dto.response.PaginationDTO;
 import com.example.duantotnghiep.dto.response.VoucherResponse;
+import com.example.duantotnghiep.mapper.VoucherMapper;
+import com.example.duantotnghiep.model.Voucher;
 import com.example.duantotnghiep.service.VoucherService;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.data.domain.PageRequest;
@@ -17,8 +19,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -28,9 +32,11 @@ import java.util.Optional;
 public class VoucherController {
 
     private final VoucherService voucherService;
+    private final VoucherMapper voucherMapper;
 
-    public VoucherController(VoucherService voucherService) {
+    public VoucherController(VoucherService voucherService, VoucherMapper voucherMapper) {
         this.voucherService = voucherService;
+        this.voucherMapper = voucherMapper;
     }
 
     @GetMapping("/valid")
@@ -96,6 +102,17 @@ public class VoucherController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Không tìm thấy voucher với ID: " + id);
         }
     }
+
+    @GetMapping("/apply")
+    public VoucherResponse applyVoucher(
+            @RequestParam Long customerId,
+            @RequestParam String voucherCode,
+            @RequestParam BigDecimal orderTotal
+    ) {
+        Voucher voucher = voucherService.validateVoucher(customerId, voucherCode, orderTotal);
+        return voucherMapper.toDto(voucher);
+    }
+
 
 }
 

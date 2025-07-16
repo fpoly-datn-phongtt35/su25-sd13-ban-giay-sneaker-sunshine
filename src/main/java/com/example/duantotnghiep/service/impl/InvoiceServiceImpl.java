@@ -533,34 +533,38 @@ public class InvoiceServiceImpl implements InvoiceService {
         InvoiceDetail detail = invoiceDetailRepository.findById(invoiceDetailId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm trong giỏ"));
 
-        ProductDetail productDetail = detail.getProductDetail();
-        if (productDetail == null) {
-            throw new RuntimeException("ProductDetail không tồn tại");
-        }
-
-        BigDecimal sellPrice = productDetail.getSellPrice();
-        if (sellPrice == null) {
-            throw new RuntimeException("Giá bán của sản phẩm không tồn tại");
-        }
-        BigDecimal lineTotal = sellPrice.multiply(BigDecimal.valueOf(detail.getQuantity()));
-
         Invoice invoice = detail.getInvoice();
         if (invoice == null) {
             throw new RuntimeException("Hóa đơn không tồn tại");
         }
 
-        BigDecimal totalAmount = invoice.getTotalAmount() == null ? BigDecimal.ZERO : invoice.getTotalAmount();
-        BigDecimal discountAmount = invoice.getDiscountAmount() == null ? BigDecimal.ZERO : invoice.getDiscountAmount();
-
-        invoice.setTotalAmount(totalAmount.subtract(lineTotal).max(BigDecimal.ZERO));
-        invoice.setFinalAmount(invoice.getTotalAmount().subtract(discountAmount).max(BigDecimal.ZERO));
-
-        // Chỉ update status thay vì xóa
+        // Đánh dấu chi tiết là đã xóa
         detail.setStatus(2);
         invoiceDetailRepository.save(detail);
 
+        // Tính lại tổng tiền chỉ với sản phẩm còn active
+        List<InvoiceDetail> activeDetails = invoice.getInvoiceDetails().stream()
+                .filter(d -> d.getStatus() == null || d.getStatus() != 2)
+                .collect(Collectors.toList());
+
+        BigDecimal newTotalAmount = activeDetails.stream()
+                .map(d -> d.getProductDetail().getSellPrice().multiply(BigDecimal.valueOf(d.getQuantity())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        invoice.setTotalAmount(newTotalAmount);
+
+        // Nếu giỏ hàng rỗng → reset giảm giá
+        if (activeDetails.isEmpty()) {
+            invoice.setDiscountAmount(BigDecimal.ZERO);
+        }
+
+        // Tính lại số tiền phải trả
+        BigDecimal discountAmount = invoice.getDiscountAmount() == null ? BigDecimal.ZERO : invoice.getDiscountAmount();
+        invoice.setFinalAmount(newTotalAmount.subtract(discountAmount).max(BigDecimal.ZERO));
+
         invoiceRepository.save(invoice);
     }
+
 
 
     @Transactional
@@ -754,25 +758,26 @@ public class InvoiceServiceImpl implements InvoiceService {
         return updatedInvoice;
     }
 
+    @Transactional
     public Invoice removeVoucherFromInvoice(Long invoiceId) {
         Invoice invoice = invoiceRepository.findById(invoiceId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy hóa đơn"));
 
-        // Nếu không có voucher nào đang áp dụng thì không cần làm gì
+        // Kiểm tra nếu hóa đơn không có voucher thì báo lỗi
         if (invoice.getVoucher() == null) {
             throw new RuntimeException("Hóa đơn hiện không có voucher để bỏ");
         }
 
-        // Xóa thông tin voucher
+        // Xóa voucher
         invoice.setVoucher(null);
-        invoice.setDiscountAmount(BigDecimal.ZERO);
-        invoice.setFinalAmount(invoice.getTotalAmount());
         invoice.setUpdatedDate(new Date());
+        invoice.setUpdatedBy(SecurityContextHolder.getContext().getAuthentication().getName());
 
-        // Lưu lại hóa đơn đã cập nhật
+        // Tính lại tổng: discount chỉ còn giảm giá sản phẩm (nếu có)
+        updateInvoiceTotal(invoice);
+
         return invoiceRepository.save(invoice);
     }
-
 
     /**
      * Tạo hóa đơn(bán tại quầy)

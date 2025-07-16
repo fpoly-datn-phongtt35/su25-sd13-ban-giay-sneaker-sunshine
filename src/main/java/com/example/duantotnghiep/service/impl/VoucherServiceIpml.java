@@ -25,6 +25,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.util.Date;
@@ -210,4 +211,29 @@ public class VoucherServiceIpml implements VoucherService {
         return prefix + datePart + "-" + randomPart;
     }
 
+    @Override
+    public Voucher validateVoucher(Long customerId, String voucherCode, BigDecimal orderTotal) {
+        Voucher voucher = voucherRepository.findByCustomerIdAndVoucherCode(customerId, voucherCode)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy voucher hoặc không thuộc khách hàng này"));
+
+        LocalDateTime now = LocalDateTime.now();
+
+        if (voucher.getStartDate().isAfter(now) || voucher.getEndDate().isBefore(now)) {
+            throw new RuntimeException("Voucher đã hết hạn hoặc chưa đến thời gian sử dụng");
+        }
+
+        if (voucher.getQuantity() != null && voucher.getQuantity() <= 0) {
+            throw new RuntimeException("Voucher đã hết lượt sử dụng");
+        }
+
+        if (orderTotal.compareTo(voucher.getMinOrderValue()) < 0) {
+            throw new RuntimeException("Đơn hàng chưa đạt giá trị tối thiểu để áp dụng voucher");
+        }
+
+        if (voucher.getStatus() != null && voucher.getStatus() != 1) {
+            throw new RuntimeException("Voucher đang không hoạt động");
+        }
+
+        return voucher;
+    }
 }

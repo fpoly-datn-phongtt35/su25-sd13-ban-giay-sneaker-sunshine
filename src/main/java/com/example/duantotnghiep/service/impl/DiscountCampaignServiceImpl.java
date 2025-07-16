@@ -14,6 +14,9 @@ import com.example.duantotnghiep.repository.ProductRepository;
 import com.example.duantotnghiep.service.DiscountCampaignService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
@@ -22,7 +25,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -35,13 +37,11 @@ public class DiscountCampaignServiceImpl implements DiscountCampaignService {
     private final ProductDetailRepository productDetailRepository;
 
     @Override
-    public List<DiscountCampaignResponse> getAll() {
-        return repository.findAll(Sort.by(Sort.Direction.DESC, "createdDate"))
-                .stream()
-                .map(discountCampaignMapper::toResponse)
-                .collect(Collectors.toList());
+    public Page<DiscountCampaignResponse> getAll(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdDate"));
+        return repository.findAll(pageable)
+                .map(discountCampaignMapper::toResponse);
     }
-
 
     @Override
     public DiscountCampaignResponse getDetail(Long id) {

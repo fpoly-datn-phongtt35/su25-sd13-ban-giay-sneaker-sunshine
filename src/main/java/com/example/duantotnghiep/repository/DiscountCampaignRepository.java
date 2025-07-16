@@ -1,7 +1,9 @@
 package com.example.duantotnghiep.repository;
 
+import com.example.duantotnghiep.dto.response.DiscountCampaignResponse;
 import com.example.duantotnghiep.model.DiscountCampaign;
 import jakarta.validation.constraints.Size;
+import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -16,5 +18,9 @@ public interface DiscountCampaignRepository extends JpaRepository<DiscountCampai
 
     @Query("SELECT c FROM DiscountCampaign c WHERE c.startDate > :now AND c.status = 0")
     List<DiscountCampaign> findUpcomingCampaigns(@Param("now") LocalDateTime now);
+
+    List<DiscountCampaign> findByStatusNotAndEndDateBefore(Integer status, LocalDateTime now);
+
+
 
 }

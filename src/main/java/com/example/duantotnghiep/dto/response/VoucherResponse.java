@@ -1,6 +1,7 @@
 package com.example.duantotnghiep.dto.response;
 
 import lombok.AllArgsConstructor;
+import lombok.Data;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -12,6 +13,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @Getter
 @Setter
+@Data
 public class VoucherResponse {
     private Long id;
     private String voucherCode;

@@ -3,11 +3,12 @@ package com.example.duantotnghiep.service;
 import com.example.duantotnghiep.dto.request.DiscountCampaignRequest;
 import com.example.duantotnghiep.dto.response.DiscountCampaignResponse;
 import jakarta.transaction.Transactional;
+import org.springframework.data.domain.Page;
 
 import java.util.List;
 
 public interface DiscountCampaignService {
-    List<DiscountCampaignResponse> getAll();
+    Page<DiscountCampaignResponse> getAll(int page, int size);
 
     DiscountCampaignResponse getDetail(Long id);
 

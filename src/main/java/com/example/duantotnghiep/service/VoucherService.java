@@ -4,8 +4,10 @@ import com.example.duantotnghiep.dto.request.VoucherRequest;
 import com.example.duantotnghiep.dto.request.VoucherSearchRequest;
 import com.example.duantotnghiep.dto.response.PaginationDTO;
 import com.example.duantotnghiep.dto.response.VoucherResponse;
+import com.example.duantotnghiep.model.Voucher;
 import org.springframework.data.domain.Pageable;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -21,4 +23,5 @@ public interface VoucherService {
 
     PaginationDTO<VoucherResponse> phanTrangHienThi(VoucherSearchRequest request, Pageable pageable);
 
+    Voucher validateVoucher(Long customerId, String voucherCode, BigDecimal orderTotal);
 }

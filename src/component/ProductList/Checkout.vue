@@ -101,9 +101,17 @@
           </div>
 
           <div class="discount-code-section">
-            <el-input v-model="discountCode" placeholder="Nhập Mã Giảm Giá" class="discount-input"></el-input>
-            <el-button type="primary" class="apply-discount-button">SỬ DỤNG</el-button>
-          </div>
+  <el-input v-model="discountCode" placeholder="Nhập Mã Giảm Giá" class="discount-input"></el-input>
+  <el-button type="primary" class="apply-discount-button" @click="applyDiscountCode">SỬ DỤNG</el-button>
+  <el-button
+    v-if="appliedVoucher"
+    type="danger"
+    class="cancel-discount-button"
+    @click="cancelVoucher">
+    HỦY BỎ
+  </el-button>
+</div>
+
 
           <div class="loyal-customer-text">Khách hàng thân thiết</div>
 
@@ -114,7 +122,7 @@
             </div>
             <div class="total-row">
               <span class="label">Giảm giá</span>
-              <span class="value discount-value">...</span>
+  <span class="value discount-value">-{{ formatPrice(discountAmount) }}</span>
             </div>
             <div class="total-row">
               <span class="label">Phí vận chuyển</span>
@@ -162,6 +170,57 @@ const paymentMethod = ref(0) // Default to COD (0), ZaloPay (1)
 const deliveryType = ref(0); // 0 for Giao tận nơi, 1 for Nhận tại cửa hàng
 const addressType = ref(0); // 0 for Nhà, 1 for Công ty
 const discountCode = ref(''); // For the discount code input
+const appliedVoucher = ref(null)
+const discountAmount = ref(0)
+
+const cancelVoucher = () => {
+  appliedVoucher.value = null
+  discountCode.value = ''           // Xóa code trong input
+  discountAmount.value = 0
+  // Cập nhật lại finalTotal
+  finalTotal.value = totalPrice.value + shippingFee.value
+  ElMessage.info('Đã hủy bỏ mã giảm giá.')
+}
+
+const applyDiscountCode = async () => {
+  if (!discountCode.value) {
+    ElMessage.warning('Vui lòng nhập mã giảm giá!')
+    return
+  }
+  try {
+    const res = await axios.get('http://localhost:8080/api/admin/vouchers/apply', {
+      params: {
+        customerId: form.value.customerId || 0,
+        voucherCode: discountCode.value,
+        orderTotal: totalPrice.value
+      }
+    })
+    appliedVoucher.value = res.data
+    ElMessage.success(`Áp dụng voucher thành công: ${appliedVoucher.value.voucherName}`)
+
+    // 👉 Tính tiền giảm giá
+    let discount = 0
+    if (appliedVoucher.value.discountPercentage) {
+      discount = Math.min(
+        (totalPrice.value * appliedVoucher.value.discountPercentage) / 100,
+        appliedVoucher.value.maxDiscountValue || Infinity
+      )
+    } else if (appliedVoucher.value.discountAmount) {
+      discount = appliedVoucher.value.discountAmount
+    }
+
+    discountAmount.value = discount
+    finalTotal.value = totalPrice.value - discountAmount.value + shippingFee.value
+
+  } catch (err) {
+    console.error('❌ Lỗi áp dụng voucher:', err)
+    ElMessage.error(err?.response?.data?.message || 'Không áp dụng được voucher, vui lòng kiểm tra lại.')
+    // Reset discount nếu fail
+    discountAmount.value = 0
+    finalTotal.value = totalPrice.value + shippingFee.value
+  }
+}
+
 
 const form = ref({
   customerId: null,
@@ -403,12 +462,12 @@ const handleSubmit = () => {
         items: cartItems.value.map(item => ({
           productDetailId: item.productDetailId,
           quantity: item.quantity,
-          // ✅ Nếu muốn gửi thêm giá gốc & giá giảm về BE:
           sellPrice: item.sellPrice,
           discountedPrice: item.discountedPrice,
           discountPercentage: item.discountPercentage,
         })),
-        discountAmount: 0,
+        discountAmount: discountAmount.value || 0,                  // ✅ trừ giảm giá
+        voucherCode: appliedVoucher.value?.voucherCode || null,     // ✅ gửi mã voucher (nếu có)
         description: form.value.description,
         orderType: 1,        // Mặc định: đơn online
         status: 1,           // Mặc định

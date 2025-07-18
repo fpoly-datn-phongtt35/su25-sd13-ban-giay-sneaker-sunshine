@@ -14,8 +14,8 @@
         finish-status="error"
       >
         <el-step
-            :title="invoice.statusDetail === 'HUY_DON' ? 'Đã hủy' : 'Giao hàng thất bại'"
-            status="error"
+          :title="invoice.statusDetail === 'HUY_DON' ? 'Đã hủy' : 'Giao hàng thất bại'"
+          status="error"
         />
       </el-steps>
 
@@ -25,18 +25,23 @@
         finish-status="success"
         align-center
       >
-        <el-step
-          v-for="step in mainSteps"
-          :key="step.key"
-          :title="step.label"
-        />
+        <el-step v-for="step in mainSteps" :key="step.key" :title="step.label" />
       </el-steps>
 
       <div class="mt-4 flex flex-wrap gap-2">
-        <el-button type="success" @click="confirmAdvance" v-if="canAdvance">Chuyển trạng thái tiếp theo</el-button>
-        <el-button type="warning" @click="confirmRevert" v-if="canRevert">Quay lại trạng thái trước</el-button>
+        <el-button type="success" @click="confirmAdvance" v-if="canAdvance"
+          >Chuyển trạng thái tiếp theo</el-button
+        >
+        <el-button type="warning" @click="confirmRevert" v-if="canRevert"
+          >Quay lại trạng thái trước</el-button
+        >
         <el-button type="danger" @click="showCancelDialog" v-if="canCancel">Hủy đơn hàng</el-button>
-        <el-button type="danger" @click="showFailDialog" v-if="invoice.statusDetail === 'DANG_GIAO_HANG'">Giao hàng thất bại</el-button>
+        <el-button
+          type="danger"
+          @click="showFailDialog"
+          v-if="invoice.statusDetail === 'DANG_GIAO_HANG'"
+          >Giao hàng thất bại</el-button
+        >
         <el-button @click="showActionHistoryDialog">Lịch sử tác động</el-button>
       </div>
 
@@ -45,6 +50,7 @@
       <h2>Thông tin đơn hàng</h2>
       <p><strong>Mã hóa đơn:</strong> {{ invoice.invoiceCode }}</p>
       <p><strong>Khách hàng:</strong> {{ invoice.customerName }}</p>
+      <p><strong>Số điện thoại:</strong> {{ invoice.phone }}</p>
       <p><strong>Ngày tạo:</strong> {{ formatDate(invoice.createdDate) }}</p>
       <p><strong>Tổng tiền:</strong> {{ formatCurrency(invoice.totalAmount) }}</p>
       <p><strong>Giảm giá:</strong> {{ formatCurrency(invoice.discountAmount) }}</p>
@@ -76,6 +82,24 @@
         <el-table-column prop="sizeName" label="Kích thước" />
         <el-table-column prop="colorName" label="Màu sắc" />
         <el-table-column prop="quantity" label="Số lượng" />
+        <el-table-column label="Giá bán">
+          <template #default="scope">
+            <div>
+              <span v-if="scope.row.discountPrice && scope.row.discountPrice > 0">
+                <del style="color: #999">
+                  {{ formatCurrency(scope.row.sellPrice) }}
+                </del>
+                <br />
+                <span style="color: #e53935; font-weight: bold">
+                  {{ formatCurrency(scope.row.discountPrice) }}
+                </span>
+              </span>
+              <span v-else>
+                {{ formatCurrency(scope.row.sellPrice) }}
+              </span>
+            </div>
+          </template>
+        </el-table-column>
       </el-table>
     </el-card>
 
@@ -98,7 +122,12 @@
     </el-dialog>
 
     <el-dialog title="Lý do giao hàng thất bại" v-model="failDialogVisible" width="400px">
-      <el-input type="textarea" v-model="failNote" placeholder="Nhập lý do giao hàng thất bại..." rows="3" />
+      <el-input
+        type="textarea"
+        v-model="failNote"
+        placeholder="Nhập lý do giao hàng thất bại..."
+        rows="3"
+      />
       <template #footer>
         <el-button @click="failDialogVisible = false">Hủy</el-button>
         <el-button type="danger" @click="markAsFailedDelivery">Xác nhận</el-button>
@@ -160,9 +189,9 @@ const mainSteps = [
   { key: 'CHO_GIAO_HANG', label: 'Chờ giao hàng' },
   { key: 'DANG_GIAO_HANG', label: 'Đang giao hàng' },
   { key: 'GIAO_THANH_CONG', label: 'Giao thành công' },
-  { key: 'DA_HOAN_THANH', label: 'Hoàn tất' }
+  { key: 'DA_HOAN_THANH', label: 'Hoàn tất' },
 ]
-const mainStepKeys = mainSteps.map(s => s.key)
+const mainStepKeys = mainSteps.map((s) => s.key)
 
 // getActiveStep chỉ cần hoạt động với mainSteps
 const getActiveStep = (statusKey) => {
@@ -171,23 +200,17 @@ const getActiveStep = (statusKey) => {
 
 // Helper to get status label from integer index for history
 const getStatusLabelFromInt = (statusInt) => {
-  // Check for special statuses not in the main flow but common in history
-  if (statusInt === -1) { // Assuming -1 or other specific integer might represent 'HUY_DON'
-    return 'Đã hủy';
+  if (statusInt === -1) {
+    // Assuming -1 or other specific integer might represent 'HUY_DON'
+    return 'Đã hủy'
   }
-  // Add other special integer mappings if they exist in your backend
-  // For example, if -2 means 'GIAO_THAT_BAI'
-  // if (statusInt === -2) {
-  //   return 'Giao hàng thất bại';
-  // }
 
   // Fallback to mainSteps if it's a valid index
   if (typeof statusInt === 'number' && statusInt >= 0 && statusInt < mainSteps.length) {
-    return mainSteps[statusInt].label;
+    return mainSteps[statusInt].label
   }
-  return `Không xác định (${statusInt})`; // Fallback for unknown integers
-};
-
+  return `Không xác định (${statusInt})` // Fallback for unknown integers
+}
 
 // Các điều kiện cho nút bấm
 const canAdvance = computed(() => {
@@ -199,21 +222,22 @@ const canAdvance = computed(() => {
 const canRevert = computed(() => {
   const status = invoice.value?.statusDetail
   const idx = mainStepKeys.indexOf(status)
-  // Chỉ cho phép quay lại nếu trạng thái nằm trong luồng chính và không phải bước đầu tiên
-  // và chưa ở trạng thái Đang giao hàng
   return idx > 0 && idx < mainStepKeys.indexOf('DANG_GIAO_HANG') && mainStepKeys.includes(status)
 })
 
 const canCancel = computed(() => {
   const status = invoice.value?.statusDetail
   // Chỉ cho phép hủy nếu trạng thái nằm trong luồng chính và chưa đến Đang giao hàng
-  return mainStepKeys.includes(status) && mainStepKeys.indexOf(status) < mainStepKeys.indexOf('DANG_GIAO_HANG')
+  return (
+    mainStepKeys.includes(status) &&
+    mainStepKeys.indexOf(status) < mainStepKeys.indexOf('DANG_GIAO_HANG')
+  )
 })
 
 const fetchInvoice = async () => {
   try {
     const res = await apiClient.get(`/admin/online-sales/get-order`, {
-      params: { invoiceId }
+      params: { invoiceId },
     })
     invoice.value = res.data
   } catch (err) {
@@ -224,13 +248,13 @@ const fetchInvoice = async () => {
 
 const confirmAdvance = () => {
   ElMessageBox.confirm('Bạn có chắc muốn chuyển sang trạng thái tiếp theo?', 'Xác nhận', {
-    type: 'warning'
+    type: 'warning',
   }).then(advanceStatus)
 }
 
 const confirmRevert = () => {
   ElMessageBox.confirm('Bạn có chắc muốn quay lại trạng thái trước?', 'Xác nhận', {
-    type: 'warning'
+    type: 'warning',
   }).then(revertStatus)
 }
 
@@ -247,7 +271,7 @@ const showActionHistoryDialog = async () => {
   try {
     // Ensure the API endpoint is correct based on your backend
     const res = await apiClient.get(`/admin/online-sales/get-order-history`, {
-      params: { invoiceId }
+      params: { invoiceId },
     })
     actionHistory.value = res.data
     actionHistoryDialogVisible.value = true
@@ -263,13 +287,13 @@ const advanceStatus = async () => {
   const nextKey = mainStepKeys[currentIndex + 1]
 
   if (!nextKey) {
-    ElMessage.info('Không có trạng thái tiếp theo để chuyển.');
-    return;
+    ElMessage.info('Không có trạng thái tiếp theo để chuyển.')
+    return
   }
 
   try {
     await apiClient.put(`/admin/online-sales/chuyen-trang-thai`, null, {
-      params: { invoiceId, statusDetail: nextKey }
+      params: { invoiceId, statusDetail: nextKey },
     })
     ElMessage.success('Chuyển trạng thái thành công!')
     fetchInvoice()
@@ -285,13 +309,13 @@ const revertStatus = async () => {
   const prevKey = mainStepKeys[currentIndex - 1]
 
   if (!prevKey) {
-    ElMessage.info('Không có trạng thái trước đó để quay lại.');
-    return;
+    ElMessage.info('Không có trạng thái trước đó để quay lại.')
+    return
   }
 
   try {
     await apiClient.put(`/admin/online-sales/chuyen-trang-thai`, null, {
-      params: { invoiceId, statusDetail: prevKey }
+      params: { invoiceId, statusDetail: prevKey },
     })
     ElMessage.success('Quay lại trạng thái trước thành công!')
     fetchInvoice()
@@ -317,8 +341,8 @@ const cancelOrder = async () => {
         invoiceId,
         statusDetail: 'HUY_DON',
         note: cancelNote.value,
-        paymentMethod: selectedPaymentMethod.value
-      }
+        paymentMethod: selectedPaymentMethod.value,
+      },
     })
 
     ElMessage.success('Hủy đơn hàng và hoàn tiền thành công!')
@@ -341,8 +365,8 @@ const markAsFailedDelivery = async () => {
       params: {
         invoiceId,
         statusDetail: 'GIAO_THAT_BAI',
-        note: failNote.value
-      }
+        note: failNote.value,
+      },
     })
 
     ElMessage.success('Cập nhật trạng thái giao hàng thất bại thành công!')
@@ -354,7 +378,7 @@ const markAsFailedDelivery = async () => {
   }
 }
 
-const formatDate = (dateStr) => dateStr ? new Date(dateStr).toLocaleString('vi-VN') : ''
+const formatDate = (dateStr) => (dateStr ? new Date(dateStr).toLocaleString('vi-VN') : '')
 const formatCurrency = (val) => `${Number(val || 0).toLocaleString('vi-VN')} ₫`
 const goBack = () => router.back()
 

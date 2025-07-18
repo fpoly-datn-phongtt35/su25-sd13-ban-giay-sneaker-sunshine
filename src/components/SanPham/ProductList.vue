@@ -195,7 +195,7 @@
         <button @click="goToHistory" class="btn btn-outline-secondary btn-sm">
           <i class="bi bi-clock-history me-1"></i> Lịch sử sản phẩm
         </button>
-        </div>
+      </div>
     </div>
 
     <div class="card shadow-sm">
@@ -223,7 +223,11 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(pr, index) in productList" :key="pr.id" :class="{ 'low-quantity': pr.quantity < 10 }">
+            <tr
+              v-for="(pr, index) in productList"
+              :key="pr.id"
+              :class="{ 'low-quantity': pr.quantity < 10 }"
+            >
               <td>
                 <input type="checkbox" v-model="selectedProducts" :value="pr.id" />
               </td>
@@ -238,7 +242,14 @@
               <td>{{ pr.brandName }}</td>
               <td>{{ pr.styleName }}</td>
               <td>{{ pr.genderName }}</td>
-              <td>{{ pr.sellPrice }}</td>
+              <td>
+                <span style="text-decoration: line-through; color: gray; margin-right: 8px">
+                  {{ formatCurrency(pr.sellPrice) }}
+                </span>
+                <span style="color: red; font-weight: bold">
+                  {{ formatCurrency(pr.discountedPrice) }}
+                </span>
+              </td>
               <td>{{ pr.quantity }}</td>
               <td>{{ pr.description }}</td>
               <td>{{ formatDate(pr.createdDate) }}</td>
@@ -381,39 +392,42 @@ const toggleSelectAll = () => {
   }
 }
 
-
 const syncSelectedProducts = () => {
   selectedProducts.value = productList.value
     .filter((p) => allSelectedProducts.value.includes(p.id))
     .map((p) => p.id)
-  selectAll.value = productList.value.length > 0 &&
-                      selectedProducts.value.length === productList.value.length
+  selectAll.value =
+    productList.value.length > 0 && selectedProducts.value.length === productList.value.length
 }
 
-watch(selectedProducts, (newSelectedIds, oldSelectedIds) => {
-  const currentPageIds = productList.value.map((p) => p.id);
+watch(
+  selectedProducts,
+  (newSelectedIds, oldSelectedIds) => {
+    const currentPageIds = productList.value.map((p) => p.id)
 
-  // Loại bỏ các ID cũ của trang hiện tại khỏi allSelectedProducts
-  oldSelectedIds.forEach(id => {
-    if (currentPageIds.includes(id) && !newSelectedIds.includes(id)) {
-      const index = allSelectedProducts.value.indexOf(id);
-      if (index > -1) {
-        allSelectedProducts.value.splice(index, 1);
+    // Loại bỏ các ID cũ của trang hiện tại khỏi allSelectedProducts
+    oldSelectedIds.forEach((id) => {
+      if (currentPageIds.includes(id) && !newSelectedIds.includes(id)) {
+        const index = allSelectedProducts.value.indexOf(id)
+        if (index > -1) {
+          allSelectedProducts.value.splice(index, 1)
+        }
       }
-    }
-  });
+    })
 
-  // Thêm các ID mới của trang hiện tại vào allSelectedProducts
-  newSelectedIds.forEach(id => {
-    if (!allSelectedProducts.value.includes(id)) {
-      allSelectedProducts.value.push(id);
-    }
-  });
+    // Thêm các ID mới của trang hiện tại vào allSelectedProducts
+    newSelectedIds.forEach((id) => {
+      if (!allSelectedProducts.value.includes(id)) {
+        allSelectedProducts.value.push(id)
+      }
+    })
 
-  // Cập nhật trạng thái của checkbox "Chọn tất cả" trên trang hiện tại
-  selectAll.value = productList.value.length > 0 &&
-                      selectedProducts.value.length === productList.value.length;
-}, { deep: true });
+    // Cập nhật trạng thái của checkbox "Chọn tất cả" trên trang hiện tại
+    selectAll.value =
+      productList.value.length > 0 && selectedProducts.value.length === productList.value.length
+  },
+  { deep: true },
+)
 
 // --- Lấy dữ liệu danh mục, chất liệu, thương hiệu, đế giày, kiểu giày ---
 
@@ -500,7 +514,7 @@ const fetchProduct = async () => {
     priceMax: searchProduct.value.priceMax || null,
     page: page.value,
     size: size.value,
-    status: 1 // Chỉ lấy sản phẩm đang hoạt động
+    status: 1, // Chỉ lấy sản phẩm đang hoạt động
   }
 
   try {
@@ -509,6 +523,7 @@ const fetchProduct = async () => {
       searchParams,
     )
     productList.value = response.data.data
+    console.log('data: ', productList.value)
     totalElements.value = response.data.pagination?.totalElements || 0
     totalPages.value = response.data.pagination?.totalPages || 0
     syncSelectedProducts() // Đồng bộ hóa các checkbox trên trang hiện tại
@@ -516,6 +531,15 @@ const fetchProduct = async () => {
     console.error('Lỗi tải danh sách sản phẩm:', error)
     ElMessage.error('Tải danh sách sản phẩm thất bại!')
   }
+}
+
+function formatCurrency(value) {
+  if (!value) return '0₫';
+  return new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency: 'VND',
+    minimumFractionDigits: 0
+  }).format(value);
 }
 
 // --- Điều hướng trang ---
@@ -534,66 +558,36 @@ const goToHistory = () => {
   router.push('/product/history')
 }
 
-/**
- * Chuyển hướng đến trang cập nhật sản phẩm.
- * @param {number} id ID của sản phẩm cần cập nhật.
- */
 const goToUpdate = (id) => {
   router.push({ name: 'UpdateProduct', params: { id } })
 }
 
-/**
- * Chuyển hướng đến trang chi tiết sản phẩm.
- * @param {number} id ID của sản phẩm cần xem chi tiết.
- */
 const goToDetail = (id) => {
   router.push({ name: 'DetailProduct', params: { id } })
 }
 
-// --- Tiện ích ---
-
-/**
- * Định dạng chuỗi ngày thành định dạng dễ đọc.
- * @param {string} dateString Chuỗi ngày cần định dạng.
- * @returns {string} Chuỗi ngày đã định dạng.
- */
 const formatDate = (dateString) => {
   if (!dateString) return ''
   return new Date(dateString).toLocaleString('vi-VN', { hour12: false })
 }
 
-// --- Xử lý phân trang Element Plus ---
-
-/**
- * Xử lý khi số lượng mục trên mỗi trang thay đổi.
- * @param {number} newSize Kích thước trang mới.
- */
 const handleSizeChange = (newSize) => {
   size.value = newSize
   page.value = 0 // Reset về trang đầu tiên khi thay đổi số lượng mục trên trang
   fetchProduct()
 }
 
-/**
- * Xử lý khi trang hiện tại thay đổi.
- * @param {number} newPage Trang mới (1-indexed).
- */
 const handleCurrentChange = (newPage) => {
   page.value = newPage - 1 // el-pagination là 1-indexed, API là 0-indexed
   fetchProduct()
 }
 
-// --- Xuất dữ liệu và xóa sản phẩm ---
-
-/**
- * Tải xuống dữ liệu sản phẩm dưới dạng Excel, có thể theo lựa chọn hoặc theo bộ lọc hiện tại.
- */
 const downloadExcel = async () => {
   try {
     const message =
       allSelectedProducts.value.length > 0
         ? `Xuất Excel cho ${allSelectedProducts.value.length} sản phẩm đã chọn?`
-        : 'Xuất Excel toàn bộ sản phẩm theo bộ lọc hiện tại?';
+        : 'Xuất Excel toàn bộ sản phẩm theo bộ lọc hiện tại?'
 
     await ElMessageBox.confirm(message, 'Xác nhận', {
       type: 'warning',
@@ -619,7 +613,7 @@ const downloadExcel = async () => {
         categoryIds: searchProduct.value.categoryIds.map((c) => c.id) || [],
         priceMin: searchProduct.value.priceMin === '' ? null : searchProduct.value.priceMin,
         priceMax: searchProduct.value.priceMax === '' ? null : searchProduct.value.priceMax,
-        status: 1 // Chỉ xuất các sản phẩm đang hoạt động
+        status: 1, // Chỉ xuất các sản phẩm đang hoạt động
       }
       url = 'http://localhost:8080/api/admin/products/export-excel/by-filter'
       data = searchParamsForExport
@@ -645,17 +639,17 @@ const downloadExcel = async () => {
   }
 }
 
-/**
- * Xóa một sản phẩm khỏi hệ thống (chuyển vào thùng rác).
- * @param {number} id ID của sản phẩm cần xóa.
- */
 const deleteProduct = async (id) => {
   try {
-    await ElMessageBox.confirm('Bạn có chắc chắn muốn xóa sản phẩm này? Sản phẩm sẽ được chuyển vào thùng rác.', 'Xác nhận', {
-      confirmButtonText: 'Xóa',
-      cancelButtonText: 'Hủy',
-      type: 'warning',
-    })
+    await ElMessageBox.confirm(
+      'Bạn có chắc chắn muốn xóa sản phẩm này? Sản phẩm sẽ được chuyển vào thùng rác.',
+      'Xác nhận',
+      {
+        confirmButtonText: 'Xóa',
+        cancelButtonText: 'Hủy',
+        type: 'warning',
+      },
+    )
     await axios.delete(`http://localhost:8080/api/admin/products/${id}`)
     ElMessage.success('Xóa sản phẩm thành công!')
     // Cập nhật lại danh sách sau khi xóa
@@ -672,10 +666,6 @@ const deleteProduct = async (id) => {
   }
 }
 
-/**
- * Thực hiện tìm kiếm sản phẩm.
- * Đặt lại trang về 0 và xóa tất cả lựa chọn trước khi tìm kiếm mới.
- */
 const search = async () => {
   page.value = 0 // Reset về trang đầu tiên khi tìm kiếm mới
   allSelectedProducts.value = [] // Xóa tất cả các lựa chọn khi tìm kiếm mới
@@ -775,7 +765,8 @@ onMounted(() => {
 .multiselect__tag {
   margin-bottom: 4px;
 }
-.multiselect__input, .multiselect__single {
+.multiselect__input,
+.multiselect__single {
   height: 24px;
   line-height: 24px;
   font-size: 0.85rem;
@@ -831,6 +822,6 @@ onMounted(() => {
   background-color: #ffcccc; /* Nền màu đỏ nổi bật hơn */
   color: #cc0000; /* Màu chữ đỏ sẫm, nổi bật */
   font-weight: bold;
-  font-style: italic; 
+  font-style: italic;
 }
 </style>

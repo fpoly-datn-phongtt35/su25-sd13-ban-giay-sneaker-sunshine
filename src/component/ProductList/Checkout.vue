@@ -28,6 +28,14 @@
               </el-col>
             </el-row>
 
+             <el-row :gutter="20">
+              <el-col :span="24">
+                <el-form-item label="Gmail" prop="address.houseName">
+                  <el-input v-model="form.address.houseName" placeholder="Địa chỉ"></el-input>
+                </el-form-item>
+              </el-col>
+            </el-row>
+
             <el-row :gutter="20">
               <el-col :span="8">
                 <el-form-item label="TỈNH / THÀNH" prop="address.provinceCode">
@@ -122,7 +130,7 @@
             </div>
             <div class="total-row">
               <span class="label">Giảm giá</span>
-  <span class="value discount-value">-{{ formatPrice(discountAmount) }}</span>
+              <span class="value discount-value">-{{ formatPrice(discountAmount) }}</span>
             </div>
             <div class="total-row">
               <span class="label">Phí vận chuyển</span>
@@ -475,7 +483,7 @@ const handleSubmit = () => {
         shippingFee: shippingFee.value
       }
 
-      console.log('🚀 Payload gửi lên server:', JSON.stringify(payload, null, 2))
+      console.log(' Payload gửi lên server:', JSON.stringify(payload, null, 2))
 
       if (paymentMethod.value === 1) {
         // 👉 ZaloPay
@@ -489,15 +497,15 @@ const handleSubmit = () => {
           ElMessage.success('Đang chuyển hướng đến ZaloPay để thanh toán...')
           window.location.href = zaloPay.orderUrl
         } else {
-          ElMessage.error('❌ Không nhận được URL thanh toán từ ZaloPay. Vui lòng thử lại.')
+          ElMessage.error(' Không nhận được URL thanh toán từ ZaloPay. Vui lòng thử lại.')
         }
 
       } else {
-        // 👉 Thanh toán COD
+        //  Thanh toán COD
         await axios.post('http://localhost:8080/api/online-sale/checkout', payload)
         clearCart()
         cartItems.value = []
-        ElMessage.success('✅ Đặt hàng thành công! Đơn hàng của bạn sẽ sớm được giao.')
+        ElMessage.success(' Đặt hàng thành công! Đơn hàng của bạn sẽ sớm được giao.')
         router.push('/don-hang')
       }
 

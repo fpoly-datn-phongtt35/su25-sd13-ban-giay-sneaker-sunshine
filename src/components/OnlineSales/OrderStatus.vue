@@ -82,20 +82,19 @@
         <el-table-column prop="sizeName" label="Kích thước" />
         <el-table-column prop="colorName" label="Màu sắc" />
         <el-table-column prop="quantity" label="Số lượng" />
-        <el-table-column label="Giá bán">
-          <template #default="scope">
+
+        <!-- Cột giá (hiển thị giá gốc & giảm nếu có) -->
+        <el-table-column label="Giá" align="center">
+          <template #default="{ row }">
             <div>
-              <span v-if="scope.row.discountPrice && scope.row.discountPrice > 0">
-                <del style="color: #999">
-                  {{ formatCurrency(scope.row.sellPrice) }}
-                </del>
-                <br />
-                <span style="color: #e53935; font-weight: bold">
-                  {{ formatCurrency(scope.row.discountPrice) }}
-                </span>
+              <span
+                v-if="row.sellPrice !== row.discountedPrice"
+                style="text-decoration: line-through; color: gray; margin-right: 6px"
+              >
+                {{ formatCurrency(row.sellPrice) }}
               </span>
-              <span v-else>
-                {{ formatCurrency(scope.row.sellPrice) }}
+              <span style="color: red; font-weight: bold">
+                {{ formatCurrency(row.discountedPrice) }}
               </span>
             </div>
           </template>
@@ -103,31 +102,61 @@
       </el-table>
     </el-card>
 
-    <el-dialog title="Lý do hủy đơn hàng" v-model="cancelDialogVisible" width="400px">
-      <el-form label-position="top">
-        <el-form-item label="Lý do hủy đơn">
-          <el-input type="textarea" v-model="cancelNote" placeholder="Nhập lý do hủy..." rows="3" />
-        </el-form-item>
-        <el-form-item label="Phương thức hoàn tiền">
-          <el-select v-model="selectedPaymentMethod" placeholder="Chọn phương thức hoàn tiền">
-            <el-option label="Tiền mặt" value="TIEN_MAT" />
-            <el-option label="ZaloPay" value="ZALOPAY" />
-          </el-select>
-        </el-form-item>
-      </el-form>
+    <el-dialog title="Hủy đơn hàng" v-model="cancelDialogVisible" width="500px">
+      <!-- Ghi chú -->
+      <div class="mb-3">
+        <label class="font-medium">Lý do hủy đơn hàng</label>
+        <el-input
+          type="textarea"
+          v-model="cancelNote"
+          placeholder="Nhập lý do hủy đơn hàng..."
+          rows="3"
+        />
+      </div>
+
+      <!-- Phương thức hoàn tiền (chỉ hiện khi đã thanh toán) -->
+      <div v-if="isPaid">
+        <label class="font-medium">Phương thức hoàn tiền</label>
+        <el-select
+          v-model="selectedPaymentMethod"
+          placeholder="Chọn phương thức hoàn tiền"
+          class="w-full"
+        >
+          <el-option label="Tiền mặt" value="TIEN_MAT" />
+          <el-option label="ZaloPay" value="ZALO_PAY" />
+        </el-select>
+      </div>
+
       <template #footer>
         <el-button @click="cancelDialogVisible = false">Hủy</el-button>
         <el-button type="danger" @click="cancelOrder">Xác nhận hủy đơn</el-button>
       </template>
     </el-dialog>
 
-    <el-dialog title="Lý do giao hàng thất bại" v-model="failDialogVisible" width="400px">
-      <el-input
-        type="textarea"
-        v-model="failNote"
-        placeholder="Nhập lý do giao hàng thất bại..."
-        rows="3"
-      />
+    <el-dialog title="Giao hàng thất bại" v-model="failDialogVisible" width="500px">
+      <div class="mb-3">
+        <label class="font-medium">Lý do giao hàng thất bại</label>
+        <el-input
+          type="textarea"
+          v-model="failNote"
+          placeholder="Nhập lý do giao hàng thất bại..."
+          rows="3"
+        />
+      </div>
+
+      <!-- Phương thức thanh toán - chỉ hiện khi đơn đã thanh toán -->
+      <div v-if="isPaid">
+        <label class="font-medium">Phương thức thanh toán</label>
+        <el-select
+          v-model="selectedPaymentMethod"
+          placeholder="Chọn phương thức thanh toán"
+          class="w-full"
+        >
+          <el-option label="Tiền mặt" value="TIEN_MAT" />
+          <el-option label="ZaloPay" value="ZALO_PAY" />
+        </el-select>
+      </div>
+
       <template #footer>
         <el-button @click="failDialogVisible = false">Hủy</el-button>
         <el-button type="danger" @click="markAsFailedDelivery">Xác nhận</el-button>
@@ -174,13 +203,15 @@ const invoiceId = route.params.invoiceId
 const invoice = ref({})
 const cancelDialogVisible = ref(false)
 const cancelNote = ref('')
-const selectedPaymentMethod = ref('TIEN_MAT')
+const selectedPaymentMethod = ref('')
 
 const failDialogVisible = ref(false)
 const failNote = ref('')
 
 const actionHistoryDialogVisible = ref(false)
 const actionHistory = ref([])
+
+const isPaid = ref(false)
 
 // Chỉ định nghĩa các bước chính của luồng đơn hàng thành công
 const mainSteps = [
@@ -240,6 +271,9 @@ const fetchInvoice = async () => {
       params: { invoiceId },
     })
     invoice.value = res.data
+    isPaid.value = res.data.isPaid
+    console.log('data: ', invoice.value)
+    console.log('ispaid: ', isPaid.value)
   } catch (err) {
     ElMessage.error('Lỗi tải đơn hàng')
     console.error(err)
@@ -331,17 +365,18 @@ const cancelOrder = async () => {
       ElMessage.warning('Vui lòng nhập lý do hủy đơn!')
       return
     }
-    if (!selectedPaymentMethod.value) {
-      ElMessage.warning('Vui lòng chọn phương thức hoàn tiền!')
-      return
-    }
+     if (isPaid.value && !selectedPaymentMethod.value) {
+    ElMessage.warning('Vui lòng chọn phương thức hoàn tiền!')
+    return
+  }
 
     await apiClient.put(`/admin/online-sales/huy-don-va-hoan-tien`, null, {
       params: {
         invoiceId,
         statusDetail: 'HUY_DON',
         note: cancelNote.value,
-        paymentMethod: selectedPaymentMethod.value,
+        paymentMethod: selectedPaymentMethod.value || '',
+        isPaid: isPaid.value
       },
     })
 
@@ -360,12 +395,18 @@ const markAsFailedDelivery = async () => {
       ElMessage.warning('Vui lòng nhập lý do giao hàng thất bại!')
       return
     }
+    if (isPaid.value && !selectedPaymentMethod.value) {
+      ElMessage.warning('Vui lòng chọn phương thức thanh toán!')
+      return
+    }
 
-    await apiClient.put(`/admin/online-sales/chuyen-trang-thai`, null, {
+    await apiClient.put(`/admin/online-sales/failed-shipping`, null, {
       params: {
         invoiceId,
         statusDetail: 'GIAO_THAT_BAI',
         note: failNote.value,
+        paymentMethod: isPaid.value ? selectedPaymentMethod.value : 'UNKNOWN',
+        isPaid: invoice.value?.isPaid,
       },
     })
 

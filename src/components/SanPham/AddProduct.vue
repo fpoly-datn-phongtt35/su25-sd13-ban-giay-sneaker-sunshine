@@ -396,7 +396,7 @@ const isFormValid = computed(() => {
   if (!newProduct.value.soleId) errors.value.soleId = 'Vui lòng chọn loại đế.'
   if (!newProduct.value.styleId) errors.value.styleId = 'Vui lòng chọn cổ giày.'
   if (!newProduct.value.brandId) errors.value.brandId = 'Vui lòng chọn thương hiệu.'
-  
+
   // Category selection
   if (newProduct.value.categoryIds.length === 0) errors.value.categoryIds = 'Vui lòng chọn ít nhất một danh mục.'
 

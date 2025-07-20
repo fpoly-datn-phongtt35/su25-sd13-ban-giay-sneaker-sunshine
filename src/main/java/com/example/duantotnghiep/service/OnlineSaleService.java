@@ -11,7 +11,8 @@ public interface OnlineSaleService {
     void chuyenTrangThai(Long invoiceId, String nextKey);
     InvoiceOnlineResponse getOrder(Long invoiceId);
 
-    void huyDonVaHoanTien(Long invoiceId,String nextKey,String note,String paymentMenthod);
+    void huyDonVaHoanTien(Long invoiceId,String nextKey,String note,String paymentMenthod,Boolean isPaid);
+    void giaoHangThatBaiVaHoanTien(Long invoiceId,String nextKey,String note,String paymentMenthod,Boolean isPaid);
     List<StatusCountResponse> getCountByStatusDetail();
 
     InvoiceOnlineResponse getOrderByCustomer(Long invoiceId);

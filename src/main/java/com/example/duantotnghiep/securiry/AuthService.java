@@ -60,15 +60,28 @@ public class AuthService {
             String employeeName = userDTO.getEmployee() != null ? userDTO.getEmployee().getEmployeeName() : null;
             return new LoginResponse(token, employeeName, userDTO.getCustomerName(), userDTO.getCustomerId(), userDTO.getId());
         } catch (BadCredentialsException e) {
-            throw new RuntimeException("❌ Sai tên đăng nhập hoặc mật khẩu");
+            throw new RuntimeException("Sai tên đăng nhập hoặc mật khẩu");
 
         } catch (UsernameNotFoundException e) {
-            throw new RuntimeException("❌ Không tìm thấy người dùng");
+            throw new RuntimeException(" Không tìm thấy người dùng");
 
         } catch (Exception e) {
-            throw new RuntimeException("❌ Lỗi đăng nhập: " + e.getMessage());
+            throw new RuntimeException(" Lỗi đăng nhập: " + e.getMessage());
         }
     }
+
+    public LoginResponse loginUserOnly(LoginRequest request) {
+        LoginResponse response = login(request);
+        User user = userRepository.findByUsername(request.getUsername())
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+
+        if (user.getRole() != 3) {
+            throw new RuntimeException("Chỉ người dùng mới được phép đăng nhập");
+        }
+
+        return response;
+    }
+
 }
 
 

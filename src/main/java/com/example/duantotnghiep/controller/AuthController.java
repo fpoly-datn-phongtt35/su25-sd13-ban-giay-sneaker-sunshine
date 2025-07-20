@@ -31,5 +31,10 @@ public class AuthController {
         CustomerResponse response = customerService.createCustomer(request);
         return ResponseEntity.ok(response);
     }
+
+    @PostMapping("/login-user") // Cái này chỉ cho USER (role = 3)
+    public ResponseEntity<?> loginUser(@RequestBody LoginRequest request) {
+        return ResponseEntity.ok(authService.loginUserOnly(request)); // bạn tách logic tại đây
+    }
 }
 

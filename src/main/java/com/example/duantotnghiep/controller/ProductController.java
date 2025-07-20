@@ -112,8 +112,6 @@ public class ProductController {
     @PostMapping("/search")
     public ResponseEntity<PaginationDTO<ProductSearchResponse>> searchProducts(
             @RequestBody ProductSearchRequest request) {
-        System.out.println("from: "+request.getCreatedFrom());
-        System.out.println("To: "+request.getCreatedTo());
 
         int page = (request.getPage() != null && request.getPage() >= 0) ? request.getPage() : 0;
         int size = (request.getSize() != null && request.getSize() > 0) ? request.getSize() : 5;

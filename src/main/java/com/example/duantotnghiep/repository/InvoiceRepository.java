@@ -81,7 +81,9 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
 
     boolean existsByCustomer_IdAndStatus(Long customerId, TrangThaiTong status);
 
-    Optional<Invoice> findById(Long id);
+    @Query("SELECT i FROM Invoice i WHERE i.id = :id AND i.isPaid = :isPaid")
+    Optional<Invoice> findPaidInvoiceById(@Param("id") Long id,@Param("isPaid") Boolean isPaid);
+
 
     @Query("""
         SELECT MONTH(i.createdDate), SUM(i.finalAmount)

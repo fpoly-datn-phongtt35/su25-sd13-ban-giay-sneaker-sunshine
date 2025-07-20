@@ -88,13 +88,11 @@ public class ProductSearchRepository {
             params.put("priceMax", request.getPriceMax());
         }
 
-        // Filter theo danh mục
         if (request.getCategoryIds() != null && !request.getCategoryIds().isEmpty()) {
             whereClause.append(" AND EXISTS (SELECT 1 FROM ProductCategory pc WHERE pc.product = p AND (pc.category.id IS NULL OR pc.category.id IN :categoryIds) AND pc.status = 1)");
             params.put("categoryIds", request.getCategoryIds());
         }
 
-        // Filter colorId và sizeId bằng EXISTS trong ProductDetail (lọc Product)
         if (request.getColorId() != null || request.getSizeId() != null) {
             whereClause.append(" AND EXISTS (SELECT 1 FROM ProductDetail pd WHERE pd.product = p AND pd.status = 1");
             if (request.getColorId() != null) {
@@ -108,7 +106,6 @@ public class ProductSearchRepository {
             whereClause.append(")");
         }
 
-        // Query lấy Product có phân trang
         String dataSql = "SELECT DISTINCT p " + baseSql + whereClause + " ORDER BY p.id DESC";
         TypedQuery<Product> query = entityManager.createQuery(dataSql, Product.class);
         params.forEach(query::setParameter);
@@ -164,13 +161,11 @@ public class ProductSearchRepository {
             }
         }
 
-        // Count tổng sản phẩm thỏa điều kiện
         String countSql = "SELECT COUNT(DISTINCT p) " + baseSql + whereClause;
         TypedQuery<Long> countQuery = entityManager.createQuery(countSql, Long.class);
         params.forEach(countQuery::setParameter);
         Long total = countQuery.getSingleResult();
 
-        // Chuyển đổi sang DTO và trả về PaginationDTO
         List<ProductSearchResponse> productResponses = products.stream()
                 .map(productMapper::toResponseSearch)
                 .collect(Collectors.toList());

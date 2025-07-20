@@ -56,9 +56,8 @@ public class OnlineSalesController {
     }
 
     @PutMapping("/chuyen-trang-thai")
-    public ResponseEntity<String> chuyenTrangThaiChoXuLySangDaXuLy(@RequestParam("invoiceId") Long invoiceId,@RequestParam("statusDetail") String nextKey) {
+    public ResponseEntity<String> chuyenTrangThai(@RequestParam("invoiceId") Long invoiceId,@RequestParam("statusDetail") String nextKey) {
         try {
-            System.out.println("next key: "+nextKey);
             onlineSaleService.chuyenTrangThai(invoiceId,nextKey);
             return ResponseEntity.ok("Chuyển trạng thái đơn hàng thành công.");
         } catch (RuntimeException ex) {
@@ -77,11 +76,30 @@ public class OnlineSalesController {
             @RequestParam Long invoiceId,
             @RequestParam String statusDetail,
             @RequestParam String note,
-            @RequestParam String paymentMethod
+            @RequestParam(required = false) String paymentMethod,
+            @RequestParam Boolean isPaid
     ) {
         try {
-            onlineSaleService.huyDonVaHoanTien(invoiceId, statusDetail, note, paymentMethod);
+            onlineSaleService.huyDonVaHoanTien(invoiceId, statusDetail, note, paymentMethod,isPaid);
             return ResponseEntity.ok("Hủy đơn và hoàn tiền thành công");
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body("Lỗi: " + e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Đã xảy ra lỗi máy chủ");
+        }
+    }
+
+    @PutMapping("/failed-shipping")
+    public ResponseEntity<?> giaoHangThatBaiVaHoanTien(
+            @RequestParam Long invoiceId,
+            @RequestParam String statusDetail,
+            @RequestParam String note,
+            @RequestParam(required = false) String paymentMethod,
+            @RequestParam Boolean isPaid
+    ) {
+        try {
+            onlineSaleService.giaoHangThatBaiVaHoanTien(invoiceId, statusDetail, note, paymentMethod,isPaid);
+            return ResponseEntity.ok("Giao hàng thất bại và hoàn tiền thành công");
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body("Lỗi: " + e.getMessage());
         } catch (Exception e) {
@@ -103,7 +121,6 @@ public class OnlineSalesController {
 
     @GetMapping("/get-order-customer-detail")
     public ResponseEntity<InvoiceOnlineResponse> getOrderCustomerOnline(@RequestParam("invoiceId") Long invoiceId){
-        System.out.println("id: "+invoiceId);
         InvoiceOnlineResponse response = onlineSaleService.getOrderByCustomer(invoiceId);
         return ResponseEntity.ok(response);
     }

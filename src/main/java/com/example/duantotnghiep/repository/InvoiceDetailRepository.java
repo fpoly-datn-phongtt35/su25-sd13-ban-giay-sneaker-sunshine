@@ -30,7 +30,7 @@ public interface InvoiceDetailRepository extends JpaRepository<InvoiceDetail, Lo
     @Query("""
     select new com.example.duantotnghiep.dto.response.InvoiceDetailOnline(
     id.id,id.invoiceCodeDetail,id.invoice.id,id.productDetail.id,id.productDetail.product.productName,id.productDetail.size.id,id.productDetail.size.sizeName,
-    id.productDetail.color.id,id.productDetail.color.colorName,id.quantity
+    id.productDetail.color.id,id.productDetail.color.colorName,id.quantity,id.sellPrice,id.discountedPrice,id.discountPercentage
     ) from InvoiceDetail  id
     where id.invoice.id =:invoiceId
 """)

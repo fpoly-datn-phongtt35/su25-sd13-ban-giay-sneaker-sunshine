@@ -6,21 +6,11 @@ import com.example.duantotnghiep.dto.response.InvoiceOnlineResponse;
 import com.example.duantotnghiep.dto.response.InvoiceTransactionResponse;
 import com.example.duantotnghiep.dto.response.OrderStatusHistoryResponse;
 import com.example.duantotnghiep.dto.response.StatusCountResponse;
-import com.example.duantotnghiep.model.Customer;
-import com.example.duantotnghiep.model.Employee;
-import com.example.duantotnghiep.model.Invoice;
-import com.example.duantotnghiep.model.InvoiceTransaction;
-import com.example.duantotnghiep.model.OrderStatusHistory;
-import com.example.duantotnghiep.model.User;
-import com.example.duantotnghiep.repository.EmployeeRepository;
-import com.example.duantotnghiep.repository.InvoiceDetailRepository;
-import com.example.duantotnghiep.repository.InvoiceRepository;
-import com.example.duantotnghiep.repository.InvoiceRepository2;
-import com.example.duantotnghiep.repository.InvoiceTransactionRepository;
-import com.example.duantotnghiep.repository.OrderStatusHistoryRepository;
-import com.example.duantotnghiep.repository.UserRepository;
+import com.example.duantotnghiep.model.*;
+import com.example.duantotnghiep.repository.*;
 import com.example.duantotnghiep.service.OnlineSaleService;
 import com.example.duantotnghiep.state.TrangThaiChiTiet;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -41,6 +31,8 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
     private final InvoiceTransactionRepository invoiceTransactionRepository;
     private final InvoiceDetailRepository invoiceDetailRepository;
     private final InvoiceRepository2 invoiceRepository2;
+    private final ProductDetailRepository  productDetailRepository;
+    private final ProductRepository productRepository;
 
     @Override
     public void chuyenTrangThai(Long invoiceId,String nextKey) {
@@ -96,22 +88,52 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
     }
 
     @Override
-    public void huyDonVaHoanTien(Long invoiceId, String nextKey, String note,String paymentMenthod) {
-        Invoice invoice = invoiceRepository.findById(invoiceId)
+    @Transactional
+    public void huyDonVaHoanTien(Long invoiceId, String nextKey, String note, String paymentMenthod, Boolean isPaid) {
+        Invoice invoice = invoiceRepository.findPaidInvoiceById(invoiceId, isPaid)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
 
-        chuyenTrangThai(invoiceId,nextKey);
+        // 1. Chuyển trạng thái đơn
+        chuyenTrangThai(invoiceId, nextKey);
+
+        // 2. Hoàn lại tồn kho
+        List<InvoiceDetail> invoiceDetails = invoiceDetailRepository.findByInvoiceId(invoiceId);
+        for (InvoiceDetail detail : invoiceDetails) {
+            ProductDetail productDetail = detail.getProductDetail();
+
+            // Cộng lại cho ProductDetail
+            int oldDetailStock = productDetail.getQuantity();
+            productDetail.setQuantity(oldDetailStock + detail.getQuantity());
+            productDetailRepository.save(productDetail);
+
+            // Cộng lại cho Product
+            Product product = productDetail.getProduct();
+            int oldProductStock = product.getQuantity();
+            product.setQuantity(oldProductStock + detail.getQuantity());
+            productRepository.save(product);
+        }
+
+        // 3. Ghi nhận giao dịch hoàn tiền
         InvoiceTransaction invoiceTransaction = new InvoiceTransaction();
         invoiceTransaction.setTransactionCode("GD-" + UUID.randomUUID().toString().substring(0, 8));
         invoiceTransaction.setInvoice(invoice);
         invoiceTransaction.setAmount(invoice.getFinalAmount());
-        invoiceTransaction.setPaymentStatus(2);
+        invoiceTransaction.setPaymentStatus(2); // Đã hoàn tiền
         invoiceTransaction.setPaymentMethod(paymentMenthod);
         invoiceTransaction.setTransactionType("Hoàn tiền");
         invoiceTransaction.setNote(note);
         invoiceTransaction.setPaymentTime(new Date());
         invoiceTransactionRepository.save(invoiceTransaction);
+
+        // 4. Lưu invoice cập nhật
         invoiceRepository.save(invoice);
+    }
+
+
+
+    @Override
+    public void giaoHangThatBaiVaHoanTien(Long invoiceId, String nextKey, String note, String paymentMenthod,Boolean isPaid) {
+        huyDonVaHoanTien(invoiceId,nextKey,note,paymentMenthod,isPaid);
     }
 
     @Override

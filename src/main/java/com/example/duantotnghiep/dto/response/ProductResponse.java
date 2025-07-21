@@ -39,8 +39,8 @@ public class ProductResponse {
 
     private BigDecimal originPrice;
     private BigDecimal sellPrice;
-    private BigDecimal discountedPrice;    // Giá đã giảm
-    private Integer discountPercentage;    // % giảm
+    private BigDecimal discountedPrice;
+    private Integer discountPercentage;
 
     private Integer quantity;
     private String description;

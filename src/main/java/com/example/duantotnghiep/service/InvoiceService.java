@@ -58,6 +58,8 @@ public interface InvoiceService {
     @Transactional
     InvoiceWithZaloPayResponse createInvoiceAndZaloPay(InvoiceRequest request) throws Exception;
 
+    InvoiceDisplayResponse createInvoiceShipCode(InvoiceRequest request);
+
     void updateInvoiceStatusByAppTransId(String appTransId, Integer status, Integer statusDetail,Boolean isPaid);
 
     @Transactional

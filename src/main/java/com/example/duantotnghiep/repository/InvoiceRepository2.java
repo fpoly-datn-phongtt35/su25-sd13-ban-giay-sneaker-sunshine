@@ -18,11 +18,11 @@ public class InvoiceRepository2 {
     private static final String BASE_SELECT = """
         SELECT
             i.id, i.invoice_code, i.customer_id, c.customer_name,
-            i.employee_id, e.employee_name,
+            i.employee_id, e.employee_name,c.phone,
             i.total_amount, i.discount_amount, i.final_amount,
             i.description, i.status, i.status_detail,
             i.created_date, i.updated_date,
-            i.delivery_address, i.shipping_fee, i.delivered_at
+            i.delivery_address, i.shipping_fee, i.delivered_at,i.is_paid
         FROM invoice i
         LEFT JOIN customer c ON c.id = i.customer_id
         LEFT JOIN employee e ON e.id = i.employee_id
@@ -72,23 +72,25 @@ public class InvoiceRepository2 {
         }
 
         return new InvoiceOnlineResponse(
-                toLong(row[0]),
-                toString(row[1]),
-                toLong(row[2]),
-                toString(row[3]),
-                toLong(row[4]),
-                toString(row[5]),
-                toBigDecimal(row[6]),
-                toBigDecimal(row[7]),
-                toBigDecimal(row[8]),
-                toString(row[9]),
-                toInt(row[10]),       // dùng kiểu nguyên thủy int để tránh NullPointerException
-                toInt(row[11]),       //
-                toDate(row[12]),
-                toDate(row[13]),
-                toString(row[14]),
-                toBigDecimal(row[15]),
-                toDate(row[16])
+                toLong(row[0]),   // id
+                toString(row[1]), // invoice_code
+                toLong(row[2]),   // customer_id
+                toString(row[3]), // customer_name
+                toLong(row[4]),   // employee_id
+                toString(row[5]), // employee_name
+                toString(row[6]), // phone
+                toBigDecimal(row[7]),  // total_amount
+                toBigDecimal(row[8]),  // discount_amount
+                toBigDecimal(row[9]),  // final_amount
+                toString(row[10]),     // description
+                toInt(row[11]),        // status
+                toInt(row[12]),        // status_detail
+                toDate(row[13]),       // created_date
+                toDate(row[14]),       // updated_date
+                toString(row[15]),     // delivery_address
+                toBigDecimal(row[16]), // shipping_fee
+                toDate(row[17]),        // delivered_at
+                toBoolean(row[18])
         );
     }
 
@@ -112,4 +114,8 @@ public class InvoiceRepository2 {
     private Date toDate(Object o) {
         return o != null ? (Date) o : null;
     }
+    private Boolean toBoolean(Object o) {
+        return o != null ? Boolean.valueOf(o.toString()) : false;
+    }
+
 }

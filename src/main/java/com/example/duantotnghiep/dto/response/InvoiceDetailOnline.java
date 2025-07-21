@@ -1,9 +1,12 @@
 package com.example.duantotnghiep.dto.response;
 
+import jakarta.persistence.Column;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
+import java.math.BigDecimal;
 
 @AllArgsConstructor
 @NoArgsConstructor
@@ -20,5 +23,8 @@ public class InvoiceDetailOnline {
     private Long colorId;
     private String colorName;
     private Integer quantity;
+    private BigDecimal sellPrice;
+    private BigDecimal discountedPrice;
+    private Integer discountPercentage;
 
 }

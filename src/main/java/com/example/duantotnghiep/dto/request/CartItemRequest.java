@@ -14,9 +14,8 @@ import java.math.BigDecimal;
 public class CartItemRequest {
     private Long productDetailId;
     private Integer quantity;
-
-    private BigDecimal sellPrice;            // thêm
-    private BigDecimal discountedPrice;      // thêm
-    private Integer discountPercentage;      // thêm
+    private BigDecimal sellPrice;
+    private BigDecimal discountedPrice;
+    private Integer discountPercentage;
 }
 

@@ -39,15 +39,12 @@ public class SaleOnlineController {
     @PostMapping("/checkout")
     public ResponseEntity<?> checkout(@RequestBody InvoiceRequest request) {
         try {
-            // 1. Tạo hóa đơn
-            InvoiceDisplayResponse response = invoiceService.createInvoice(request);
+            InvoiceDisplayResponse response = invoiceService.createInvoiceShipCode(request);
 
-            // 2. Lấy lại Invoice thật từ DB
             Long invoiceId = response.getInvoice().getId();
             Invoice invoice = invoiceRepository.findById(invoiceId)
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy hóa đơn để gửi email"));
 
-            // 3. Gửi email nếu có địa chỉ email
             if (invoice.getCustomer().getEmail() != null && !invoice.getCustomer().getEmail().isEmpty()) {
                 invoiceEmailService.sendInvoiceEmail(invoice);
             }
@@ -55,7 +52,7 @@ public class SaleOnlineController {
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("❌ Lỗi thanh toán: " + e.getMessage());
+                    .body(" Lỗi thanh toán: " + e.getMessage());
         }
     }
 
@@ -69,6 +66,5 @@ public class SaleOnlineController {
         List<ProductResponse> productResponses = productService.getAllProducts();
         return ResponseEntity.ok(productResponses);
     }
-
 
 }

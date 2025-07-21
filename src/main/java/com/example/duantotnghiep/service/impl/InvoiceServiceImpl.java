@@ -21,6 +21,7 @@ import com.example.duantotnghiep.model.Employee;
 import com.example.duantotnghiep.model.Invoice;
 import com.example.duantotnghiep.model.InvoiceDetail;
 import com.example.duantotnghiep.model.InvoiceTransaction;
+import com.example.duantotnghiep.model.Product;
 import com.example.duantotnghiep.model.ProductDetail;
 import com.example.duantotnghiep.model.User;
 import com.example.duantotnghiep.model.Voucher;
@@ -33,6 +34,7 @@ import com.example.duantotnghiep.repository.InvoiceDetailRepository;
 import com.example.duantotnghiep.repository.InvoiceRepository;
 import com.example.duantotnghiep.repository.InvoiceTransactionRepository;
 import com.example.duantotnghiep.repository.ProductDetailRepository;
+import com.example.duantotnghiep.repository.ProductRepository;
 import com.example.duantotnghiep.repository.UserRepository;
 import com.example.duantotnghiep.repository.VoucherHistoryRepository;
 import com.example.duantotnghiep.repository.VoucherRepository;
@@ -59,12 +61,7 @@ import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -77,6 +74,7 @@ public class InvoiceServiceImpl implements InvoiceService {
     private final CustomerRepository customerRepository;
     private final InvoiceDetailRepository invoiceDetailRepository;
     private final ProductDetailRepository productDetailRepository;
+    private final ProductRepository productRepository;
     private final VoucherRepository voucherRepository;
     private final VoucherHistoryRepository voucherHistoryRepository;
     private final EmailService emailService;
@@ -917,18 +915,16 @@ public class InvoiceServiceImpl implements InvoiceService {
     public Page<InvoiceResponse> searchInvoices(String keyword, Integer status,
                                                 LocalDate createdDate,
                                                 Pageable pageable) {
-        // Nếu keyword là chuỗi rỗng, gán null để tránh lọc
         if (keyword != null && keyword.trim().isEmpty()) {
             keyword = null;
         }
 
-        // Chuyển createdDate thành startOfDay và startOfNextDay nếu có
         LocalDateTime startOfDay = null;
         LocalDateTime startOfNextDay = null;
         TrangThaiTong statusEnum = TrangThaiTong.tuMa(status);
         if (createdDate != null) {
-            startOfDay = createdDate.atStartOfDay(); // 00:00
-            startOfNextDay = createdDate.plusDays(1).atStartOfDay(); // ngày tiếp theo 00:00
+            startOfDay = createdDate.atStartOfDay();
+            startOfNextDay = createdDate.plusDays(1).atStartOfDay();
         }
 
         // Gọi repository để tìm kiếm
@@ -1007,7 +1003,7 @@ public class InvoiceServiceImpl implements InvoiceService {
                     });
         }
 
-        // 2. Lưu địa chỉ
+        // 2. Địa chỉ
         AddressRequest addr = request.getCustomerInfo().getAddress();
         AddressCustomer address = new AddressCustomer();
         address.setCustomer(customer);
@@ -1034,7 +1030,127 @@ public class InvoiceServiceImpl implements InvoiceService {
         invoice.setOrderType(request.getOrderType());
         invoice.setIsPaid(false);
         invoice.setStatus(TrangThaiTong.DANG_XU_LY);
-        invoice.setStatusDetail(TrangThaiChiTiet.DANG_GIAO_DICH);
+        invoice.setStatusDetail(TrangThaiChiTiet.CHO_XU_LY);
+        invoice.setDiscountAmount(Optional.ofNullable(request.getDiscountAmount()).orElse(BigDecimal.ZERO));
+        invoice.setShippingFee(Optional.ofNullable(request.getShippingFee()).orElse(BigDecimal.ZERO));
+
+        if (request.getEmployeeId() != null) {
+            employeeRepository.findById(request.getEmployeeId()).ifPresent(invoice::setEmployee);
+        }
+
+        if (request.getVoucherId() != null) {
+            voucherRepository.findById(request.getVoucherId()).ifPresent(invoice::setVoucher);
+        }
+
+        // 4. Xử lý sản phẩm
+        BigDecimal total = BigDecimal.ZERO;
+        List<InvoiceDetail> details = new ArrayList<>();
+        Set<ProductDetail> productDetailsToUpdate = new HashSet<>();
+        Set<Product> productsToUpdate = new HashSet<>();
+
+        for (CartItemRequest item : request.getItems()) {
+            ProductDetail productDetail = productDetailRepository.findById(item.getProductDetailId())
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm: " + item.getProductDetailId()));
+
+            int currentStock = productDetail.getQuantity();
+            if (item.getQuantity() > currentStock) {
+                throw new RuntimeException("Số lượng sản phẩm vượt quá tồn kho: " + item.getProductDetailId());
+            }
+            productDetail.setQuantity(currentStock - item.getQuantity());
+            productDetailsToUpdate.add(productDetail);
+
+            Product product = productDetail.getProduct();
+            int currentProductStock = product.getQuantity() != null ? product.getQuantity() : 0;
+            if (item.getQuantity() > currentProductStock) {
+                throw new RuntimeException("Tồn kho tổng không đủ cho sản phẩm: " + product.getId());
+            }
+            product.setQuantity(currentProductStock - item.getQuantity());
+            productsToUpdate.add(product);
+
+            InvoiceDetail detail = new InvoiceDetail();
+            detail.setInvoice(invoice);
+            detail.setProductDetail(productDetail);
+            detail.setQuantity(item.getQuantity());
+            detail.setCreatedDate(LocalDateTime.now());
+            detail.setStatus(0);
+            detail.setInvoiceCodeDetail("INV-DTL-" + UUID.randomUUID().toString().substring(0, 8));
+
+            detail.setSellPrice(item.getSellPrice() != null ? item.getSellPrice() : productDetail.getSellPrice());
+            detail.setDiscountedPrice(item.getDiscountedPrice() != null ? item.getDiscountedPrice() : productDetail.getSellPrice());
+            detail.setDiscountPercentage(item.getDiscountPercentage() != null ? item.getDiscountPercentage() : 0);
+
+            BigDecimal itemTotal = detail.getDiscountedPrice().multiply(BigDecimal.valueOf(item.getQuantity()));
+            total = total.add(itemTotal);
+
+            details.add(detail);
+        }
+
+        invoice.setTotalAmount(total);
+        invoice.setFinalAmount(total
+                .subtract(invoice.getDiscountAmount())
+                .add(invoice.getShippingFee()));
+        invoice.setInvoiceDetails(details);
+
+        // 5. Lưu dữ liệu
+        Invoice savedInvoice = invoiceRepository.save(invoice);
+        productDetailRepository.saveAll(productDetailsToUpdate);
+        productRepository.saveAll(productsToUpdate);
+
+        // 6. Trả về kết quả
+        return invoiceMapper.toInvoiceDisplayResponse(savedInvoice, savedInvoice.getInvoiceDetails());
+    }
+
+
+    @Transactional
+    @Override
+    public InvoiceDisplayResponse createInvoiceShipCode(InvoiceRequest request) {
+        // 1. Xử lý thông tin khách hàng
+        Customer customer;
+        Long customerId = request.getCustomerInfo().getCustomerId();
+
+        if (customerId != null) {
+            customer = customerRepository.findById(customerId)
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy khách hàng với ID: " + customerId));
+        } else {
+            customer = customerRepository.findTop1ByPhoneAndStatus(request.getCustomerInfo().getPhone(), 1)
+                    .orElseGet(() -> {
+                        Customer c = new Customer();
+                        c.setCustomerName(request.getCustomerInfo().getCustomerName());
+                        c.setPhone(request.getCustomerInfo().getPhone());
+                        c.setEmail(request.getCustomerInfo().getEmail());
+                        c.setStatus(1);
+                        c.setCustomerCode("KH" + System.currentTimeMillis());
+                        c.setCreatedDate(LocalDateTime.now());
+                        return customerRepository.save(c);
+                    });
+        }
+
+        AddressRequest addr = request.getCustomerInfo().getAddress();
+        AddressCustomer address = new AddressCustomer();
+        address.setCustomer(customer);
+        address.setCountry(addr.getCountry());
+        address.setProvinceCode(addr.getProvinceCode());
+        address.setProvinceName(addr.getProvinceName());
+        address.setDistrictCode(addr.getDistrictCode());
+        address.setDistrictName(addr.getDistrictName());
+        address.setWardCode(addr.getWardCode());
+        address.setWardName(addr.getWardName());
+        address.setHouseName(addr.getHouseName());
+        address.setStatus(1);
+        address.setCreatedDate(new Date());
+        address.setDefaultAddress(true);
+        addressRepository.save(address);
+
+        Invoice invoice = new Invoice();
+        invoice.setInvoiceCode("INV" + System.currentTimeMillis());
+        invoice.setCustomer(customer);
+        invoice.setCreatedDate(new Date());
+        invoice.setUpdatedDate(new Date());
+        invoice.setDescription(request.getDescription());
+        invoice.setOrderType(request.getOrderType());
+        invoice.setIsPaid(false);
+        invoice.setStatus(TrangThaiTong.DANG_XU_LY);
+        invoice.setStatusDetail(TrangThaiChiTiet.CHO_XU_LY);
         invoice.setDiscountAmount(Optional.ofNullable(request.getDiscountAmount()).orElse(BigDecimal.ZERO));
         invoice.setShippingFee(Optional.ofNullable(request.getShippingFee()).orElse(BigDecimal.ZERO));
 
@@ -1049,9 +1165,27 @@ public class InvoiceServiceImpl implements InvoiceService {
         BigDecimal total = BigDecimal.ZERO;
         List<InvoiceDetail> details = new ArrayList<>();
 
+        Set<ProductDetail> productDetailsToUpdate = new HashSet<>();
+        Set<Product> productsToUpdate = new HashSet<>();
+
         for (CartItemRequest item : request.getItems()) {
             ProductDetail productDetail = productDetailRepository.findById(item.getProductDetailId())
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm: " + item.getProductDetailId()));
+
+            int currentStock = productDetail.getQuantity();
+            if (item.getQuantity() > currentStock) {
+                throw new RuntimeException("Số lượng sản phẩm vượt quá tồn kho: " + item.getProductDetailId());
+            }
+            productDetail.setQuantity(currentStock - item.getQuantity());
+            productDetailsToUpdate.add(productDetail);
+
+            Product product = productDetail.getProduct();
+            int currentProductStock = product.getQuantity() != null ? product.getQuantity() : 0;
+            if (item.getQuantity() > currentProductStock) {
+                throw new RuntimeException("Tồn kho tổng không đủ cho sản phẩm: " + product.getId());
+            }
+            product.setQuantity(currentProductStock - item.getQuantity());
+            productsToUpdate.add(product);
 
             InvoiceDetail detail = new InvoiceDetail();
             detail.setInvoice(invoice);
@@ -1061,12 +1195,11 @@ public class InvoiceServiceImpl implements InvoiceService {
             detail.setStatus(0);
             detail.setInvoiceCodeDetail("INV-DTL-" + UUID.randomUUID().toString().substring(0, 8));
 
-            // ✅ Lấy giá từ payload FE gửi lên
+            //  Lấy giá từ payload FE gửi lên
             detail.setSellPrice(item.getSellPrice() != null ? item.getSellPrice() : productDetail.getSellPrice());
             detail.setDiscountedPrice(item.getDiscountedPrice() != null ? item.getDiscountedPrice() : productDetail.getSellPrice());
             detail.setDiscountPercentage(item.getDiscountPercentage() != null ? item.getDiscountPercentage() : 0);
 
-            // ✅ Thành tiền theo giá giảm
             BigDecimal itemTotal = detail.getDiscountedPrice().multiply(BigDecimal.valueOf(item.getQuantity()));
             total = total.add(itemTotal);
 
@@ -1081,6 +1214,18 @@ public class InvoiceServiceImpl implements InvoiceService {
 
         // 5. Lưu & trả kết quả
         Invoice savedInvoice = invoiceRepository.save(invoice);
+
+        InvoiceTransaction invoiceTransaction = new InvoiceTransaction();
+        invoiceTransaction.setTransactionCode("GD-" + UUID.randomUUID().toString().substring(0, 8));
+        invoiceTransaction.setInvoice(savedInvoice);
+        invoiceTransaction.setAmount(invoice.getFinalAmount());
+        invoiceTransaction.setPaymentStatus(1);
+        invoiceTransaction.setPaymentMethod("Thanh toán khi nhận hàng");
+        invoiceTransaction.setTransactionType("Thanh toán sau");
+        invoiceTransaction.setNote(null);
+        invoiceTransaction.setPaymentTime(new Date());
+        invoiceTransactionRepository.save(invoiceTransaction);
+
         return invoiceMapper.toInvoiceDisplayResponse(savedInvoice, savedInvoice.getInvoiceDetails());
     }
 

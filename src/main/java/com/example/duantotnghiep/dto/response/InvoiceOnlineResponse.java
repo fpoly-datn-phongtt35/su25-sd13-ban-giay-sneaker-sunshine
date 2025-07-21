@@ -22,6 +22,7 @@ public class InvoiceOnlineResponse {
     private String customerName;
     private Long employeeId;
     private String employeeName;
+    private String phone;
     private BigDecimal totalAmount;
     private BigDecimal discountAmount;
     private BigDecimal finalAmount;
@@ -33,16 +34,18 @@ public class InvoiceOnlineResponse {
     private String deliveryAddress;
     private BigDecimal shippingFee;
     private Date deliveredAt;
+    private Boolean isPaid;
     private List<InvoiceTransactionResponse> invoiceTransactionResponses;
     private List<InvoiceDetailOnline> invoiceDetailResponses;
 
-    public InvoiceOnlineResponse(Long invoiceId, String invoiceCode, Long customerId, String customerName, Long employeeId, String employeeName, BigDecimal totalAmount, BigDecimal discountAmount, BigDecimal finalAmount, String description, int status, int statusDetail, Date createdDate, Date updatedDate, String deliveryAddress, BigDecimal shippingfee, Date deliveredAt) {
+    public InvoiceOnlineResponse(Long invoiceId, String invoiceCode, Long customerId, String customerName, Long employeeId, String employeeName,String phone, BigDecimal totalAmount, BigDecimal discountAmount, BigDecimal finalAmount, String description, int status, int statusDetail, Date createdDate, Date updatedDate, String deliveryAddress, BigDecimal shippingfee, Date deliveredAt,Boolean isPaid) {
         this.invoiceId = invoiceId;
         this.invoiceCode = invoiceCode;
         this.customerId = customerId;
         this.customerName = customerName;
         this.employeeId = employeeId;
         this.employeeName = employeeName;
+        this.phone = phone;
         this.totalAmount = totalAmount;
         this.discountAmount = discountAmount;
         this.finalAmount = finalAmount;
@@ -54,5 +57,6 @@ public class InvoiceOnlineResponse {
         this.deliveryAddress = deliveryAddress;
         this.shippingFee = shippingfee;
         this.deliveredAt = deliveredAt;
+        this.isPaid = isPaid;
     }
 }

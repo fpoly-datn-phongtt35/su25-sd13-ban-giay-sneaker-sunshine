@@ -1,6 +1,7 @@
 package com.example.duantotnghiep.repository;
 
 import com.example.duantotnghiep.model.Product;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -60,5 +61,8 @@ public interface ProductRepository extends JpaRepository<Product,Long> {
             "LEFT JOIN FETCH p.productDetails pd " +
             "WHERE p.id IN :ids")
     List<Product> findByIdsWithDetails(@Param("ids") List<Long> ids);
+
+    @Query("SELECT p FROM Product p WHERE p.status = 1")
+    Page<Product> findAllWithJPQL(Pageable pageable);
 
 }

@@ -113,6 +113,11 @@ public class VoucherController {
         return voucherMapper.toDto(voucher);
     }
 
+    @GetMapping("/by-customer/{customerId}")
+    public ResponseEntity<List<VoucherResponse>> getVouchersByCustomer(@PathVariable String customerId) {
+        List<VoucherResponse> response = voucherService.getVouchersByCustomerId(customerId);
+        return ResponseEntity.ok(response);
+    }
 
 }
 

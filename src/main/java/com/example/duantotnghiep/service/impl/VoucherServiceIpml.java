@@ -236,4 +236,12 @@ public class VoucherServiceIpml implements VoucherService {
 
         return voucher;
     }
+
+    @Override
+    public List<VoucherResponse> getVouchersByCustomerId(String customerId) {
+        List<Voucher> vouchers = voucherRepository.findByCustomer_Id(Long.valueOf(customerId));
+        return vouchers.stream()
+                .map(voucherMapper::toDto)
+                .collect(Collectors.toList());
+    }
 }

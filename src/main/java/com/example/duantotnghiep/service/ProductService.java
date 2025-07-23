@@ -6,6 +6,7 @@ import com.example.duantotnghiep.dto.response.PaginationDTO;
 import com.example.duantotnghiep.dto.response.ProductDetailResponse;
 import com.example.duantotnghiep.dto.response.ProductResponse;
 import com.example.duantotnghiep.dto.response.ProductSearchResponse;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.io.IOException;
@@ -24,8 +25,7 @@ public interface ProductService {
 
     List<ProductDetailResponse> getProductDetailById(Long productId);
 
-
-    List<ProductResponse> getAllProducts();
+    Page<ProductResponse> getAllProducts(Pageable pageable);
 
     PaginationDTO<ProductSearchResponse> phanTrang(ProductSearchRequest request, Pageable pageable);
 

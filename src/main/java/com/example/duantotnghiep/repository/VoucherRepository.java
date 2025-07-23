@@ -42,4 +42,7 @@ public interface VoucherRepository extends JpaRepository<Voucher, Long> {
     @Query("SELECT v FROM Voucher v WHERE v.customer.id = :customerId AND v.voucherCode = :voucherCode")
     Optional<Voucher> findByCustomerIdAndVoucherCode(@Param("customerId") Long customerId,
                                                      @Param("voucherCode") String voucherCode);
+
+     List<Voucher> findByCustomer_Id(Long customerId);
+
 }

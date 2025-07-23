@@ -1,572 +1,558 @@
 <template>
-  <div class="hero-section">
-    <div class="container hero-content">
-      <div class="hero-header-badge mb-3">
-        Bộ sưu tập mới 2025
+  <div>
+    <el-carousel :interval="4000" height="500px" class="banner-carousel">
+      <el-carousel-item v-for="item in carouselImages" :key="item.id">
+        <img :src="item.src" class="carousel-image" alt="Banner Image" />
+      </el-carousel-item>
+    </el-carousel>
+
+    <div class="product-collection-container">
+      <div class="collection-header">
+        <h2 class="collection-title">Sản phẩm mới</h2>
       </div>
-      <h2 class="hero-title">
-        Nâng tầm phong cách <br>
-        <span class="text-danger">Vượt mọi giới hạn</span>
-      </h2>
-      <p class="hero-description mb-4">
-        Khám phá bộ sưu tập giày thể thao mới nhất với <br>
-        công nghệ tiên tiến, thiết kế hiện đại và sự thoải mái <br>
-        vượt trội.
-      </p>
-      <div class="hero-buttons mb-5">
-        <button @click="buyNow" class="btn btn-danger hero-btn-buy me-3">
-          Mua ngay <i class="bi bi-arrow-right"></i>
-        </button>
-        <button @click="exploreCollection" class="btn btn-outline-dark hero-btn-explore">
-          Khám phá bộ sưu tập
-        </button>
-      </div>
-      <div class="hero-stats d-flex justify-content-start">
-        <div class="stat-item me-5">
-          <h3 class="stat-number">500+</h3>
-          <p class="stat-label">Mẫu giày</p>
-        </div>
-        <div class="stat-item me-5">
-          <h3 class="stat-number">100+</h3>
-          <p class="stat-label">Thương hiệu</p>
-        </div>
-        <div class="stat-item">
-          <h3 class="stat-number">50K+</h3>
-          <p class="stat-label">Khách hàng</p>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="container my-5">
-    <h1 class="text-center mb-2 featured-products-title">Sản phẩm nổi bật</h1>
-    <p class="text-center text-muted mb-5">Khám phá những mẫu giày thể thao được yêu thích nhất hiện nay</p>
-
-    <div v-if="loading" class="text-center my-5">
-      <div class="spinner-border text-primary" role="status">
-        <span class="visually-hidden">Loading...</span>
-      </div>
-      <p class="mt-2">Đang tải sản phẩm...</p>
-    </div>
-
-    <div v-else-if="error" class="alert alert-danger text-center" role="alert">
-      Không thể tải sản phẩm. Vui lòng thử lại sau.
-    </div>
-
-    <div v-else class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4">
-      <div class="col" v-for="product in featuredProducts" :key="product.id">
-        <div class="card product-card h-100 shadow-sm">
-          <span v-if="product.discountPercentage" class="badge bg-danger discount-badge">
-            Giảm {{ product.discountPercentage }}%
-          </span>
-          <span v-if="product.isNew" class="badge bg-info new-badge">MỚI</span>
-
-          <img :src="product.imageUrl || '/placeholder-shoe.jpg'" class="card-img-top product-image" :alt="product.productName">
-          <div class="card-body d-flex flex-column">
-            <h5 class="card-title product-name">{{ product.productName }}</h5>
-            <p class="card-text product-price">
-              <span v-if="product.oldPrice" class="text-decoration-line-through text-muted me-2 small">
-                {{ formatCurrency(product.oldPrice) }}
+      <el-row :gutter="30">
+        <el-col v-for="product in products" :key="product.id" :xs="24" :sm="12" :md="8" :lg="6">
+          <div class="product-card">
+            <div class="product-card__image-wrapper">
+              <span v-if="product.discountPercentage > 0" class="product-card__discount-badge">
+                -{{ product.discountPercentage }}%
               </span>
-              <span class="fw-bold text-danger">{{ formatCurrency(product.sellPrice) }}</span>
-            </p>
-            <div class="mt-auto">
-              <button @click="addToCart(product.id)" class="btn btn-primary w-100 add-to-cart-btn">
-                <i class="bi bi-cart-plus-fill me-1"></i> Thêm vào giỏ
-              </button>
+
+              <img
+                :src="product.activeImage"
+                class="product-card__image"
+                alt="Ảnh sản phẩm"
+                @click="goToDetail(product.id)"
+              />
+
+              <el-button
+                :icon="ShoppingCart"
+                circle
+                size="large"
+                class="product-card__quick-view-btn"
+                @click.stop="openQuickViewModal(product)"
+              ></el-button>
+            </div>
+
+            <div class="product-card__info">
+              <p class="product-card__name" @click="goToDetail(product.id)">
+                {{ product.productName }}
+              </p>
+
+              <div class="product-card__price-container">
+                <template v-if="product.discountPercentage > 0 && product.discountedPrice > 0">
+                  <span class="discounted-price">{{ formatPrice(product.discountedPrice) }}</span>
+                  <del class="original-price">{{ formatPrice(product.sellPrice) }}</del>
+                </template>
+                <template v-else>
+                  <span class="normal-price">{{ formatPrice(product.sellPrice) }}</span>
+                </template>
+              </div>
+
+              <div
+                class="product-card__colors"
+                v-if="product.variants && product.variants.length > 0"
+              >
+                <span
+                  v-for="variant in product.variants"
+                  :key="variant.colorId"
+                  class="product-card__color-dot"
+                  :style="{ backgroundColor: variant.colorCode }"
+                  @click.stop="changeProductImage(product, variant.image)"
+                ></span>
+              </div>
             </div>
           </div>
-        </div>
+        </el-col>
+      </el-row>
+    </div>
+
+    <el-dialog
+      v-model="quickViewVisible"
+      width="850px"
+      class="quick-view-dialog"
+      @close="resetQuickView"
+      :show-close="true"
+    >
+      <div v-if="selectedProduct" class="quick-view">
+        <el-row :gutter="40">
+          <el-col :span="12">
+            <img :src="quickViewActiveImage" class="quick-view__main-image" />
+          </el-col>
+          <el-col :span="12" class="quick-view__info">
+            <h3 class="quick-view__title">{{ selectedProduct.productName }}</h3>
+            <div class="quick-view__color-display" v-if="quickViewSelectedColor">
+              Màu: <strong>{{ quickViewSelectedColor.colorName }}</strong>
+            </div>
+            <div class="quick-view__color-selector">
+              <div
+                v-for="variant in selectedProduct.variants"
+                :key="variant.colorId"
+                class="color-thumbnail"
+                :class="{ 'is-selected': quickViewSelectedColorId === variant.colorId }"
+                @click="selectQuickViewColor(variant)"
+              >
+                <img :src="variant.image" :alt="variant.colorName" />
+              </div>
+            </div>
+            <div class="quick-view__size-selector">
+              <p class="selector-label">Kích thước:</p>
+              <el-button
+                v-for="size in availableSizesForQuickView"
+                :key="size"
+                :class="{ 'is-selected': quickViewSelectedSize === size }"
+                @click="selectSize(size)"
+                class="size-button"
+              >
+                {{ size }}
+              </el-button>
+            </div>
+            <div class="quick-view__quantity-selector">
+              <p class="selector-label">Số lượng:</p>
+              <el-input-number v-model="quickViewQuantity" :min="1" :max="selectedVariantStock" />
+              <span v-if="quickViewSelectedSize" class="stock-info">
+                (Còn lại: {{ selectedVariantStock }})</span
+              >
+            </div>
+            <div class="quick-view__actions">
+              <el-button class="add-to-cart-btn" @click="handleAddToCartInModal"
+                >Thêm vào giỏ</el-button
+              >
+              <el-button class="buy-now-btn" @click="handleBuyNowInModal">Mua ngay</el-button>
+            </div>
+          </el-col>
+        </el-row>
       </div>
-    </div>
-
-    <div class="text-center mt-5">
-      <button @click="viewAllProducts" class="btn btn-outline-secondary btn-lg view-all-btn">
-        Xem tất cả sản phẩm
-      </button>
-    </div>
-  </div>
-
-  <div class="why-choose-us-section py-5 bg-light">
-    <div class="container">
-      <h2 class="text-center mb-2 why-choose-us-title">Tại sao chọn chúng tôi?</h2>
-      <p class="text-center text-muted mb-5 why-choose-us-subtitle">Chúng tôi cam kết mang đến trải nghiệm mua sắm tốt nhất cho bạn</p>
-
-      <div class="row g-4 justify-content-center">
-        <div class="col-12 col-md-6 col-lg-3">
-          <div class="why-choose-us-item text-center p-4">
-            <div class="icon-wrapper mx-auto mb-3">
-              <i class="bi bi-truck icon-shipping"></i>
-            </div>
-            <h5 class="item-title">Giao hàng miễn phí</h5>
-            <p class="item-description">Miễn phí giao hàng cho tất cả đơn hàng trên 1 triệu đồng trên toàn quốc.</p>
-          </div>
-        </div>
-        <div class="col-12 col-md-6 col-lg-3">
-          <div class="why-choose-us-item text-center p-4">
-            <div class="icon-wrapper mx-auto mb-3">
-              <i class="bi bi-shield-check icon-warranty"></i>
-            </div>
-            <h5 class="item-title">Bảo hành chính hãng</h5>
-            <p class="item-description">Tất cả sản phẩm đều được bảo hành chính hãng từ 12 đến 24 tháng.</p>
-          </div>
-        </div>
-        <div class="col-12 col-md-6 col-lg-3">
-          <div class="why-choose-us-item text-center p-4">
-            <div class="icon-wrapper mx-auto mb-3">
-              <i class="bi bi-arrow-counterclockwise icon-return"></i>
-            </div>
-            <h5 class="item-title">Đổi trả dễ dàng</h5>
-            <p class="item-description">Đổi trả sản phẩm trong vòng 30 ngày nếu không vừa ý.</p>
-          </div>
-        </div>
-        <div class="col-12 col-md-6 col-lg-3">
-          <div class="why-choose-us-item text-center p-4">
-            <div class="icon-wrapper mx-auto mb-3">
-              <i class="bi bi-clock icon-support"></i>
-            </div>
-            <h5 class="item-title">Hỗ trợ 24/7</h5>
-            <p class="item-description">Đội ngũ tư vấn viên luôn sẵn sàng hỗ trợ bạn mọi lúc mọi nơi.</p>
-          </div>
-        </div>
-      </div>
-    </div>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
-import axios from 'axios';
-import { useRouter } from 'vue-router';
-import { ElMessage } from 'element-plus'; // Đảm bảo bạn đã cài đặt Element Plus
+import { ref, onMounted, computed } from 'vue'
+import axios from 'axios'
+import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import { ShoppingCart } from '@element-plus/icons-vue'
+import { addToCart } from '@/utils/cart.js'
 
-const router = useRouter();
-const featuredProducts = ref([]);
-const loading = ref(true);
-const error = ref(false);
+// --- KHỞI TẠO & DỮ LIỆU TĨNH ---
+const router = useRouter()
+const products = ref([])
+import banner1 from '@/img/1.jpg'
+import banner2 from '@/img/2.jpg'
+const carouselImages = ref([
+  { id: 1, src: banner1 },
+  { id: 2, src: banner2 },
+])
 
-const fetchFeaturedProducts = async () => {
-  loading.value = true;
-  error.value = false;
-  try {
-    const response = await axios.get('http://localhost:8080/api/online-sale/online-home');
-    featuredProducts.value = response.data.map(p => ({
-      id: p.id,
-      productName: p.productName,
-      sellPrice: p.sellPrice,
-      oldPrice: p.originPrice > p.sellPrice ? p.originPrice : null,
-      discountPercentage: p.originPrice > p.sellPrice ? Math.round(((p.originPrice - p.sellPrice) / p.originPrice) * 100) : null,
-      imageUrl: p.productImages && p.productImages.length > 0 ? `data:image/png;base64,${p.productImages[0].image}` : '/placeholder-shoe.jpg',
-      isNew: p.createdDate ? new Date(p.createdDate).getFullYear() === 2025 : false
-    }));
-  } catch (err) {
-    console.error('Lỗi khi tải sản phẩm nổi bật:', err);
-    error.value = true;
-    ElMessage.error('Không thể tải sản phẩm nổi bật. Vui lòng thử lại.');
-  } finally {
-    loading.value = false;
-  }
-};
+// --- STATE CHO QUICK VIEW MODAL ---
+const quickViewVisible = ref(false)
+const selectedProduct = ref(null)
+const quickViewSelectedColorId = ref(null)
+const quickViewSelectedColor = ref(null)
+const quickViewSelectedSize = ref(null)
+const quickViewQuantity = ref(1)
+const quickViewActiveImage = ref('')
 
-const formatCurrency = (value) => {
-  if (!value) return '0₫';
-  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
-};
-
-const addToCart = (productId) => {
-  ElMessage.success(`Đã thêm sản phẩm ${productId} vào giỏ hàng! (Đây là tính năng giả lập)`);
-  console.log('Thêm vào giỏ:', productId);
-};
-
-const viewAllProducts = () => {
-  router.push('/products-list');
-  console.log('Xem tất cả sản phẩm');
-};
-
-const buyNow = () => {
-  router.push('/products-list');
-  ElMessage.info('Chuyển hướng đến trang mua sắm!');
-  console.log('Mua ngay!');
-};
-
-const exploreCollection = () => {
-  router.push('/collections/new-arrivals');
-  ElMessage.info('Chuyển hướng đến trang khám phá bộ sưu tập!');
-  console.log('Khám phá bộ sưu tập!');
-};
-
+// --- LẤY DỮ LIỆU & XỬ LÝ ---
 onMounted(() => {
-  fetchFeaturedProducts();
-});
+  fetchFeaturedProducts()
+})
+
+async function fetchFeaturedProducts() {
+  try {
+    const response = await axios.get('http://localhost:8080/api/online-sale/online-home')
+    const uniqueProducts = [...new Map(response.data.map((item) => [item.id, item])).values()]
+    products.value = uniqueProducts.map(processProductData)
+  } catch (error) {
+    console.error('Lỗi khi tải sản phẩm:', error)
+    ElMessage.error('Không thể tải danh sách sản phẩm.')
+  }
+}
+
+function processProductData(product) {
+  const uniqueColors = [
+    ...new Map(product.productDetails.map((item) => [item.colorId, item])).values(),
+  ]
+  const variants = uniqueColors
+    .map((colorInfo) => {
+      const imageInfo = product.productImages.find((img) => img.colorId === colorInfo.colorId)
+      return {
+        colorId: colorInfo.colorId,
+        colorName: colorInfo.colorName,
+        colorCode: getColorCode(colorInfo.colorName),
+        image: imageInfo ? `data:image/jpeg;base64,${imageInfo.image}` : null,
+      }
+    })
+    .filter((v) => v.image)
+  return {
+    ...product,
+    variants,
+    activeImage: variants.length > 0 ? variants[0].image : 'https://via.placeholder.com/400',
+  }
+}
+
+// --- LOGIC CHO QUICK VIEW MODAL ---
+function openQuickViewModal(product) {
+  selectedProduct.value = product
+  if (product.variants.length > 0) {
+    selectQuickViewColor(product.variants[0]) // Dùng hàm select để khởi tạo
+  }
+  quickViewVisible.value = true
+}
+
+const availableSizesForQuickView = computed(() => {
+  if (!selectedProduct.value || quickViewSelectedColorId.value === null) return []
+  return [
+    ...new Set(
+      selectedProduct.value.productDetails
+        .filter((detail) => detail.colorId === quickViewSelectedColorId.value)
+        .map((detail) => detail.sizeName),
+    ),
+  ].sort((a, b) => a - b)
+})
+
+const selectedVariantStock = computed(() => {
+  if (!quickViewSelectedSize.value) return 10 // Giả định
+  const detail = findSelectedProductDetail()
+  return detail ? detail.quantity : 0
+})
+
+function selectQuickViewColor(variant) {
+  quickViewSelectedColorId.value = variant.colorId
+  quickViewSelectedColor.value = variant
+  quickViewActiveImage.value = variant.image
+  quickViewSelectedSize.value = null
+}
+
+function selectSize(size) {
+  quickViewSelectedSize.value = size
+  quickViewQuantity.value = 1 // Reset số lượng về 1 khi chọn size mới
+}
+
+function findSelectedProductDetail() {
+  if (!selectedProduct.value || !quickViewSelectedColorId.value || !quickViewSelectedSize.value)
+    return null
+  return selectedProduct.value.productDetails.find(
+    (d) =>
+      d.colorId === quickViewSelectedColorId.value && d.sizeName === quickViewSelectedSize.value,
+  )
+}
+
+function resetQuickView() {
+  quickViewVisible.value = false
+  setTimeout(() => {
+    selectedProduct.value = null
+    quickViewSelectedColorId.value = null
+    quickViewSelectedColor.value = null
+    quickViewSelectedSize.value = null
+    quickViewQuantity.value = 1
+    quickViewActiveImage.value = ''
+  }, 300)
+}
+
+function handleAddToCartInModal() {
+  if (!quickViewSelectedSize.value) {
+    ElMessage.warning('Vui lòng chọn kích thước')
+    return false
+  }
+  const detail = findSelectedProductDetail()
+  if (!detail) {
+    ElMessage.error('Lỗi: không tìm thấy chi tiết sản phẩm')
+    return false
+  }
+  if (quickViewQuantity.value > detail.quantity) {
+    ElMessage.warning(`Số lượng tồn kho không đủ, chỉ còn ${detail.quantity} sản phẩm.`)
+    return false
+  }
+  const item = {
+    productDetailId: detail.id,
+    productId: selectedProduct.value.id,
+    productName: selectedProduct.value.productName,
+    image: quickViewActiveImage.value,
+    color: quickViewSelectedColor.value.colorName,
+    size: quickViewSelectedSize.value,
+    price: detail.discountedPrice > 0 ? detail.discountedPrice : detail.sellPrice,
+    quantity: quickViewQuantity.value,
+  }
+  addToCart(item)
+  ElMessage.success('Đã thêm vào giỏ hàng!')
+  resetQuickView()
+  return true
+}
+
+function handleBuyNowInModal() {
+  const added = handleAddToCartInModal()
+  if (added) {
+    router.push('/cart')
+  }
+}
+
+// --- HÀM HỖ TRỢ & ĐIỀU HƯỚNG ---
+function changeProductImage(product, newImage) {
+  product.activeImage = newImage
+}
+function goToDetail(id) {
+  router.push(`/product/${id}`)
+}
+function getColorCode(colorName) {
+  const colorMap = {
+    black: '#000000',
+    white: '#FFFFFF',
+    red: '#FF0000',
+    blue: '#0000FF',
+    green: '#008000',
+    grey: '#808080',
+    silver: '#C0C0C0',
+  }
+  return colorMap[colorName?.toLowerCase()] || '#CCCCCC'
+}
+const formatPrice = (price) =>
+  new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price)
 </script>
 
 <style scoped>
-.hero-section {
-  background-color: #f8f8f8;
-  padding: 100px 0;
-  min-height: 500px;
-  display: flex;
-  align-items: center;
-  text-align: left;
-}
-
-.hero-content {
-  max-width: 600px;
-}
-
-.hero-header-badge {
-  background-color: #ffe0e6;
-  color: #e60023;
-  font-weight: bold;
-  padding: 8px 15px;
-  border-radius: 50px;
-  display: inline-block;
-  font-size: 0.85rem;
-  letter-spacing: 0.5px;
-}
-
-.hero-title {
-  font-size: 3.5rem;
-  font-weight: 900;
-  line-height: 1.1;
-  color: #212529;
-  margin-bottom: 20px;
-}
-
-.hero-title .text-danger {
-  color: #e60023 !important;
-}
-
-.hero-description {
-  font-size: 1.1rem;
-  color: #6c757d;
-  line-height: 1.6;
-  margin-bottom: 30px;
-}
-
-.hero-btn-buy {
-  background-color: #e60023;
-  border-color: #e60023;
-  color: white;
-  padding: 12px 25px;
-  font-size: 1.05rem;
-  font-weight: 600;
-  border-radius: 8px;
-  transition: background-color 0.2s ease;
-}
-
-.hero-btn-buy:hover {
-  background-color: #c7001a;
-  border-color: #c7001a;
-}
-
-.hero-btn-explore {
-  border: 2px solid #212529;
-  color: #212529;
-  padding: 12px 25px;
-  font-size: 1.05rem;
-  font-weight: 600;
-  border-radius: 8px;
-  transition: background-color 0.2s ease, color 0.2s ease;
-}
-
-.hero-btn-explore:hover {
-  background-color: #212529;
-  color: white;
-}
-
-.hero-stats {
-  margin-top: 50px;
-}
-
-.stat-item {
-  text-align: left;
-}
-
-.stat-number {
-  font-size: 2.2rem;
-  font-weight: 800;
-  color: #212529;
-  margin-bottom: 5px;
-}
-
-.stat-label {
-  font-size: 1rem;
-  color: #6c757d;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-@media (max-width: 991.98px) {
-  .hero-section {
-    padding: 80px 0;
-  }
-  .hero-title {
-    font-size: 2.8rem;
-  }
-  .hero-description {
-    font-size: 1rem;
-  }
-  .hero-buttons .btn {
-    padding: 10px 20px;
-    font-size: 1rem;
-  }
-  .hero-stats {
-    justify-content: center !important;
-    flex-wrap: wrap;
-  }
-  .stat-item {
-    margin-bottom: 20px;
-    margin-right: 30px !important;
-  }
-}
-
-@media (max-width: 767.98px) {
-  .hero-section {
-    padding: 60px 0;
-  }
-  .hero-title {
-    font-size: 2.2rem;
-    text-align: center;
-  }
-  .hero-description {
-    font-size: 0.9rem;
-    text-align: center;
-  }
-  .hero-buttons {
-    flex-direction: column;
-    align-items: center;
-    margin-bottom: 30px !important;
-  }
-  .hero-buttons .btn {
-    width: 80%;
-    max-width: 250px;
-    margin-bottom: 10px !important;
-    margin-right: 0 !important;
-  }
-  .hero-stats {
-    flex-direction: column;
-    align-items: center;
-  }
-  .stat-item {
-    margin-right: 0 !important;
-    margin-bottom: 15px;
-  }
-  .stat-number {
-    font-size: 1.8rem;
-  }
-  .stat-label {
-    font-size: 0.9rem;
-  }
-}
-
-.container {
-  max-width: 1200px;
-}
-
-.featured-products-title {
-  font-size: 2.5rem;
-  font-weight: 700;
-  color: #333;
-}
-
-.product-card {
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  overflow: hidden;
-  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-  position: relative;
-}
-
-.product-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-}
-
-.product-image {
-  height: 200px;
-  object-fit: contain;
-  padding: 15px;
-  background-color: #f8f8f8;
-}
-
-.product-name {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #333;
-  min-height: 50px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-
-.product-price {
-  font-size: 1.25rem;
-  margin-top: auto;
-}
-
-.add-to-cart-btn {
-  font-size: 0.95rem;
-  padding: 8px 15px;
-  border-radius: 5px;
-}
-
-.discount-badge, .new-badge {
+.product-card__discount-badge {
   position: absolute;
   top: 10px;
-  right: 10px;
-  padding: 5px 8px;
-  border-radius: 4px;
-  font-size: 0.8rem;
-  font-weight: bold;
-  z-index: 10;
-}
-
-.new-badge {
-  background-color: #17a2b8 !important;
-  right: auto;
   left: 10px;
+  background-color: #d9534f;
+  color: white;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+  z-index: 2;
 }
 
-.view-all-btn {
-  border-radius: 50px;
-  padding: 12px 30px;
-  font-size: 1.1rem;
+/* Container cho giá */
+.product-card__price-container {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 10px 0;
+  height: 24px;
+}
+
+/* Giá sau khi giảm */
+.discounted-price {
+  font-size: 16px;
   font-weight: 600;
+  color: #d9534f;
 }
 
-@media (max-width: 767.98px) {
-  .product-image {
-    height: 180px;
-  }
-  .product-name {
-    font-size: 1rem;
-    min-height: 48px;
-  }
-  .product-price {
-    font-size: 1.1rem;
-  }
-  .add-to-cart-btn {
-    font-size: 0.85rem;
-    padding: 6px 12px;
-  }
-  .view-all-btn {
-    padding: 10px 25px;
-    font-size: 1rem;
-  }
+/* Giá gốc (bị gạch ngang) */
+.original-price {
+  font-size: 14px;
+  color: #999;
+  text-decoration: line-through;
 }
 
-/* CSS cho phần "Tại sao chọn chúng tôi?" */
-.why-choose-us-section {
-  background-color: #f8f8f8; /* Gần với màu nền trong ảnh */
-  padding: 80px 0; /* Khoảng cách trên dưới */
+/* Giá bình thường (khi không giảm) */
+.normal-price {
+  font-size: 16px;
+  font-weight: 600;
+  color: #000;
 }
-
-.why-choose-us-title {
-  font-size: 2.2rem;
-  font-weight: 700;
-  color: #333;
+/* --- STYLES CHUNG --- */
+.product-collection-container {
+  max-width: 1400px;
+  margin: 60px auto;
+  padding: 0 20px;
 }
-
-.why-choose-us-subtitle {
-  font-size: 1.05rem;
-  color: #6c757d;
+.collection-header {
+  text-align: center;
   margin-bottom: 40px;
 }
-
-.why-choose-us-item {
-  background-color: white;
-  border-radius: 10px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-  height: 100%; /* Đảm bảo các item có chiều cao bằng nhau */
-  display: flex;
-  flex-direction: column;
-  justify-content: center; /* Căn giữa nội dung theo chiều dọc */
+.collection-title {
+  font-size: 32px;
+  font-weight: 600;
+}
+.banner-carousel {
+  max-width: 100%;
+}
+.carousel-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.selector-label {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 10px 0;
+}
+.stock-info {
+  font-size: 12px;
+  color: #999;
+  margin-left: 10px;
 }
 
-.why-choose-us-item .icon-wrapper {
-  width: 70px;
-  height: 70px;
-  background-color: #ffe0e6; /* Màu hồng nhạt */
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+/* --- PRODUCT CARD --- */
+.product-card {
   margin-bottom: 20px;
 }
-
-.why-choose-us-item .icon-wrapper i {
-  font-size: 2.5rem;
-  color: #e60023; /* Màu đỏ */
+.product-card__image-wrapper {
+  position: relative;
+  width: 100%;
+  padding-bottom: 100%;
+  background-color: #f5f5f5;
+  overflow: hidden;
+  cursor: pointer;
 }
-
-.why-choose-us-item .item-title {
-  font-size: 1.25rem;
-  font-weight: 700;
+.product-card__image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+.product-card:hover .product-card__image {
+  transform: scale(1.05);
+}
+.product-card__quick-view-btn {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  z-index: 2;
+  background-color: rgba(255, 255, 255, 0.9) !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+.product-card__info {
+  padding-top: 15px;
+  text-align: left;
+}
+.product-card__name {
+  font-size: 15px;
   color: #333;
-  margin-bottom: 10px;
+  margin: 0 0 8px 0;
+  line-height: 1.4;
+  height: 42px;
+  overflow: hidden;
+  cursor: pointer;
+}
+.product-card__price {
+  font-size: 16px;
+  font-weight: 600;
+  color: #000;
+  margin: 0 0 10px 0;
+}
+.product-card__colors {
+  display: flex;
+  gap: 6px;
+  height: 14px;
+}
+.product-card__color-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid #e0e0e0;
+  cursor: pointer;
 }
 
-.why-choose-us-item .item-description {
-  font-size: 0.95rem;
-  color: #6c757d;
-  line-height: 1.6;
-  flex-grow: 1; /* Cho phép mô tả chiếm không gian còn lại */
+/* --- QUICK VIEW MODAL --- */
+:deep(.el-dialog.quick-view-dialog) {
+  border-radius: 8px;
 }
-
-/* Responsive adjustments for why-choose-us section */
-@media (max-width: 991.98px) {
-  .why-choose-us-section {
-    padding: 60px 0;
-  }
-  .why-choose-us-title {
-    font-size: 2rem;
-  }
-  .why-choose-us-subtitle {
-    font-size: 1rem;
-  }
-  .why-choose-us-item .icon-wrapper {
-    width: 60px;
-    height: 60px;
-  }
-  .why-choose-us-item .icon-wrapper i {
-    font-size: 2rem;
-  }
-  .why-choose-us-item .item-title {
-    font-size: 1.15rem;
-  }
-  .why-choose-us-item .item-description {
-    font-size: 0.9rem;
-  }
+:deep(.quick-view-dialog .el-dialog__header) {
+  padding: 0;
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  z-index: 1;
 }
-
-@media (max-width: 767.98px) {
-  .why-choose-us-section {
-    padding: 40px 0;
-  }
-  .why-choose-us-title {
-    font-size: 1.8rem;
-  }
-  .why-choose-us-subtitle {
-    font-size: 0.9rem;
-  }
-  .why-choose-us-item {
-    padding: 30px 20px;
-  }
-  .why-choose-us-item .icon-wrapper {
-    width: 55px;
-    height: 55px;
-  }
-  .why-choose-us-item .icon-wrapper i {
-    font-size: 1.8rem;
-  }
-  .why-choose-us-item .item-title {
-    font-size: 1.1rem;
-  }
-  .why-choose-us-item .item-description {
-    font-size: 0.85rem;
-  }
+:deep(.quick-view-dialog .el-dialog__headerbtn .el-icon) {
+  font-size: 24px;
+  color: #555;
+}
+:deep(.quick-view-dialog .el-dialog__body) {
+  padding: 40px;
+}
+.quick-view__main-image {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1/1;
+  object-fit: cover;
+  border-radius: 4px;
+}
+.quick-view__info {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.quick-view__title {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0 0 10px 0;
+  line-height: 1.3;
+}
+.quick-view__color-display {
+  font-size: 14px;
+  margin-bottom: 15px;
+  color: #555;
+  height: 20px;
+}
+.quick-view__color-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.color-thumbnail {
+  cursor: pointer;
+  border: 2px solid #e0e0e0;
+  padding: 2px;
+  transition: border-color 0.2s;
+  width: 60px;
+  height: 60px;
+}
+.color-thumbnail.is-selected {
+  border-color: #000;
+}
+.color-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.quick-view__size-selector {
+  margin-bottom: 20px;
+}
+.size-button {
+  margin: 0 8px 8px 0 !important;
+  border-radius: 50px;
+  border: 1px solid #ccc;
+  font-weight: 600;
+  min-width: 50px;
+}
+.size-button.is-selected {
+  background-color: #000 !important;
+  color: #fff !important;
+  border-color: #000 !important;
+}
+.quick-view__quantity-selector {
+  margin-bottom: 25px;
+}
+.quick-view__actions {
+  display: flex;
+  gap: 10px;
+  margin-top: auto;
+}
+.quick-view__actions .el-button {
+  flex: 1;
+  height: 48px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 5px;
+  border: 1px solid #000 !important;
+}
+.add-to-cart-btn {
+  background-color: #fff !important;
+  color: #000 !important;
+}
+.buy-now-btn {
+  background-color: #000 !important;
+  color: #fff !important;
 }
 </style>

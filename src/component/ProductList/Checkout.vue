@@ -31,7 +31,7 @@
              <el-row :gutter="20">
               <el-col :span="24">
                 <el-form-item label="Gmail" prop="address.houseName">
-                  <el-input v-model="form.address.houseName" placeholder="Địa chỉ"></el-input>
+                  <el-input v-model="form.email" placeholder="Địa chỉ"></el-input>
                 </el-form-item>
               </el-col>
             </el-row>
@@ -456,7 +456,11 @@ const handleSubmit = () => {
     const loadingInstance = ElLoading.service({ fullscreen: true, text: 'Đang đặt hàng...' })
 
     try {
-      // Chuẩn bị dữ liệu payload gửi lên server
+      // 📝 Log form trước khi tạo payload
+      console.log("📋 form.value trước khi tạo payload:", JSON.stringify(form.value, null, 2))
+      console.log("🛒 cartItems:", cartItems.value)
+
+      // 🔧 Chuẩn bị payload gửi lên server
       const payload = {
         customerInfo: {
           ...form.value,
@@ -474,21 +478,34 @@ const handleSubmit = () => {
           discountedPrice: item.discountedPrice,
           discountPercentage: item.discountPercentage,
         })),
-        discountAmount: discountAmount.value || 0,                  // ✅ trừ giảm giá
-        voucherCode: appliedVoucher.value?.voucherCode || null,     // ✅ gửi mã voucher (nếu có)
+        discountAmount: discountAmount.value || 0,
+        voucherCode: appliedVoucher.value?.voucherCode || null,
         description: form.value.description,
-        orderType: 1,        // Mặc định: đơn online
-        status: 1,           // Mặc định
+        orderType: 1,
+        status: 1,
         employeeId: null,
         shippingFee: shippingFee.value
       }
 
-      console.log(' Payload gửi lên server:', JSON.stringify(payload, null, 2))
+      console.log('📦 Payload gửi lên server:', JSON.stringify(payload, null, 2))
 
       if (paymentMethod.value === 1) {
-        // 👉 ZaloPay
+        // 💳 ZaloPay
         const res = await axios.post('http://localhost:8080/api/payment/zalo/create', payload)
+
+        console.log("📥 Res từ ZaloPay API:", res.data)
+
         const zaloPay = res.data?.zaloPay
+        const customerId = res.data?.invoice?.customerId
+
+        console.log("👤 customerId từ ZaloPay response:", customerId)
+
+        if (customerId) {
+          localStorage.setItem('userId', customerId.toString())
+          console.log("✅ Đã lưu customerId vào localStorage:", customerId)
+        } else {
+          console.warn("⚠️ Không tìm thấy customerId trong response từ ZaloPay")
+        }
 
         if (zaloPay?.orderUrl && zaloPay?.appTransId) {
           localStorage.setItem('appTransId', zaloPay.appTransId)
@@ -497,15 +514,29 @@ const handleSubmit = () => {
           ElMessage.success('Đang chuyển hướng đến ZaloPay để thanh toán...')
           window.location.href = zaloPay.orderUrl
         } else {
-          ElMessage.error(' Không nhận được URL thanh toán từ ZaloPay. Vui lòng thử lại.')
+          ElMessage.error('Không nhận được URL thanh toán từ ZaloPay. Vui lòng thử lại.')
         }
 
       } else {
-        //  Thanh toán COD
-        await axios.post('http://localhost:8080/api/online-sale/checkout', payload)
+        // 💵 COD
+        const res = await axios.post('http://localhost:8080/api/online-sale/checkout', payload)
+
+        console.log("📥 Res từ COD checkout API:", res.data)
+
+        const customerId = res.data?.invoice?.customerId
+
+        console.log("👤 customerId từ COD response:", customerId)
+
+        if (customerId) {
+          localStorage.setItem('userId', customerId.toString())
+          console.log("✅ Đã lưu customerId vào localStorage:", customerId)
+        } else {
+          console.warn("⚠️ Không tìm thấy customerId trong response từ COD API")
+        }
+
         clearCart()
         cartItems.value = []
-        ElMessage.success(' Đặt hàng thành công! Đơn hàng của bạn sẽ sớm được giao.')
+        ElMessage.success('Đặt hàng thành công! Đơn hàng của bạn sẽ sớm được giao.')
         router.push('/don-hang')
       }
 

@@ -1,5 +1,7 @@
 import ChiTietDonHang from '@/component/DonHang/ChiTietDonHang.vue'
 import DonHang from '@/component/DonHang/DonHang.vue'
+import DonHangChuaNhan from '@/component/DonHang/DonHangChuaNhan.vue'
+import DonHangVanDe from '@/component/DonHang/DonHangVanDe.vue'
 import Home from '@/component/Home/Home.vue'
 import ThongTinCaNhan from '@/component/Personal/ThongTinCaNhan.vue'
 import CartDisplay from '@/component/ProductList/CartDisplay.vue'
@@ -20,6 +22,8 @@ const routes = [
   { path: '/thong-tin-ca-nhan', name: 'Personal', component: ThongTinCaNhan },
   { path: '/ma-giam-gia', name: 'Voucher', component: MaGiamGia },
   { path: '/don-hang', name: 'DonHang', component: DonHang },
+  { path: '/don-hang/tra-hang-van-de/:invoiceId', name: 'DonHangVanDe', component: DonHangVanDe },
+  { path: '/don-hang/tra-hang-thieu-chua-nhan/:invoiceId', name: 'DonHangChuaNhan', component: DonHangChuaNhan },
   { path: '/don-hang/:id', name: 'ChiTietDonHang', component: ChiTietDonHang, props: true }
 ]
 

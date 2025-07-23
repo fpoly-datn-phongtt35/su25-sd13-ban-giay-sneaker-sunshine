@@ -45,6 +45,7 @@
                   {{ formatPrice(product.discountedPrice) }}
                 </span>
               </div>
+
             </div>
           </el-card>
         </el-col>

@@ -42,29 +42,78 @@
             </el-tooltip>
           </template>
         </el-table-column>
-        <el-table-column label="Hành động" width="140" align="center" fixed="right">
-          <template #default="scope">
-            <el-button
-              type="primary"
-              :icon="View"
-              size="default"
-              @click="goToStatusPage(scope.row.invoiceId)"
-            >
-              Chi tiết
-            </el-button>
-          </template>
-        </el-table-column>
+<el-table-column label="Hành động" width="220" align="center" fixed="right">
+  <template #default="scope">
+    <el-button
+      type="primary"
+      :icon="View"
+      size="default"
+      @click="goToStatusPage(scope.row.invoiceId)"
+    >
+      Chi tiết
+    </el-button>
+
+    <!-- ✅ Chuyển v-if trực tiếp vào el-button -->
+    <el-button
+      v-if="currentTab === 'GIAO_THANH_CONG'"
+      type="danger"
+      :icon="Refresh"
+      size="default"
+      class="ml-2"
+      @click="openReturnDialog(scope.row)"
+    >
+      Trả hàng/Hoàn tiền
+    </el-button>
+  </template>
+</el-table-column>
+
+
       </el-table>
     </el-card>
+
+<el-dialog
+      v-model="returnDialogVisible"
+      title="Bạn muốn trả hàng vì lý do gì?"
+      width="35%"
+      class="return-dialog-custom"
+      destroy-on-close
+    >
+      <div class="dialog-content-wrapper text-left space-y-4">
+        <p class="dialog-description-text">Vui lòng chọn lý do phù hợp nhất để chúng tôi xử lý yêu cầu trả hàng/hoàn tiền của bạn:</p>
+        <el-button
+          type="warning"
+          plain
+          class="w-full return-reason-button"
+          @click="handleReturnChoice('ISSUE')"
+        >
+          <div class="button-content">
+            <el-icon><WarningFilled /></el-icon>
+            <span class="button-text">Đã nhận hàng nhưng lỗi, khác mô tả, không giống mẫu đặt</span>
+          </div>
+        </el-button>
+        <el-button
+          type="info"
+          plain
+          class="w-full return-reason-button"
+          @click="handleReturnChoice('MISSING')"
+        >
+          <div class="button-content">
+            <el-icon><QuestionFilled /></el-icon>
+            <span class="button-text">Không nhận được hàng hoặc nhận thiếu hàng</span>
+          </div>
+        </el-button>
+      </div>
+    </el-dialog>
+
   </div>
 </template>
 
-<script setup>
+  <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import dayjs from 'dayjs'
 import apiClient from '@/utils/axiosInstance'
-import { View } from '@element-plus/icons-vue' // Nhập icon View
+import { View, Refresh } from '@element-plus/icons-vue' // Nhập icon View
 
 // Router để điều hướng
 const router = useRouter()
@@ -152,6 +201,28 @@ const goToStatusPage = (invoiceId) => {
   console.log('Điều hướng đến ChiTietDonHang với id:', invoiceId) // Log debug
   router.push({ name: 'ChiTietDonHang', params: { id: invoiceId } })
 }
+
+const selectedInvoice = ref(null)
+const returnDialogVisible = ref(false)
+
+const openReturnDialog = (invoice) => {
+  selectedInvoice.value = invoice
+  returnDialogVisible.value = true
+}
+
+const handleReturnChoice = (type) => {
+  returnDialogVisible.value = false
+  const invoiceId = selectedInvoice.value?.invoiceId
+
+  if (!invoiceId) return
+
+  if (type === 'ISSUE') {
+    router.push({ name: 'DonHangVanDe', params: { invoiceId } })
+  } else if (type === 'MISSING') {
+    router.push({ name: 'DonHangChuaNhan', params: { invoiceId } })
+  }
+}
+
 
 // Format tiền VND
 const formatCurrency = (val) => (val || 0).toLocaleString('vi-VN') + ' ₫'

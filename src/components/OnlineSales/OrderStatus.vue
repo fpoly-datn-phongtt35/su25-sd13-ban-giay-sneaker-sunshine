@@ -213,40 +213,32 @@ const actionHistory = ref([])
 
 const isPaid = ref(false)
 
-// Chỉ định nghĩa các bước chính của luồng đơn hàng thành công
 const mainSteps = [
   { key: 'CHO_XU_LY', label: 'Chờ xử lý' },
   { key: 'DA_XU_LY', label: 'Đã xử lý' },
   { key: 'CHO_GIAO_HANG', label: 'Chờ giao hàng' },
   { key: 'DANG_GIAO_HANG', label: 'Đang giao hàng' },
   { key: 'GIAO_THANH_CONG', label: 'Giao thành công' },
-  { key: 'DA_HOAN_THANH', label: 'Hoàn tất' },
 ]
 const mainStepKeys = mainSteps.map((s) => s.key)
 
-// getActiveStep chỉ cần hoạt động với mainSteps
 const getActiveStep = (statusKey) => {
   return mainStepKeys.indexOf(statusKey || '')
 }
 
-// Helper to get status label from integer index for history
 const getStatusLabelFromInt = (statusInt) => {
   if (statusInt === -1) {
-    // Assuming -1 or other specific integer might represent 'HUY_DON'
     return 'Đã hủy'
   }
 
-  // Fallback to mainSteps if it's a valid index
   if (typeof statusInt === 'number' && statusInt >= 0 && statusInt < mainSteps.length) {
     return mainSteps[statusInt].label
   }
-  return `Không xác định (${statusInt})` // Fallback for unknown integers
+  return `Không xác định (${statusInt})`
 }
 
-// Các điều kiện cho nút bấm
 const canAdvance = computed(() => {
   const status = invoice.value?.statusDetail
-  // Chỉ cho phép chuyển tiếp nếu trạng thái không phải là hủy/thất bại và chưa hoàn tất
   return mainStepKeys.includes(status) && status !== 'DA_HOAN_THANH'
 })
 
@@ -258,7 +250,6 @@ const canRevert = computed(() => {
 
 const canCancel = computed(() => {
   const status = invoice.value?.statusDetail
-  // Chỉ cho phép hủy nếu trạng thái nằm trong luồng chính và chưa đến Đang giao hàng
   return (
     mainStepKeys.includes(status) &&
     mainStepKeys.indexOf(status) < mainStepKeys.indexOf('DANG_GIAO_HANG')

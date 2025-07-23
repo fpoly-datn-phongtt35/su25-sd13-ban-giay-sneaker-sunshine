@@ -243,12 +243,19 @@
               <td>{{ pr.styleName }}</td>
               <td>{{ pr.genderName }}</td>
               <td>
-                <span style="text-decoration: line-through; color: gray; margin-right: 8px">
-                  {{ formatCurrency(pr.sellPrice) }}
-                </span>
-                <span style="color: red; font-weight: bold">
-                  {{ formatCurrency(pr.discountedPrice) }}
-                </span>
+                <template v-if="pr.discountedPrice">
+                  <span style="text-decoration: line-through; color: gray; margin-right: 8px">
+                    {{ formatCurrency(pr.sellPrice) }}
+                  </span>
+                  <span style="color: red; font-weight: bold">
+                    {{ formatCurrency(pr.discountedPrice) }}
+                  </span>
+                </template>
+                <template v-else>
+                  <span style="color: black; font-weight: bold">
+                    {{ formatCurrency(pr.sellPrice) }}
+                  </span>
+                </template>
               </td>
               <td>{{ pr.quantity }}</td>
               <td>{{ pr.description }}</td>
@@ -534,12 +541,12 @@ const fetchProduct = async () => {
 }
 
 function formatCurrency(value) {
-  if (!value) return '0₫';
+  if (!value) return '0₫'
   return new Intl.NumberFormat('vi-VN', {
     style: 'currency',
     currency: 'VND',
-    minimumFractionDigits: 0
-  }).format(value);
+    minimumFractionDigits: 0,
+  }).format(value)
 }
 
 // --- Điều hướng trang ---

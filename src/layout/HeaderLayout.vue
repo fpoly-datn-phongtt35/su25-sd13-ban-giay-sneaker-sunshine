@@ -1,490 +1,471 @@
 <template>
-  <header class="bg-white text-gray-800 py-4 shadow-md">
-    <div class="container d-flex align-items-center justify-content-between">
-      <div class="d-flex align-items-center gap-1 flex-shrink-0">
-        <!-- <img :src="logoSrc" alt="Logo" class="h-10 w-10" />  -->
-        <h1 class="m-0 fw-bold text-2xl text-nowrap">
-          <span class="text-blue">S</span>
-          <span class="text-yellow">u</span>
-          <span class="text-green">n</span>
-          <span class="text-yellow">S</span>
-          <span class="text-blue">h</span>
-          <span class="text-red">i</span>
-          <span class="text-green">n</span>
-          <span class="text-blue">e</span>
-        </h1>
-      </div>
-
-      <nav class="flex-grow-1 d-flex justify-content-start">
-        <ul class="nav gap-1 m-0 p-0 flex-nowrap align-items-center">
-          <li class="nav-item" v-for="link in navLinks" :key="link.path">
-            <RouterLink
-              :to="link.path"
-              class="nav-link text-gray-700 fw-semibold d-flex align-items-center gap-1 text-nowrap"
-              active-class="text-primary"
-            >
-              <i :class="link.icon"></i> {{ link.label }}
-            </RouterLink>
-          </li>
-        </ul>
-      </nav>
-
-      <div class="d-flex align-items-center gap-4 flex-nowrap flex-shrink-0">
-        <div class="search-input-container">
-          <el-input
-            v-model.trim="searchQuery"
-            placeholder="Tìm kiếm..."
-            :prefix-icon="Search"
-            @keyup.enter="performSearchAndCloseModal"
-            class="header-search-input"
-          />
-        </div>
-
-        <div class="position-relative">
-          <button
-            class="btn btn-link p-0 border-0 text-gray-700 header-icon-btn"
-            @click="toggleUserDropdown"
-            type="button"
-            aria-label="Tài khoản"
-          >
-            <el-icon :size="24"><User /></el-icon>
-          </button>
-          <div
-            v-if="showUserOptions"
-            class="user-dropdown-menu position-absolute bg-white shadow-lg rounded py-2 px-3"
-          >
-            <template v-if="user">
-              <span class="d-block text-center text-sm fw-semibold text-gray-700 mb-2"
-                >👋 {{ user.customerName || user.employeeName }}</span
-              >
-              <RouterLink
-                to="/don-hang"
-                class="dropdown-item d-flex align-items-center gap-2 py-2 mb-1"
-                @click="showUserOptions = false"
-              >
-                <i class="fas fa-receipt"></i> Đơn hàng
-              </RouterLink>
-              <RouterLink
-                to="/thong-tin-ca-nhan"
-                class="dropdown-item d-flex align-items-center gap-2 py-2 mb-1"
-                @click="showUserOptions = false"
-              >
-                <i class="fas fa-user-circle"></i> Thông tin cá nhân
-              </RouterLink>
-              <RouterLink
-                to="/ma-giam-gia"
-                class="dropdown-item d-flex align-items-center gap-2 py-2 mb-1"
-                @click="showUserOptions = false"
-              >
-                <i class="fas fa-tags"></i> Mã giảm giá
-              </RouterLink>
-              <button
-                class="btn btn-outline-danger btn-sm w-100 mt-2"
-                @click="logout"
-                type="button"
-              >
-                <i class="fas fa-sign-out-alt"></i> Đăng xuất
-              </button>
-            </template>
-            <template v-else>
-              <button
-                class="btn btn-outline-primary btn-sm w-100 mb-2"
-                @click="openRegisterModal"
-                type="button"
-              >
-                <i class="fas fa-user-plus"></i> Đăng ký
-              </button>
-              <button class="btn btn-primary btn-sm w-100" @click="openLoginModal" type="button">
-                <i class="fas fa-sign-in-alt"></i> Đăng nhập
-              </button>
-            </template>
-          </div>
-        </div>
-
-        <RouterLink
-          to="/cart"
-          class="btn btn-link p-0 border-0 text-gray-700 position-relative header-icon-btn"
-          aria-label="Giỏ hàng"
-        >
-          <el-icon :size="24"><ShoppingCart /></el-icon>
-          <span
-            v-if="cartCount > 0"
-            class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
-            >{{ cartCount }}</span
-          >
-        </RouterLink>
-      </div>
+  <div class="header-wrapper">
+    <div class="top-announcement-bar">
+      <p class="scrolling-text">
+        <span>Chào mừng đến với cửa hàng giày Sunshine! Mua sắm ngay hôm nay để nhận ưu đãi đặc biệt!</span>
+        <span>Miễn phí vận chuyển cho đơn hàng trên 500.000đ!</span>
+        <span>Giảm giá 20% cho đơn hàng đầu tiên khi đăng ký tài khoản!</span>
+      </p>
     </div>
+
+    <header class="main-header" :class="{ 'is-scrolled': isScrolled }">
+      <div class="container d-flex align-items-center justify-content-between">
+        
+        <div class="header-logo-container">
+          <RouterLink to="/">
+            <img :src="logoSrc" alt="Logo" class="site-logo" >
+          </RouterLink>
+        </div>
+
+        <nav class="header-nav">
+          <ul class="nav-list">
+            <li class="nav-item" v-for="link in navLinks" :key="link.path">
+              <RouterLink
+                :to="link.path"
+                class="nav-link"
+                active-class="is-active"
+                :class="{ 'text-red-sale': link.isSale }"
+              >
+                <i :class="link.icon"></i> {{ link.label }}
+              </RouterLink>
+            </li>
+          </ul>
+        </nav>
+
+        <div class="header-actions">
+          
+          <div class="search-input-container">
+            <el-input
+              v-model.trim="searchQuery"
+              placeholder="Tìm kiếm..."
+              :prefix-icon="Search"
+              @keyup.enter="performSearch"
+              class="header-search-input"
+            />
+          </div>
+
+          <div class="user-menu-container">
+            <button
+              class="header-icon-btn"
+              @click="toggleUserDropdown"
+              type="button"
+              aria-label="Tài khoản"
+            >
+              <el-icon :size="24"><User /></el-icon>
+            </button>
+            <Transition name="fade">
+              <div v-if="showUserOptions" class="user-dropdown-menu">
+                <template v-if="user">
+                  <span class="dropdown-greeting">👋 {{ user.customerName || user.employeeName }}</span>
+                  <RouterLink to="/don-hang" class="dropdown-item" @click="closeDropdown"><i class="fas fa-receipt"></i> Đơn hàng</RouterLink>
+                  <RouterLink to="/thong-tin-ca-nhan" class="dropdown-item" @click="closeDropdown"><i class="fas fa-user-circle"></i> Thông tin cá nhân</RouterLink>
+                  <RouterLink to="/ma-giam-gia" class="dropdown-item" @click="closeDropdown"><i class="fas fa-tags"></i> Mã giảm giá</RouterLink>
+                  <button class="btn-logout" @click="logout"><i class="fas fa-sign-out-alt"></i> Đăng xuất</button>
+                </template>
+                <template v-else>
+                  <button class="btn-register" @click="openRegisterModal">Đăng ký</button>
+                  <button class="btn-login" @click="openLoginModal">Đăng nhập</button>
+                </template>
+              </div>
+            </Transition>
+          </div>
+
+          <RouterLink to="/cart" class="header-icon-btn cart-icon-container" aria-label="Giỏ hàng">
+            <el-icon :size="24"><ShoppingCart /></el-icon>
+            <span v-if="cartCount > 0" class="cart-badge">{{ cartCount }}</span>
+          </RouterLink>
+        </div>
+      </div>
+    </header>
 
     <LoginModal
       :isVisible="showLogin"
       @update:isVisible="showLogin = $event"
       @loggedIn="handleLoggedIn"
-      @openRegister="showRegister = true"
+      @openRegister="openRegisterModal"
     />
-
     <RegisterCustomerModal
       :isVisible="showRegister"
       @update:isVisible="showRegister = $event"
       @customerAdded="handleRegisterSuccess"
-      @openLogin="showLogin = true"
+      @openLogin="openLoginModal"
     />
 
-    <el-dialog
-      v-model="showSearchModal"
-      title="Tìm kiếm sản phẩm"
-      width="30%"
-      @close="searchQuery = ''"
-    >
-      <el-input
-        v-model.trim="searchQuery"
-        placeholder="Nhập từ khóa tìm kiếm..."
-        @keyup.enter="performSearchAndCloseModal"
+    <Transition name="fade">
+      <el-button
+        v-if="showScrollTopButton"
+        class="scroll-to-top-btn"
+        :icon="ArrowUp"
+        circle
+        size="large"
+        type="primary"
+        @click="scrollToTop"
       />
-      <template #footer>
-        <el-button @click="showSearchModal = false">Hủy</el-button>
-        <el-button type="primary" @click="performSearchAndCloseModal">Tìm kiếm</el-button>
-      </template>
-    </el-dialog>
-  </header>
+    </Transition>
+  </div>
 </template>
 
 <script setup>
-import { ref, onMounted, watch, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { User, Search, ShoppingCart } from '@element-plus/icons-vue'
+import { ref, onMounted, watch, onUnmounted } from 'vue';
+import { useRouter } from 'vue-router';
+import { ElMessage, ElIcon, ElInput, ElButton } from 'element-plus';
+import { User, Search, ShoppingCart, ArrowUp } from '@element-plus/icons-vue';
 
-import LoginModal from '@/component/LoginModal.vue'
-import RegisterCustomerModal from '@/component/RegisterCustomerModal.vue'
+// Import các component con và tài nguyên
+import LoginModal from '@/component/LoginModal.vue';
+import RegisterCustomerModal from '@/component/RegisterCustomerModal.vue';
+import logoSrc from '@/img/logo.png';
 
-const router = useRouter()
+// Khởi tạo
+const router = useRouter();
 
-// const logoSrc = ref('https://img.icons8.com/?size=100&id=juRF5DiUGr4p&format=png&color=000000')
-const user = ref(null)
-const cartCount = ref(0)
-const searchQuery = ref('')
-const showLogin = ref(false)
-const showRegister = ref(false)
-const showUserOptions = ref(false)
-const showSearchModal = ref(false)
+// --- STATE ---
+const user = ref(null);
+const cartCount = ref(0);
+const searchQuery = ref('');
+const showLogin = ref(false);
+const showRegister = ref(false);
+const showUserOptions = ref(false);
+const isScrolled = ref(false);
+const showScrollTopButton = ref(false);
 
 const navLinks = [
-  { path: '/', label: 'Trang chủ' },
-  { path: '/collections', label: 'Sản phẩm' },
-  { path: '/chinh-sach', label: 'Sản phẩm bán chạy' },
-  { path: '/gioi-thieu', label: 'Giới thiệu' },
-  { path: '/lien-he', label: 'Liên hệ' },
-  // { path: '/don-hang', label: 'Đơn hàng', icon: 'fas fa-receipt' },
-]
+  { path: '/', label: 'TRANG CHỦ' },
+  { path: '/collections', label: 'SẢN PHẨM' },
+  { path: '/giay-dep', label: 'GIÀY DÉP' },
+  { path: '/tui-vi', label: 'TÚI VÍ' },
+  { path: '/phu-kien', label: 'PHỤ KIỆN' },
+  { path: '/giam-gia', label: 'GIẢM GIÁ', isSale: true },
+  { path: '/steal-karina-style', label: 'STEAL KARINA STYLE' },
+];
 
+// --- LIFECYCLE HOOKS ---
 onMounted(() => {
-  const storedUser = localStorage.getItem('user')
-  if (storedUser) user.value = JSON.parse(storedUser)
-  updateCartCount()
-  document.addEventListener('click', closeUserDropdownOnClickOutside)
-})
+  const storedUser = localStorage.getItem('user');
+  if (storedUser) {
+    user.value = JSON.parse(storedUser);
+  }
+  updateCartCount();
+  
+  window.addEventListener('scroll', handleScroll);
+  window.addEventListener('cart-updated', updateCartCount);
+  document.addEventListener('click', handleClickOutsideUserMenu);
+});
 
 onUnmounted(() => {
-  document.removeEventListener('click', closeUserDropdownOnClickOutside)
-})
+  window.removeEventListener('scroll', handleScroll);
+  window.removeEventListener('cart-updated', updateCartCount);
+  document.removeEventListener('click', handleClickOutsideUserMenu);
+});
 
+// --- WATCHERS ---
 watch(user, () => {
-  updateCartCount()
-})
+  updateCartCount();
+});
 
+// --- METHODS ---
 function updateCartCount() {
   try {
-    const userId = user.value?.id || 'guest'
-    const cartKey = `cart_${userId}`
-    const cart = JSON.parse(localStorage.getItem(cartKey) || '[]')
+    const userId = user.value?.id || 'guest';
+    const cartKey = `cart_${userId}`;
+    const cart = JSON.parse(localStorage.getItem(cartKey) || '[]');
     cartCount.value = Array.isArray(cart)
       ? cart.reduce((acc, item) => acc + (item.quantity || 0), 0)
-      : 0
-  } catch {
-    cartCount.value = 0
+      : 0;
+  } catch (error) {
+    console.error("Lỗi khi cập nhật giỏ hàng:", error);
+    cartCount.value = 0;
   }
-}
-
-const toggleUserDropdown = (event) => {
-  event.stopPropagation()
-  showUserOptions.value = !showUserOptions.value
-}
-
-const openLoginModal = () => {
-  showUserOptions.value = false
-  showLogin.value = true
-}
-
-const openRegisterModal = () => {
-  showUserOptions.value = false
-  showRegister.value = true
-}
-
-const closeUserDropdownOnClickOutside = (event) => {
-  // Kiểm tra nếu click bên ngoài dropdown và không phải nút kích hoạt dropdown
-  if (
-    showUserOptions.value &&
-    !event.target.closest('.user-dropdown-menu') &&
-    !event.target.closest('.header-icon-btn')
-  ) {
-    showUserOptions.value = false
-  }
-}
-
-const openSearchModal = () => {
-  showSearchModal.value = true
-}
-
-const performSearch = () => {
-  const keyword = searchQuery.value.trim()
-  if (!keyword) {
-    ElMessage.info('Vui lòng nhập từ khóa tìm kiếm.')
-    return
-  }
-  router.push({ path: '/search-results', query: { q: keyword } })
-}
-
-const performSearchAndCloseModal = () => {
-  performSearch()
 }
 
 const handleLoggedIn = (userData) => {
-  localStorage.setItem('user', JSON.stringify(userData))
-  user.value = userData
-  updateCartCount()
-  ElMessage.success('Đăng nhập thành công!')
-  showLogin.value = false // Đóng modal đăng nhập
-}
+  localStorage.setItem('user', JSON.stringify(userData));
+  user.value = userData;
+  ElMessage.success('Đăng nhập thành công!');
+  showLogin.value = false;
+};
 
 const handleRegisterSuccess = () => {
-  ElMessage.success('Đăng ký thành công! Vui lòng đăng nhập.')
-  showLogin.value = true
-  showRegister.value = false // Đóng modal đăng ký
-}
+  ElMessage.success('Đăng ký thành công! Vui lòng đăng nhập.');
+  showRegister.value = false;
+  showLogin.value = true;
+};
 
 const logout = () => {
-  const userId = user.value?.id || 'guest'
+  const userId = user.value?.id;
+  localStorage.removeItem('user');
+  if (userId) {
+    localStorage.removeItem(`cart_${userId}`);
+  }
+  user.value = null;
+  cartCount.value = 0;
+  showUserOptions.value = false;
+  ElMessage.success('Đăng xuất thành công!');
+  router.push('/');
+};
 
-  localStorage.removeItem('user')
-  localStorage.removeItem('userId')
-  localStorage.removeItem(`cart_${userId}`)
+const handleScroll = () => {
+  const scrollPosition = window.scrollY;
+  isScrolled.value = scrollPosition > 50;
+  showScrollTopButton.value = scrollPosition > 300;
+};
 
-  user.value = null
-  updateCartCount()
-  showUserOptions.value = false // Đóng dropdown sau khi đăng xuất
+const scrollToTop = () => {
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
 
-  ElMessage.success('Đăng xuất thành công!')
-  router.push('/')
-}
+const performSearch = () => {
+  if (!searchQuery.value) return;
+  router.push({ path: '/search-results', query: { q: searchQuery.value } });
+};
+
+const toggleUserDropdown = (event) => {
+  event.stopPropagation();
+  showUserOptions.value = !showUserOptions.value;
+};
+
+const closeDropdown = () => {
+  showUserOptions.value = false;
+};
+
+const openLoginModal = () => {
+  closeDropdown();
+  showLogin.value = true;
+};
+
+const openRegisterModal = () => {
+  closeDropdown();
+  showRegister.value = true;
+};
+
+const handleClickOutsideUserMenu = (event) => {
+  if (showUserOptions.value && !event.target.closest('.user-menu-container')) {
+    showUserOptions.value = false;
+  }
+};
 </script>
 
 <style scoped>
-/* Đảm bảo container chính của header căn giữa các mục con theo chiều dọc và có một chút khoảng cách từ lề */
-.text-blue {
-  color: #4285f4;
+/* --- FONT & GLOBAL --- */
+:root {
+  --primary-color: #007bff;
+  --danger-color: #dc3545;
+  --text-dark: #343a40;
+  --text-light: #6c757d;
+  --border-color: #dee2e6;
 }
 
-.text-red {
-  color: #ea4335;
+.header-wrapper {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  background-color: #fff;
 }
 
-.text-yellow {
-  color: #fbbc05;
+/* --- THANH THÔNG BÁO CHẠY CHỮ --- */
+@keyframes scroll-text {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+.top-announcement-bar {
+  background-color: #000;
+  color: #fff;
+  padding: 10px 0;
+  font-size: 14px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.scrolling-text {
+  margin: 0;
+  animation: scroll-text 30s linear infinite;
+  display: inline-block;
+}
+.scrolling-text span {
+  padding: 0 2rem;
 }
 
-.text-green {
-  color: #34a853;
+/* --- HEADER CHÍNH --- */
+.main-header {
+  border-bottom: 1px solid var(--border-color);
+  transition: all 0.3s ease-in-out;
+  padding: 10px 0;
+}
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+.main-header.is-scrolled {
+  padding: 5px 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
-.container.d-flex {
-  align-items: center;
-  height: 70px; /* Chiều cao cố định của header */
-  padding: 0 1rem;
-  max-width: none;
-  width: 100%;
+/* Logo */
+.site-logo {
+  height: 80px;
+  transition: height 0.3s ease-in-out;
+}
+.main-header.is-scrolled .site-logo {
+  height: 60px;
 }
 
-/* Logo và Tên Shop */
-.d-flex.align-items-center.gap-1.flex-shrink-0 {
-  /* No specific vertical alignment needed as parent container handles it */
-}
-
-/* Navigation Links (Menu) */
-nav.flex-grow-1 {
+/* Navigation */
+.header-nav {
   flex-grow: 1;
   display: flex;
-  justify-content: flex-start; /* Căn các mục menu về phía trái của nav */
-  align-items: center;
-  padding: 0 1.5rem; /* Khoảng cách giữa logo và menu */
+  justify-content: center;
 }
-
-/* Danh sách Navigation (ul) */
-nav ul {
+.nav-list {
+  display: flex;
+  gap: 1rem;
   list-style: none;
   margin: 0;
   padding: 0;
-  display: flex;
-  align-items: center;
-  flex-wrap: nowrap;
-  gap: 0.25rem; /* Khoảng cách giữa các mục menu */
 }
-
-/* Các Mục Link Navigation riêng lẻ (li) */
-.nav-item {
-  display: flex;
-  align-items: center;
-}
-
-/* RouterLink bên trong Mục Nav - Điều chỉnh padding để to hơn */
 .nav-link {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.75rem 1rem; /* Padding của các menu link */
+  font-family: 'Product Sans', sans-serif;
+  font-size: 16px;
+  padding: 10px 15px;
+  color: var(--text-dark);
+  font-weight: 700;
   text-decoration: none;
   white-space: nowrap;
-  color: #4a5568; /* Màu chữ mặc định */
   transition: color 0.2s ease;
+  border-radius: 5px;
+}
+.nav-link:hover, .nav-link.is-active {
+  color: var(--primary-color);
+}
+.nav-link.text-red-sale {
+  color: var(--danger-color) !important;
 }
 
-.nav-link:hover {
-  color: #007bff; /* Màu chữ khi hover */
-}
-
-.nav-link.text-primary {
-  color: #007bff !important; /* Màu chữ khi active */
-}
-
-/* Các Icon và ô tìm kiếm bên phải */
-.d-flex.align-items-center.gap-4.flex-nowrap.flex-shrink-0 {
+/* Header Actions */
+.header-actions {
   display: flex;
   align-items: center;
-  gap: 2rem; /* Khoảng cách giữa ô tìm kiếm, tài khoản, giỏ hàng */
-  flex-shrink: 0;
+  gap: 1.5rem;
 }
-
-/* Ô input tìm kiếm trên header - Tăng chiều rộng */
 .header-search-input {
-  width: 250px; /* Chiều rộng của ô input */
-  height: 36px; /* Chiều cao của ô input */
-  --el-input-border-radius: 20px; /* Bo tròn góc input */
-  --el-input-border-color: #dcdfe6;
-  --el-input-hover-border-color: #409eff;
-  --el-input-focus-border-color: #409eff;
+  width: 220px;
 }
-
-/* Đảm bảo icon bên trong input không bị lệch */
-.header-search-input .el-input__prefix {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Styling chung cho các nút icon (Tài khoản, Giỏ hàng) */
 .header-icon-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--text-dark);
+  position: relative;
+}
+.header-icon-btn:hover {
+  color: var(--primary-color);
+}
+
+/* Cart Badge */
+.cart-icon-container {
+  position: relative;
+}
+.cart-badge {
+  position: absolute;
+  top: -5px;
+  right: -10px;
+  background-color: var(--danger-color);
+  color: white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 24px;
-  min-height: 24px;
-  padding: 0;
-  border: none;
-  background: none;
-  cursor: pointer;
+  font-size: 12px;
+  font-weight: bold;
 }
 
-/* Icon Element Plus bên trong các nút */
-.header-icon-btn .el-icon {
-  vertical-align: middle;
-  color: #4a5568;
-  transition: color 0.2s ease;
-  font-size: 24px;
+/* User Dropdown */
+.user-menu-container {
+  position: relative;
 }
-
-.header-icon-btn:hover .el-icon {
-  color: #007bff;
-}
-
-/* Menu thả xuống của người dùng */
 .user-dropdown-menu {
-  top: calc(100% + 5px); /* Khoảng cách từ nút kích hoạt */
-  right: 0; /* Căn lề phải với nút kích hoạt */
-  z-index: 1000;
-  min-width: 180px; /* Tăng chiều rộng tối thiểu cho menu dropdown */
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  border: 1px solid #e2e8f0; /* Thêm đường viền nhẹ */
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  background-color: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+  padding: 10px;
+  width: 200px;
+  z-index: 1010;
 }
-
-/* Kiểu cho các mục trong dropdown menu */
-.user-dropdown-menu .dropdown-item {
+.dropdown-greeting {
+  display: block;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-dark);
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-color);
+}
+.dropdown-item {
   display: flex;
   align-items: center;
-  padding: 0.5rem 1rem;
+  gap: 10px;
+  padding: 8px 10px;
   text-decoration: none;
-  color: #333;
-  transition:
-    background-color 0.2s ease,
-    color 0.2s ease;
-  border-radius: 0.25rem; /* Bo tròn nhẹ các góc của mục */
+  color: var(--text-dark);
+  font-size: 15px;
+  border-radius: 5px;
+  transition: background-color 0.2s;
+}
+.dropdown-item:hover {
+  background-color: #f8f9fa;
+}
+.user-dropdown-menu .btn-logout,
+.user-dropdown-menu .btn-login,
+.user-dropdown-menu .btn-register {
+  width: 100%;
+  padding: 8px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: 600;
+  margin-top: 5px;
+  border: 1px solid var(--border-color);
+}
+.user-dropdown-menu .btn-login {
+  background-color: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+.user-dropdown-menu .btn-logout {
+  background-color: #f8f9fa;
+  color: var(--danger-color);
+  border-color: var(--danger-color);
 }
 
-.user-dropdown-menu .dropdown-item:hover {
-  background-color: #f0f0f0;
-  color: #007bff;
+
+/* Scroll-to-top Button */
+.scroll-to-top-btn {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  z-index: 1050;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
 }
 
-.user-dropdown-menu .dropdown-item i {
-  margin-right: 0.5rem; /* Khoảng cách giữa icon và chữ */
+/* Transition Fades */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 
-/* Điều chỉnh cho màn hình nhỏ (responsive) */
+/* Responsive */
 @media (max-width: 992px) {
-  .container.d-flex {
-    flex-wrap: wrap;
-    justify-content: center;
-    padding: 0 1rem;
-    height: auto;
-  }
-
-  .d-flex.align-items-center.gap-1.flex-shrink-0 {
-    /* Logo */
-    width: 100%;
-    justify-content: center;
-    margin-bottom: 1rem;
-    order: 1;
-  }
-
-  nav.flex-grow-1 {
-    /* Menu Navigation */
-    width: 100%;
-    order: 2;
-    margin-bottom: 1rem;
-    padding: 0;
-    justify-content: center;
-  }
-
-  nav ul {
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 0.5rem;
-  }
-
-  .nav-link {
-    padding: 0.4rem 0.6rem;
-  }
-
-  .d-flex.align-items-center.gap-3.flex-nowrap.flex-shrink-0 {
-    /* Các icon bên phải */
-    width: 100%;
-    order: 3;
-    justify-content: center;
-    gap: 1rem;
-    margin-top: 0.5rem;
-  }
-
-  /* Ẩn ô input tìm kiếm trên mobile, chỉ hiển thị icon */
-  .search-input-container {
+  .header-nav, .search-input-container {
     display: none;
   }
 }

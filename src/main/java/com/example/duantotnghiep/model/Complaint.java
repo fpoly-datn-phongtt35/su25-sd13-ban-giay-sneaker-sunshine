@@ -2,16 +2,7 @@ package com.example.duantotnghiep.model;
 
 import com.example.duantotnghiep.state.TrangThaiKhieuNai;
 import com.example.duantotnghiep.state.TrangThaiKhieuNaiConverter;
-import jakarta.persistence.Column;
-import jakarta.persistence.Convert;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.Lob;
-import jakarta.persistence.ManyToOne;
+import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
@@ -27,6 +18,7 @@ import java.util.Date;
 @Getter
 @Setter
 @Entity
+@Table(name="Complaint")
 public class Complaint {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -55,8 +47,8 @@ public class Complaint {
 
     @Nationalized
     @Lob
-    @Column(name = "Result")
-    private String result;
+    @Column(name = "description")
+    private String description;
 
     @Column(name = "created_date")
     private Date createdDate;

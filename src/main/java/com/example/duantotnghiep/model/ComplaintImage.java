@@ -1,22 +1,20 @@
 package com.example.duantotnghiep.model;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
+import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.Nationalized;
 
+@AllArgsConstructor
+@NoArgsConstructor
 @Getter
 @Setter
 @Entity
+@Table(name = "complaint_image")
 public class ComplaintImage {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -30,15 +28,15 @@ public class ComplaintImage {
 
     @Size(max = 255)
     @Nationalized
-    @Column(name = "FileName")
+    @Column(name = "file_name")
     private String fileName;
 
     @Size(max = 100)
     @Nationalized
-    @Column(name = "FileType", length = 100)
+    @Column(name = "file_type", length = 100)
     private String fileType;
 
-    @Column(name = "ImageData")
+    @Column(name = "image_data")
     private byte[] imageData;
 
 }

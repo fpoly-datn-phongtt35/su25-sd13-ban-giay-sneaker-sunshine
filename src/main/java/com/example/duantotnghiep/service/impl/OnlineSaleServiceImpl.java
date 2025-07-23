@@ -93,39 +93,33 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
         Invoice invoice = invoiceRepository.findPaidInvoiceById(invoiceId, isPaid)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
 
-        // 1. Chuyển trạng thái đơn
         chuyenTrangThai(invoiceId, nextKey);
 
-        // 2. Hoàn lại tồn kho
         List<InvoiceDetail> invoiceDetails = invoiceDetailRepository.findByInvoiceId(invoiceId);
         for (InvoiceDetail detail : invoiceDetails) {
             ProductDetail productDetail = detail.getProductDetail();
 
-            // Cộng lại cho ProductDetail
             int oldDetailStock = productDetail.getQuantity();
             productDetail.setQuantity(oldDetailStock + detail.getQuantity());
             productDetailRepository.save(productDetail);
 
-            // Cộng lại cho Product
             Product product = productDetail.getProduct();
             int oldProductStock = product.getQuantity();
             product.setQuantity(oldProductStock + detail.getQuantity());
             productRepository.save(product);
         }
 
-        // 3. Ghi nhận giao dịch hoàn tiền
         InvoiceTransaction invoiceTransaction = new InvoiceTransaction();
         invoiceTransaction.setTransactionCode("GD-" + UUID.randomUUID().toString().substring(0, 8));
         invoiceTransaction.setInvoice(invoice);
         invoiceTransaction.setAmount(invoice.getFinalAmount());
-        invoiceTransaction.setPaymentStatus(2); // Đã hoàn tiền
+        invoiceTransaction.setPaymentStatus(2);
         invoiceTransaction.setPaymentMethod(paymentMenthod);
         invoiceTransaction.setTransactionType("Hoàn tiền");
         invoiceTransaction.setNote(note);
         invoiceTransaction.setPaymentTime(new Date());
         invoiceTransactionRepository.save(invoiceTransaction);
 
-        // 4. Lưu invoice cập nhật
         invoiceRepository.save(invoice);
     }
 

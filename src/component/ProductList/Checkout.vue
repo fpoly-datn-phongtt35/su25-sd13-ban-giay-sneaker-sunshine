@@ -232,9 +232,9 @@ const applyDiscountCode = async () => {
 
 const form = ref({
   customerId: null,
-  customerName: 'phan tuan anh', // Pre-fill from image
+  customerName: '', // Pre-fill from image
   phone: '',
-  email: 'phantuananh@gmail.com', // Pre-fill from image
+  email: '', // Pre-fill from image
   description: '', // Not shown in image, but kept for backend
   address: {
     country: 'Việt Nam',

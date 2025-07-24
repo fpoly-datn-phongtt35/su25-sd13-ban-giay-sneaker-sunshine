@@ -2,8 +2,11 @@ package com.example.duantotnghiep.controller;
 
 import com.example.duantotnghiep.dto.request.InvoiceRequest;
 import com.example.duantotnghiep.dto.response.InvoiceDisplayResponse;
+import com.example.duantotnghiep.dto.response.InvoiceResponse;
 import com.example.duantotnghiep.dto.response.ProductResponse;
+import com.example.duantotnghiep.mapper.InvoiceMapper;
 import com.example.duantotnghiep.model.Invoice;
+import com.example.duantotnghiep.model.PromotionSuggestion;
 import com.example.duantotnghiep.repository.InvoiceRepository;
 import com.example.duantotnghiep.service.InvoiceService;
 import com.example.duantotnghiep.service.ProductService;
@@ -32,6 +35,7 @@ public class SaleOnlineController {
     private final InvoiceService invoiceService;
     private final InvoiceEmailService invoiceEmailService;
     private final InvoiceRepository invoiceRepository;
+    private final InvoiceMapper invoiceMapper;
 
 
     @GetMapping("/online-home")
@@ -74,5 +78,15 @@ public class SaleOnlineController {
         return ResponseEntity.ok(productPage);
     }
 
+    @GetMapping("/suggest-promotion/{customerId}")
+    public ResponseEntity<PromotionSuggestion> suggestPromotion(@PathVariable Long customerId) {
+        PromotionSuggestion suggestion = invoiceService.getSuggestedPromotion(customerId);
+        return ResponseEntity.ok(suggestion);
+    }
 
+    @PostMapping("/{invoiceId}/pay")
+    public ResponseEntity<String> payInvoice(@PathVariable Long invoiceId) {
+        invoiceService.processInvoicePayment(invoiceId);
+        return ResponseEntity.ok("Thanh toán hóa đơn thành công và xét duyệt voucher.");
+    }
 }

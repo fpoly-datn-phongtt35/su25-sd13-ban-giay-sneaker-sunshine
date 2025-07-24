@@ -8,6 +8,7 @@ import com.example.duantotnghiep.dto.response.InvoiceResponse;
 import com.example.duantotnghiep.dto.response.InvoiceWithVnpayResponse;
 import com.example.duantotnghiep.dto.response.InvoiceWithZaloPayResponse;
 import com.example.duantotnghiep.model.Invoice;
+import com.example.duantotnghiep.model.PromotionSuggestion;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.transaction.annotation.Transactional;
@@ -68,4 +69,10 @@ public interface InvoiceService {
 
     Page<InvoiceResponse> searchInvoices(Integer status,Integer orderType, LocalDateTime createdFrom, LocalDateTime createdTo, String phone, String code, Pageable pageable);
 
+    PromotionSuggestion getSuggestedPromotion(Long customerId);
+
+    @Transactional
+    void processInvoicePayment(Long invoiceId);
+
+    void checkAndGiftVoucher(Long customerId);
 }

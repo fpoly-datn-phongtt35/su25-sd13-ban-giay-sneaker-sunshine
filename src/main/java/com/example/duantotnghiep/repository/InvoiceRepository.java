@@ -137,4 +137,11 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
     @Query("SELECT i.statusDetail, COUNT(i) FROM Invoice i WHERE i.statusDetail IS NOT NULL GROUP BY i.statusDetail")
     List<Object[]> countByStatusDetail();
 
+    @Query("SELECT i FROM Invoice i WHERE i.customer.id = :customerId AND i.status = :status AND i.orderType = 1")
+    List<Invoice> findSuccessfulOnlineInvoicesByCustomerId(@Param("customerId") Long customerId, @Param("status") TrangThaiTong status);
+
+    @Query("SELECT COUNT(i) FROM Invoice i WHERE i.customer.id = :customerId AND i.status = :paidStatus")
+    Long countPaidInvoicesByCustomer(@Param("customerId") Long customerId,
+                                     @Param("paidStatus") TrangThaiTong paidStatus);
+
 }

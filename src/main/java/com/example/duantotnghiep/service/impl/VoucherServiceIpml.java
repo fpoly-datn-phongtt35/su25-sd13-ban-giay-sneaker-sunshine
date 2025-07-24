@@ -5,6 +5,7 @@ import com.example.duantotnghiep.dto.request.VoucherSearchRequest;
 import com.example.duantotnghiep.dto.response.PaginationDTO;
 import com.example.duantotnghiep.dto.response.VoucherResponse;
 import com.example.duantotnghiep.mapper.VoucherMapper;
+import com.example.duantotnghiep.model.Customer;
 import com.example.duantotnghiep.model.Invoice;
 import com.example.duantotnghiep.model.InvoiceDetail;
 import com.example.duantotnghiep.model.Product;
@@ -33,6 +34,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -244,4 +246,5 @@ public class VoucherServiceIpml implements VoucherService {
                 .map(voucherMapper::toDto)
                 .collect(Collectors.toList());
     }
+
 }

@@ -132,11 +132,10 @@ const showScrollTopButton = ref(false);
 const navLinks = [
   { path: '/', label: 'TRANG CHỦ' },
   { path: '/collections', label: 'SẢN PHẨM' },
-  { path: '/giay-dep', label: 'GIÀY DÉP' },
-  { path: '/tui-vi', label: 'TÚI VÍ' },
-  { path: '/phu-kien', label: 'PHỤ KIỆN' },
-  { path: '/giam-gia', label: 'GIẢM GIÁ', isSale: true },
-  { path: '/steal-karina-style', label: 'STEAL KARINA STYLE' },
+  { path: '/', label: 'SẢN PHẨM' },
+  { path: '/', label: 'SẢN PHẨM' },
+  { path: '/', label: 'GIẢM GIÁ', isSale: true },
+  { path: '/', label: 'STEAL KARINA STYLE' },
 ];
 
 // --- LIFECYCLE HOOKS ---
@@ -192,18 +191,40 @@ const handleRegisterSuccess = () => {
 };
 
 const logout = () => {
-  const userId = user.value?.id;
-  localStorage.removeItem('user');
+  const userId = user.value?.id; // Lấy userId trước khi user.value bị xóa
+
+  // --- BẮT ĐẦU XÓA TẤT CẢ CÁC MỤC LIÊN QUAN ĐẾN PHIÊN ---
+  
+  // 1. Xóa thông tin người dùng chính (đối tượng JSON được lưu dưới khóa 'user')
+  localStorage.removeItem('user'); 
+
+  // 2. Xóa các mục riêng lẻ nếu chúng vẫn còn tồn tại (do cách lưu trữ cũ hoặc lỗi/thiếu đồng bộ)
+  localStorage.removeItem('token');
+  localStorage.removeItem('employeeName');
+  localStorage.removeItem('customerName');
+  localStorage.removeItem('userId');
+
+  // 3. Xóa các mục giỏ hàng
   if (userId) {
-    localStorage.removeItem(`cart_${userId}`);
+    localStorage.removeItem(`cart_${userId}`); // Giỏ hàng của người dùng đã đăng nhập
   }
+  localStorage.removeItem('cart_guest'); // Giỏ hàng của khách vãng lai
+  localStorage.removeItem('cart'); // Xóa key 'cart' chung nếu nó không phải là giỏ hàng guest/user cụ thể
+
+  // 4. Nếu bạn có bất kỳ key nào khác liên quan đến phiên đăng nhập được lưu riêng lẻ,
+  // hãy thêm chúng vào đây. Ví dụ:
+  // localStorage.removeItem('my_access_token');
+  // localStorage.removeItem('my_refresh_token');
+
+  // --- KẾT THÚC XÓA TẤT CẢ CÁC MỤC LIÊN QUAN ĐẾN PHIÊN ---
+
+  // Đặt lại trạng thái trong ứng dụng sau khi đăng xuất
   user.value = null;
   cartCount.value = 0;
-  showUserOptions.value = false;
+  showUserOptions.value = false; // Đóng dropdown menu
   ElMessage.success('Đăng xuất thành công!');
-  router.push('/');
+  router.push('/'); // Chuyển hướng về trang chủ hoặc trang đăng nhập
 };
-
 const handleScroll = () => {
   const scrollPosition = window.scrollY;
   isScrolled.value = scrollPosition > 50;

@@ -116,7 +116,6 @@ const mainSteps = [
   { key: 'CHO_GIAO_HANG', label: 'Chờ giao hàng' },
   { key: 'DANG_GIAO_HANG', label: 'Đang giao hàng' },
   { key: 'GIAO_THANH_CONG', label: 'Giao thành công' },
-  { key: 'DA_HOAN_THANH', label: 'Hoàn tất' }
 ]
 const mainStepKeys = mainSteps.map(s => s.key)
 

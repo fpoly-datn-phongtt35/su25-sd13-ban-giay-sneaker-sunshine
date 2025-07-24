@@ -53,7 +53,7 @@
       Chi tiết
     </el-button>
 
-    <!-- ✅ Chuyển v-if trực tiếp vào el-button -->
+    <!--  Chuyển v-if trực tiếp vào el-button -->
     <el-button
       v-if="currentTab === 'GIAO_THANH_CONG'"
       type="danger"
@@ -64,6 +64,18 @@
     >
       Trả hàng/Hoàn tiền
     </el-button>
+
+<el-button
+  v-if="currentTab === 'GIAO_THANH_CONG'"
+  type="danger"
+  :icon="Refresh"
+  size="default"
+  class="ml-2"
+  @click="openReviewDialog(scope.row)"
+>
+  Đánh giá sản phẩm
+</el-button>
+
   </template>
 </el-table-column>
 
@@ -105,6 +117,43 @@
       </div>
     </el-dialog>
 
+ <el-dialog
+  v-model="reviewDialogVisible"
+  title="Đánh giá sản phẩm"
+  width="600px"
+>
+  <div
+    v-for="(item, index) in selectedOrderProducts"
+    :key="item.productId"
+    class="mb-6 border-b pb-4"
+  >
+    <div class="flex items-center justify-between mb-2">
+      <div class="font-medium text-gray-700">
+       Product Name: {{ item.productName }} (ID: {{ item.productId }})
+      </div>
+      <el-rate
+        v-model="item.rating"
+        :max="5"
+        allow-half
+        show-score
+        score-template="{value} sao"
+      />
+    </div>
+
+    <el-input
+      v-model="item.comment"
+      type="textarea"
+      :rows="3"
+      placeholder="Nhập nhận xét của bạn"
+    />
+  </div>
+
+  <template #footer>
+    <el-button @click="reviewDialogVisible = false">Hủy</el-button>
+    <el-button type="primary" @click="submitReview">Gửi đánh giá</el-button>
+  </template>
+</el-dialog>
+
   </div>
 </template>
 
@@ -114,6 +163,7 @@ import { useRouter } from 'vue-router'
 import dayjs from 'dayjs'
 import apiClient from '@/utils/axiosInstance'
 import { View, Refresh } from '@element-plus/icons-vue' // Nhập icon View
+import { ElMessage } from 'element-plus'
 
 // Router để điều hướng
 const router = useRouter()
@@ -132,7 +182,6 @@ const tabs = ref([
   { key: 'DANG_GIAO_HANG', label: 'Đang giao hàng', count: 0 },
   { key: 'GIAO_THANH_CONG', label: 'Giao hàng thành công', count: 0 },
   { key: 'GIAO_THAT_BAI', label: 'Giao hàng thất bại', count: 0 },
-  { key: 'DA_HOAN_THANH', label: 'Đã hoàn thành', count: 0 },
   { key: 'HUY_DON', label: 'Đơn hàng hủy', count: 0 }
 ])
 
@@ -190,6 +239,81 @@ const search = async () => {
   }
 }
 
+const fetchProductsByOrderId = async (orderId) => {
+  console.log('id: ',orderId)
+  try {
+    const res = await apiClient.get(`/favorites/rating-product`, {
+      params: { invoiceId: orderId }
+    })
+    return res.data
+  } catch (err) {
+    ElMessage.error('Không thể tải sản phẩm của đơn hàng')
+    return []
+  }
+}
+
+
+
+const selectedOrderProducts = ref([])
+const reviewDialogVisible = ref(false)
+
+const openReviewDialog = async (order) => {
+  const res = await fetchProductsByOrderId(order.invoiceId); // gọi API thật
+  selectedOrderProducts.value = res.map(product => ({
+    productId: product.productId,
+    productName: product.productName,
+    rating: 0,
+    comment: ''
+  }));
+  reviewDialogVisible.value = true;
+};
+
+
+
+
+// Gửi đánh giá
+// const submitReview = async () => {
+//   const dataToSubmit = selectedOrderProducts.value.map(item => ({
+//     productId: item.productId,   // Đã có từ bước openReviewDialog
+//     rate: item.rating,
+//     comment: item.comment
+//   }));
+//   console.log('data submit: ',dataToSubmit)
+//   try {
+//     await apiClient.post('/favorites', dataToSubmit); // ✅ Sửa chỗ post()
+//     ElMessage.success('Đã gửi đánh giá thành công!');
+//     reviewDialogVisible.value = false;
+//   } catch (error) {
+//     console.error('Gửi đánh giá lỗi:', error);
+//     ElMessage.error('Gửi đánh giá thất bại.');
+//   }
+// };
+
+const submitReview = async () => {
+  const firstProduct = selectedOrderProducts.value[0];
+
+  const dataToSubmit = {
+    productId: firstProduct.productId,
+    rate: firstProduct.rating,
+    comment: firstProduct.comment
+  };
+
+  console.log('data submit:', dataToSubmit);
+
+  try {
+    await apiClient.post('/favorites', dataToSubmit); // Gửi object, không phải array
+    ElMessage.success('Đã gửi đánh giá thành công!');
+    reviewDialogVisible.value = false;
+  } catch (error) {
+    console.error('Gửi đánh giá lỗi:', error);
+    ElMessage.error('Gửi đánh giá thất bại.');
+  }
+};
+
+
+
+
+
 // Đặt lại bộ lọc và tìm kiếm lại
 const resetFilters = () => {
   filters.value = { search: '', dateRange: [] }
@@ -206,6 +330,7 @@ const selectedInvoice = ref(null)
 const returnDialogVisible = ref(false)
 
 const openReturnDialog = (invoice) => {
+  console.log('invoice id: ',invoice.id)
   selectedInvoice.value = invoice
   returnDialogVisible.value = true
 }
@@ -230,37 +355,6 @@ const formatCurrency = (val) => (val || 0).toLocaleString('vi-VN') + ' ₫'
 // Format ngày
 const formatDate = (val) => val ? dayjs(val).format('DD/MM/YYYY HH:mm:ss') : ''
 
-// Các hàm này không còn cần thiết vì cột 'Trạng thái' đã bị xóa.
-// Giữ lại để tham khảo nếu bạn cần chúng ở nơi khác.
-/*
-const getStatusLabel = (status) => {
-  const labels = {
-    '-2': 'Đơn hàng hủy',
-    0: 'Chờ xử lý',
-    1: 'Đã xử lý',
-    3: 'Chờ giao hàng',
-    4: 'Đang giao hàng',
-    5: 'Giao thành công',
-    6: 'Giao thất bại',
-    9: 'Đã hoàn thành'
-  }
-  return labels[status] || 'Không xác định'
-}
-
-const getStatusTagType = (status) => {
-  const types = {
-    '-2': 'danger',
-    0: 'info',
-    1: 'primary',
-    3: 'warning',
-    4: 'warning',
-    5: 'success',
-    6: 'danger',
-    9: 'success'
-  }
-  return types[status] || 'info'
-}
-*/
 
 // Gọi tìm kiếm khi component được mount
 onMounted(() => {

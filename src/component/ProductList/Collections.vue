@@ -97,7 +97,6 @@
               >
                 <img :src="variant.image" :alt="variant.colorName" />
               </div>
-
             </div>
             <div class="quick-view__size-selector">
               <p class="selector-label">Kích thước:</p>

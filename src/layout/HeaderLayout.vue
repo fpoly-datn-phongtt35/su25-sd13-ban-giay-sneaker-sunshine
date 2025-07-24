@@ -10,7 +10,7 @@
 
     <header class="main-header" :class="{ 'is-scrolled': isScrolled }">
       <div class="container d-flex align-items-center justify-content-between">
-        
+
         <div class="header-logo-container">
           <RouterLink to="/">
             <img :src="logoSrc" alt="Logo" class="site-logo" >
@@ -33,7 +33,7 @@
         </nav>
 
         <div class="header-actions">
-          
+
           <div class="search-input-container">
             <el-input
               v-model.trim="searchQuery"
@@ -146,7 +146,7 @@ onMounted(() => {
     user.value = JSON.parse(storedUser);
   }
   updateCartCount();
-  
+
   window.addEventListener('scroll', handleScroll);
   window.addEventListener('cart-updated', updateCartCount);
   document.addEventListener('click', handleClickOutsideUserMenu);
@@ -434,7 +434,7 @@ const handleClickOutsideUserMenu = (event) => {
 }
 .user-dropdown-menu .btn-login {
   background-color: var(--primary-color);
-  color: white;
+  color: black;
   border-color: var(--primary-color);
 }
 .user-dropdown-menu .btn-logout {

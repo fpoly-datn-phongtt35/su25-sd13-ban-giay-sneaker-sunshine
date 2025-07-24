@@ -62,7 +62,7 @@ public interface ProductRepository extends JpaRepository<Product,Long> {
             "WHERE p.id IN :ids")
     List<Product> findByIdsWithDetails(@Param("ids") List<Long> ids);
 
-    @Query("SELECT p FROM Product p WHERE p.status = 1")
+    @Query("SELECT p FROM Product p WHERE p.status = 1 order by p.createdDate desc ")
     Page<Product> findAllWithJPQL(Pageable pageable);
 
 }

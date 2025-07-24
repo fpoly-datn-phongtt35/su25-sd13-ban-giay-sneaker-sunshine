@@ -1,6 +1,7 @@
 package com.example.duantotnghiep.repository;
 
 import com.example.duantotnghiep.dto.response.InvoiceDetailOnline;
+import com.example.duantotnghiep.dto.response.RatingProductResponse;
 import com.example.duantotnghiep.model.Invoice;
 import com.example.duantotnghiep.model.InvoiceDetail;
 import com.example.duantotnghiep.model.ProductDetail;
@@ -23,6 +24,19 @@ public interface InvoiceDetailRepository extends JpaRepository<InvoiceDetail, Lo
     List<InvoiceDetail> findByInvoiceAndStatus(Invoice invoice, Integer status);
 
     List<InvoiceDetail> findByInvoiceIdIn(Collection<Long> invoiceIds);
+
+
+    @Query("""
+        select new com.example.duantotnghiep.dto.response.RatingProductResponse(
+          i.id,p.id,p.productName
+        ) from Invoice i
+        left join InvoiceDetail id on i.id = id.invoice.id
+        left join ProductDetail pd on pd.id = id.productDetail.id
+        left join Product p on p.id = pd.product.id
+        where i.id = :invoiceId
+"""
+    )
+    List<RatingProductResponse> findAllByInvoiceId(@Param("invoiceId") Long invoiceId);
 
     @Query("""
     select new com.example.duantotnghiep.dto.response.InvoiceDetailOnline(

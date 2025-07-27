@@ -25,5 +25,7 @@ public interface VoucherService {
 
     Voucher validateVoucher(Long customerId, String voucherCode, BigDecimal orderTotal);
 
+    Voucher findBestVoucherForCustomer(Long customerId, BigDecimal orderTotal);
+
     List<VoucherResponse> getVouchersByCustomerId(String customerId);
 }

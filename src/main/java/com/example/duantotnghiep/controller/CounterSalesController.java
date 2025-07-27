@@ -220,6 +220,27 @@ public class CounterSalesController {
         }
     }
 
+    @PostMapping("/{invoiceId}/apply-best-voucher")
+    public ResponseEntity<?> applyBestVoucher(@PathVariable Long invoiceId) {
+        try {
+            Invoice updatedInvoice = invoiceService.applyBestVoucherToInvoice(invoiceId);
+
+            if (updatedInvoice.getVoucher() == null) {
+                return ResponseEntity.ok("Không có voucher nào phù hợp để áp dụng.");
+            }
+
+            VoucherResponse response = voucherMapper.toDto(updatedInvoice.getVoucher());
+            return ResponseEntity.ok(response);
+
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest()
+                    .body("Lỗi khi áp dụng voucher: " + ex.getMessage());
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Đã xảy ra lỗi hệ thống khi áp dụng voucher.");
+        }
+    }
+
     @PutMapping("/{invoiceId}/remove-voucher")
     public ResponseEntity<?> removeVoucher(@PathVariable Long invoiceId) {
         try {

@@ -113,6 +113,20 @@ public class VoucherController {
         return voucherMapper.toDto(voucher);
     }
 
+    @GetMapping("/apply-best")
+    public VoucherResponse applyBestVoucher(
+            @RequestParam Long customerId,
+            @RequestParam BigDecimal orderTotal
+    ) {
+        Voucher bestVoucher = voucherService.findBestVoucherForCustomer(customerId, orderTotal);
+
+        if (bestVoucher == null) {
+            throw new RuntimeException("Không tìm thấy voucher phù hợp");
+        }
+
+        return voucherMapper.toDto(bestVoucher);
+    }
+
     @GetMapping("/by-customer/{customerId}")
     public ResponseEntity<List<VoucherResponse>> getVouchersByCustomer(@PathVariable String customerId) {
         List<VoucherResponse> response = voucherService.getVouchersByCustomerId(customerId);

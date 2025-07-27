@@ -47,5 +47,6 @@ public interface VoucherRepository extends JpaRepository<Voucher, Long> {
 
     boolean existsByCustomerIdAndDiscountAmount(Long customerId, int discountAmount);
 
+    List<Voucher> findByCustomerId(Long customerId);
 
 }

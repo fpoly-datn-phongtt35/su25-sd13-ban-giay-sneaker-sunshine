@@ -324,15 +324,6 @@ public class InvoiceServiceImpl implements InvoiceService {
         // 2. Lấy danh sách chi tiết hóa đơn của hóa đơn đó
         List<InvoiceDetail> invoiceDetails = invoiceDetailRepository.findByInvoiceAndStatus(invoice, 1);
 
-        // 3. Trả lại số lượng tồn kho cho từng biến thể sản phẩm trong chi tiết hóa đơn
-        for (InvoiceDetail detail : invoiceDetails) {
-            ProductDetail productDetail = detail.getProductDetail();
-
-            // Cộng lại số lượng tồn kho (trả lại hàng về kho)
-            productDetail.setQuantity(productDetail.getQuantity() + detail.getQuantity());
-            productDetailRepository.save(productDetail);
-        }
-
         // 4. Xóa hết chi tiết hóa đơn liên quan
         invoiceDetailRepository.deleteAll(invoiceDetails);
 
@@ -756,6 +747,101 @@ public class InvoiceServiceImpl implements InvoiceService {
         history.setDiscountValueApplied(voucherDiscount); // chỉ lưu phần voucher
         history.setStatus(0);
         voucherHistoryRepository.save(history);
+
+        return updatedInvoice;
+    }
+
+    @Transactional
+    public Invoice applyBestVoucherToInvoice(Long invoiceId) {
+        Invoice invoice = invoiceRepository.findById(invoiceId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy hóa đơn với ID: " + invoiceId));
+
+        List<InvoiceDetail> details = invoiceDetailRepository.findByInvoiceAndStatus(invoice, 1);
+        if (details.isEmpty()) {
+            throw new RuntimeException("Hóa đơn không có sản phẩm để áp dụng voucher");
+        }
+
+        // Tính lại tổng tiền gốc và chiết khấu sản phẩm
+        BigDecimal totalAmount = BigDecimal.ZERO;
+        BigDecimal productDiscount = BigDecimal.ZERO;
+
+        for (InvoiceDetail detail : details) {
+            BigDecimal quantity = BigDecimal.valueOf(detail.getQuantity());
+            BigDecimal itemTotal = detail.getSellPrice().multiply(quantity);
+            BigDecimal discountedTotal = detail.getDiscountedPrice().multiply(quantity);
+
+            totalAmount = totalAmount.add(itemTotal);
+            productDiscount = productDiscount.add(itemTotal.subtract(discountedTotal));
+        }
+
+        invoice.setTotalAmount(totalAmount);
+        invoice.setUpdatedDate(new Date());
+
+        Customer customer = invoice.getCustomer();
+        if (customer == null) {
+            // Không có khách => không áp dụng voucher
+            invoice.setVoucher(null);
+            invoice.setDiscountAmount(productDiscount);
+            invoice.setFinalAmount(totalAmount.subtract(productDiscount));
+            return invoiceRepository.save(invoice);
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        BigDecimal finalTotalAmount = totalAmount;
+
+        List<Voucher> candidates = voucherRepository.findAll().stream()
+                .filter(v -> v.getStatus() != null && v.getStatus() == 1)
+                .filter(v -> v.getQuantity() == null || v.getQuantity() > 0)
+                .filter(v -> now.isAfter(v.getStartDate()) && now.isBefore(v.getEndDate()))
+                .filter(v -> v.getMinOrderValue() != null && finalTotalAmount.compareTo(v.getMinOrderValue()) >= 0)
+                .filter(v -> v.getCustomer() == null || v.getCustomer().getId().equals(customer.getId()))
+                .filter(v -> !voucherHistoryRepository.existsByVoucherAndCustomerAndInvoiceNot(v, customer, invoice))
+                .collect(Collectors.toList());
+
+        Voucher bestVoucher = null;
+        BigDecimal bestVoucherDiscount = BigDecimal.ZERO;
+
+        for (Voucher v : candidates) {
+            BigDecimal discount = BigDecimal.ZERO;
+
+            if (v.getDiscountPercentage() != null && v.getDiscountPercentage().compareTo(BigDecimal.ZERO) > 0) {
+                discount = totalAmount.multiply(v.getDiscountPercentage())
+                        .divide(BigDecimal.valueOf(100), 0, RoundingMode.HALF_UP);
+
+                if (v.getMaxDiscountValue() != null && discount.compareTo(v.getMaxDiscountValue()) > 0) {
+                    discount = v.getMaxDiscountValue();
+                }
+            } else if (v.getDiscountAmount() != null && BigDecimal.valueOf(v.getDiscountAmount()).compareTo(BigDecimal.ZERO) > 0) {
+                discount = BigDecimal.valueOf(v.getDiscountAmount());
+            }
+
+            if (discount.compareTo(bestVoucherDiscount) > 0) {
+                bestVoucher = v;
+                bestVoucherDiscount = discount;
+            }
+        }
+
+        // Áp dụng voucher tốt nhất (nếu có)
+        BigDecimal totalDiscount = productDiscount.add(bestVoucherDiscount);
+        BigDecimal finalAmount = totalAmount.subtract(totalDiscount);
+
+        invoice.setVoucher(bestVoucher);
+        invoice.setDiscountAmount(totalDiscount);
+        invoice.setFinalAmount(finalAmount);
+
+        Invoice updatedInvoice = invoiceRepository.save(invoice);
+
+        // Lưu lịch sử sử dụng nếu có voucher được áp
+        if (bestVoucher != null) {
+            VoucherHistory history = new VoucherHistory();
+            history.setVoucher(bestVoucher);
+            history.setInvoice(invoice);
+            history.setCustomer(customer);
+            history.setUsedAt(now);
+            history.setDiscountValueApplied(bestVoucherDiscount);
+            history.setStatus(0); // đã sử dụng
+            voucherHistoryRepository.save(history);
+        }
 
         return updatedInvoice;
     }

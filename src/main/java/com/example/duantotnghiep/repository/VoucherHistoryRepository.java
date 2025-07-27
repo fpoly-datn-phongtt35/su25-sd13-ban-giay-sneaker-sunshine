@@ -1,5 +1,6 @@
 package com.example.duantotnghiep.repository;
 
+import com.example.duantotnghiep.model.Customer;
 import com.example.duantotnghiep.model.Invoice;
 import com.example.duantotnghiep.model.Voucher;
 import com.example.duantotnghiep.model.VoucherHistory;
@@ -18,5 +19,8 @@ public interface VoucherHistoryRepository extends JpaRepository<VoucherHistory, 
     // Trả về nhiều lịch sử voucher nếu có
     List<VoucherHistory> findByInvoiceAndVoucherAndStatus(Invoice invoice, Voucher voucher, int status);
 
+    boolean existsByVoucherAndCustomerAndInvoiceNot(Voucher voucher, Customer customer, Invoice invoice);
+
+    boolean existsByVoucherAndCustomer(Voucher voucher, Customer customer);
 
 }

@@ -585,13 +585,14 @@ const closeProductDialog = () => {
 }
 
 const confirmAddProduct = async () => {
-  if (!invoiceDetails.value?.invoice?.id) {
+  const invoiceId = invoiceDetails.value?.invoice?.id
+  if (!invoiceId) {
     ElMessage.warning('Hóa đơn không hợp lệ.')
     return
   }
 
   const matchedAttr = attributes.value.find(
-    (a) => a.size?.id === selectedSizeId.value && a.color?.id === selectedColorId.value,
+    (a) => a.size?.id === selectedSizeId.value && a.color?.id === selectedColorId.value
   )
 
   if (!matchedAttr) {
@@ -600,7 +601,8 @@ const confirmAddProduct = async () => {
   }
 
   try {
-    await apiClient.post(`/admin/counter-sales/${invoiceDetails.value.invoice.id}/details`, {
+    // 1. Thêm sản phẩm vào hóa đơn
+    await apiClient.post(`/admin/counter-sales/${invoiceId}/details`, {
       productDetailId: matchedAttr.id,
       quantity: selectedQuantity.value,
     })
@@ -608,15 +610,37 @@ const confirmAddProduct = async () => {
     ElMessage.success(`Đã thêm "${currentProduct.value.productName}" vào giỏ hàng.`)
     closeProductDialog()
 
+    // 2. Làm mới danh sách sản phẩm & chi tiết hóa đơn
+    await Promise.all([
+      fetchProducts(pagination.value.currentPage),
+      fetchInvoiceDetails(invoiceId),
+    ])
+
+    // 3. Luôn luôn áp dụng lại voucher tốt nhất sau khi thêm sản phẩm
+    try {
+      const res = await apiClient.post(`/admin/counter-sales/${invoiceId}/apply-best-voucher`)
+      if (res.data && typeof res.data === 'object') {
+        appliedVoucher.value = res.data
+        ElMessage.success('Đã tự động áp dụng voucher tốt nhất.')
+      } else {
+        appliedVoucher.value = null
+        ElMessage.info('Không có voucher phù hợp để áp dụng.')
+      }
+    } catch (err) {
+      appliedVoucher.value = null
+      console.warn('Không thể áp dụng voucher tốt nhất:', err)
+    }
+
+    // 4. Gọi lại fetchInvoiceDetails để cập nhật lại giảm giá và tổng tiền
     await fetchInvoiceDetails(invoiceId)
 
-    await fetchProducts(pagination.value.currentPage)
-
+    // 5. Cập nhật danh sách voucher có thể áp dụng
     await fetchVoucherByInvoiceId(invoiceId)
+
   } catch (error) {
     const message = error.response?.data || 'Thêm sản phẩm thất bại.'
     ElMessage.error(message)
-    console.error('Error adding product to invoice:', error)
+    console.error('Lỗi khi thêm sản phẩm vào hóa đơn:', error)
   }
 }
 
@@ -700,6 +724,13 @@ async function calculateChange() {
 }
 
 const checkoutInvoice = async () => {
+  // Kiểm tra hóa đơn hợp lệ
+  if (!invoiceId) {
+    ElMessage.error('Hóa đơn không hợp lệ!')
+    return
+  }
+
+  // Kiểm tra giỏ hàng có sản phẩm
   if (!invoiceDetails.value?.details?.length) {
     ElMessage.error('Giỏ hàng trống, không thể thanh toán!')
     return
@@ -708,10 +739,10 @@ const checkoutInvoice = async () => {
   isLoading.value = true
 
   try {
-    // 1. Gọi API thanh toán
+    // Gửi yêu cầu thanh toán
     const response = await apiClient.post(`/admin/counter-sales/${invoiceId}/checkout`)
 
-    // 2. Xác nhận in hóa đơn
+    // Hiển thị hộp thoại xác nhận sau khi thanh toán thành công
     const confirmed = await ElMessageBox.confirm(
       response.data?.message || 'Thanh toán thành công! Bạn có muốn in hóa đơn PDF không?',
       'Thành công',
@@ -719,17 +750,16 @@ const checkoutInvoice = async () => {
         confirmButtonText: 'Có, In hóa đơn',
         cancelButtonText: 'Không',
         type: 'success',
-      },
-    )
-      .then(() => true)
-      .catch(() => false)
+      }
+    ).then(() => true).catch(() => false)
 
-    // 3. In hóa đơn nếu người dùng đồng ý
+    // Nếu người dùng chọn in hóa đơn
     if (confirmed) {
       const res = await apiClient.get(`/admin/invoices/${invoiceId}/export-id`, {
         responseType: 'blob',
       })
 
+      // Tạo blob và tự động tải về file PDF
       const blob = new Blob([res.data], { type: 'application/pdf' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -737,21 +767,30 @@ const checkoutInvoice = async () => {
       a.download = `HoaDon-${invoiceId}.pdf`
       document.body.appendChild(a)
       a.click()
-      URL.revokeObjectURL(url)
       a.remove()
+      URL.revokeObjectURL(url)
     }
 
-    // 4. Chuyển trang
+    // Chuyển hướng về danh sách hóa đơn tại quầy
     router.push('/sales-counter/list')
   } catch (err) {
-    console.error('Lỗi khi thanh toán:', err)
-    let message = 'Có lỗi xảy ra khi thanh toán.'
+    // Ghi log chi tiết lỗi ra console
+    console.error('%c🚨 LỖI THANH TOÁN:', 'color: red; font-weight: bold;', err)
 
-    if (err.response?.data?.message) {
-      message = err.response.data.message
-    } else if (err.message) {
-      message = err.message
+    if (err.response) {
+      console.error('↪️ Response status:', err.response.status)
+      console.error('↪️ Response data:', err.response.data)
+    } else if (err.request) {
+      console.error('🛰️ Không nhận được phản hồi từ server:', err.request)
+    } else {
+      console.error('❌ Lỗi khác:', err.message)
     }
+
+    // Hiển thị lỗi cho người dùng
+    const message =
+      err.response?.data?.message ||
+      err.message ||
+      'Có lỗi xảy ra khi thanh toán.'
 
     ElMessage.error(message)
   } finally {

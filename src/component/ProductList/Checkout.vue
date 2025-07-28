@@ -28,7 +28,7 @@
               </el-col>
             </el-row>
 
-             <el-row :gutter="20">
+              <el-row :gutter="20">
               <el-col :span="24">
                 <el-form-item label="Gmail" prop="address.houseName">
                   <el-input v-model="form.email" placeholder="Địa chỉ"></el-input>
@@ -109,16 +109,16 @@
           </div>
 
           <div class="discount-code-section">
-  <el-input v-model="discountCode" placeholder="Nhập Mã Giảm Giá" class="discount-input"></el-input>
-  <el-button type="primary" class="apply-discount-button" @click="applyDiscountCode">SỬ DỤNG</el-button>
-  <el-button
-    v-if="appliedVoucher"
-    type="danger"
-    class="cancel-discount-button"
-    @click="cancelVoucher">
-    HỦY BỎ
-  </el-button>
-</div>
+            <el-input v-model="discountCode" placeholder="Nhập Mã Giảm Giá" class="discount-input"></el-input>
+            <el-button type="primary" class="apply-discount-button" @click="applyDiscountCode">SỬ DỤNG</el-button>
+            <el-button
+              v-if="appliedVoucher"
+              type="danger"
+              class="cancel-discount-button"
+              @click="cancelVoucher">
+              HỦY BỎ
+            </el-button>
+          </div>
 
 
           <div class="loyal-customer-text">Khách hàng thân thiết</div>
@@ -229,6 +229,67 @@ const applyDiscountCode = async () => {
   }
 }
 
+// ✨ NEW FUNCTION: Automatic Best Voucher Application
+const applyBestVoucherAutomatically = async () => {
+  const customerId = form.value.customerId;
+  const orderTotal = totalPrice.value;
+
+  // Only attempt to apply if customerId is known and orderTotal is greater than 0
+  if (customerId && orderTotal > 0) {
+    try {
+      // Clear any manually entered discount code
+      discountCode.value = '';
+
+      const res = await axios.get('http://localhost:8080/api/admin/vouchers/apply-best', { // Corrected line
+        params: {
+          customerId: customerId,
+          orderTotal: orderTotal
+        }
+      });
+
+      // If a best voucher is found
+      if (res.data) {
+        appliedVoucher.value = res.data;
+        // Corrected variable name: appliedVoucher.value.voucherName instead of appliedVulatedVoucher.value.voucherName
+        ElMessage.success(`Tự động áp dụng voucher tốt nhất: ${appliedVoucher.value.voucherName}`); 
+
+        let discount = 0;
+        if (appliedVoucher.value.discountPercentage) {
+          discount = Math.min(
+            (orderTotal * appliedVoucher.value.discountPercentage) / 100,
+            appliedVoucher.value.maxDiscountValue || Infinity
+          );
+        } else if (appliedVoucher.value.discountAmount) {
+          discount = appliedVoucher.value.discountAmount;
+        }
+
+        discountAmount.value = discount;
+        finalTotal.value = orderTotal - discountAmount.value + shippingFee.value;
+      } else {
+        // No suitable voucher found, just keep current state
+        ElMessage.info('Không tìm thấy voucher phù hợp nào để tự động áp dụng.');
+        discountAmount.value = 0;
+        finalTotal.value = orderTotal + shippingFee.value;
+        appliedVoucher.value = null; // Ensure no voucher is considered applied
+      }
+
+    } catch (err) {
+      console.error('❌ Lỗi tự động áp dụng voucher:', err);
+      // If no best voucher is found or an error occurs, simply don't apply one automatically.
+      // The backend should return a 404 or handle null gracefully.
+      ElMessage.info('Không tìm thấy voucher phù hợp để tự động áp dụng.');
+      discountAmount.value = 0;
+      finalTotal.value = orderTotal + shippingFee.value;
+      appliedVoucher.value = null; // Ensure no voucher is considered applied
+    }
+  } else {
+    // If customerId is not available or orderTotal is zero, ensure no discount is applied.
+    discountAmount.value = 0;
+    appliedVoucher.value = null;
+    finalTotal.value = orderTotal + shippingFee.value;
+  }
+};
+
 
 const form = ref({
   customerId: null,
@@ -270,6 +331,15 @@ const totalPrice = computed(() =>
 watch([totalPrice, shippingFee], () => {
   finalTotal.value = totalPrice.value + shippingFee.value;
 });
+
+// ✨ NEW WATCHER: Watch for changes in customerId or totalPrice to trigger automatic voucher application
+watch([() => form.value.customerId, totalPrice], async ([newCustomerId, newTotalPrice]) => {
+  // Only trigger if customerId is valid and total price is calculated
+  if (newCustomerId && newTotalPrice > 0) {
+    await applyBestVoucherAutomatically();
+  }
+}, { immediate: false }); // immediate: false means it won't run on initial component mount, `onMounted` handles initial load
+
 
 const formatPrice = (val) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val)
@@ -327,7 +397,10 @@ onMounted(async () => {
   }
 
   // Initial calculation of finalTotal
+  // After initial load and potential customer data pre-fill, attempt to apply best voucher automatically
   finalTotal.value = totalPrice.value + shippingFee.value;
+  // ✨ Call the new function here after all initial data (customer info, cart items) are loaded
+  await applyBestVoucherAutomatically();
 })
 
 const loadProvinces = async () => {
@@ -421,6 +494,7 @@ const onProvinceChange = async () => {
   wards.value = []
   shippingFee.value = 0
   await loadDistricts()
+  await applyBestVoucherAutomatically(); // Re-apply after address change
 }
 
 const onDistrictChange = async () => {
@@ -431,12 +505,14 @@ const onDistrictChange = async () => {
   wards.value = []
   shippingFee.value = 0
   await loadWards()
+  await applyBestVoucherAutomatically(); // Re-apply after address change
 }
 
 const onWardChange = async () => {
   const selected = wards.value.find((w) => w.WardCode === form.value.address.wardCode)
   form.value.address.wardName = selected?.WardName || ''
   await calculateShippingFee()
+  await applyBestVoucherAutomatically(); // Re-apply after address change
 }
 
 const handleSubmit = () => {

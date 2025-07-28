@@ -4,7 +4,7 @@
     <div id="textCarousel" class="carousel slide w-50" data-bs-ride="carousel">
       <div class="carousel-inner text-center">
         <div class="carousel-item active">
-          <h5 class="fw-bold">Welcome to My Clothing Store</h5>
+          <h5 class="fw-bold">Welcome to Sunshine Sneakers</h5>
         </div>
         <div class="carousel-item">
           <h5 class="fw-bold text-danger">Big Discounts This Week! 🔥</h5>
@@ -33,7 +33,7 @@ const employeeName = ref('');
 
 // Lấy thông tin người dùng từ localStorage khi trang được tải
 onMounted(() => {
-  const storedName = localStorage.getItem('employeeName'); 
+  const storedName = localStorage.getItem('employeeName');
   if (!storedName) {
     router.push('/login'); // Nếu không có dữ liệu => quay lại login
     return;

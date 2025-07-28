@@ -193,4 +193,12 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
         return responses;
     }
 
+    @Override
+    public void updateAddressShipping(Long invoiceId, String address) {
+        Invoice invoice = invoiceRepository.findById(invoiceId)
+                .orElseThrow(() -> new RuntimeException("Ko thấy hóa đơn với id: " + invoiceId));
+        invoice.setDeliveryAddress(address);
+        invoiceRepository.save(invoice);
+    }
+
 }

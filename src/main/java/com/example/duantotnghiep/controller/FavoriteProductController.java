@@ -13,6 +13,7 @@ import java.util.List;
 @RequestMapping("/api/favorites")
 @RequiredArgsConstructor
 public class FavoriteProductController {
+
     private final FavoriteProductService service;
 
     @PostMapping
@@ -30,8 +31,9 @@ public class FavoriteProductController {
         return service.getFavoritesByCustomer(customerId);
     }
 
-    @GetMapping("/rating-product")
-    public List<RatingProductResponse> getRatingProducts(@RequestParam Long invoiceId) {
-        return service.getFavoritesByProductId(invoiceId);
+    @GetMapping("/san-pham-da-mua")
+    public List<RatingProductResponse> getRatingProducts() {
+        return service.getFavoritesByCustomer();
     }
+
 }

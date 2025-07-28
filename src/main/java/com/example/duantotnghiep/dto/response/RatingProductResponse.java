@@ -10,7 +10,9 @@ import lombok.Setter;
 @Getter
 @Setter
 public class RatingProductResponse {
-    private Long invoiceId;
+    private Long customerId;
     private Long productId;
     private String productName;
+    private byte[] image;
+    private Boolean isRated;
 }

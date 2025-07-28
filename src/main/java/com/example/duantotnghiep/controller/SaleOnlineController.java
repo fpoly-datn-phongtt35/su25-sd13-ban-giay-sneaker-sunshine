@@ -11,19 +11,14 @@ import com.example.duantotnghiep.repository.InvoiceRepository;
 import com.example.duantotnghiep.service.InvoiceService;
 import com.example.duantotnghiep.service.ProductService;
 import com.example.duantotnghiep.service.impl.InvoiceEmailService;
+import com.example.duantotnghiep.service.impl.OnlineSaleServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -31,12 +26,12 @@ import java.util.List;
 @RequestMapping("/api/online-sale")
 @RequiredArgsConstructor
 public class SaleOnlineController {
+
     private final ProductService productService;
     private final InvoiceService invoiceService;
     private final InvoiceEmailService invoiceEmailService;
     private final InvoiceRepository invoiceRepository;
-    private final InvoiceMapper invoiceMapper;
-
+    private final OnlineSaleServiceImpl onlineSaleService;
 
     @GetMapping("/online-home")
     public ResponseEntity<List<ProductResponse>> hienThi(){
@@ -89,4 +84,11 @@ public class SaleOnlineController {
         invoiceService.processInvoicePayment(invoiceId);
         return ResponseEntity.ok("Thanh toán hóa đơn thành công và xét duyệt voucher.");
     }
+
+    @PutMapping("/cap-nhat-dia-chi")
+    public ResponseEntity<String> capNhatDiaChi(@RequestParam("invoiceId") Long invoiceId, @RequestParam("newAddress") String newAddress) {
+        onlineSaleService.updateAddressShipping(invoiceId,newAddress);
+        return ResponseEntity.ok("Cập nhật địa chỉ giao hàng thành công.");
+    }
+
 }

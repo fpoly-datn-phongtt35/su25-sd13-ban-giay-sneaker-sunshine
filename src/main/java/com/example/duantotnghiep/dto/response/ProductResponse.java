@@ -15,33 +15,26 @@ import java.util.List;
 @Getter
 @Setter
 public class ProductResponse {
+
     private Long id;
     private String productCode;
     private String productName;
-
     private String materialName;
     private Long materialId;
-
     private String brandName;
     private Long brandId;
-
     private String styleName;
     private Long styleId;
-
     private String genderName;
     private Long genderId;
-
     private String soleName;
     private Long soleId;
-
     private String supplierName;
     private Long supplierId;
-
     private BigDecimal originPrice;
     private BigDecimal sellPrice;
     private BigDecimal discountedPrice;
     private Integer discountPercentage;
-
     private Integer quantity;
     private String description;
     private Integer status;

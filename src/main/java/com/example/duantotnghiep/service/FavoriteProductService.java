@@ -10,5 +10,5 @@ public interface FavoriteProductService {
     FavoriteProductResponse addFavorite(FavoriteProductRequest request);
     void removeFavorite(Long customerId, Long productId);
     List<FavoriteProductResponse> getFavoritesByCustomer(Long customerId);
-    List<RatingProductResponse> getFavoritesByProductId(Long invoiceId);
+    List<RatingProductResponse> getFavoritesByCustomer();
 }

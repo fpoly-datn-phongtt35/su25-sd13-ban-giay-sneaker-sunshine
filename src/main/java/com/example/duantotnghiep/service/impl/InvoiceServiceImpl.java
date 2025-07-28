@@ -1217,7 +1217,6 @@ public class InvoiceServiceImpl implements InvoiceService {
                     customer.setCustomerCode("KH" + System.currentTimeMillis());
                     customer.setCreatedDate(LocalDateTime.now());
 
-                    // ✅ Fix lỗi null addressList
                     customer.setAddressList(new ArrayList<>());
 
                     customer = customerRepository.save(customer);
@@ -1226,24 +1225,23 @@ public class InvoiceServiceImpl implements InvoiceService {
                 throw new RuntimeException("Thiếu thông tin khách hàng (cần có customerId hoặc phone)");
             }
 
-            // 2. Xử lý địa chỉ khách hàng nếu có
             AddressRequest addr = request.getCustomerInfo().getAddress();
-            if (addr != null) {
-                AddressCustomer address = new AddressCustomer();
-                address.setCustomer(customer);
-                address.setCountry(addr.getCountry());
-                address.setProvinceCode(addr.getProvinceCode());
-                address.setProvinceName(addr.getProvinceName());
-                address.setDistrictCode(addr.getDistrictCode());
-                address.setDistrictName(addr.getDistrictName());
-                address.setWardCode(addr.getWardCode());
-                address.setWardName(addr.getWardName());
-                address.setHouseName(addr.getHouseName());
-                address.setStatus(1);
-                address.setCreatedDate(new Date());
-                address.setDefaultAddress(true);
-                addressRepository.save(address);
-            }
+//            if (addr != null) {
+//                AddressCustomer address = new AddressCustomer();
+//                address.setCustomer(customer);
+//                address.setCountry(addr.getCountry());
+//                address.setProvinceCode(addr.getProvinceCode());
+//                address.setProvinceName(addr.getProvinceName());
+//                address.setDistrictCode(addr.getDistrictCode());
+//                address.setDistrictName(addr.getDistrictName());
+//                address.setWardCode(addr.getWardCode());
+//                address.setWardName(addr.getWardName());
+//                address.setHouseName(addr.getHouseName());
+//                address.setStatus(1);
+//                address.setCreatedDate(new Date());
+//                address.setDefaultAddress(true);
+//                addressRepository.save(address);
+//            }
 
             // 3. Tạo hóa đơn
             Invoice invoice = new Invoice();
@@ -1258,7 +1256,8 @@ public class InvoiceServiceImpl implements InvoiceService {
             invoice.setStatusDetail(TrangThaiChiTiet.CHO_XU_LY);
             invoice.setDiscountAmount(Optional.ofNullable(request.getDiscountAmount()).orElse(BigDecimal.ZERO));
             invoice.setShippingFee(Optional.ofNullable(request.getShippingFee()).orElse(BigDecimal.ZERO));
-
+            String addressNew = addr.getHouseName() + " - " + addr.getProvinceName() + " - " + addr.getDistrictName() + " - " + "Việt nam";
+            invoice.setDeliveryAddress(addressNew);
             if (request.getEmployeeId() != null) {
                 employeeRepository.findById(request.getEmployeeId()).ifPresent(invoice::setEmployee);
             }

@@ -26,17 +26,33 @@ public interface InvoiceDetailRepository extends JpaRepository<InvoiceDetail, Lo
     List<InvoiceDetail> findByInvoiceIdIn(Collection<Long> invoiceIds);
 
 
-    @Query("""
-        select new com.example.duantotnghiep.dto.response.RatingProductResponse(
-          i.id,p.id,p.productName
-        ) from Invoice i
-        left join InvoiceDetail id on i.id = id.invoice.id
-        left join ProductDetail pd on pd.id = id.productDetail.id
-        left join Product p on p.id = pd.product.id
-        where i.id = :invoiceId
-"""
-    )
-    List<RatingProductResponse> findAllByInvoiceId(@Param("invoiceId") Long invoiceId);
+    @Query(value = """
+    SELECT 
+        i.customer_id AS customerId,
+        p.id AS productId,
+        p.product_name AS productName,
+        (
+            SELECT TOP 1 pi.image 
+            FROM product_image pi 
+            WHERE pi.product_id = p.id
+        ) AS image, 
+        CASE
+            WHEN EXISTS (
+                SELECT 1 
+                FROM favorite_product r
+                WHERE r.customer_id = :customerId 
+                  AND r.product_id = p.id
+            ) THEN 1
+            ELSE 0
+        END AS isRated
+    FROM invoice i
+    LEFT JOIN invoice_details id ON id.invoice_id = i.id
+    LEFT JOIN product_details pd ON pd.id = id.product_detail_id
+    LEFT JOIN product p ON p.id = pd.product_id
+    WHERE i.customer_id = :customerId
+    GROUP BY i.customer_id, p.id, p.product_name
+""", nativeQuery = true)
+    List<Object[]> findAllByCustomerId(@Param("customerId") Long customerId);
 
     @Query("""
     select new com.example.duantotnghiep.dto.response.InvoiceDetailOnline(

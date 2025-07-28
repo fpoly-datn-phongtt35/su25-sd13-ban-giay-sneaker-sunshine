@@ -8,6 +8,7 @@ import com.example.duantotnghiep.dto.response.StatusCountResponse;
 import java.util.List;
 
 public interface OnlineSaleService {
+
     void chuyenTrangThai(Long invoiceId, String nextKey);
     InvoiceOnlineResponse getOrder(Long invoiceId);
 
@@ -20,5 +21,7 @@ public interface OnlineSaleService {
     List<InvoiceOnlineResponse> getOrderByCustomer2(Integer status);
 
     List<OrderStatusHistoryResponse> getOrderStatusHistory(Long invoiceId);
+
+    void updateAddressShipping(Long invoiceId,String address);
 
 }

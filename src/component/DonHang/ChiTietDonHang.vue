@@ -41,13 +41,50 @@
       <h2>Thông tin đơn hàng</h2>
       <p><strong>Mã hóa đơn:</strong> {{ invoice.invoiceCode }}</p>
       <p><strong>Khách hàng:</strong> {{ invoice.customerName }}</p>
+      <p><strong>Số điện thoại:</strong> {{ invoice.phone }}</p>
       <p><strong>Ngày tạo:</strong> {{ formatDate(invoice.createdDate) }}</p>
       <p><strong>Tổng tiền:</strong> {{ formatCurrency(invoice.totalAmount) }}</p>
       <p><strong>Giảm giá:</strong> {{ formatCurrency(invoice.discountAmount) }}</p>
       <p><strong>Phí vận chuyển:</strong> {{ formatCurrency(invoice.shippingFee) }}</p>
       <p><strong>Thành tiền:</strong> {{ formatCurrency(invoice.finalAmount) }}</p>
-
+      <p><strong>Địa chỉ giao hàng:</strong> {{ invoice.deliveryAddress}}</p>
+      <el-button
+          v-if="canEditAddress"
+          type="primary"
+          size="small"
+          class="ml-2"
+          @click="openAddressDialog"
+        >Cập nhật</el-button>
       <el-divider />
+
+    <el-dialog v-model="addressDialogVisible" title="Cập nhật địa chỉ giao hàng" width="600px">
+
+      <div class="flex gap-4 mb-4">
+        <el-select v-model="addressForm.provinceCode" placeholder="Chọn tỉnh/thành"
+                       class="flex-1" filterable @change="handleProvinceChangeForAddress">
+          <el-option v-for="p in provinces" :key="p.ProvinceID" :label="p.ProvinceName" :value="p.ProvinceID" />
+        </el-select>
+
+        <el-select v-model="addressForm.districtCode" placeholder="Chọn quận/huyện"
+                       class="flex-1" filterable @change="handleDistrictChangeForAddress">
+          <el-option v-for="d in districts" :key="d.DistrictID" :label="d.DistrictName" :value="d.DistrictID" />
+        </el-select>
+
+        <el-select v-model="addressForm.wardCode" placeholder="Chọn phường/xã"
+                       class="flex-1" filterable @change="handleWardChangeForAddress ">
+          <el-option v-for="w in wards" :key="w.WardCode" :label="w.WardName" :value="w.WardCode" />
+        </el-select>
+              <div class="mb-4">
+        <el-input v-model="addressForm.houseNumber" placeholder="Số nhà, tên đường" />
+      </div>
+
+      </div>
+
+      <div class="text-right">
+        <el-button @click="addressDialogVisible = false">Hủy</el-button>
+        <el-button type="primary" @click="submitAddressUpdate">Cập nhật</el-button>
+      </div>
+    </el-dialog>
 
       <h3>Lịch sử thanh toán</h3>
       <el-table :data="invoice.invoiceTransactionResponses || []" border stripe>
@@ -99,8 +136,9 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import apiClient from '@/utils/axiosInstance'
+import apiClient from '@/utils/axiosInstance' // Giả sử đây là axios instance của bạn
 import { ElMessage } from 'element-plus'
+import axios from 'axios' // Import axios cho GHN API
 
 const route = useRoute()
 const router = useRouter()
@@ -109,6 +147,205 @@ const invoice = ref({})
 const cancelDialogVisible = ref(false)
 const cancelNote = ref('')
 const selectedPaymentMethod = ref('TIEN_MAT')
+const addressDialogVisible = ref(false)
+
+
+const canEditAddress = computed(() => {
+  const status = invoice.value?.statusDetail
+  return mainStepKeys.includes(status) &&
+    mainStepKeys.indexOf(status) < mainStepKeys.indexOf('CHO_GIAO_HANG')
+})
+
+
+const provinces = ref([])
+const districts = ref([])
+const wards = ref([])
+
+const addressForm = ref({
+  houseNumber: '',
+  provinceCode: null,
+  provinceName: '',
+  districtCode: null,
+  districtName: '',
+  wardCode: null,
+  wardName: '',
+})
+
+const GHN_TOKEN = '847c9bb7-6e42-11ee-a59f-a260851ba65c' // Thay bằng token GHN thực của bạn
+
+const loadProvincesForAddress = async () => {
+  try {
+    const res = await axios.post(
+      'https://online-gateway.ghn.vn/shiip/public-api/master-data/province',
+      {},
+      { headers: { Token: GHN_TOKEN } }
+    )
+    provinces.value = res.data.data
+  } catch (err) {
+    console.error(err)
+    ElMessage.error('Không thể tải danh sách tỉnh/thành phố.')
+  }
+}
+
+const loadDistrictsForAddress = async () => {
+  addressForm.value.districtCode = null
+  addressForm.value.districtName = ''
+  addressForm.value.wardCode = null
+  addressForm.value.wardName = ''
+  districts.value = []
+  wards.value = []
+
+  if (!addressForm.value.provinceCode) return
+
+  try {
+    const res = await axios.get(
+      'https://online-gateway.ghn.vn/shiip/public-api/master-data/district',
+      {
+        headers: { Token: GHN_TOKEN },
+        params: { province_id: addressForm.value.provinceCode }
+      }
+    )
+    districts.value = res.data.data
+  } catch (err) {
+    console.error(err)
+    ElMessage.error('Không thể tải danh sách quận/huyện.')
+  }
+}
+
+const loadWardsForAddress = async () => {
+  addressForm.value.wardCode = null
+  addressForm.value.wardName = ''
+  wards.value = []
+
+  if (!addressForm.value.districtCode) return
+
+  try {
+    const res = await axios.get(
+      'https://online-gateway.ghn.vn/shiip/public-api/master-data/ward',
+      {
+        headers: { Token: GHN_TOKEN },
+        params: { district_id: addressForm.value.districtCode }
+      }
+    )
+    wards.value = res.data.data
+  } catch (err) {
+    console.error(err)
+    ElMessage.error('Không thể tải danh sách phường/xã.')
+  }
+}
+
+const handleProvinceChangeForAddress = () => {
+  const selected = provinces.value.find(p => p.ProvinceID === addressForm.value.provinceCode)
+  addressForm.value.provinceName = selected?.ProvinceName || ''
+  loadDistrictsForAddress()
+}
+
+const handleDistrictChangeForAddress = () => {
+  const selected = districts.value.find(d => d.DistrictID === addressForm.value.districtCode)
+  addressForm.value.districtName = selected?.DistrictName || ''
+  loadWardsForAddress()
+}
+
+const handleWardChangeForAddress = () => {
+  const selected = wards.value.find(w => w.WardCode === addressForm.value.wardCode)
+  addressForm.value.wardName = selected?.WardName || ''
+}
+
+
+// Cập nhật địa chỉ mới
+const submitAddressUpdate = async () => {
+  const {
+    houseNumber,
+    provinceName,
+    districtName,
+    wardName
+  } = addressForm.value
+
+  // if (!houseNumber || !provinceName || !districtName || !wardName) {
+  //   ElMessage.warning('Vui lòng nhập đầy đủ thông tin địa chỉ.')
+  //   return
+  // }
+
+  console.log('tỉnh: ',addressForm.value);
+
+  const fullAddress = `${houseNumber} - ${wardName} - ${districtName} - ${provinceName} - Việt Nam`
+
+  try {
+    await apiClient.put(`/online-sale/cap-nhat-dia-chi`, null, {
+      params: {
+        invoiceId,
+        newAddress: fullAddress
+      }
+    })
+
+    ElMessage.success('Cập nhật địa chỉ thành công!')
+    addressDialogVisible.value = false
+    fetchInvoice() // Cập nhật lại thông tin hóa đơn sau khi đổi địa chỉ
+  } catch (err) {
+    ElMessage.error('Lỗi cập nhật địa chỉ!')
+    console.error(err)
+  }
+}
+
+const openAddressDialog = async () => {
+  addressDialogVisible.value = true;
+
+  // Đảm bảo danh sách tỉnh/thành phố được tải trước khi xử lý
+  await loadProvincesForAddress();
+
+  // Reset form địa chỉ để tránh dữ liệu cũ
+  addressForm.value = {
+    houseNumber: '',
+    provinceCode: null,
+    provinceName: '',
+    districtCode: null,
+    districtName: '',
+    wardCode: null,
+    wardName: '',
+  };
+  districts.value = [];
+  wards.value = [];
+
+  // Tách địa chỉ hiện tại từ invoice.value.deliveryAddress
+  const currentAddress = invoice.value.deliveryAddress || '';
+  // Ví dụ địa chỉ: "123 Đường ABC - Phường XYZ - Quận 1 - TP.HCM - Việt Nam"
+  const addressParts = currentAddress.split(' - ').map(part => part.trim());
+
+  if (addressParts.length >= 4) { // Đảm bảo có đủ các phần địa chỉ
+    addressForm.value.houseNumber = addressParts[0];
+    const wardName = addressParts[1];
+    const districtName = addressParts[2];
+    const provinceName = addressParts[3];
+
+    // Gán provinceCode và provinceName
+    const foundProvince = provinces.value.find(p => p.ProvinceName === provinceName);
+    if (foundProvince) {
+      addressForm.value.provinceCode = foundProvince.ProvinceID;
+      addressForm.value.provinceName = foundProvince.ProvinceName;
+
+      // Sau khi gán province, tải danh sách quận/huyện
+      await loadDistrictsForAddress();
+
+      // Gán districtCode và districtName
+      const foundDistrict = districts.value.find(d => d.DistrictName === districtName);
+      if (foundDistrict) {
+        addressForm.value.districtCode = foundDistrict.DistrictID;
+        addressForm.value.districtName = foundDistrict.DistrictName;
+
+        // Sau khi gán district, tải danh sách phường/xã
+        await loadWardsForAddress();
+
+        // Gán wardCode và wardName
+        const foundWard = wards.value.find(w => w.WardName === wardName);
+        if (foundWard) {
+          addressForm.value.wardCode = foundWard.WardCode;
+          addressForm.value.wardName = foundWard.WardName;
+        }
+      }
+    }
+  }
+};
+
 
 const mainSteps = [
   { key: 'CHO_XU_LY', label: 'Chờ xử lý' },
@@ -179,7 +416,10 @@ const formatDate = (dateStr) => dateStr ? new Date(dateStr).toLocaleString('vi-V
 const formatCurrency = (val) => `${Number(val || 0).toLocaleString('vi-VN')} ₫`
 const goBack = () => router.back()
 
-onMounted(fetchInvoice)
+
+onMounted(() => {
+  fetchInvoice()
+})
 </script>
 
 <style scoped>

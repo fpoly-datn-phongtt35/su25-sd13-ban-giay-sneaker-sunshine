@@ -245,7 +245,7 @@ const form = ref({
     wardCode: '',
     wardName: '',
     houseName: '',
-    fullAddress: '70000, Vietnam' // Placeholder for the address selection box
+    fullAddress: '70000, Vietnam'
   },
 })
 
@@ -442,12 +442,12 @@ const onWardChange = async () => {
 const handleSubmit = () => {
   formRef.value.validate(async (valid) => {
     if (!valid) {
-      ElMessage.warning('🛑 Vui lòng điền đầy đủ và chính xác thông tin giao hàng.')
+      ElMessage.warning(' Vui lòng điền đầy đủ và chính xác thông tin giao hàng.')
       return
     }
 
     if (!cartItems.value.length) {
-      ElMessage.warning('🛑 Giỏ hàng của bạn đang trống. Vui lòng thêm sản phẩm vào giỏ hàng trước khi đặt.')
+      ElMessage.warning(' Giỏ hàng của bạn đang trống. Vui lòng thêm sản phẩm vào giỏ hàng trước khi đặt.')
       router.push('/')
       return
     }
@@ -456,9 +456,9 @@ const handleSubmit = () => {
     const loadingInstance = ElLoading.service({ fullscreen: true, text: 'Đang đặt hàng...' })
 
     try {
-      // 📝 Log form trước khi tạo payload
-      console.log("📋 form.value trước khi tạo payload:", JSON.stringify(form.value, null, 2))
-      console.log("🛒 cartItems:", cartItems.value)
+      // Log form trước khi tạo payload
+      console.log("form.value trước khi tạo payload:", JSON.stringify(form.value, null, 2))
+      console.log(" cartItems:", cartItems.value)
 
       // 🔧 Chuẩn bị payload gửi lên server
       const payload = {
@@ -518,10 +518,9 @@ const handleSubmit = () => {
         }
 
       } else {
-        // 💵 COD
         const res = await axios.post('http://localhost:8080/api/online-sale/checkout', payload)
 
-        console.log("📥 Res từ COD checkout API:", res.data)
+        console.log(" Res từ COD checkout API:", res.data)
 
         const customerId = res.data?.invoice?.customerId
 

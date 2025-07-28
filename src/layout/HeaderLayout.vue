@@ -58,6 +58,9 @@
                 <template v-if="user">
                   <span class="dropdown-greeting">👋 {{ user.customerName || user.employeeName }}</span>
                   <RouterLink to="/don-hang" class="dropdown-item" @click="closeDropdown"><i class="fas fa-receipt"></i> Đơn hàng</RouterLink>
+                  <RouterLink to="/san-pham-da-mua" class="dropdown-item" @click="closeDropdown">
+        <i class="fas fa-box-open"></i> Sản phẩm đã mua
+      </RouterLink>
                   <RouterLink to="/thong-tin-ca-nhan" class="dropdown-item" @click="closeDropdown"><i class="fas fa-user-circle"></i> Thông tin cá nhân</RouterLink>
                   <RouterLink to="/ma-giam-gia" class="dropdown-item" @click="closeDropdown"><i class="fas fa-tags"></i> Mã giảm giá</RouterLink>
                   <button class="btn-logout" @click="logout"><i class="fas fa-sign-out-alt"></i> Đăng xuất</button>
@@ -194,9 +197,9 @@ const logout = () => {
   const userId = user.value?.id; // Lấy userId trước khi user.value bị xóa
 
   // --- BẮT ĐẦU XÓA TẤT CẢ CÁC MỤC LIÊN QUAN ĐẾN PHIÊN ---
-  
+
   // 1. Xóa thông tin người dùng chính (đối tượng JSON được lưu dưới khóa 'user')
-  localStorage.removeItem('user'); 
+  localStorage.removeItem('user');
 
   // 2. Xóa các mục riêng lẻ nếu chúng vẫn còn tồn tại (do cách lưu trữ cũ hoặc lỗi/thiếu đồng bộ)
   localStorage.removeItem('token');

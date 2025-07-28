@@ -265,6 +265,13 @@ const handleAddToCart = () => {
     return false
   }
 
+  console.log('quantity: ',detail.quantity);
+
+  if (quantity.value > detail.quantity) {
+    ElMessage.warning(`Số lượng bạn chọn vượt quá tồn kho. Bạn chỉ có thể đặt tối đa ${detail.quantity} sản phẩm.`)
+    return false
+  }
+
   const finalPrice =
     detail.discountedPrice && detail.discountedPrice > 0
       ? detail.discountedPrice

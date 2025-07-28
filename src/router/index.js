@@ -9,6 +9,7 @@ import Checkout from '@/component/ProductList/Checkout.vue'
 import Collections from '@/component/ProductList/Collections.vue'
 import PaymentResult from '@/component/ProductList/PaymentResult.vue'
 import ProductDetail from '@/component/ProductList/ProductDetail.vue'
+import SanPhamDaMua from '@/component/SanPhamDaMua/SanPhamDaMua.vue'
 import MaGiamGia from '@/component/Voucher/MaGiamGia.vue'
 import { createRouter, createWebHistory } from 'vue-router'
 
@@ -24,7 +25,8 @@ const routes = [
   { path: '/don-hang', name: 'DonHang', component: DonHang },
   { path: '/don-hang/tra-hang-van-de/:invoiceId', name: 'DonHangVanDe', component: DonHangVanDe },
   { path: '/don-hang/tra-hang-thieu-chua-nhan/:invoiceId', name: 'DonHangChuaNhan', component: DonHangChuaNhan },
-  { path: '/don-hang/:id', name: 'ChiTietDonHang', component: ChiTietDonHang, props: true }
+  { path: '/don-hang/:id', name: 'ChiTietDonHang', component: ChiTietDonHang, props: true },
+  { path: '/san-pham-da-mua', name: 'SanPhamDaMua', component: SanPhamDaMua },
 ]
 
 const router = createRouter({

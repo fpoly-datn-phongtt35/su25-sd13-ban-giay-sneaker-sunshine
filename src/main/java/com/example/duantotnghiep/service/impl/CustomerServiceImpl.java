@@ -1,24 +1,31 @@
 package com.example.duantotnghiep.service.impl;
 
 import com.example.duantotnghiep.dto.request.AddressCustomerRequest;
+import com.example.duantotnghiep.dto.request.CustomerBlacklistRequest;
 import com.example.duantotnghiep.dto.request.CustomerRequest;
 import com.example.duantotnghiep.dto.response.AddressCustomerResponse;
+import com.example.duantotnghiep.dto.response.BadCustomerResponse;
 import com.example.duantotnghiep.dto.response.CustomerResponse;
 import com.example.duantotnghiep.mapper.AddressMapper;
 import com.example.duantotnghiep.mapper.CustomerMapper;
 import com.example.duantotnghiep.mapper.UserMapper;
 import com.example.duantotnghiep.model.AddressCustomer;
 import com.example.duantotnghiep.model.Customer;
+import com.example.duantotnghiep.model.CustomerBlacklistHistory;
 import com.example.duantotnghiep.model.User;
 import com.example.duantotnghiep.repository.AddressRepository;
+import com.example.duantotnghiep.repository.CustomerBlacklistHistoryRepository;
 import com.example.duantotnghiep.repository.CustomerRepository;
 import com.example.duantotnghiep.repository.UserRepository;
 import com.example.duantotnghiep.service.CustomerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
@@ -35,6 +42,7 @@ public class CustomerServiceImpl implements CustomerService {
     private final CustomerMapper customerMapper;
     private final UserMapper userMapper;
     private final AddressMapper addressMapper;
+    private final CustomerBlacklistHistoryRepository customerBlacklistHistoryRepository;
 
     @Transactional(rollbackFor = Throwable.class)
     @Override
@@ -243,11 +251,70 @@ public class CustomerServiceImpl implements CustomerService {
         addressRepository.save(address); // Chỉ cần save địa chỉ được chọn
     }
 
+
     private String generateCustomerCode() {
         String prefix = "CUSTOMER-";
         String datePart = new SimpleDateFormat("yyyyMMdd").format(new Date());
         String randomPart = String.format("%04d", (int) (Math.random() * 10000));
         return prefix + datePart + "-" + randomPart;
     }
+
+    @Override
+    public void blacklistCustomer(Long id, CustomerBlacklistRequest request) {
+        Customer customer = customerRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy khách hàng"));
+
+        customer.setIsBlacklisted(true);
+        customer.setBlacklistReason(request.getReason());
+        customer.setBlacklistExpiryDate(LocalDateTime.now().plusDays(request.getDurationInDays()));
+        customer.setTrustScore(Math.max(0, customer.getTrustScore() == null ? 0 : customer.getTrustScore() - 20));
+
+        customerRepository.save(customer);
+
+        // Lưu lịch sử cấm
+        CustomerBlacklistHistory history = new CustomerBlacklistHistory();
+        history.setCustomer(customer);
+        history.setReason(request.getReason());
+        history.setStartTime(LocalDateTime.now());
+        history.setEndTime(LocalDateTime.now().plusDays(request.getDurationInDays()));
+
+        customerBlacklistHistoryRepository.save(history);
+    }
+
+
+    @Override
+    public void unblacklistCustomer(Long id) {
+        Customer customer = customerRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy khách hàng"));
+
+        // Cập nhật lại thông tin khách hàng
+        customer.setIsBlacklisted(false);
+        customer.setTrustScore(100); // Reset điểm về 100
+        customer.setBlacklistReason(null);
+        customer.setBlacklistExpiryDate(null);
+        customerRepository.save(customer);
+        customer.setLastBlacklistCancelCount(0); // Reset để lần sau chỉ cấm nếu hủy > 5 đơn mới
+
+        // Lấy tên người thực hiện từ SecurityContext
+        String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        // Ghi lịch sử gỡ cấm
+        CustomerBlacklistHistory history = new CustomerBlacklistHistory();
+        history.setCustomer(customer);
+        history.setReason("Gỡ cấm khách hàng, điểm uy tín được đặt lại về 100");
+        history.setStartTime(LocalDateTime.now()); // thời điểm thực hiện hành động
+        history.setUnblacklistedBy(currentUsername); // người thực hiện
+        history.setNotes(null); // nếu cần ghi chú thêm
+
+        customerBlacklistHistoryRepository.save(history);
+    }
+
+    @Override
+    public List<BadCustomerResponse> getAllBlacklistedCustomers() {
+        List<Customer> blacklistedCustomers = customerRepository.findByIsBlacklistedTrue();
+        return customerMapper.toBadCustomerDtoList(blacklistedCustomers);
+    }
+
+
 
 }

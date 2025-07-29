@@ -36,4 +36,6 @@ public class CustomerResponse {
     private Integer status;
     private LocalDateTime createdDate;
     private LocalDateTime updatedDate;
+
+
 }

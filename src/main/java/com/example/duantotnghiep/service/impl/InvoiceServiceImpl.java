@@ -16,6 +16,7 @@ import com.example.duantotnghiep.dto.response.ZaloPayResponse;
 import com.example.duantotnghiep.mapper.InvoiceMapper;
 import com.example.duantotnghiep.model.AddressCustomer;
 import com.example.duantotnghiep.model.Customer;
+import com.example.duantotnghiep.model.CustomerBlacklistHistory;
 import com.example.duantotnghiep.model.DiscountCampaign;
 import com.example.duantotnghiep.model.Employee;
 import com.example.duantotnghiep.model.Invoice;
@@ -29,6 +30,7 @@ import com.example.duantotnghiep.model.User;
 import com.example.duantotnghiep.model.Voucher;
 import com.example.duantotnghiep.model.VoucherHistory;
 import com.example.duantotnghiep.repository.AddressRepository;
+import com.example.duantotnghiep.repository.CustomerBlacklistHistoryRepository;
 import com.example.duantotnghiep.repository.CustomerRepository;
 import com.example.duantotnghiep.repository.DiscountCampaignRepository;
 import com.example.duantotnghiep.repository.EmployeeRepository;
@@ -92,6 +94,7 @@ public class InvoiceServiceImpl implements InvoiceService {
     private final VnpayService vnpayService;
     private final DiscountCampaignRepository discountCampaignRepository;
     private final VoucherService voucherService;
+    private final CustomerBlacklistHistoryRepository customerBlacklistHistoryRepository;
 //    private final InvoiceService invoiceService;
 
 
@@ -1216,32 +1219,28 @@ public class InvoiceServiceImpl implements InvoiceService {
                     customer.setStatus(1);
                     customer.setCustomerCode("KH" + System.currentTimeMillis());
                     customer.setCreatedDate(LocalDateTime.now());
-
                     customer.setAddressList(new ArrayList<>());
-
                     customer = customerRepository.save(customer);
                 }
             } else {
                 throw new RuntimeException("Thiếu thông tin khách hàng (cần có customerId hoặc phone)");
             }
 
+            // 👉 Gỡ cấm nếu đã hết hạn
+            if (Boolean.TRUE.equals(customer.getIsBlacklisted()) &&
+                    (customer.getBlacklistExpiryDate() == null || customer.getBlacklistExpiryDate().isBefore(LocalDateTime.now()))) {
+                customer.setIsBlacklisted(false);
+                customer.setBlacklistReason(null);
+                customer.setBlacklistExpiryDate(null);
+                customerRepository.save(customer);
+            }
+
+            // 👉 Kiểm tra nếu khách vẫn còn bị cấm
+            if (Boolean.TRUE.equals(customer.getIsBlacklisted())) {
+                throw new RuntimeException("Khách hàng đã bị cấm mua hàng. Lý do: " + customer.getBlacklistReason());
+            }
+
             AddressRequest addr = request.getCustomerInfo().getAddress();
-//            if (addr != null) {
-//                AddressCustomer address = new AddressCustomer();
-//                address.setCustomer(customer);
-//                address.setCountry(addr.getCountry());
-//                address.setProvinceCode(addr.getProvinceCode());
-//                address.setProvinceName(addr.getProvinceName());
-//                address.setDistrictCode(addr.getDistrictCode());
-//                address.setDistrictName(addr.getDistrictName());
-//                address.setWardCode(addr.getWardCode());
-//                address.setWardName(addr.getWardName());
-//                address.setHouseName(addr.getHouseName());
-//                address.setStatus(1);
-//                address.setCreatedDate(new Date());
-//                address.setDefaultAddress(true);
-//                addressRepository.save(address);
-//            }
 
             // 3. Tạo hóa đơn
             Invoice invoice = new Invoice();
@@ -1256,8 +1255,10 @@ public class InvoiceServiceImpl implements InvoiceService {
             invoice.setStatusDetail(TrangThaiChiTiet.CHO_XU_LY);
             invoice.setDiscountAmount(Optional.ofNullable(request.getDiscountAmount()).orElse(BigDecimal.ZERO));
             invoice.setShippingFee(Optional.ofNullable(request.getShippingFee()).orElse(BigDecimal.ZERO));
-            String addressNew = addr.getHouseName() + " - " + addr.getProvinceName() + " - " + addr.getDistrictName() + " - " + "Việt nam";
+
+            String addressNew = addr.getHouseName() + " - " + addr.getProvinceName() + " - " + addr.getDistrictName() + " - Việt Nam";
             invoice.setDeliveryAddress(addressNew);
+
             if (request.getEmployeeId() != null) {
                 employeeRepository.findById(request.getEmployeeId()).ifPresent(invoice::setEmployee);
             }
@@ -1266,7 +1267,7 @@ public class InvoiceServiceImpl implements InvoiceService {
                 voucherRepository.findById(request.getVoucherId()).ifPresent(invoice::setVoucher);
             }
 
-            // 4. Xử lý danh sách sản phẩm
+            // 4. Xử lý sản phẩm
             BigDecimal total = BigDecimal.ZERO;
             List<InvoiceDetail> details = new ArrayList<>();
 
@@ -1274,13 +1275,11 @@ public class InvoiceServiceImpl implements InvoiceService {
                 ProductDetail productDetail = productDetailRepository.findById(item.getProductDetailId())
                         .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm chi tiết ID: " + item.getProductDetailId()));
 
-                // Kiểm tra tồn kho chi tiết
                 if (item.getQuantity() > productDetail.getQuantity()) {
                     throw new RuntimeException("Số lượng vượt quá tồn kho chi tiết sản phẩm: " + item.getProductDetailId());
                 }
                 productDetail.setQuantity(productDetail.getQuantity() - item.getQuantity());
 
-                // Kiểm tra tồn kho tổng
                 Product product = productDetail.getProduct();
                 int stock = Optional.ofNullable(product.getQuantity()).orElse(0);
                 if (item.getQuantity() > stock) {
@@ -1288,7 +1287,6 @@ public class InvoiceServiceImpl implements InvoiceService {
                 }
                 product.setQuantity(stock - item.getQuantity());
 
-                // Tạo chi tiết hóa đơn
                 InvoiceDetail detail = new InvoiceDetail();
                 detail.setInvoice(invoice);
                 detail.setProductDetail(productDetail);
@@ -1305,20 +1303,17 @@ public class InvoiceServiceImpl implements InvoiceService {
 
                 BigDecimal itemTotal = discountedPrice.multiply(BigDecimal.valueOf(item.getQuantity()));
                 total = total.add(itemTotal);
-
                 details.add(detail);
             }
 
             invoice.setTotalAmount(total);
-            invoice.setFinalAmount(total
-                    .subtract(invoice.getDiscountAmount())
-                    .add(invoice.getShippingFee()));
+            invoice.setFinalAmount(total.subtract(invoice.getDiscountAmount()).add(invoice.getShippingFee()));
             invoice.setInvoiceDetails(details);
 
             // 5. Lưu hóa đơn
             Invoice savedInvoice = invoiceRepository.save(invoice);
 
-            // 6. Giao dịch thanh toán (Ship COD)
+            // 6. Giao dịch Ship COD
             InvoiceTransaction transaction = new InvoiceTransaction();
             transaction.setTransactionCode("GD-" + UUID.randomUUID().toString().substring(0, 8));
             transaction.setInvoice(savedInvoice);
@@ -1330,18 +1325,77 @@ public class InvoiceServiceImpl implements InvoiceService {
             transaction.setPaymentTime(new Date());
             invoiceTransactionRepository.save(transaction);
 
-            // 7. Xử lý hậu thanh toán (áp dụng khuyến mãi, cập nhật tồn kho v.v.)
+            // 7. Xử lý hậu thanh toán
             processInvoicePayment(savedInvoice.getId());
 
-            // 8. Trả kết quả về FE
+            // 👉 8. Kiểm tra tự động cấm nếu hủy nhiều
+            autoBlacklistIfTooManyCancellations(customer);
+
+            // 9. Trả kết quả
             return invoiceMapper.toInvoiceDisplayResponse(savedInvoice, savedInvoice.getInvoiceDetails());
 
         } catch (Exception e) {
-            e.printStackTrace(); // Ghi log
+            e.printStackTrace();
             throw new RuntimeException("Lỗi khi tạo đơn hàng: " + e.getMessage());
         }
     }
 
+    public void autoBlacklistIfTooManyCancellations(Customer customer) {
+        // Nếu lần kiểm tra trước là null, mặc định dùng 30 ngày gần nhất thay vì LocalDateTime.MIN để tránh lỗi với SQL Server
+        LocalDateTime lastChecked = Optional.ofNullable(customer.getLastBlacklistChecked())
+                .orElse(LocalDateTime.now().minusDays(30));
+
+        // Đếm số đơn hủy kể từ lần kiểm tra cuối
+        int newCancelledOrders = invoiceRepository.countByCustomerAndStatusDetailAndUpdatedDateAfter(
+                customer,
+                TrangThaiChiTiet.HUY_DON,
+                lastChecked
+        );
+
+        // Không có đơn hủy mới
+        if (newCancelledOrders <= 0) {
+            customer.setLastBlacklistChecked(LocalDateTime.now());
+            customerRepository.save(customer);
+            return;
+        }
+
+        // Tổng số đơn đã hủy
+        int previousCancelCount = Optional.ofNullable(customer.getLastBlacklistCancelCount()).orElse(0);
+        int totalCancelled = previousCancelCount + newCancelledOrders;
+
+        boolean blacklisted = false;
+
+        // Áp dụng blacklist theo ngưỡng
+        if (totalCancelled >= 5 && previousCancelCount < 5) {
+            customer.setIsBlacklisted(true);
+            customer.setBlacklistReason("Hủy ≥ 5 đơn hàng");
+            customer.setBlacklistExpiryDate(LocalDateTime.now().plusDays(7));
+            blacklisted = true;
+        } else if (totalCancelled >= 3 && previousCancelCount < 3) {
+            customer.setIsBlacklisted(true);
+            customer.setBlacklistReason("Hủy ≥ 3 đơn hàng");
+            customer.setBlacklistExpiryDate(LocalDateTime.now().plusDays(3));
+            blacklisted = true;
+        }
+
+        // Nếu bị blacklist thì tạo lịch sử
+        if (blacklisted) {
+            customer.setTrustScore(Math.max(0, Optional.ofNullable(customer.getTrustScore()).orElse(0) - 20));
+
+            CustomerBlacklistHistory history = new CustomerBlacklistHistory();
+            history.setCustomer(customer);
+            history.setReason(customer.getBlacklistReason());
+            history.setStartTime(LocalDateTime.now());
+            history.setEndTime(customer.getBlacklistExpiryDate());
+
+            customerBlacklistHistoryRepository.save(history);
+        }
+
+        // Cập nhật lần kiểm tra và số lần hủy
+        customer.setLastBlacklistChecked(LocalDateTime.now());
+        customer.setLastBlacklistCancelCount(totalCancelled);
+        customerRepository.save(customer);
+    }
 
     @Transactional
     @Override

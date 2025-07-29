@@ -46,5 +46,8 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
 
     public interface VoucherRepository extends JpaRepository<Voucher, Long> {}
 
+    List<Customer> findAllByIsBlacklistedTrue();
+
+    List<Customer> findByIsBlacklistedTrue();
 
 }

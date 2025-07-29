@@ -7,6 +7,7 @@ import com.example.duantotnghiep.dto.response.InvoiceDisplayResponse;
 import com.example.duantotnghiep.dto.response.InvoiceResponse;
 import com.example.duantotnghiep.dto.response.InvoiceWithVnpayResponse;
 import com.example.duantotnghiep.dto.response.InvoiceWithZaloPayResponse;
+import com.example.duantotnghiep.model.Customer;
 import com.example.duantotnghiep.model.Invoice;
 import com.example.duantotnghiep.model.PromotionSuggestion;
 import org.springframework.data.domain.Page;
@@ -55,6 +56,8 @@ public interface InvoiceService {
     @Transactional
     InvoiceDisplayResponse createInvoice(InvoiceRequest request);
 
+
+    void autoBlacklistIfTooManyCancellations(Customer customer);
 
     @Transactional
     InvoiceWithZaloPayResponse createInvoiceAndZaloPay(InvoiceRequest request) throws Exception;

@@ -10,7 +10,9 @@ import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.Size;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.Nationalized;
 
@@ -21,6 +23,8 @@ import java.util.List;
 @Getter
 @Setter
 @Entity
+@NoArgsConstructor
+@AllArgsConstructor
 @Table(name = "customer")
 public class Customer {
     @Id
@@ -73,4 +77,23 @@ public class Customer {
     @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<AddressCustomer> addressList;
 
+    @Column(name = "is_blacklisted")
+    private Boolean isBlacklisted = false;
+
+    @Size(max = 255)
+    @Nationalized
+    @Column(name = "blacklist_reason")
+    private String blacklistReason;
+
+    @Column(name = "blacklist_expiry_date")
+    private LocalDateTime blacklistExpiryDate;
+
+    @Column(name = "trust_score")
+    private Integer trustScore = 100;
+
+    @Column(name = "last_blacklist_checked")
+    private LocalDateTime lastBlacklistChecked;
+
+    @Column(name = "last_blacklist_cancel_count")
+    private Integer lastBlacklistCancelCount;
 }

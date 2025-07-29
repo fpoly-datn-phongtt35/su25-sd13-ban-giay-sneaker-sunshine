@@ -1,8 +1,10 @@
 package com.example.duantotnghiep.service;
 
 import com.example.duantotnghiep.dto.request.AddressCustomerRequest;
+import com.example.duantotnghiep.dto.request.CustomerBlacklistRequest;
 import com.example.duantotnghiep.dto.request.CustomerRequest;
 import com.example.duantotnghiep.dto.response.AddressCustomerResponse;
+import com.example.duantotnghiep.dto.response.BadCustomerResponse;
 import com.example.duantotnghiep.dto.response.CustomerResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -27,4 +29,9 @@ public interface CustomerService {
     void deleteAddressCustomer(Long id);
     void setDefaultAddress(Long customerId, Long addressId);
 
+    void blacklistCustomer(Long id, CustomerBlacklistRequest request);
+
+    void unblacklistCustomer(Long id);
+
+    List<BadCustomerResponse> getAllBlacklistedCustomers();
 }

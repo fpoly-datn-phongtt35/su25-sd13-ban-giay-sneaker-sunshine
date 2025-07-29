@@ -1,6 +1,7 @@
 package com.example.duantotnghiep.repository;
 
 import com.example.duantotnghiep.dto.response.InvoiceResponse;
+import com.example.duantotnghiep.model.Customer;
 import com.example.duantotnghiep.model.Invoice;
 import com.example.duantotnghiep.state.TrangThaiChiTiet;
 import com.example.duantotnghiep.state.TrangThaiTong;
@@ -143,5 +144,13 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
     @Query("SELECT COUNT(i) FROM Invoice i WHERE i.customer.id = :customerId AND i.status = :paidStatus")
     Long countPaidInvoicesByCustomer(@Param("customerId") Long customerId,
                                      @Param("paidStatus") TrangThaiTong paidStatus);
+
+    int countByCustomerAndStatusDetailAndUpdatedDateAfter(
+            Customer customer,
+            TrangThaiChiTiet statusDetail,
+            LocalDateTime updatedAfter
+    );
+
+
 
 }

@@ -61,17 +61,17 @@
 
       <div class="flex gap-4 mb-4">
         <el-select v-model="addressForm.provinceCode" placeholder="Chọn tỉnh/thành"
-                       class="flex-1" filterable @change="handleProvinceChangeForAddress">
+                         class="flex-1" filterable @change="handleProvinceChangeForAddress">
           <el-option v-for="p in provinces" :key="p.ProvinceID" :label="p.ProvinceName" :value="p.ProvinceID" />
         </el-select>
 
         <el-select v-model="addressForm.districtCode" placeholder="Chọn quận/huyện"
-                       class="flex-1" filterable @change="handleDistrictChangeForAddress">
+                         class="flex-1" filterable @change="handleDistrictChangeForAddress">
           <el-option v-for="d in districts" :key="d.DistrictID" :label="d.DistrictName" :value="d.DistrictID" />
         </el-select>
 
         <el-select v-model="addressForm.wardCode" placeholder="Chọn phường/xã"
-                       class="flex-1" filterable @change="handleWardChangeForAddress ">
+                         class="flex-1" filterable @change="handleWardChangeForAddress ">
           <el-option v-for="w in wards" :key="w.WardCode" :label="w.WardName" :value="w.WardCode" />
         </el-select>
               <div class="mb-4">
@@ -117,7 +117,7 @@
         <el-form-item label="Lý do hủy đơn">
           <el-input type="textarea" v-model="cancelNote" placeholder="Nhập lý do hủy..." rows="3" />
         </el-form-item>
-        <el-form-item label="Phương thức hoàn tiền">
+        <el-form-item v-if="invoice && invoice.isPaid" label="Phương thức hoàn tiền">
           <el-select v-model="selectedPaymentMethod" placeholder="Chọn phương thức hoàn tiền">
             <el-option label="Tiền mặt" value="TIEN_MAT" />
             <el-option label="ZaloPay" value="ZALOPAY" />
@@ -371,6 +371,7 @@ const fetchInvoice = async () => {
       params: { invoiceId: invoiceId }
     })
     invoice.value = res.data
+    console.log('data: ',res.data)
   } catch (err) {
     ElMessage.error('Lỗi khi tải thông tin đơn hàng.')
     console.error(err)
@@ -389,17 +390,19 @@ const cancelOrder = async () => {
       ElMessage.warning('Vui lòng nhập lý do hủy đơn!')
       return
     }
-    if (!selectedPaymentMethod.value) {
+    // Dòng đã sửa: Thêm kiểm tra invoice.value
+    if (invoice.value && invoice.value.isPaid && !selectedPaymentMethod.value) {
       ElMessage.warning('Vui lòng chọn phương thức hoàn tiền!')
       return
     }
 
-    await apiClient.put(`/admin/online-sales/huy-don-va-hoan-tien`, null, {
+    await apiClient.put(`/online-sale/huy-don-va-hoan-tien`, null, {
       params: {
         invoiceId,
         statusDetail: 'HUY_DON',
         note: cancelNote.value,
-        paymentMethod: selectedPaymentMethod.value
+        paymentMethod: selectedPaymentMethod.value,
+        isPaid: invoice.value.isPaid
       }
     })
 
@@ -435,7 +438,8 @@ onMounted(() => {
 }
 .el-dialog {
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px rgba
+  (0, 0, 0, 0.15);
 }
 .el-dialog__header {
   padding-bottom: 10px;

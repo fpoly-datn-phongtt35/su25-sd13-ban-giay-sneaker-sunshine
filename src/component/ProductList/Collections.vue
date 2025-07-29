@@ -263,8 +263,6 @@ function addToFavorites(productId) {
   }
 }
 
-
-// --- WATCHERS (THEO DÕI THAY ĐỔI) ---
 // Đồng bộ preOrderItem với selectedProduct khi mở dialog đặt trước
 watch(preOrderDialogVisible, (newValue) => {
   if (newValue && selectedProduct.value) {

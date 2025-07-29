@@ -10,6 +10,8 @@ import java.util.List;
 public interface OnlineSaleService {
 
     void chuyenTrangThai(Long invoiceId, String nextKey);
+
+    void huyDonClient(Long invoiceId, String nextKey);
     InvoiceOnlineResponse getOrder(Long invoiceId);
 
     void huyDonVaHoanTien(Long invoiceId,String nextKey,String note,String paymentMenthod,Boolean isPaid);

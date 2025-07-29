@@ -76,6 +76,46 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
     }
 
     @Override
+    public void huyDonClient(Long invoiceId,String nextKey) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng với username: " + username));
+
+        Customer c = user.getCustomer();
+        if (c == null) {
+            throw new RuntimeException("Người dùng không phải là nhân viên.");
+        }
+
+        Invoice invoice = invoiceRepository.findById(invoiceId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
+
+        TrangThaiChiTiet currentStatus = invoice.getStatusDetail();
+
+        TrangThaiChiTiet nextStatus;
+        try {
+            nextStatus = TrangThaiChiTiet.valueOf(nextKey);
+        } catch (IllegalArgumentException e) {
+            throw new RuntimeException("Trạng thái tiếp theo không hợp lệ: " + nextKey);
+        }
+
+        if (currentStatus == nextStatus) {
+            throw new RuntimeException("Trạng thái mới trùng với trạng thái hiện tại.");
+        }
+
+        invoice.setStatusDetail(nextStatus);
+        invoiceRepository.save(invoice);
+
+        OrderStatusHistory history = new OrderStatusHistory();
+        history.setInvoice(invoice);
+        history.setOldStatus(currentStatus.getMa());
+        history.setNewStatus(TrangThaiChiTiet.DA_XU_LY.getMa());
+        history.setChangedAt(new Date());
+
+        historyRepository.save(history);
+    }
+
+    @Override
     public InvoiceOnlineResponse getOrder(Long invoiceId) {
         InvoiceOnlineResponse response = invoiceRepository2.getOrder(invoiceId);
         List<InvoiceDetailOnline> invoiceDetailOnline = invoiceDetailRepository.findByInvoiceDetailOnline(invoiceId);
@@ -93,7 +133,7 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
         Invoice invoice = invoiceRepository.findPaidInvoiceById(invoiceId, isPaid)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
 
-        chuyenTrangThai(invoiceId, nextKey);
+        huyDonClient(invoiceId, nextKey);
 
         List<InvoiceDetail> invoiceDetails = invoiceDetailRepository.findByInvoiceId(invoiceId);
         for (InvoiceDetail detail : invoiceDetails) {

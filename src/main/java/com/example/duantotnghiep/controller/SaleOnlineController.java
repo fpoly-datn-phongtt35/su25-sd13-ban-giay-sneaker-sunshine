@@ -91,4 +91,22 @@ public class SaleOnlineController {
         return ResponseEntity.ok("Cập nhật địa chỉ giao hàng thành công.");
     }
 
+    @PutMapping("/huy-don-va-hoan-tien")
+    public ResponseEntity<?> huyDonVaHoanTien(
+            @RequestParam Long invoiceId,
+            @RequestParam String statusDetail,
+            @RequestParam String note,
+            @RequestParam(required = false) String paymentMethod,
+            @RequestParam Boolean isPaid
+    ) {
+        try {
+            onlineSaleService.huyDonVaHoanTien(invoiceId, statusDetail, note, paymentMethod,isPaid);
+            return ResponseEntity.ok("Hủy đơn và hoàn tiền thành công");
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body("Lỗi: " + e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Đã xảy ra lỗi máy chủ");
+        }
+    }
+
 }

@@ -49,50 +49,57 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
 
         Invoice invoice = invoiceRepository.findById(invoiceId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
-        Employee assignedEmployee = invoice.getEmployee();
-        if (assignedEmployee != null && !assignedEmployee.getId().equals(employee.getId())) {
+
+        if(employee.getId() == null ){
+            throw new RuntimeException("ko lấy đc nhân viên.");
+        }
+
+        Boolean exists = historyRepository.isProcessedByAnotherEmployee(invoiceId, employee.getId());
+        if(exists) {
             throw new RuntimeException("Đơn hàng đang được xử lý bởi nhân viên khác.");
+        }else{
+            TrangThaiChiTiet currentStatus = invoice.getStatusDetail();
+
+            TrangThaiChiTiet nextStatus;
+            try {
+                nextStatus = TrangThaiChiTiet.valueOf(nextKey);
+            } catch (IllegalArgumentException e) {
+                throw new RuntimeException("Trạng thái tiếp theo không hợp lệ: " + nextKey);
+            }
+
+            if (currentStatus == nextStatus) {
+                throw new RuntimeException("Trạng thái mới trùng với trạng thái hiện tại.");
+            }
+
+            invoice.setStatusDetail(nextStatus);
+            if (nextStatus == TrangThaiChiTiet.HUY_DON) {
+                invoice.setStatus(TrangThaiTong.DA_HUY); // hoặc HUY, DA_HUY,... tùy định nghĩa
+            }
+
+            if (nextStatus == TrangThaiChiTiet.GIAO_THANH_CONG) {
+                invoice.setDeliveredAt(new Date());
+                invoice.setStatus(TrangThaiTong.THANH_CONG);
+            }
+
+
+            if (nextStatus == TrangThaiChiTiet.CHO_GIAO_HANG ||  nextStatus == TrangThaiChiTiet.DANG_GIAO_HANG || nextStatus == TrangThaiChiTiet.DA_XU_LY || nextStatus == TrangThaiChiTiet.CHO_XU_LY) {
+                invoice.setStatus(TrangThaiTong.DANG_XU_LY);
+            }
+            invoiceRepository.save(invoice);
+
+            OrderStatusHistory history = new OrderStatusHistory();
+            history.setInvoice(invoice);
+            history.setEmployee(employee);
+            history.setOldStatus(currentStatus.getMa());
+            history.setNewStatus(nextStatus.getMa());
+            history.setChangedAt(new Date());
+
+            historyRepository.save(history);
         }
-
-        TrangThaiChiTiet currentStatus = invoice.getStatusDetail();
-
-        TrangThaiChiTiet nextStatus;
-        try {
-            nextStatus = TrangThaiChiTiet.valueOf(nextKey);
-        } catch (IllegalArgumentException e) {
-            throw new RuntimeException("Trạng thái tiếp theo không hợp lệ: " + nextKey);
-        }
-
-        if (currentStatus == nextStatus) {
-            throw new RuntimeException("Trạng thái mới trùng với trạng thái hiện tại.");
-        }
-
-        invoice.setStatusDetail(nextStatus);
-        if (nextStatus == TrangThaiChiTiet.HUY_DON) {
-            invoice.setStatus(TrangThaiTong.DA_HUY); // hoặc HUY, DA_HUY,... tùy định nghĩa
-        }
-
-        if (nextStatus == TrangThaiChiTiet.GIAO_THANH_CONG) {
-            invoice.setStatus(TrangThaiTong.THANH_CONG);
-        }
-
-
-        if (nextStatus == TrangThaiChiTiet.CHO_GIAO_HANG ||  nextStatus == TrangThaiChiTiet.CHO_GIAO_HANG || nextStatus == TrangThaiChiTiet.DA_XU_LY || nextStatus == TrangThaiChiTiet.CHO_XU_LY) {
-            invoice.setStatus(TrangThaiTong.DANG_XU_LY);
-        }
-        invoiceRepository.save(invoice);
-
-        OrderStatusHistory history = new OrderStatusHistory();
-        history.setInvoice(invoice);
-        history.setEmployee(employee);
-        history.setOldStatus(currentStatus.getMa());
-        history.setNewStatus(nextStatus.getMa());
-        history.setChangedAt(new Date());
-
-        historyRepository.save(history);
     }
 
     @Override
+    @Transactional
     public void huyDonEmployee(Long invoiceId, String nextKey) {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
 
@@ -139,6 +146,7 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
     }
 
     @Override
+    @Transactional
     public void huyDonClient(Long invoiceId,String nextKey) {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
 
@@ -175,6 +183,7 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
         invoiceRepository.save(invoice);
 
         OrderStatusHistory history = new OrderStatusHistory();
+        history.setCustomerId(c.getId());
         history.setInvoice(invoice);
         history.setOldStatus(currentStatus.getMa());
         history.setNewStatus(nextStatus.getMa());
@@ -197,7 +206,7 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
 
     @Override
     @Transactional
-    public void huyDonVaHoanTien(Long invoiceId, String nextKey, String note, String paymentMenthod, Boolean isPaid) {
+    public void huyDonVaHoanTienClient(Long invoiceId, String nextKey, String note, String paymentMenthod, Boolean isPaid) {
         Invoice invoice = invoiceRepository.findPaidInvoiceById(invoiceId, isPaid)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
 
@@ -217,6 +226,8 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
             productRepository.save(product);
         }
 
+
+
         InvoiceTransaction invoiceTransaction = new InvoiceTransaction();
         invoiceTransaction.setTransactionCode("GD-" + UUID.randomUUID().toString().substring(0, 8));
         invoiceTransaction.setInvoice(invoice);
@@ -232,7 +243,17 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
     }
 
     @Override
+    @Transactional
     public void huyDonVaHoanTienEmployee(Long invoiceId, String nextKey, String note, String paymentMenthod, Boolean isPaid) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng với username: " + username));
+
+        Employee employee = user.getEmployee();
+        if (employee == null) {
+            throw new RuntimeException("Người dùng không phải là nhân viên.");
+        }
         Invoice invoice = invoiceRepository.findPaidInvoiceById(invoiceId, isPaid)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
 

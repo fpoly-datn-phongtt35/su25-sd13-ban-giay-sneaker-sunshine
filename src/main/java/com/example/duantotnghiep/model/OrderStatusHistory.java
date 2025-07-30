@@ -47,6 +47,9 @@ public class OrderStatusHistory {
     @Column(name = "changed_at")
     private Date changedAt;
 
+    @Column(name = "customer_id")
+    private Long customerId;
+
     @Size(max = 255)
     @Nationalized
     @Column(name = "note")

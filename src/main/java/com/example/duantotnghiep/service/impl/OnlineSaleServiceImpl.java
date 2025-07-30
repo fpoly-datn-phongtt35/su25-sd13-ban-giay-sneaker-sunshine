@@ -10,6 +10,7 @@ import com.example.duantotnghiep.model.*;
 import com.example.duantotnghiep.repository.*;
 import com.example.duantotnghiep.service.OnlineSaleService;
 import com.example.duantotnghiep.state.TrangThaiChiTiet;
+import com.example.duantotnghiep.state.TrangThaiTong;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -48,6 +49,10 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
 
         Invoice invoice = invoiceRepository.findById(invoiceId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
+        Employee assignedEmployee = invoice.getEmployee();
+        if (assignedEmployee != null && !assignedEmployee.getId().equals(employee.getId())) {
+            throw new RuntimeException("Đơn hàng đang được xử lý bởi nhân viên khác.");
+        }
 
         TrangThaiChiTiet currentStatus = invoice.getStatusDetail();
 
@@ -63,26 +68,38 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
         }
 
         invoice.setStatusDetail(nextStatus);
+        if (nextStatus == TrangThaiChiTiet.HUY_DON) {
+            invoice.setStatus(TrangThaiTong.DA_HUY); // hoặc HUY, DA_HUY,... tùy định nghĩa
+        }
+
+        if (nextStatus == TrangThaiChiTiet.GIAO_THANH_CONG) {
+            invoice.setStatus(TrangThaiTong.THANH_CONG);
+        }
+
+
+        if (nextStatus == TrangThaiChiTiet.CHO_GIAO_HANG ||  nextStatus == TrangThaiChiTiet.CHO_GIAO_HANG || nextStatus == TrangThaiChiTiet.DA_XU_LY || nextStatus == TrangThaiChiTiet.CHO_XU_LY) {
+            invoice.setStatus(TrangThaiTong.DANG_XU_LY);
+        }
         invoiceRepository.save(invoice);
 
         OrderStatusHistory history = new OrderStatusHistory();
         history.setInvoice(invoice);
         history.setEmployee(employee);
         history.setOldStatus(currentStatus.getMa());
-        history.setNewStatus(TrangThaiChiTiet.DA_XU_LY.getMa());
+        history.setNewStatus(nextStatus.getMa());
         history.setChangedAt(new Date());
 
         historyRepository.save(history);
     }
 
     @Override
-    public void huyDonClient(Long invoiceId,String nextKey) {
+    public void huyDonEmployee(Long invoiceId, String nextKey) {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
 
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng với username: " + username));
 
-        Customer c = user.getCustomer();
+        Employee c = user.getEmployee();
         if (c == null) {
             throw new RuntimeException("Người dùng không phải là nhân viên.");
         }
@@ -104,12 +121,63 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
         }
 
         invoice.setStatusDetail(nextStatus);
+
+        if (nextStatus == TrangThaiChiTiet.HUY_DON) {
+            invoice.setStatus(TrangThaiTong.DA_HUY);
+        }
+
+        invoiceRepository.save(invoice);
+
+        OrderStatusHistory history = new OrderStatusHistory();
+        history.setInvoice(invoice);
+        history.setEmployee(c);
+        history.setOldStatus(currentStatus.getMa());
+        history.setNewStatus(nextStatus.getMa());
+        history.setChangedAt(new Date());
+
+        historyRepository.save(history);
+    }
+
+    @Override
+    public void huyDonClient(Long invoiceId,String nextKey) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng với username: " + username));
+
+        Customer c = user.getCustomer();
+        if (c == null) {
+            throw new RuntimeException("Người dùng không phải là khách hàng.");
+        }
+
+        Invoice invoice = invoiceRepository.findById(invoiceId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
+
+        TrangThaiChiTiet currentStatus = invoice.getStatusDetail();
+
+        TrangThaiChiTiet nextStatus;
+        try {
+            nextStatus = TrangThaiChiTiet.valueOf(nextKey);
+        } catch (IllegalArgumentException e) {
+            throw new RuntimeException("Trạng thái tiếp theo không hợp lệ: " + nextKey);
+        }
+
+        if (currentStatus == nextStatus) {
+            throw new RuntimeException("Trạng thái mới trùng với trạng thái hiện tại.");
+        }
+
+        invoice.setStatusDetail(nextStatus);
+
+        if (nextStatus == TrangThaiChiTiet.HUY_DON) {
+            invoice.setStatus(TrangThaiTong.DA_HUY); // hoặc HUY, DA_HUY,... tùy định nghĩa
+        }
+
         invoiceRepository.save(invoice);
 
         OrderStatusHistory history = new OrderStatusHistory();
         history.setInvoice(invoice);
         history.setOldStatus(currentStatus.getMa());
-        history.setNewStatus(TrangThaiChiTiet.DA_XU_LY.getMa());
+        history.setNewStatus(nextStatus.getMa());
         history.setChangedAt(new Date());
 
         historyRepository.save(history);
@@ -163,11 +231,44 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
         invoiceRepository.save(invoice);
     }
 
+    @Override
+    public void huyDonVaHoanTienEmployee(Long invoiceId, String nextKey, String note, String paymentMenthod, Boolean isPaid) {
+        Invoice invoice = invoiceRepository.findPaidInvoiceById(invoiceId, isPaid)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
 
+        huyDonEmployee(invoiceId, nextKey);
+
+        List<InvoiceDetail> invoiceDetails = invoiceDetailRepository.findByInvoiceId(invoiceId);
+        for (InvoiceDetail detail : invoiceDetails) {
+            ProductDetail productDetail = detail.getProductDetail();
+
+            int oldDetailStock = productDetail.getQuantity();
+            productDetail.setQuantity(oldDetailStock + detail.getQuantity());
+            productDetailRepository.save(productDetail);
+
+            Product product = productDetail.getProduct();
+            int oldProductStock = product.getQuantity();
+            product.setQuantity(oldProductStock + detail.getQuantity());
+            productRepository.save(product);
+        }
+
+        InvoiceTransaction invoiceTransaction = new InvoiceTransaction();
+        invoiceTransaction.setTransactionCode("GD-" + UUID.randomUUID().toString().substring(0, 8));
+        invoiceTransaction.setInvoice(invoice);
+        invoiceTransaction.setAmount(invoice.getFinalAmount());
+        invoiceTransaction.setPaymentStatus(2);
+        invoiceTransaction.setPaymentMethod(paymentMenthod);
+        invoiceTransaction.setTransactionType("Hoàn tiền");
+        invoiceTransaction.setNote(note);
+        invoiceTransaction.setPaymentTime(new Date());
+        invoiceTransactionRepository.save(invoiceTransaction);
+
+        invoiceRepository.save(invoice);
+    }
 
     @Override
     public void giaoHangThatBaiVaHoanTien(Long invoiceId, String nextKey, String note, String paymentMenthod,Boolean isPaid) {
-        huyDonVaHoanTien(invoiceId,nextKey,note,paymentMenthod,isPaid);
+        huyDonVaHoanTienEmployee(invoiceId,nextKey,note,paymentMenthod,isPaid);
     }
 
     @Override

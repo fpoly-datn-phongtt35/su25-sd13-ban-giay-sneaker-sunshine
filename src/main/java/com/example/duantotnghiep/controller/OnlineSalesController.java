@@ -76,7 +76,7 @@ public class OnlineSalesController {
             @RequestParam Boolean isPaid
     ) {
         try {
-            onlineSaleService.huyDonVaHoanTien(invoiceId, statusDetail, note, paymentMethod,isPaid);
+            onlineSaleService.huyDonVaHoanTienEmployee(invoiceId, statusDetail, note, paymentMethod,isPaid);
             return ResponseEntity.ok("Hủy đơn và hoàn tiền thành công");
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body("Lỗi: " + e.getMessage());

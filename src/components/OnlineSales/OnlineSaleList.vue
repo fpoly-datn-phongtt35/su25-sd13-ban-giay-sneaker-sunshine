@@ -150,12 +150,12 @@ const statusLabelToCode = (label) => {
     'HUY_GIAO_DICH': -1,
     'CHO_XU_LY': 0,
     'DA_XU_LY': 1,
-    'CHO_GIAO_HANG': 3,
-    'DANG_GIAO_HANG': 4,
-    'GIAO_THANH_CONG': 5,
-    'GIAO_THAT_BAI': 6,
-    'MAT_HANG': 7,
-    'DA_HOAN_TIEN': 8,
+    'CHO_GIAO_HANG': 2,
+    'DANG_GIAO_HANG': 3,
+    'GIAO_THANH_CONG': 4,
+    'GIAO_THAT_BAI': 5,
+    'MAT_HANG': 6,
+    'DA_HOAN_TIEN': 7,
   }
   return map[label] ?? null
 }

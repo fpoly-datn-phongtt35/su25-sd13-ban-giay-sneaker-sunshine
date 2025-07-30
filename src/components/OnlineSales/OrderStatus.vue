@@ -294,11 +294,11 @@ const showFailDialog = () => {
 
 const showActionHistoryDialog = async () => {
   try {
-    // Ensure the API endpoint is correct based on your backend
     const res = await apiClient.get(`/admin/online-sales/get-order-history`, {
       params: { invoiceId },
     })
     actionHistory.value = res.data
+    console.log('data his: ',res.data)
     actionHistoryDialogVisible.value = true
   } catch (err) {
     ElMessage.error('Lỗi tải lịch sử tác động')
@@ -310,6 +310,8 @@ const advanceStatus = async () => {
   const currentKey = invoice.value?.statusDetail
   const currentIndex = mainStepKeys.indexOf(currentKey)
   const nextKey = mainStepKeys[currentIndex + 1]
+
+  console.log(`Chuyển từ ${currentKey} → ${nextKey}`)
 
   if (!nextKey) {
     ElMessage.info('Không có trạng thái tiếp theo để chuyển.')

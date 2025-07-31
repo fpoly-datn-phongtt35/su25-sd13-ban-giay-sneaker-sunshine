@@ -16,6 +16,7 @@ import com.example.duantotnghiep.dto.response.ZaloPayResponse;
 import com.example.duantotnghiep.mapper.InvoiceMapper;
 import com.example.duantotnghiep.model.AddressCustomer;
 import com.example.duantotnghiep.model.Customer;
+import com.example.duantotnghiep.model.CustomerBlacklistHistory;
 import com.example.duantotnghiep.model.DiscountCampaign;
 import com.example.duantotnghiep.model.Employee;
 import com.example.duantotnghiep.model.Invoice;
@@ -29,6 +30,7 @@ import com.example.duantotnghiep.model.User;
 import com.example.duantotnghiep.model.Voucher;
 import com.example.duantotnghiep.model.VoucherHistory;
 import com.example.duantotnghiep.repository.AddressRepository;
+import com.example.duantotnghiep.repository.CustomerBlacklistHistoryRepository;
 import com.example.duantotnghiep.repository.CustomerRepository;
 import com.example.duantotnghiep.repository.DiscountCampaignRepository;
 import com.example.duantotnghiep.repository.EmployeeRepository;
@@ -92,6 +94,7 @@ public class InvoiceServiceImpl implements InvoiceService {
     private final VnpayService vnpayService;
     private final DiscountCampaignRepository discountCampaignRepository;
     private final VoucherService voucherService;
+    private final CustomerBlacklistHistoryRepository customerBlacklistHistoryRepository;
 //    private final InvoiceService invoiceService;
 
 
@@ -1192,7 +1195,6 @@ public class InvoiceServiceImpl implements InvoiceService {
         return invoiceMapper.toInvoiceDisplayResponse(savedInvoice, savedInvoice.getInvoiceDetails());
     }
 
-
     @Transactional
     @Override
     public InvoiceDisplayResponse createInvoiceShipCode(InvoiceRequest request) {
@@ -1216,32 +1218,31 @@ public class InvoiceServiceImpl implements InvoiceService {
                     customer.setStatus(1);
                     customer.setCustomerCode("KH" + System.currentTimeMillis());
                     customer.setCreatedDate(LocalDateTime.now());
-
                     customer.setAddressList(new ArrayList<>());
-
                     customer = customerRepository.save(customer);
                 }
             } else {
                 throw new RuntimeException("Thiếu thông tin khách hàng (cần có customerId hoặc phone)");
             }
 
+            // ✅ Kiểm tra blacklist
+            if (Boolean.TRUE.equals(customer.getIsBlacklisted())) {
+                LocalDateTime expiry = customer.getBlacklistExpiryDate();
+
+                if (expiry == null || expiry.isAfter(LocalDateTime.now())) {
+                    throw new RuntimeException("Khách hàng đang bị cấm mua hàng. Lý do: " + customer.getBlacklistReason());
+                }
+
+                // ✅ Gỡ cấm nếu đã hết hạn
+                customer.setIsBlacklisted(false);
+                customer.setBlacklistReason(null);
+                customer.setBlacklistExpiryDate(null);
+                customerRepository.save(customer);
+            }
+
+            // 2. Lấy địa chỉ giao hàng
             AddressRequest addr = request.getCustomerInfo().getAddress();
-//            if (addr != null) {
-//                AddressCustomer address = new AddressCustomer();
-//                address.setCustomer(customer);
-//                address.setCountry(addr.getCountry());
-//                address.setProvinceCode(addr.getProvinceCode());
-//                address.setProvinceName(addr.getProvinceName());
-//                address.setDistrictCode(addr.getDistrictCode());
-//                address.setDistrictName(addr.getDistrictName());
-//                address.setWardCode(addr.getWardCode());
-//                address.setWardName(addr.getWardName());
-//                address.setHouseName(addr.getHouseName());
-//                address.setStatus(1);
-//                address.setCreatedDate(new Date());
-//                address.setDefaultAddress(true);
-//                addressRepository.save(address);
-//            }
+            String addressNew = addr.getHouseName() + " - " + addr.getProvinceName() + " - " + addr.getDistrictName() + " - Việt Nam";
 
             // 3. Tạo hóa đơn
             Invoice invoice = new Invoice();
@@ -1256,8 +1257,8 @@ public class InvoiceServiceImpl implements InvoiceService {
             invoice.setStatusDetail(TrangThaiChiTiet.CHO_XU_LY);
             invoice.setDiscountAmount(Optional.ofNullable(request.getDiscountAmount()).orElse(BigDecimal.ZERO));
             invoice.setShippingFee(Optional.ofNullable(request.getShippingFee()).orElse(BigDecimal.ZERO));
-            String addressNew = addr.getHouseName() + " - " + addr.getProvinceName() + " - " + addr.getDistrictName() + " - " + "Việt nam";
             invoice.setDeliveryAddress(addressNew);
+
             if (request.getEmployeeId() != null) {
                 employeeRepository.findById(request.getEmployeeId()).ifPresent(invoice::setEmployee);
             }
@@ -1266,7 +1267,7 @@ public class InvoiceServiceImpl implements InvoiceService {
                 voucherRepository.findById(request.getVoucherId()).ifPresent(invoice::setVoucher);
             }
 
-            // 4. Xử lý danh sách sản phẩm
+            // 4. Xử lý sản phẩm
             BigDecimal total = BigDecimal.ZERO;
             List<InvoiceDetail> details = new ArrayList<>();
 
@@ -1274,13 +1275,11 @@ public class InvoiceServiceImpl implements InvoiceService {
                 ProductDetail productDetail = productDetailRepository.findById(item.getProductDetailId())
                         .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm chi tiết ID: " + item.getProductDetailId()));
 
-                // Kiểm tra tồn kho chi tiết
                 if (item.getQuantity() > productDetail.getQuantity()) {
                     throw new RuntimeException("Số lượng vượt quá tồn kho chi tiết sản phẩm: " + item.getProductDetailId());
                 }
                 productDetail.setQuantity(productDetail.getQuantity() - item.getQuantity());
 
-                // Kiểm tra tồn kho tổng
                 Product product = productDetail.getProduct();
                 int stock = Optional.ofNullable(product.getQuantity()).orElse(0);
                 if (item.getQuantity() > stock) {
@@ -1288,7 +1287,6 @@ public class InvoiceServiceImpl implements InvoiceService {
                 }
                 product.setQuantity(stock - item.getQuantity());
 
-                // Tạo chi tiết hóa đơn
                 InvoiceDetail detail = new InvoiceDetail();
                 detail.setInvoice(invoice);
                 detail.setProductDetail(productDetail);
@@ -1305,43 +1303,112 @@ public class InvoiceServiceImpl implements InvoiceService {
 
                 BigDecimal itemTotal = discountedPrice.multiply(BigDecimal.valueOf(item.getQuantity()));
                 total = total.add(itemTotal);
-
                 details.add(detail);
             }
 
             invoice.setTotalAmount(total);
-            invoice.setFinalAmount(total
-                    .subtract(invoice.getDiscountAmount())
-                    .add(invoice.getShippingFee()));
+            invoice.setFinalAmount(total.subtract(invoice.getDiscountAmount()).add(invoice.getShippingFee()));
             invoice.setInvoiceDetails(details);
 
             // 5. Lưu hóa đơn
             Invoice savedInvoice = invoiceRepository.save(invoice);
 
-            // 6. Giao dịch thanh toán (Ship COD)
+            // 6. Giao dịch Ship COD
             InvoiceTransaction transaction = new InvoiceTransaction();
             transaction.setTransactionCode("GD-" + UUID.randomUUID().toString().substring(0, 8));
             transaction.setInvoice(savedInvoice);
             transaction.setAmount(savedInvoice.getFinalAmount());
-            transaction.setPaymentStatus(1); // chờ thanh toán
+            transaction.setPaymentStatus(1);
             transaction.setPaymentMethod("Thanh toán khi nhận hàng");
             transaction.setTransactionType("Thanh toán sau");
             transaction.setNote(null);
             transaction.setPaymentTime(new Date());
             invoiceTransactionRepository.save(transaction);
 
-            // 7. Xử lý hậu thanh toán (áp dụng khuyến mãi, cập nhật tồn kho v.v.)
+            // 7. Hậu thanh toán
             processInvoicePayment(savedInvoice.getId());
 
-            // 8. Trả kết quả về FE
+            // 8. Tự động kiểm tra blacklist nếu hủy nhiều đơn
+            autoBlacklistIfTooManyCancellations(customer);
+
+            // 9. Trả về kết quả
             return invoiceMapper.toInvoiceDisplayResponse(savedInvoice, savedInvoice.getInvoiceDetails());
 
         } catch (Exception e) {
-            e.printStackTrace(); // Ghi log
+            e.printStackTrace();
             throw new RuntimeException("Lỗi khi tạo đơn hàng: " + e.getMessage());
         }
     }
 
+    @Override
+    public void autoBlacklistIfTooManyCancellations(Customer customer) {
+        LocalDateTime now = LocalDateTime.now();
+
+        LocalDateTime lastChecked = Optional.ofNullable(customer.getLastBlacklistChecked())
+                .orElse(now.minusDays(30));
+
+        int newCancelledOrders = invoiceRepository.countByCustomerAndStatusDetailAndUpdatedDateAfter(
+                customer,
+                TrangThaiChiTiet.HUY_DON,
+                lastChecked
+        );
+
+        if (newCancelledOrders <= 0) {
+            customer.setLastBlacklistChecked(now);
+            customerRepository.save(customer);
+            return;
+        }
+
+        int previousCancelCount = Optional.ofNullable(customer.getLastBlacklistCancelCount()).orElse(0);
+        int totalCancelled = previousCancelCount + newCancelledOrders;
+
+        int currentScore = Optional.ofNullable(customer.getTrustScore()).orElse(100);
+        int deducted = newCancelledOrders * 10;
+        int newTrustScore = Math.max(0, currentScore - deducted);
+        customer.setTrustScore(newTrustScore);
+
+        boolean warned = false;
+        boolean blacklisted = false;
+
+        // ⚠️ Cảnh báo nếu hủy 3 hoặc 4 đơn
+        if ((totalCancelled == 3 || totalCancelled == 4) && previousCancelCount < totalCancelled) {
+            String warningMsg = "⚠️ Cảnh báo: Đã hủy " + totalCancelled + " đơn hàng. Nếu hủy đến 5 đơn sẽ bị cấm mua hàng 3 ngày.";
+
+            // Lưu cảnh báo vào lịch sử
+            CustomerBlacklistHistory warning = new CustomerBlacklistHistory();
+            warning.setCustomer(customer);
+            warning.setReason(warningMsg);
+            warning.setStartTime(now);
+            warning.setEndTime(null); // chỉ là cảnh báo, không có thời hạn
+            customerBlacklistHistoryRepository.save(warning);
+
+            // Ghi cảnh báo vào bảng khách hàng
+            customer.setBlacklistReason(warningMsg);
+            warned = true;
+        }
+
+        // ⛔ Cấm nếu hủy từ 5 đơn trở lên
+        if (totalCancelled >= 5 && previousCancelCount < 5) {
+            customer.setIsBlacklisted(true);
+            customer.setBlacklistReason("Đã hủy ≥ 5 đơn hàng");
+            customer.setBlacklistExpiryDate(now.plusDays(3));
+
+            // Lưu lịch sử blacklist
+            CustomerBlacklistHistory blacklist = new CustomerBlacklistHistory();
+            blacklist.setCustomer(customer);
+            blacklist.setReason(customer.getBlacklistReason());
+            blacklist.setStartTime(now);
+            blacklist.setEndTime(customer.getBlacklistExpiryDate());
+            customerBlacklistHistoryRepository.save(blacklist);
+
+            blacklisted = true;
+        }
+
+        // Cập nhật thông tin sau cùng
+        customer.setLastBlacklistChecked(now);
+        customer.setLastBlacklistCancelCount(totalCancelled);
+        customerRepository.save(customer);
+    }
 
     @Transactional
     @Override
@@ -1374,22 +1441,6 @@ public class InvoiceServiceImpl implements InvoiceService {
         // Bước 5: Trả kết quả về client
         return new InvoiceWithZaloPayResponse(invoiceDisplay, zaloPayResponse);
     }
-
-    //    @Async
-//    public void scheduleFailIfNotPaid(String appTransId) {
-//        Executors.newSingleThreadScheduledExecutor().schedule(() -> {
-//            Optional<Invoice> opt = invoiceRepository.findByAppTransId(appTransId);
-//            if (opt.isPresent()) {
-//                Invoice invoice = opt.get();
-//                if (invoice.getStatus() == 0) { // chưa thanh toán
-//                    invoice.setStatus(11); // thanh toán thất bại
-//                    invoice.setUpdatedDate(LocalDateTime.now());
-//                    invoiceRepository.save(invoice);
-//                    log.info("⏰ Đơn {} không thanh toán sau 1 phút → chuyển status = 11", appTransId);
-//                }
-//            }
-//        }, 1, TimeUnit.MINUTES);
-//    }
 
     @Transactional
     public void updateInvoiceStatusByAppTransId(String appTransId, Integer status,Integer statusDetail,Boolean isPaid) {

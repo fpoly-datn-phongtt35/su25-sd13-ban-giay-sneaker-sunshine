@@ -1,9 +1,13 @@
 package com.example.duantotnghiep.controller;
 
 import com.example.duantotnghiep.dto.request.AddressCustomerRequest;
+import com.example.duantotnghiep.dto.request.CustomerBlacklistRequest;
 import com.example.duantotnghiep.dto.request.CustomerRequest;
 import com.example.duantotnghiep.dto.response.AddressCustomerResponse;
+import com.example.duantotnghiep.dto.response.BadCustomerResponse;
+import com.example.duantotnghiep.dto.response.CustomerBlacklistHistoryResponse;
 import com.example.duantotnghiep.dto.response.CustomerResponse;
+import com.example.duantotnghiep.service.CustomerBlacklistHistoryService;
 import com.example.duantotnghiep.service.CustomerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -22,12 +26,14 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/admin/customers")
 @RequiredArgsConstructor
 public class CustomerController {
     private final CustomerService customerService;
+    private final CustomerBlacklistHistoryService historyService;
 
     // CREATE
     @PostMapping
@@ -133,4 +139,26 @@ public class CustomerController {
         return ResponseEntity.ok("Đã đặt địa chỉ mặc định thành công!");
     }
 
+    @PutMapping("/{id}/blacklist")
+    public ResponseEntity<?> blacklist(@PathVariable Long id, @RequestBody CustomerBlacklistRequest request) {
+        customerService.blacklistCustomer(id, request);
+        return ResponseEntity.ok("Đã cấm khách hàng.");
+    }
+
+    @PutMapping("/{id}/unblacklist")
+    public ResponseEntity<?> unblacklist(@PathVariable Long id) {
+        customerService.unblacklistCustomer(id);
+        return ResponseEntity.ok("Đã gỡ cấm khách hàng.");
+    }
+
+    @GetMapping("/{customerId}/blacklist-history")
+    public ResponseEntity<List<CustomerBlacklistHistoryResponse>> getHistoryByCustomerId(@PathVariable Long customerId) {
+        return ResponseEntity.ok(historyService.getHistoryByCustomerId(customerId));
+    }
+
+    @GetMapping("/bad")
+    public ResponseEntity<List<BadCustomerResponse>> getBlacklistedCustomers() {
+        List<BadCustomerResponse> list = customerService.getAllBlacklistedCustomers();
+        return ResponseEntity.ok(list);
+    }
 }

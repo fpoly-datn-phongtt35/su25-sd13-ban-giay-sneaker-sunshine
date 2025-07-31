@@ -19,8 +19,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/online-sale")
@@ -53,11 +57,23 @@ public class SaleOnlineController {
             }
 
             return ResponseEntity.ok(response);
+        } catch (ResponseStatusException ex) {
+            // ✅ Nếu lỗi được ném ra từ service với ResponseStatusException
+            Map<String, Object> error = new HashMap<>();
+            error.put("status", ex.getStatusCode().value());
+            error.put("message", ex.getReason());
+            error.put("timestamp", LocalDateTime.now());
+            return ResponseEntity.status(ex.getStatusCode()).body(error);
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(" Lỗi thanh toán: " + e.getMessage());
+            // ✅ Lỗi hệ thống khác
+            Map<String, Object> error = new HashMap<>();
+            error.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
+            error.put("message", "Lỗi thanh toán: " + e.getMessage());
+            error.put("timestamp", LocalDateTime.now());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
     }
+
 
     @GetMapping("/{id}")
     public ResponseEntity<ProductResponse> getProductById(@PathVariable Long id) {

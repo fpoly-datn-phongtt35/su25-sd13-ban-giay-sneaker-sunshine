@@ -3,6 +3,7 @@ package com.example.duantotnghiep.repository;
 import com.example.duantotnghiep.dto.response.HuyDonResponse;
 import com.example.duantotnghiep.dto.response.InvoiceResponse;
 import com.example.duantotnghiep.dto.response.NhanVienXuLySearchResponse;
+import com.example.duantotnghiep.model.Customer;
 import com.example.duantotnghiep.model.Invoice;
 import com.example.duantotnghiep.state.TrangThaiChiTiet;
 import com.example.duantotnghiep.state.TrangThaiTong;
@@ -159,6 +160,12 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
 //    group by i.id
 //""")
 //    List<HuyDonResponse> getHuyDonEmployee(@Param("employeeId") Long employeeId);
+
+    int countByCustomerAndStatusDetailAndUpdatedDateAfter(
+            Customer customer,
+            TrangThaiChiTiet statusDetail,
+            LocalDateTime updatedAfter
+    );
 
 
 }

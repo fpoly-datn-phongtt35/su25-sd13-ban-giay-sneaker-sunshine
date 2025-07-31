@@ -616,8 +616,8 @@ const handleSubmit = () => {
       }
 
     } catch (err) {
-      console.error('❌ Lỗi đặt hàng:', err)
-      ElMessage.error(`❌ Đặt hàng thất bại: ${err?.response?.data?.message || 'Có lỗi xảy ra, vui lòng thử lại.'}`)
+      console.error(' Lỗi đặt hàng:', err)
+      ElMessage.error(` Đặt hàng thất bại: ${err?.response?.data?.message || 'Có lỗi xảy ra, vui lòng thử lại.'}`)
     } finally {
       isSubmitting.value = false
       loadingInstance.close()

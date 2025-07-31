@@ -8,6 +8,8 @@ import com.example.duantotnghiep.dto.response.OrderStatusHistoryResponse;
 import com.example.duantotnghiep.dto.response.StatusCountResponse;
 import com.example.duantotnghiep.model.*;
 import com.example.duantotnghiep.repository.*;
+import com.example.duantotnghiep.service.CustomerService;
+import com.example.duantotnghiep.service.InvoiceService;
 import com.example.duantotnghiep.service.OnlineSaleService;
 import com.example.duantotnghiep.state.TrangThaiChiTiet;
 import com.example.duantotnghiep.state.TrangThaiTong;
@@ -34,6 +36,7 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
     private final InvoiceRepository2 invoiceRepository2;
     private final ProductDetailRepository  productDetailRepository;
     private final ProductRepository productRepository;
+    private final InvoiceService invoiceService;
 
     @Override
     public void chuyenTrangThai(Long invoiceId,String nextKey) {
@@ -147,7 +150,7 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
 
     @Override
     @Transactional
-    public void huyDonClient(Long invoiceId,String nextKey) {
+    public void huyDonClient(Long invoiceId, String nextKey) {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
 
         User user = userRepository.findByUsername(username)
@@ -179,7 +182,7 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
         if (nextStatus == TrangThaiChiTiet.HUY_DON) {
             invoice.setStatus(TrangThaiTong.DA_HUY); // hoặc HUY, DA_HUY,... tùy định nghĩa
         }
-
+        invoice.setUpdatedDate(new Date()); // ✅ THÊM DÒNG NÀY
         invoiceRepository.save(invoice);
 
         OrderStatusHistory history = new OrderStatusHistory();
@@ -190,6 +193,9 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
         history.setChangedAt(new Date());
 
         historyRepository.save(history);
+
+        // ✅ Gọi hàm kiểm tra và cấm nếu cần
+        invoiceService.autoBlacklistIfTooManyCancellations(c);
     }
 
     @Override
@@ -210,8 +216,9 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
         Invoice invoice = invoiceRepository.findPaidInvoiceById(invoiceId, isPaid)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
 
-        huyDonClient(invoiceId, nextKey);
+        huyDonClient(invoiceId, nextKey); // ✅ Gọi hàm hủy đơn
 
+        // ✅ Cập nhật lại kho cho từng sản phẩm
         List<InvoiceDetail> invoiceDetails = invoiceDetailRepository.findByInvoiceId(invoiceId);
         for (InvoiceDetail detail : invoiceDetails) {
             ProductDetail productDetail = detail.getProductDetail();
@@ -226,8 +233,7 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
             productRepository.save(product);
         }
 
-
-
+        // ✅ Ghi nhận giao dịch hoàn tiền
         InvoiceTransaction invoiceTransaction = new InvoiceTransaction();
         invoiceTransaction.setTransactionCode("GD-" + UUID.randomUUID().toString().substring(0, 8));
         invoiceTransaction.setInvoice(invoice);

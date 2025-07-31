@@ -1340,6 +1340,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         }
     }
 
+    @Override
     public void autoBlacklistIfTooManyCancellations(Customer customer) {
         LocalDateTime now = LocalDateTime.now();
 
@@ -1440,22 +1441,6 @@ public class InvoiceServiceImpl implements InvoiceService {
         // Bước 5: Trả kết quả về client
         return new InvoiceWithZaloPayResponse(invoiceDisplay, zaloPayResponse);
     }
-
-    //    @Async
-//    public void scheduleFailIfNotPaid(String appTransId) {
-//        Executors.newSingleThreadScheduledExecutor().schedule(() -> {
-//            Optional<Invoice> opt = invoiceRepository.findByAppTransId(appTransId);
-//            if (opt.isPresent()) {
-//                Invoice invoice = opt.get();
-//                if (invoice.getStatus() == 0) { // chưa thanh toán
-//                    invoice.setStatus(11); // thanh toán thất bại
-//                    invoice.setUpdatedDate(LocalDateTime.now());
-//                    invoiceRepository.save(invoice);
-//                    log.info("⏰ Đơn {} không thanh toán sau 1 phút → chuyển status = 11", appTransId);
-//                }
-//            }
-//        }, 1, TimeUnit.MINUTES);
-//    }
 
     @Transactional
     public void updateInvoiceStatusByAppTransId(String appTransId, Integer status,Integer statusDetail,Boolean isPaid) {

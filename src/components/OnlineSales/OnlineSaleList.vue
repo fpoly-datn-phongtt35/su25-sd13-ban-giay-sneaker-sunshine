@@ -127,7 +127,7 @@ const filters = ref({
 
 const currentTab = ref('CHO_XU_LY')
 const page = ref(1)
-const pageSize = ref(10)
+const pageSize = ref(100)
 const total = ref(0)
 const invoices = ref([])
 const loading = ref(false)

@@ -101,6 +101,11 @@
         <span>Quản lý đợt giảm giá</span>
       </el-menu-item>
 
+      <el-menu-item index="/blacklist-history">
+        <el-icon><i class="bi bi-file-earmark"></i></el-icon>
+        <span>Quản lý khách xấu</span>
+      </el-menu-item>
+
       <el-sub-menu index="">
         <template #title>
           <el-icon><i class="bi bi-graph-up"></i></el-icon>

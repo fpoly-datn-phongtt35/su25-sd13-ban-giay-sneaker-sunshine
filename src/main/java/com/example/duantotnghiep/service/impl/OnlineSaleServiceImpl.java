@@ -226,8 +226,6 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
             productRepository.save(product);
         }
 
-
-
         InvoiceTransaction invoiceTransaction = new InvoiceTransaction();
         invoiceTransaction.setTransactionCode("GD-" + UUID.randomUUID().toString().substring(0, 8));
         invoiceTransaction.setInvoice(invoice);

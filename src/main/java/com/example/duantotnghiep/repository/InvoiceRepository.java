@@ -1,6 +1,8 @@
 package com.example.duantotnghiep.repository;
 
+import com.example.duantotnghiep.dto.response.HuyDonResponse;
 import com.example.duantotnghiep.dto.response.InvoiceResponse;
+import com.example.duantotnghiep.dto.response.NhanVienXuLySearchResponse;
 import com.example.duantotnghiep.model.Invoice;
 import com.example.duantotnghiep.state.TrangThaiChiTiet;
 import com.example.duantotnghiep.state.TrangThaiTong;
@@ -143,5 +145,20 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
     @Query("SELECT COUNT(i) FROM Invoice i WHERE i.customer.id = :customerId AND i.status = :paidStatus")
     Long countPaidInvoicesByCustomer(@Param("customerId") Long customerId,
                                      @Param("paidStatus") TrangThaiTong paidStatus);
+
+//    @Query("""
+//    select new com.example.duantotnghiep.dto.response.HuyDonResponse(
+//        i.id,
+//        count(i.id),
+//        sum(id.quantity),
+//        sum(i.finalAmount)
+//    )
+//    from Invoice i
+//    left join InvoiceDetail id on id.invoice.id = i.id
+//    where i.employee.id = :employeeId and i.status = 'CANCELLED'
+//    group by i.id
+//""")
+//    List<HuyDonResponse> getHuyDonEmployee(@Param("employeeId") Long employeeId);
+
 
 }

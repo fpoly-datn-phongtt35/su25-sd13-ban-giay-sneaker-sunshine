@@ -36,6 +36,7 @@ import OrderStatus from "@/components/OnlineSales/OrderStatus.vue";
 import DiscountCampaignList from '@/components/DotGiamGia/DiscountCampaignList.vue'
 import DiscountCampaignAdd from '@/components/DotGiamGia/DiscountCampaignAdd.vue'
 import DonHangDatTruoc from '@/components/Home/DonHangDatTruoc.vue'
+import NhanVienXuLy from '@/components/ThongKe/NhanVienXuLy.vue'
 
 const routes = [
   {
@@ -124,6 +125,7 @@ const routes = [
       { path: '/discount-campaigns', name: 'DiscountCampaignList', component: DiscountCampaignList },
       { path: '/discount-campaigns/add', name: 'DiscountCampaignAdd', component: DiscountCampaignAdd },
       { path: '/pre-orders', name: 'DonHangDatTruoc', component: DonHangDatTruoc },
+      { path: '/nhan-vien-xu-ly', name: 'NhanVienXuLy', component: NhanVienXuLy },
     ],
   },
 ]

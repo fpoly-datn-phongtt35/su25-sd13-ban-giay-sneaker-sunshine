@@ -95,7 +95,7 @@
         <el-form-item label="Vai trò" prop="role">
           <el-select v-model="form.role" placeholder="Chọn vai trò">
             <el-option :label="'Quản trị'" :value="1" />
-            <el-option :label="'Nhân viên'" :value="0" />
+            <el-option :label="'Nhân viên'" :value="2" />
           </el-select>
         </el-form-item>
 
@@ -111,7 +111,7 @@
 <script setup>
 import { ref } from 'vue'
 // Import your pre-configured API client
-import apiClient from '@/utils/axiosInstance' 
+import apiClient from '@/utils/axiosInstance'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { User, ArrowLeft, Calendar, Money, Phone, Message, Lock, Male, Female, Location, CirclePlus } from '@element-plus/icons-vue' // Added more relevant icons
 import { useRouter } from 'vue-router'
@@ -145,7 +145,7 @@ const goBack = () => {
 // Formats salary value to Vietnamese currency format
 const formatSalary = (value) => {
   // Ensure value is treated as a string before manipulation for safety
-  const stringValue = String(value || ''); 
+  const stringValue = String(value || '');
   // Parse out only digits for formatting
   const numberValue = parseInt(stringValue.replace(/[^\d]/g, ''), 10);
   if (isNaN(numberValue)) return '';

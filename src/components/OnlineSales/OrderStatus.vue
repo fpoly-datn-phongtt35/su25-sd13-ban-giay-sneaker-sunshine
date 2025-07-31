@@ -214,8 +214,8 @@ const actionHistory = ref([])
 const isPaid = ref(false)
 
 const mainSteps = [
-  { key: 'CHO_XU_LY', label: 'Chờ xử lý' },
-  { key: 'DA_XU_LY', label: 'Đã xử lý' },
+  { key: 'CHO_XU_LY', label: 'Chờ xác nhận' },
+  { key: 'DA_XU_LY', label: 'Đã xác nhận' },
   { key: 'CHO_GIAO_HANG', label: 'Chờ giao hàng' },
   { key: 'DANG_GIAO_HANG', label: 'Đang giao hàng' },
   { key: 'GIAO_THANH_CONG', label: 'Giao thành công' },

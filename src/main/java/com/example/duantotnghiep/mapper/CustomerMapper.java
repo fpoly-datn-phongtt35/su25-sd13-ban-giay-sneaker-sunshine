@@ -16,7 +16,6 @@ public interface CustomerMapper {
 
     Customer toDto(CustomerRequest customerRequest);
 
-    // Thêm hàm này để hiển thị khách hàng xấu
     @Mapping(source = "id", target = "id")
     @Mapping(source = "customerCode", target = "customerCode")
     @Mapping(source = "customerName", target = "customerName")
@@ -30,4 +29,5 @@ public interface CustomerMapper {
 
     List<BadCustomerResponse> toBadCustomerDtoList(List<Customer> customers);
 }
+
 

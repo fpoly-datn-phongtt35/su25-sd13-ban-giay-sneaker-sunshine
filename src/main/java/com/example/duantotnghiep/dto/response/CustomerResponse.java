@@ -37,5 +37,7 @@ public class CustomerResponse {
     private LocalDateTime createdDate;
     private LocalDateTime updatedDate;
 
-
+    private Integer trustScore;
+    private String blacklistReason;
+    private Boolean isBlacklisted;
 }

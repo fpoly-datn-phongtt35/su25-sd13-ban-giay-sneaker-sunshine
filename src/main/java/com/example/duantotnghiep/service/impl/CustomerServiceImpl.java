@@ -264,6 +264,12 @@ public class CustomerServiceImpl implements CustomerService {
         Customer customer = customerRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy khách hàng"));
 
+        // ✅ Kiểm tra nếu đã bị cấm
+        if (Boolean.TRUE.equals(customer.getIsBlacklisted())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Khách hàng đã bị cấm trước đó");
+        }
+
+        // ✅ Cập nhật trạng thái bị cấm
         customer.setIsBlacklisted(true);
         customer.setBlacklistReason(request.getReason());
         customer.setBlacklistExpiryDate(LocalDateTime.now().plusDays(request.getDurationInDays()));
@@ -271,7 +277,7 @@ public class CustomerServiceImpl implements CustomerService {
 
         customerRepository.save(customer);
 
-        // Lưu lịch sử cấm
+        // ✅ Ghi lại lịch sử cấm
         CustomerBlacklistHistory history = new CustomerBlacklistHistory();
         history.setCustomer(customer);
         history.setReason(request.getReason());
@@ -280,7 +286,6 @@ public class CustomerServiceImpl implements CustomerService {
 
         customerBlacklistHistoryRepository.save(history);
     }
-
 
     @Override
     public void unblacklistCustomer(Long id) {

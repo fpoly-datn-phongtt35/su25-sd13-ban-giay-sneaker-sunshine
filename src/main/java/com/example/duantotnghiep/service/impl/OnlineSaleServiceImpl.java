@@ -17,8 +17,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -36,8 +34,6 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
     private final InvoiceRepository2 invoiceRepository2;
     private final ProductDetailRepository  productDetailRepository;
     private final ProductRepository productRepository;
-    private final CustomerRepository customerRepository;
-    private final CustomerBlacklistHistoryRepository customerBlacklistHistoryRepository;
 
     @Override
     public void chuyenTrangThai(Long invoiceId,String nextKey) {
@@ -48,6 +44,70 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
 
         Employee employee = user.getEmployee();
         if (employee == null) {
+            throw new RuntimeException("Người dùng không phải là nhân viên.");
+        }
+
+        Invoice invoice = invoiceRepository.findById(invoiceId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
+
+        if(employee.getId() == null ){
+            throw new RuntimeException("ko lấy đc nhân viên.");
+        }
+
+        Boolean exists = historyRepository.isProcessedByAnotherEmployee(invoiceId, employee.getId());
+        if(exists) {
+            throw new RuntimeException("Đơn hàng đang được xử lý bởi nhân viên khác.");
+        }else{
+            TrangThaiChiTiet currentStatus = invoice.getStatusDetail();
+
+            TrangThaiChiTiet nextStatus;
+            try {
+                nextStatus = TrangThaiChiTiet.valueOf(nextKey);
+            } catch (IllegalArgumentException e) {
+                throw new RuntimeException("Trạng thái tiếp theo không hợp lệ: " + nextKey);
+            }
+
+            if (currentStatus == nextStatus) {
+                throw new RuntimeException("Trạng thái mới trùng với trạng thái hiện tại.");
+            }
+
+            invoice.setStatusDetail(nextStatus);
+            if (nextStatus == TrangThaiChiTiet.HUY_DON) {
+                invoice.setStatus(TrangThaiTong.DA_HUY); // hoặc HUY, DA_HUY,... tùy định nghĩa
+            }
+
+            if (nextStatus == TrangThaiChiTiet.GIAO_THANH_CONG) {
+                invoice.setDeliveredAt(new Date());
+                invoice.setStatus(TrangThaiTong.THANH_CONG);
+            }
+
+
+            if (nextStatus == TrangThaiChiTiet.CHO_GIAO_HANG ||  nextStatus == TrangThaiChiTiet.DANG_GIAO_HANG || nextStatus == TrangThaiChiTiet.DA_XU_LY || nextStatus == TrangThaiChiTiet.CHO_XU_LY) {
+                invoice.setStatus(TrangThaiTong.DANG_XU_LY);
+            }
+            invoiceRepository.save(invoice);
+
+            OrderStatusHistory history = new OrderStatusHistory();
+            history.setInvoice(invoice);
+            history.setEmployee(employee);
+            history.setOldStatus(currentStatus.getMa());
+            history.setNewStatus(nextStatus.getMa());
+            history.setChangedAt(new Date());
+
+            historyRepository.save(history);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void huyDonEmployee(Long invoiceId, String nextKey) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng với username: " + username));
+
+        Employee c = user.getEmployee();
+        if (c == null) {
             throw new RuntimeException("Người dùng không phải là nhân viên.");
         }
 
@@ -68,29 +128,35 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
         }
 
         invoice.setStatusDetail(nextStatus);
+
+        if (nextStatus == TrangThaiChiTiet.HUY_DON) {
+            invoice.setStatus(TrangThaiTong.DA_HUY);
+        }
+
         invoiceRepository.save(invoice);
 
         OrderStatusHistory history = new OrderStatusHistory();
         history.setInvoice(invoice);
-        history.setEmployee(employee);
+        history.setEmployee(c);
         history.setOldStatus(currentStatus.getMa());
-        history.setNewStatus(TrangThaiChiTiet.DA_XU_LY.getMa());
+        history.setNewStatus(nextStatus.getMa());
         history.setChangedAt(new Date());
 
         historyRepository.save(history);
     }
 
     @Override
+    @Transactional
     public void huyDonClient(Long invoiceId,String nextKey) {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
 
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng với username: " + username));
 
-//        Customer c = user.getCustomer();
-//        if (c == null) {
-//            throw new RuntimeException("Người dùng không phải là nhân viên.");
-//        }
+        Customer c = user.getCustomer();
+        if (c == null) {
+            throw new RuntimeException("Người dùng không phải là khách hàng.");
+        }
 
         Invoice invoice = invoiceRepository.findById(invoiceId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
@@ -109,12 +175,18 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
         }
 
         invoice.setStatusDetail(nextStatus);
+
+        if (nextStatus == TrangThaiChiTiet.HUY_DON) {
+            invoice.setStatus(TrangThaiTong.DA_HUY); // hoặc HUY, DA_HUY,... tùy định nghĩa
+        }
+
         invoiceRepository.save(invoice);
 
         OrderStatusHistory history = new OrderStatusHistory();
+        history.setCustomerId(c.getId());
         history.setInvoice(invoice);
         history.setOldStatus(currentStatus.getMa());
-        history.setNewStatus(TrangThaiChiTiet.DA_XU_LY.getMa());
+        history.setNewStatus(nextStatus.getMa());
         history.setChangedAt(new Date());
 
         historyRepository.save(history);
@@ -134,125 +206,90 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
 
     @Override
     @Transactional
-    public void huyDonVaHoanTien(Long invoiceId, String nextKey, String note, String paymentMethod, Boolean isPaid) {
-        // 1. Tìm hóa đơn đã thanh toán
+    public void huyDonVaHoanTienClient(Long invoiceId, String nextKey, String note, String paymentMenthod, Boolean isPaid) {
         Invoice invoice = invoiceRepository.findPaidInvoiceById(invoiceId, isPaid)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
 
-        // 2. Gọi client để hủy đơn
         huyDonClient(invoiceId, nextKey);
 
-        // 3. Hoàn lại số lượng sản phẩm
         List<InvoiceDetail> invoiceDetails = invoiceDetailRepository.findByInvoiceId(invoiceId);
         for (InvoiceDetail detail : invoiceDetails) {
             ProductDetail productDetail = detail.getProductDetail();
-            productDetail.setQuantity(productDetail.getQuantity() + detail.getQuantity());
+
+            int oldDetailStock = productDetail.getQuantity();
+            productDetail.setQuantity(oldDetailStock + detail.getQuantity());
             productDetailRepository.save(productDetail);
 
             Product product = productDetail.getProduct();
-            product.setQuantity(product.getQuantity() + detail.getQuantity());
+            int oldProductStock = product.getQuantity();
+            product.setQuantity(oldProductStock + detail.getQuantity());
             productRepository.save(product);
         }
 
-        // 4. Ghi nhận giao dịch hoàn tiền
+
+
         InvoiceTransaction invoiceTransaction = new InvoiceTransaction();
         invoiceTransaction.setTransactionCode("GD-" + UUID.randomUUID().toString().substring(0, 8));
         invoiceTransaction.setInvoice(invoice);
         invoiceTransaction.setAmount(invoice.getFinalAmount());
-        invoiceTransaction.setPaymentStatus(2); // Hoàn tiền
-        invoiceTransaction.setPaymentMethod(paymentMethod);
+        invoiceTransaction.setPaymentStatus(2);
+        invoiceTransaction.setPaymentMethod(paymentMenthod);
         invoiceTransaction.setTransactionType("Hoàn tiền");
         invoiceTransaction.setNote(note);
-
-        // Chuyển LocalDateTime sang Date
-        invoiceTransaction.setPaymentTime(Date.from(LocalDateTime.now().atZone(ZoneId.systemDefault()).toInstant()));
+        invoiceTransaction.setPaymentTime(new Date());
         invoiceTransactionRepository.save(invoiceTransaction);
 
-        // 5. Cập nhật trạng thái đơn
-        invoice.setStatus(TrangThaiTong.DA_HUY);
-        invoice.setStatusDetail(TrangThaiChiTiet.HUY_DON);
-        invoice.setUpdatedDate(Date.from(LocalDateTime.now().atZone(ZoneId.systemDefault()).toInstant()));
         invoiceRepository.save(invoice);
-
-        // 6. Kiểm tra blacklist
-        Customer customer = invoice.getCustomer();
-        if (customer != null && !Boolean.TRUE.equals(customer.getIsBlacklisted())) {
-            autoBlacklistIfTooManyCancellations(customer);
-        }
     }
 
-    public void autoBlacklistIfTooManyCancellations(Customer customer) {
-        LocalDateTime now = LocalDateTime.now();
+    @Override
+    @Transactional
+    public void huyDonVaHoanTienEmployee(Long invoiceId, String nextKey, String note, String paymentMenthod, Boolean isPaid) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
 
-        LocalDateTime lastChecked = Optional.ofNullable(customer.getLastBlacklistChecked())
-                .orElse(now.minusDays(30));
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng với username: " + username));
 
-        int newCancelledOrders = invoiceRepository.countByCustomerAndStatusDetailAndUpdatedDateAfter(
-                customer,
-                TrangThaiChiTiet.HUY_DON,
-                lastChecked
-        );
+        Employee employee = user.getEmployee();
+        if (employee == null) {
+            throw new RuntimeException("Người dùng không phải là nhân viên.");
+        }
+        Invoice invoice = invoiceRepository.findPaidInvoiceById(invoiceId, isPaid)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
 
-        if (newCancelledOrders <= 0) {
-            customer.setLastBlacklistChecked(now);
-            customerRepository.save(customer);
-            return;
+        huyDonEmployee(invoiceId, nextKey);
+
+        List<InvoiceDetail> invoiceDetails = invoiceDetailRepository.findByInvoiceId(invoiceId);
+        for (InvoiceDetail detail : invoiceDetails) {
+            ProductDetail productDetail = detail.getProductDetail();
+
+            int oldDetailStock = productDetail.getQuantity();
+            productDetail.setQuantity(oldDetailStock + detail.getQuantity());
+            productDetailRepository.save(productDetail);
+
+            Product product = productDetail.getProduct();
+            int oldProductStock = product.getQuantity();
+            product.setQuantity(oldProductStock + detail.getQuantity());
+            productRepository.save(product);
         }
 
-        int previousCancelCount = Optional.ofNullable(customer.getLastBlacklistCancelCount()).orElse(0);
-        int totalCancelled = previousCancelCount + newCancelledOrders;
+        InvoiceTransaction invoiceTransaction = new InvoiceTransaction();
+        invoiceTransaction.setTransactionCode("GD-" + UUID.randomUUID().toString().substring(0, 8));
+        invoiceTransaction.setInvoice(invoice);
+        invoiceTransaction.setAmount(invoice.getFinalAmount());
+        invoiceTransaction.setPaymentStatus(2);
+        invoiceTransaction.setPaymentMethod(paymentMenthod);
+        invoiceTransaction.setTransactionType("Hoàn tiền");
+        invoiceTransaction.setNote(note);
+        invoiceTransaction.setPaymentTime(new Date());
+        invoiceTransactionRepository.save(invoiceTransaction);
 
-        int currentScore = Optional.ofNullable(customer.getTrustScore()).orElse(100);
-        int deducted = newCancelledOrders * 10;
-        int newTrustScore = Math.max(0, currentScore - deducted);
-        customer.setTrustScore(newTrustScore);
-
-        boolean warned = false;
-        boolean blacklisted = false;
-
-        // ⚠️ Cảnh báo nếu hủy 3 hoặc 4 đơn
-        if ((totalCancelled == 3 || totalCancelled == 4) && previousCancelCount < totalCancelled) {
-            String warningMsg = "⚠️ Cảnh báo: Đã hủy " + totalCancelled + " đơn hàng. Nếu hủy đến 5 đơn sẽ bị cấm mua hàng 3 ngày.";
-
-            // Lưu cảnh báo vào lịch sử
-            CustomerBlacklistHistory warning = new CustomerBlacklistHistory();
-            warning.setCustomer(customer);
-            warning.setReason(warningMsg);
-            warning.setStartTime(now);
-            warning.setEndTime(null); // chỉ là cảnh báo, không có thời hạn
-            customerBlacklistHistoryRepository.save(warning);
-
-            // Ghi cảnh báo vào bảng khách hàng
-            customer.setBlacklistReason(warningMsg);
-            warned = true;
-        }
-
-        // ⛔ Cấm nếu hủy từ 5 đơn trở lên
-        if (totalCancelled >= 5 && previousCancelCount < 5) {
-            customer.setIsBlacklisted(true);
-            customer.setBlacklistReason("Đã hủy ≥ 5 đơn hàng");
-            customer.setBlacklistExpiryDate(now.plusDays(3));
-
-            // Lưu lịch sử blacklist
-            CustomerBlacklistHistory blacklist = new CustomerBlacklistHistory();
-            blacklist.setCustomer(customer);
-            blacklist.setReason(customer.getBlacklistReason());
-            blacklist.setStartTime(now);
-            blacklist.setEndTime(customer.getBlacklistExpiryDate());
-            customerBlacklistHistoryRepository.save(blacklist);
-
-            blacklisted = true;
-        }
-
-        // Cập nhật thông tin sau cùng
-        customer.setLastBlacklistChecked(now);
-        customer.setLastBlacklistCancelCount(totalCancelled);
-        customerRepository.save(customer);
+        invoiceRepository.save(invoice);
     }
 
     @Override
     public void giaoHangThatBaiVaHoanTien(Long invoiceId, String nextKey, String note, String paymentMenthod,Boolean isPaid) {
-        huyDonVaHoanTien(invoiceId,nextKey,note,paymentMenthod,isPaid);
+        huyDonVaHoanTienEmployee(invoiceId,nextKey,note,paymentMenthod,isPaid);
     }
 
     @Override

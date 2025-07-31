@@ -23,5 +23,15 @@ public interface OrderStatusHistoryRepository extends JpaRepository<OrderStatusH
 """)
     List<OrderStatusHistoryResponse> getOrderStatusHistoriesByInvoice(@Param("invoiceId") Long invoiceId);
 
+    @Query("""
+    SELECT COUNT(h) > 0 
+    FROM OrderStatusHistory h 
+    WHERE h.invoice.id = :invoiceId 
+      AND h.employee.id <> :employeeId 
+""")
+    Boolean isProcessedByAnotherEmployee(@Param("invoiceId") Long invoiceId,
+                                         @Param("employeeId") Long employeeId);
+
+
 
 }

@@ -28,7 +28,6 @@ public class ColorController {
         return ResponseEntity.ok(list);
     }
 
-    // Thêm màu sắc
     @PostMapping
     public ResponseEntity<Color> addColor(@RequestParam String name) {
         Color newColor = service.them(name);

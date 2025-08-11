@@ -35,4 +35,6 @@ public interface ProductService {
     PaginationDTO<ProductSearchResponse> getProductRemoved(ProductSearchRequest request, Pageable pageable);
 
     List<ProductResponse> findProductWithImage();
+
+    List<ProductResponse> findProducts(List<Long> productIds);
 }

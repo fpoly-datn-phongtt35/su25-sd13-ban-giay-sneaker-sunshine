@@ -1,11 +1,13 @@
 package com.example.duantotnghiep.controller;
 
+import com.example.duantotnghiep.dto.request.FavoriteRequest;
 import com.example.duantotnghiep.dto.request.InvoiceRequest;
 import com.example.duantotnghiep.dto.response.InvoiceDisplayResponse;
 import com.example.duantotnghiep.dto.response.InvoiceResponse;
 import com.example.duantotnghiep.dto.response.ProductResponse;
 import com.example.duantotnghiep.mapper.InvoiceMapper;
 import com.example.duantotnghiep.model.Invoice;
+import com.example.duantotnghiep.model.Product;
 import com.example.duantotnghiep.model.PromotionSuggestion;
 import com.example.duantotnghiep.repository.InvoiceRepository;
 import com.example.duantotnghiep.service.InvoiceService;
@@ -58,14 +60,13 @@ public class SaleOnlineController {
 
             return ResponseEntity.ok(response);
         } catch (ResponseStatusException ex) {
-            // ✅ Nếu lỗi được ném ra từ service với ResponseStatusException
             Map<String, Object> error = new HashMap<>();
             error.put("status", ex.getStatusCode().value());
             error.put("message", ex.getReason());
             error.put("timestamp", LocalDateTime.now());
             return ResponseEntity.status(ex.getStatusCode()).body(error);
         } catch (Exception e) {
-            // ✅ Lỗi hệ thống khác
+            //  Lỗi hệ thống khác
             Map<String, Object> error = new HashMap<>();
             error.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
             error.put("message", "Lỗi thanh toán: " + e.getMessage());
@@ -124,5 +125,18 @@ public class SaleOnlineController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Đã xảy ra lỗi máy chủ");
         }
     }
+
+    @PostMapping("/favorites")
+    public ResponseEntity<List<ProductResponse>> getFavoriteProducts(@RequestBody FavoriteRequest request) {
+        List<Long> productIds = request.getProductIds();
+
+        if (productIds == null || productIds.isEmpty()) {
+            return ResponseEntity.ok(List.of());
+        }
+
+        List<ProductResponse> products = productService.findProducts(productIds);
+        return ResponseEntity.ok(products);
+    }
+
 
 }

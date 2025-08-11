@@ -265,18 +265,20 @@ const handleAddToCart = () => {
     return false
   }
 
-  console.log('quantity: ',detail.quantity);
+  console.log('✅ Chi tiết sản phẩm tìm được:', detail)
 
   if (quantity.value > detail.quantity) {
     ElMessage.warning(`Số lượng bạn chọn vượt quá tồn kho. Bạn chỉ có thể đặt tối đa ${detail.quantity} sản phẩm.`)
     return false
   }
 
+  // Tính giá cuối cùng (giá sau giảm nếu có, ngược lại là giá gốc)
   const finalPrice =
     detail.discountedPrice && detail.discountedPrice > 0
       ? detail.discountedPrice
       : detail.sellPrice || finalDiscountedPrice.value
 
+  // Tạo item để thêm vào giỏ hàng
   const item = {
     productDetailId: detail.id,
     productId: product.value.id,
@@ -288,14 +290,19 @@ const handleAddToCart = () => {
     price: finalPrice,
     sellPrice: detail.sellPrice || product.value.sellPrice,
     discountedPrice: detail.discountedPrice || product.value.discountedPrice,
-    discountPercentage: discountPercentage.value,
+    discountPercentage: detail.discountPercentage || discountPercentage.value || 0,
+    discountCampaignId: detail.discountCampaignId || null, // ✅ Thêm campaign ID nếu có
     quantity: quantity.value,
   }
+
+  // ✅ Log dữ liệu thêm vào giỏ hàng
+  console.log('🛒 Sản phẩm thêm vào giỏ hàng:', item)
 
   addToCart(item)
   ElMessage.success('Đã thêm vào giỏ hàng!')
   return true
 }
+
 
 const handleBuyNow = () => {
   if (handleAddToCart()) {

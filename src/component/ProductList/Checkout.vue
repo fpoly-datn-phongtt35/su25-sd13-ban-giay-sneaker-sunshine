@@ -537,31 +537,34 @@ const handleSubmit = () => {
       console.log(" cartItems:", cartItems.value)
 
       // 🔧 Chuẩn bị payload gửi lên server
-      const payload = {
-        customerInfo: {
-          ...form.value,
-          address: {
-            ...form.value.address,
-            provinceName: provinces.value.find(p => p.ProvinceID === form.value.address.provinceCode)?.ProvinceName || '',
-            districtName: districts.value.find(d => d.DistrictID === form.value.address.districtCode)?.DistrictName || '',
-            wardName: wards.value.find(w => w.WardCode === form.value.address.wardCode)?.WardName || '',
-          }
-        },
-        items: cartItems.value.map(item => ({
-          productDetailId: item.productDetailId,
-          quantity: item.quantity,
-          sellPrice: item.sellPrice,
-          discountedPrice: item.discountedPrice,
-          discountPercentage: item.discountPercentage,
-        })),
-        discountAmount: discountAmount.value || 0,
-        voucherCode: appliedVoucher.value?.voucherCode || null,
-        description: form.value.description,
-        orderType: 1,
-        status: 1,
-        employeeId: null,
-        shippingFee: shippingFee.value
-      }
+const payload = {
+  customerInfo: {
+    ...form.value,
+    address: {
+      ...form.value.address,
+      provinceName: provinces.value.find(p => p.ProvinceID === form.value.address.provinceCode)?.ProvinceName || '',
+      districtName: districts.value.find(d => d.DistrictID === form.value.address.districtCode)?.DistrictName || '',
+      wardName: wards.value.find(w => w.WardCode === form.value.address.wardCode)?.WardName || '',
+    }
+  },
+  items: cartItems.value.map(item => ({
+    productDetailId: item.productDetailId,
+    quantity: item.quantity,
+    sellPrice: item.sellPrice,
+    discountedPrice: item.discountedPrice,
+    discountPercentage: item.discountPercentage,
+    discountCampaignId: item.discountCampaignId || null // ✅ Fix tại đây
+  })),
+  discountAmount: discountAmount.value || 0,
+  voucherCode: appliedVoucher.value?.voucherCode || null,
+  discountCampaignId: cartItems.value[0]?.discountCampaignId || null, // ✅ nếu muốn gán luôn cho hóa đơn
+  description: form.value.description,
+  orderType: 1,
+  status: 1,
+  employeeId: null,
+  shippingFee: shippingFee.value
+}
+
 
       console.log('📦 Payload gửi lên server:', JSON.stringify(payload, null, 2))
 

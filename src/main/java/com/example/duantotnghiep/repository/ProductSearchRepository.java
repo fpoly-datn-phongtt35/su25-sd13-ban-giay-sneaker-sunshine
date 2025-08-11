@@ -5,6 +5,7 @@ import com.example.duantotnghiep.dto.response.PaginationDTO;
 import com.example.duantotnghiep.dto.response.ProductSearchResponse;
 import com.example.duantotnghiep.mapper.PaginationMapper;
 import com.example.duantotnghiep.mapper.ProductMapper;
+import com.example.duantotnghiep.model.DiscountCampaignProduct;
 import com.example.duantotnghiep.model.Product;
 import com.example.duantotnghiep.model.ProductCategory;
 import com.example.duantotnghiep.model.ProductDetail;
@@ -18,6 +19,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,14 +44,12 @@ public class ProductSearchRepository {
         Map<String, Object> params = new HashMap<>();
         params.put("status", 1);
 
-        // Filter keyword
         String keyword = request.getKeyword() != null ? request.getKeyword().trim() : null;
         if (keyword != null && !keyword.isEmpty()) {
             whereClause.append(" AND (LOWER(p.productName) LIKE LOWER(:keyword) OR LOWER(p.productCode) LIKE LOWER(:keyword))");
             params.put("keyword", "%" + keyword + "%");
         }
 
-        // Các filter khác
         if (request.getBrandId() != null) {
             whereClause.append(" AND (p.brand.id IS NULL OR p.brand.id = :brandId)");
             params.put("brandId", request.getBrandId());
@@ -115,25 +116,21 @@ public class ProductSearchRepository {
 
         List<Product> products = query.getResultList();
 
+        final Map<Long, Long> productToMaxDiscountCampaignMap;
+
         if (!products.isEmpty()) {
             Set<Long> productIds = products.stream().map(Product::getId).collect(Collectors.toSet());
 
-            String productCategorySql = "SELECT pc FROM ProductCategory pc " +
-                    "LEFT JOIN FETCH pc.category " +
-                    "WHERE pc.product.id IN :productIds AND pc.status = 1";
-            TypedQuery<ProductCategory> pcQuery = entityManager.createQuery(productCategorySql, ProductCategory.class);
-            pcQuery.setParameter("productIds", productIds);
-            List<ProductCategory> productCategories = pcQuery.getResultList();
+            // Lấy ProductCategory
+            String productCategorySql = "SELECT pc FROM ProductCategory pc LEFT JOIN FETCH pc.category WHERE pc.product.id IN :productIds AND pc.status = 1";
+            List<ProductCategory> productCategories = entityManager.createQuery(productCategorySql, ProductCategory.class)
+                    .setParameter("productIds", productIds)
+                    .getResultList();
             Map<Long, List<ProductCategory>> categoryMap = productCategories.stream()
                     .collect(Collectors.groupingBy(pc -> pc.getProduct().getId()));
 
-            StringBuilder productDetailSql = new StringBuilder(
-                    "SELECT pd FROM ProductDetail pd " +
-                            "LEFT JOIN FETCH pd.color " +
-                            "LEFT JOIN FETCH pd.size " +
-                            "WHERE pd.product.id IN :productIds AND pd.status = 1"
-            );
-
+            // Lấy ProductDetail
+            StringBuilder productDetailSql = new StringBuilder("SELECT pd FROM ProductDetail pd LEFT JOIN FETCH pd.color LEFT JOIN FETCH pd.size WHERE pd.product.id IN :productIds AND pd.status = 1");
             if (request.getColorId() != null) {
                 productDetailSql.append(" AND pd.color.id = :colorId");
             }
@@ -157,6 +154,29 @@ public class ProductSearchRepository {
                 p.setProductCategories(categoryMap.getOrDefault(p.getId(), new ArrayList<>()));
                 p.setProductDetails(detailMap.getOrDefault(p.getId(), new ArrayList<>()));
             }
+
+            // Lấy DiscountCampaign có discount lớn nhất
+            String discountSql = """
+            SELECT dcp FROM DiscountCampaignProduct dcp
+            JOIN FETCH dcp.campaign
+            WHERE dcp.product.id IN :productIds and dcp.campaign.status = 1
+        """;
+
+            List<DiscountCampaignProduct> discountList = entityManager.createQuery(discountSql, DiscountCampaignProduct.class)
+                    .setParameter("productIds", productIds)
+                    .getResultList();
+
+            productToMaxDiscountCampaignMap = discountList.stream()
+                    .filter(dcp -> dcp.getCampaign() != null && dcp.getCampaign().getDiscountPercentage() != null)
+                    .collect(Collectors.groupingBy(
+                            dcp -> dcp.getProduct().getId(),
+                            Collectors.collectingAndThen(
+                                    Collectors.maxBy(Comparator.comparing(dcp -> dcp.getCampaign().getDiscountPercentage())),
+                                    opt -> opt.map(dcp -> dcp.getCampaign().getId()).orElse(null)
+                            )
+                    ));
+        } else {
+            productToMaxDiscountCampaignMap = Collections.emptyMap();
         }
 
         String countSql = "SELECT COUNT(DISTINCT p) " + baseSql + whereClause;
@@ -166,9 +186,13 @@ public class ProductSearchRepository {
 
         List<ProductSearchResponse> productResponses = products.stream()
                 .map(productMapper::toResponseSearch)
+                .peek(resp -> {
+                    Long discountId = productToMaxDiscountCampaignMap.get(resp.getId());
+                    resp.setDiscountCampaignId(discountId);
+                })
                 .collect(Collectors.toList());
-        Page<ProductSearchResponse> page = new PageImpl<>(productResponses, pageable, total);
 
+        Page<ProductSearchResponse> page = new PageImpl<>(productResponses, pageable, total);
         return paginationMapper.toPaginationDTO(page);
     }
 

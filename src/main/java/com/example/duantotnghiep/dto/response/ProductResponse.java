@@ -35,6 +35,7 @@ public class ProductResponse {
     private BigDecimal sellPrice;
     private BigDecimal discountedPrice;
     private Integer discountPercentage;
+    private Long discountCampaignId; // <- Thêm dòng này
     private Integer quantity;
     private String description;
     private Integer status;

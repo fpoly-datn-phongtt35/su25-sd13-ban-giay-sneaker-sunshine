@@ -82,4 +82,5 @@ public class DiscountCampaign {
 
     @OneToMany(mappedBy = "campaign", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<DiscountCampaignProductDetail> productDetails = new ArrayList<>();
+
 }

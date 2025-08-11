@@ -2,10 +2,9 @@ package com.example.duantotnghiep.service;
 
 import com.example.duantotnghiep.dto.request.DiscountCampaignRequest;
 import com.example.duantotnghiep.dto.response.DiscountCampaignResponse;
+import com.example.duantotnghiep.dto.response.DiscountCampaignStatisticsResponse;
 import jakarta.transaction.Transactional;
 import org.springframework.data.domain.Page;
-
-import java.util.List;
 
 public interface DiscountCampaignService {
     Page<DiscountCampaignResponse> getAll(int page, int size);
@@ -17,4 +16,6 @@ public interface DiscountCampaignService {
 
     @Transactional
     DiscountCampaignResponse createDiscountCampaign(DiscountCampaignRequest request);
+
+    DiscountCampaignStatisticsResponse getStatistics(Long campaignId);
 }

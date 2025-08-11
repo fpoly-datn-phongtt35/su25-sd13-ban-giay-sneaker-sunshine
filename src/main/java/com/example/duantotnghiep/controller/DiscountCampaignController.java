@@ -2,6 +2,7 @@ package com.example.duantotnghiep.controller;
 
 import com.example.duantotnghiep.dto.request.DiscountCampaignRequest;
 import com.example.duantotnghiep.dto.response.DiscountCampaignResponse;
+import com.example.duantotnghiep.dto.response.DiscountCampaignStatisticsResponse;
 import com.example.duantotnghiep.service.DiscountCampaignService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -13,8 +14,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/admin/campaigns")
@@ -45,6 +44,11 @@ public class DiscountCampaignController {
     public ResponseEntity<Void> softDeleteCampaign(@PathVariable Long id) {
         service.delete(id);
         return ResponseEntity.ok().build();  // Trả về HTTP 200 OK
+    }
+
+    @GetMapping("/{id}/statistics")
+    public ResponseEntity<DiscountCampaignStatisticsResponse> getStatistics(@PathVariable("id") Long id) {
+        return ResponseEntity.ok(service.getStatistics(id));
     }
 
 }

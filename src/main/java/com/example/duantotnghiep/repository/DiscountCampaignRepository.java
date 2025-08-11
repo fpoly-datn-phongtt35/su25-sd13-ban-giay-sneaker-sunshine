@@ -21,6 +21,13 @@ public interface DiscountCampaignRepository extends JpaRepository<DiscountCampai
 
     List<DiscountCampaign> findByStatusNotAndEndDateBefore(Integer status, LocalDateTime now);
 
+    List<DiscountCampaign> findAllByEndDateBeforeAndStatusNot(LocalDateTime endDate, Integer status);
 
-
+    @Query("""
+        SELECT c FROM DiscountCampaign c
+        WHERE c.status = 1
+          AND (c.startDate IS NULL OR c.startDate <= :now)
+          AND (c.endDate   IS NULL OR c.endDate   >= :now)
+    """)
+    List<DiscountCampaign> findActiveCampaignsQr(@Param("now") LocalDateTime now);
 }

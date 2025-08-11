@@ -4,11 +4,13 @@ package com.example.duantotnghiep.service.impl;
 import com.example.duantotnghiep.dto.request.DiscountCampaignProductRequest;
 import com.example.duantotnghiep.dto.request.DiscountCampaignRequest;
 import com.example.duantotnghiep.dto.response.DiscountCampaignResponse;
+import com.example.duantotnghiep.dto.response.DiscountCampaignStatisticsResponse;
 import com.example.duantotnghiep.mapper.DiscountCampaignMapper;
 import com.example.duantotnghiep.model.DiscountCampaign;
 import com.example.duantotnghiep.model.DiscountCampaignProduct;
 import com.example.duantotnghiep.model.Product;
 import com.example.duantotnghiep.repository.DiscountCampaignRepository;
+import com.example.duantotnghiep.repository.InvoiceRepository;
 import com.example.duantotnghiep.repository.ProductDetailRepository;
 import com.example.duantotnghiep.repository.ProductRepository;
 import com.example.duantotnghiep.service.DiscountCampaignService;
@@ -35,6 +37,7 @@ public class DiscountCampaignServiceImpl implements DiscountCampaignService {
     private final DiscountCampaignRepository discountCampaignRepository;
     private final ProductRepository productRepository;
     private final ProductDetailRepository productDetailRepository;
+    private final InvoiceRepository invoiceRepository;
 
     @Override
     public Page<DiscountCampaignResponse> getAll(int page, int size) {
@@ -68,7 +71,6 @@ public class DiscountCampaignServiceImpl implements DiscountCampaignService {
 
         repository.save(campaign);
     }
-
 
     @Transactional
     @Override
@@ -115,6 +117,11 @@ public class DiscountCampaignServiceImpl implements DiscountCampaignService {
 
         // 4) Trả về response
         return discountCampaignMapper.toResponse(savedCampaign);
+    }
+
+    @Override
+    public DiscountCampaignStatisticsResponse getStatistics(Long campaignId) {
+        return invoiceRepository.getStatisticsByCampaignId(campaignId);
     }
 
 }

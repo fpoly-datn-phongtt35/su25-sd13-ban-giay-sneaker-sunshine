@@ -34,6 +34,7 @@ public class ProductSearchResponse {
     // Giảm giá
     private Integer discountPercentage;
     private BigDecimal discountedPrice;
+    private Long discountCampaignId; // <- Thêm dòng này
 
     // Mô tả & trọng lượng
     private String description;

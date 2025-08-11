@@ -48,11 +48,13 @@ import java.math.RoundingMode;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -426,20 +428,36 @@ public class ProductServiceImpl implements ProductService {
                 .collect(Collectors.toList());
         response.setProductDetails(detailResponses);
 
-        // 6. Lấy campaign đang hoạt động và tìm discount tốt nhất cho product
+        // 6. Lấy campaign đang hoạt động
         List<DiscountCampaign> activeCampaigns = discountCampaignRepository.findActiveCampaigns(LocalDateTime.now());
+
+        // 7. Giảm giá tốt nhất cho product
         double productDiscount = getBestDiscountPercentageForProduct(product, activeCampaigns);
+        Long bestProductCampaignId = getBestDiscountCampaignIdForProduct(product, activeCampaigns);
+
         response.setDiscountPercentage((int) Math.round(productDiscount));
         response.setDiscountedPrice(calculateDiscountPrice(product.getSellPrice(), productDiscount));
+        response.setDiscountCampaignId(bestProductCampaignId); // ✅ THÊM DÒNG NÀY
 
-        // 7. Áp dụng discount của product cho từng productDetail
+        // 8. Áp dụng discount cho từng productDetail
         for (ProductDetailResponse detail : detailResponses) {
-            detail.setDiscountPercentage((int) Math.round(productDiscount));
-            detail.setDiscountedPrice(calculateDiscountPrice(detail.getSellPrice(), productDiscount));
+            double detailDiscount = getBestDiscountPercentageForProductDetail(detail.getId(), activeCampaigns);
+            Long bestDetailCampaignId = (long) getBestDiscountPercentageForProductDetail(detail.getId(), activeCampaigns);
+
+            // Nếu productDetail không có giảm riêng, dùng giảm của product
+            if (detailDiscount <= 0) {
+                detailDiscount = productDiscount;
+                bestDetailCampaignId = bestProductCampaignId;
+            }
+
+            detail.setDiscountPercentage((int) Math.round(detailDiscount));
+            detail.setDiscountedPrice(calculateDiscountPrice(detail.getSellPrice(), detailDiscount));
+            detail.setDiscountCampaignId(bestDetailCampaignId); // ✅ THÊM DÒNG NÀY
         }
 
         return response;
     }
+
 
 
     @Override
@@ -456,18 +474,31 @@ public class ProductServiceImpl implements ProductService {
         List<ProductResponse> responses = products.getContent().stream().map(product -> {
             ProductResponse response = productMapper.toResponse(product);
 
+            // Tính phần trăm giảm giá tốt nhất cho sản phẩm
             double productDiscount = getBestDiscountPercentageForProduct(product, activeCampaigns);
             response.setDiscountPercentage((int) Math.round(productDiscount));
             response.setDiscountedPrice(calculateDiscountPrice(product.getSellPrice(), productDiscount));
 
+            // Lấy id của campaign áp dụng tốt nhất cho sản phẩm
+            Long bestCampaignId = getBestDiscountCampaignIdForProduct(product, activeCampaigns);
+            response.setDiscountCampaignId(bestCampaignId);
+
+            // Áp dụng giảm giá cho từng chi tiết sản phẩm (nếu có)
             if (response.getProductDetails() != null) {
                 for (ProductDetailResponse detailResponse : response.getProductDetails()) {
                     double detailDiscount = getBestDiscountPercentageForProductDetail(detailResponse.getId(), activeCampaigns);
+
+                    Long bestDetailCampaignId = (long) getBestDiscountPercentageForProductDetail(detailResponse.getId(), activeCampaigns);
+
+                    // Nếu không có giảm riêng cho detail, dùng giảm của product
                     if (detailDiscount <= 0) {
                         detailDiscount = productDiscount;
+                        bestDetailCampaignId = bestCampaignId;
                     }
+
                     detailResponse.setDiscountPercentage((int) Math.round(detailDiscount));
                     detailResponse.setDiscountedPrice(calculateDiscountPrice(detailResponse.getSellPrice(), detailDiscount));
+                    detailResponse.setDiscountCampaignId(bestDetailCampaignId); // đảm bảo field này tồn tại trong ProductDetailResponse
                 }
             }
 
@@ -476,6 +507,24 @@ public class ProductServiceImpl implements ProductService {
 
         return new PageImpl<>(responses, pageable, products.getTotalElements());
     }
+
+    private Long getBestDiscountCampaignIdForProduct(Product product, List<DiscountCampaign> campaigns) {
+        return campaigns.stream()
+                .filter(campaign -> campaign.getDiscountPercentage() != null)
+                .flatMap(campaign -> {
+                    if (campaign.getProducts() != null) {
+                        return campaign.getProducts().stream()
+                                .filter(dcp -> dcp.getProduct() != null
+                                        && dcp.getProduct().getId().equals(product.getId()))
+                                .map(dcp -> Map.entry(campaign.getId(), campaign.getDiscountPercentage().doubleValue()));
+                    }
+                    return Stream.empty();
+                })
+                .max(Comparator.comparingDouble(Map.Entry::getValue))
+                .map(Map.Entry::getKey)
+                .orElse(null);
+    }
+
 
 
     // Tìm discount tốt nhất cho product
@@ -537,6 +586,77 @@ public class ProductServiceImpl implements ProductService {
                 .max(Double::compare)
                 .orElse(0.0);
     }
+
+    @Transactional(readOnly = true)
+    @Override
+    public ProductSearchResponse scanProductToSearchResponse(String rawCode) {
+        String code = rawCode == null ? "" : rawCode.trim();
+        if (code.isEmpty()) throw new IllegalArgumentException("Mã QR trống.");
+
+        // 1) Ưu tiên QR = productDetailCode; fallback = productCode
+        Long scannedDetailId = null;
+        Product product;
+
+        Optional<ProductDetail> opd = productDetailRepository.findActiveByDetailCode(code);
+        if (opd.isPresent()) {
+            ProductDetail pd = opd.get();
+            scannedDetailId = pd.getId();
+            product = pd.getProduct();
+        } else {
+            product = productRepository.findTop1ByProductCodeAndStatus(code, 1)
+                    .orElseThrow(() -> new NoSuchElementException("Không tìm thấy sản phẩm từ mã quét."));
+        }
+
+        // 2) Nạp dữ liệu phục vụ mapper
+        Long productId = product.getId();
+        product.setProductCategories(
+                productCategoryRepository.findActiveByProductIdFetchCategory(productId)
+        );
+        product.setProductDetails(
+                productDetailRepository.findActiveByProductIdFetchAttrs(productId)
+        );
+
+        // 3) Tính giảm giá theo các hàm sẵn có của bạn
+        List<DiscountCampaign> active = discountCampaignRepository.findActiveCampaigns(LocalDateTime.now());
+
+        double pctDetail  = (scannedDetailId != null)
+                ? getBestDiscountPercentageForProductDetail(scannedDetailId, active) : 0.0;
+        double pctProduct = getBestDiscountPercentageForProduct(product, active);
+        double bestPct    = Math.max(pctDetail, pctProduct);
+
+        Long bestCampaignId = (pctDetail >= pctProduct)
+                ? getBestDiscountCampaignIdForProductDetail(scannedDetailId, active)
+                : getBestDiscountCampaignIdForProduct(product, active);
+
+        // 4) Map -> ProductSearchResponse & set discount/campaign
+        ProductSearchResponse resp = productMapper.toResponseSearch(product);
+        resp.setDiscountPercentage((int) Math.round(bestPct));
+        resp.setDiscountedPrice(calculateDiscountPrice(resp.getSellPrice(), bestPct));
+        resp.setDiscountCampaignId(bestCampaignId);
+
+        // (Nếu muốn, có thể lan toả % giảm xuống từng ProductDetailResponse ở đây)
+
+        return resp;
+    }
+
+    private Long getBestDiscountCampaignIdForProductDetail(Long productDetailId, List<DiscountCampaign> campaigns) {
+        if (productDetailId == null) return null;
+        return campaigns.stream()
+                .filter(c -> c.getDiscountPercentage() != null)
+                .flatMap(c -> {
+                    if (c.getProductDetails() != null) {
+                        return c.getProductDetails().stream()
+                                .filter(link -> link.getProductDetail() != null
+                                        && link.getProductDetail().getId().equals(productDetailId))
+                                .map(link -> Map.entry(c.getId(), c.getDiscountPercentage().doubleValue()));
+                    }
+                    return Stream.empty();
+                })
+                .max(Comparator.comparingDouble(Map.Entry::getValue))
+                .map(Map.Entry::getKey)
+                .orElse(null);
+    }
+
 
 
     @Override

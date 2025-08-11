@@ -18,4 +18,10 @@ public interface ProductCategoryRepository extends JpaRepository<ProductCategory
 
     List<ProductCategory> findByProduct(Product product);
 
+    @Query("""
+        SELECT pc FROM ProductCategory pc
+        LEFT JOIN FETCH pc.category
+        WHERE pc.product.id = :productId AND pc.status = 1
+    """)
+    List<ProductCategory> findActiveByProductIdFetchCategory(@Param("productId") Long productId);
 }

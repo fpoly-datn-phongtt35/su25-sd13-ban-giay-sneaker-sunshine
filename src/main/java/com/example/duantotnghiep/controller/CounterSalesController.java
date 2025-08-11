@@ -66,7 +66,8 @@ public class CounterSalesController {
                     invoiceId,
                     request.getProductDetailId(),
                     request.getQuantity(),
-                    request.getDiscountPercentage() != null ? request.getDiscountPercentage() : 0
+                    request.getDiscountPercentage() != null ? request.getDiscountPercentage() : 0,
+                    request.getDiscountCampaignId() // truyền thêm id chiến dịch giảm giá
             );
             return ResponseEntity.ok().build();
         } catch (Exception e) {

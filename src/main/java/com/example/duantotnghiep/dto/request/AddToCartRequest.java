@@ -14,4 +14,6 @@ public class AddToCartRequest {
     private Long productDetailId;
     private Integer quantity;
     private Integer discountPercentage; // ⭐ FE gửi lên
+    private Long discountCampaignId; // thêm mới
+
 }

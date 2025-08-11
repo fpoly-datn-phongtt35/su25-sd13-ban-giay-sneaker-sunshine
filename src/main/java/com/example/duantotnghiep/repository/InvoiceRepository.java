@@ -1,5 +1,6 @@
 package com.example.duantotnghiep.repository;
 
+import com.example.duantotnghiep.dto.response.DiscountCampaignStatisticsResponse;
 import com.example.duantotnghiep.dto.response.InvoiceResponse;
 import com.example.duantotnghiep.model.Customer;
 import com.example.duantotnghiep.model.Invoice;
@@ -20,25 +21,25 @@ import java.util.Optional;
 public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
 
     @Query("""
-    SELECT new com.example.duantotnghiep.dto.response.InvoiceResponse(
-        i.id,
-        i.invoiceCode,
-        i.statusDetail,
-        i.orderType,
-        i.createdDate,
-        i.customer.customerName,
-        i.customer.phone,
-        i.totalAmount
-    )
-    FROM Invoice i
-    WHERE (:status IS NULL OR i.statusDetail = :status)
-      AND (:orderType IS NULL OR i.orderType = :orderType)
-      AND (:createdFrom IS NULL OR i.createdDate >= :createdFrom)
-      AND (:createdTo IS NULL OR i.createdDate <= :createdTo)
-      AND (:phone IS NULL OR i.customer.phone LIKE %:phone%)
-      AND (:code IS NULL OR i.invoiceCode LIKE %:code%)
-      order by i.createdDate asc 
-""")
+                SELECT new com.example.duantotnghiep.dto.response.InvoiceResponse(
+                    i.id,
+                    i.invoiceCode,
+                    i.statusDetail,
+                    i.orderType,
+                    i.createdDate,
+                    i.customer.customerName,
+                    i.customer.phone,
+                    i.totalAmount
+                )
+                FROM Invoice i
+                WHERE (:status IS NULL OR i.statusDetail = :status)
+                  AND (:orderType IS NULL OR i.orderType = :orderType)
+                  AND (:createdFrom IS NULL OR i.createdDate >= :createdFrom)
+                  AND (:createdTo IS NULL OR i.createdDate <= :createdTo)
+                  AND (:phone IS NULL OR i.customer.phone LIKE %:phone%)
+                  AND (:code IS NULL OR i.invoiceCode LIKE %:code%)
+                  order by i.createdDate asc 
+            """)
     Page<InvoiceResponse> searchInvoices(
             @Param("status") TrangThaiChiTiet status,
             @Param("orderType") Integer orderType,
@@ -77,54 +78,54 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
 
     List<Invoice> findByStatusAndOrderTypeAndCreatedDateBefore(TrangThaiTong status, int orderType, LocalDateTime time);
 
-    boolean existsByCustomer_IdAndStatus(Long customerId, TrangThaiTong status);
+    boolean existsByCustomer_IdAndStatusAndOrderType(Long customerId, TrangThaiTong status, Integer orderType);
 
     @Query("SELECT i FROM Invoice i WHERE i.id = :id AND i.isPaid = :isPaid")
-    Optional<Invoice> findPaidInvoiceById(@Param("id") Long id,@Param("isPaid") Boolean isPaid);
+    Optional<Invoice> findPaidInvoiceById(@Param("id") Long id, @Param("isPaid") Boolean isPaid);
 
 
     @Query("""
-        SELECT MONTH(i.createdDate), SUM(i.finalAmount)
-        FROM Invoice i
-        WHERE YEAR(i.createdDate) = :year AND i.status = :status
-        GROUP BY MONTH(i.createdDate)
-        ORDER BY MONTH(i.createdDate)
-    """)
-    List<Object[]> getMonthlyRevenue(@Param("year") int year,@Param("status") TrangThaiTong status);
+                SELECT MONTH(i.createdDate), SUM(i.finalAmount)
+                FROM Invoice i
+                WHERE YEAR(i.createdDate) = :year AND i.status = :status
+                GROUP BY MONTH(i.createdDate)
+                ORDER BY MONTH(i.createdDate)
+            """)
+    List<Object[]> getMonthlyRevenue(@Param("year") int year, @Param("status") TrangThaiTong status);
 
     @Query("""
-        SELECT YEAR(i.createdDate), SUM(i.finalAmount)
-        FROM Invoice i
-        WHERE i.status = :status
-        GROUP BY YEAR(i.createdDate)
-        ORDER BY YEAR(i.createdDate)
-    """)
+                SELECT YEAR(i.createdDate), SUM(i.finalAmount)
+                FROM Invoice i
+                WHERE i.status = :status
+                GROUP BY YEAR(i.createdDate)
+                ORDER BY YEAR(i.createdDate)
+            """)
     List<Object[]> getYearlyRevenue(@Param("status") TrangThaiTong status);
 
     @Query("""
-        SELECT i.orderType, SUM(i.finalAmount)
-        FROM Invoice i
-        WHERE i.status = :status
-        GROUP BY i.orderType
-    """)
+                SELECT i.orderType, SUM(i.finalAmount)
+                FROM Invoice i
+                WHERE i.status = :status
+                GROUP BY i.orderType
+            """)
     List<Object[]> getRevenueByOrderType(@Param("status") TrangThaiTong status);
 
     @Query("""
-        SELECT pd.product.id, pd.product.productName, SUM(idt.quantity)
-        FROM InvoiceDetail idt
-        JOIN idt.invoice i
-        JOIN idt.productDetail pd
-        WHERE i.status = :status AND i.createdDate BETWEEN :start AND :end
-        GROUP BY pd.product.id, pd.product.productName
-        ORDER BY SUM(idt.quantity) DESC
-    """)
-    List<Object[]> getTopSellingProducts(@Param("status") TrangThaiTong status,@Param("start") LocalDateTime start, @Param("end") LocalDateTime end, Pageable pageable);
+                SELECT pd.product.id, pd.product.productName, SUM(idt.quantity)
+                FROM InvoiceDetail idt
+                JOIN idt.invoice i
+                JOIN idt.productDetail pd
+                WHERE i.status = :status AND i.createdDate BETWEEN :start AND :end
+                GROUP BY pd.product.id, pd.product.productName
+                ORDER BY SUM(idt.quantity) DESC
+            """)
+    List<Object[]> getTopSellingProducts(@Param("status") TrangThaiTong status, @Param("start") LocalDateTime start, @Param("end") LocalDateTime end, Pageable pageable);
 
     @Query("""
-    SELECT i.status, COUNT(i)
-    FROM Invoice i
-    GROUP BY i.status
-""")
+                SELECT i.status, COUNT(i)
+                FROM Invoice i
+                GROUP BY i.status
+            """)
     List<Object[]> countInvoicesByStatus();
 
     @Query("SELECT COALESCE(SUM(i.totalAmount), 0) FROM Invoice i " +
@@ -150,6 +151,30 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
             TrangThaiChiTiet statusDetail,
             LocalDateTime updatedAfter
     );
+
+    @Query("""
+    SELECT new com.example.duantotnghiep.dto.response.DiscountCampaignStatisticsResponse(
+        COUNT(DISTINCT i.id),
+        SUM(COALESCE(id.sellPrice, 0) * COALESCE(id.quantity, 0)),
+        SUM(COALESCE(id.discountedPrice, 0) * COALESCE(id.quantity, 0)),
+        SUM(COALESCE(id.quantity, 0)),
+        CASE 
+            WHEN SUM(COALESCE(id.sellPrice, 0) * COALESCE(id.quantity, 0)) = 0 THEN 0
+            ELSE 
+                (100.0 * 
+                    (SUM(COALESCE(id.sellPrice, 0) * COALESCE(id.quantity, 0)) 
+                     - SUM(COALESCE(id.discountedPrice, 0) * COALESCE(id.quantity, 0)))
+                / SUM(COALESCE(id.sellPrice, 0) * COALESCE(id.quantity, 0))
+                )
+        END
+    )
+    FROM InvoiceDetail id
+    JOIN id.invoice i
+    WHERE id.discountCampaign.id = :campaignId 
+      AND id.status = 1
+""")
+    DiscountCampaignStatisticsResponse getStatisticsByCampaignId(@Param("campaignId") Long campaignId);
+
 
 
 }

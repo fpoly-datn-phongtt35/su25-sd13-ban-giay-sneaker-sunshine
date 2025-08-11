@@ -65,4 +65,7 @@ public interface ProductRepository extends JpaRepository<Product,Long> {
     @Query("SELECT p FROM Product p WHERE p.status = 1 order by p.createdDate desc ")
     Page<Product> findAllWithJPQL(Pageable pageable);
 
+    Optional<Product> findTop1ByProductCodeAndStatus(String productCode, int status);
+
+
 }

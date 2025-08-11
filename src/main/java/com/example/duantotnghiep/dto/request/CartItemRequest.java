@@ -17,5 +17,6 @@ public class CartItemRequest {
     private BigDecimal sellPrice;
     private BigDecimal discountedPrice;
     private Integer discountPercentage;
+    private Long discountCampaignId; // <-- Phải có dòng này
 }
 

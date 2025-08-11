@@ -56,4 +56,5 @@ public class DiscountCampaignProduct {
     @Column(name = "updated_by", length = 100)
     private String updatedBy;
 
+
 }

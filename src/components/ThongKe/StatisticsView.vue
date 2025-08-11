@@ -27,7 +27,20 @@
         :closable="false"
       />
 
+
+
       <el-row :gutter="24" v-else>
+
+<el-col :span="24" class="mb-6">
+  <div class="flex justify-end">
+    <el-button type="primary" size="medium" icon="el-icon-s-data" @click="goToOrderStaff">
+      Thống kê đơn hàng theo nhân viên
+    </el-button>
+  </div>
+</el-col>
+
+
+
         <!-- Doanh thu theo tháng -->
         <el-col :xs="24" :sm="12" :md="12" class="mb-6">
           <div class="chart-card">
@@ -38,6 +51,8 @@
             <BarChart :chart-data="monthlyRevenueChart" />
           </div>
         </el-col>
+
+
 
         <!-- Doanh thu theo năm -->
         <el-col :xs="24" :sm="12" :md="12" class="mb-6">
@@ -176,6 +191,11 @@ const fetchTopProducts = async () => {
     }
   }
 }
+
+const goToOrderStaff = () => {
+  router.push('/nhan-vien-xu-ly') // Thay bằng path thực tế nếu cần
+}
+
 
 const fetchTodayRevenue = async () => {
   try {

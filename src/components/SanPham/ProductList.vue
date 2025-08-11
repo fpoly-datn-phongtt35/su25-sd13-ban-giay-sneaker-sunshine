@@ -243,7 +243,7 @@
               <td>{{ pr.styleName }}</td>
               <td>{{ pr.genderName }}</td>
               <td>
-                <template v-if="pr.discountedPrice">
+                <template v-if="pr.discountPercentage > 0 || pr.discountedPrice < pr.sellPrice">
                   <span style="text-decoration: line-through; color: gray; margin-right: 8px">
                     {{ formatCurrency(pr.sellPrice) }}
                   </span>

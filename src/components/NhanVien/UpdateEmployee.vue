@@ -85,7 +85,7 @@
         <el-form-item label="Vai trò">
           <el-select v-model="employee.role" placeholder="Chọn vai trò">
             <el-option label="Quản trị" :value="1" />
-            <el-option label="Nhân viên" :value="0" />
+            <el-option label="Nhân viên" :value="2" />
           </el-select>
         </el-form-item>
 
@@ -101,7 +101,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 // Import your pre-configured API client
-import apiClient from '@/utils/axiosInstance' 
+import apiClient from '@/utils/axiosInstance'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { User, ArrowLeft, Calendar, Money, Phone, Message, Lock, Male, Female, Location, Refresh, Check, Edit } from '@element-plus/icons-vue' // Added more relevant icons
 
@@ -136,7 +136,7 @@ const fetchEmployee = async () => {
     // Use apiClient for the GET request
     const res = await apiClient.get(`/admin/employees/${employeeId}`)
     // Map response data to form fields
-    employee.value = { 
+    employee.value = {
       ...res.data,
       // Convert date strings to Date objects for Element Plus date-picker
       dateOfBirth: res.data.dateOfBirth ? new Date(res.data.dateOfBirth) : '',
@@ -155,7 +155,7 @@ const fetchEmployee = async () => {
 // Formats salary value to Vietnamese currency format with dot separators
 const formatSalary = (value) => {
   // Ensure value is treated as a string before manipulation for safety
-  const stringValue = String(value || ''); 
+  const stringValue = String(value || '');
   const numberValue = parseInt(stringValue.replace(/[^\d]/g, ''), 10);
   if (isNaN(numberValue)) return '';
   return numberValue.toLocaleString('vi-VN') + ' VND'; // Added currency symbol

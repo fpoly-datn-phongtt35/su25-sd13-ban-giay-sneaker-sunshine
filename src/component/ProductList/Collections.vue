@@ -61,12 +61,12 @@
               </div>
               <el-button
                 size="small"
-                type="success"
+                :type="isFavorite(product.id) ? 'primary' : 'success'"
                 :icon="Star"
-                @click="addToFavorites(product.id)"
+                @click="toggleFavorite(product.id, product.productName)"
                 v-if="product.id"
               >
-                Thêm vào Yêu thích
+                {{ isFavorite(product.id) ? 'Đã yêu thích' : 'Thêm vào Yêu thích' }}
               </el-button>
             </div>
           </div>
@@ -192,9 +192,7 @@
           <p class="selector-label">Số lượng đặt trước:</p>
           <el-input-number v-model="preOrderQuantity" :min="1" />
         </div>
-        <!-- <p style="margin-top: 20px">
-          <span>Số lượng còn trong kho:</span> <strong>{{ preOrderStock }}</strong>
-        </p> -->
+
       </template>
 
       <template #footer>
@@ -237,30 +235,53 @@ const quickViewActiveImage = ref('') // Ảnh hiển thị lớn trong quick vie
 
 // --- STATE CHO PRE-ORDER MODAL ---
 const preOrderDialogVisible = ref(false)
-const preOrderItem = ref(null) // Sản phẩm đang được đặt trước
+const preOrderItem = ref(null)
 const preOrderSelectedColorId = ref(null)
 const preOrderSelectedSize = ref(null)
 const preOrderQuantity = ref(1) // BỔ SUNG: Số lượng đặt trước
 
-// --- LIFECYCLE HOOKS ---
 onMounted(() => {
-  fetchProducts()
+  fetchProducts();
+   loadFavoritesFromStorage();
 })
+
+function loadFavoritesFromStorage() {
+  const storedFavorites = localStorage.getItem('favorites');
+  if (storedFavorites) {
+    favorites.value = JSON.parse(storedFavorites);
+  }
+}
 
 const customerId = localStorage.getItem('userId')
 const favorites = ref([])
-function addToFavorites(productId) {
-  const exists = favorites.value.some(
-    fav => fav.customerId === customerId && fav.productId === productId
-  )
+function isFavorite(productId) {
+  return favorites.value.some((fav) => fav.customerId === customerId && fav.productId === productId)
+}
 
-  if (!exists) {
-    favorites.value.push({ customerId, productId })
-    localStorage.setItem('favorites', JSON.stringify(favorites.value))
-    console.log(`Đã thêm sản phẩm ${productId} vào yêu thích.`)
-  } else {
-    console.log('Sản phẩm đã có trong yêu thích.')
+const isLoggedIn = computed(() => !!customerId)
+
+
+function toggleFavorite(productId, productName) {
+  if (!isLoggedIn.value) {
+    ElMessage.warning('Vui lòng đăng nhập để sử dụng tính năng này.')
+    return
   }
+  if (isFavorite(productId)) {
+    favorites.value = favorites.value.filter(
+      (fav) => !(fav.customerId === customerId && fav.productId === productId),
+    )
+    ElMessage({
+      message: `Đã bỏ yêu thích sản phẩm "${productName}"`,
+      type: 'warning',
+    })
+  } else {
+    favorites.value.push({ customerId, productId })
+    ElMessage({
+      message: `Đã thêm sản phẩm "${productName}" vào yêu thích`,
+      type: 'success',
+    })
+  }
+  localStorage.setItem('favorites', JSON.stringify(favorites.value))
 }
 
 // Đồng bộ preOrderItem với selectedProduct khi mở dialog đặt trước
@@ -376,11 +397,9 @@ function openQuickViewModal(product) {
   if (product.variants && product.variants.length > 0) {
     selectQuickViewColor(product.variants[0])
   } else {
-    // Trường hợp không có variants (ví dụ: sản phẩm không có màu sắc khác nhau)
     quickViewSelectedColorId.value = null
     quickViewSelectedColor.value = null
     quickViewActiveImage.value = product.activeImage // Sử dụng ảnh chính của sản phẩm
-    // Nếu sản phẩm chỉ có 1 biến thể và không có màu, cố gắng chọn size đầu tiên
     quickViewSelectedSize.value =
       product.productDetails.length > 0 ? product.productDetails[0].sizeName : null
   }
@@ -391,7 +410,6 @@ function selectQuickViewColor(variant) {
   quickViewSelectedColorId.value = variant.colorId
   quickViewSelectedColor.value = variant
   quickViewActiveImage.value = variant.image
-  // Reset size và số lượng khi đổi màu, sau đó chọn size đầu tiên nếu có
   quickViewSelectedSize.value = null
   quickViewQuantity.value = 1
   if (availableSizesForQuickView.value.length > 0) {
@@ -521,7 +539,6 @@ function handleBuyNowInModal() {
 // --- HÀM HỖ TRỢ HIỂN THỊ ---
 function changeProductImage(product, newImage) {
   if (product && newImage) {
-    // IMPORTANT: Update the activeImage for the specific product in the 'products' array
     const productIndex = products.value.findIndex((p) => p.id === product.id)
     if (productIndex !== -1) {
       products.value[productIndex].activeImage = newImage

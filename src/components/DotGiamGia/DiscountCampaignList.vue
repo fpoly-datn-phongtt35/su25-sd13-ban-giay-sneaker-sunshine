@@ -1,45 +1,79 @@
 <template>
   <el-container class="discount-campaigns-container">
+    <!-- Header -->
     <el-header class="flex justify-between items-center mb-4">
       <h1 class="text-2xl font-bold">Danh sách đợt giảm giá</h1>
-      <el-button type="primary" @click="goToAddPage">
-        Thêm đợt giảm giá
-      </el-button>
+      <el-button type="primary" @click="goToAddPage">Thêm đợt giảm giá</el-button>
     </el-header>
 
     <el-main>
+      <!-- Loading -->
       <div v-if="loading" class="text-gray-500">Đang tải dữ liệu...</div>
 
+      <!-- Table -->
       <div v-else>
-        <el-table :data="campaigns" style="width: 100%" border>
-          <el-table-column type="index" label="STT" width="80" align="center" />
-          <el-table-column prop="name" label="Tên đợt giảm giá" />
-          <el-table-column prop="campaignCode" label="Mã" />
-          <el-table-column prop="discountPercentage" label="Giảm giá" width="120">
-            <template #default="{ row }">{{ row.discountPercentage }}%</template>
+        <el-table
+          :data="campaigns"
+          border
+          style="width: 100%; table-layout: auto;"
+          :fit="true"
+        >
+          <!-- STT -->
+          <el-table-column type="index" label="STT" width="60" align="center" />
+
+          <!-- Tên -->
+          <el-table-column prop="name" label="Tên đợt giảm giá" min-width="180" />
+
+          <!-- Mã -->
+          <el-table-column prop="campaignCode" label="Mã" min-width="100" />
+
+          <!-- Giảm giá -->
+          <el-table-column label="Giảm giá" width="100" align="center">
+            <template #default="{ row }">
+              {{ row.discountPercentage }}%
+            </template>
           </el-table-column>
-          <el-table-column prop="description" label="Mô tả" />
-          <el-table-column label="Thời gian" width="300">
+
+          <!-- Mô tả -->
+          <el-table-column prop="description" label="Mô tả" min-width="200" show-overflow-tooltip />
+
+          <!-- Thời gian -->
+          <el-table-column label="Thời gian" min-width="200">
             <template #default="{ row }">
               {{ formatDateTime(row.startDate) }} → {{ formatDateTime(row.endDate) }}
             </template>
           </el-table-column>
-          <el-table-column prop="status" label="Trạng thái" width="150">
+
+          <!-- Trạng thái -->
+          <el-table-column label="Trạng thái" width="130" align="center">
             <template #default="{ row }">
               <el-tag :type="statusTagType(row.status)">
                 {{ statusText(row.status) }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="Hành động" width="180">
+
+          <!-- Thống kê gộp -->
+          <el-table-column label="Thống kê" min-width="200" align="left">
             <template #default="{ row }">
-              <el-button size="small" type="warning" @click="changeStatus(row)">
-                Chuyển trạng thái
-              </el-button>
+              <div class="stats-cell">
+                <div><strong>Hóa đơn:</strong> {{ row.totalInvoices ?? '-' }}</div>
+                <div><strong>Doanh thu:</strong> {{ row.totalAfterDiscount ? row.totalAfterDiscount.toLocaleString('vi-VN') + ' đ' : '-' }}</div>
+                <div><strong>SP bán ra:</strong> {{ row.totalProductsSold ?? '-' }}</div>
+                <div><strong>Giảm TB:</strong> {{ row.averageDiscountRate ? row.averageDiscountRate + '%' : '-' }}</div>
+              </div>
+            </template>
+          </el-table-column>
+
+          <!-- Hành động -->
+          <el-table-column label="Hành động" min-width="180" fixed="right">
+            <template #default="{ row }">
+              <el-button size="small" type="warning" @click="changeStatus(row)">Chuyển trạng thái</el-button>
             </template>
           </el-table-column>
         </el-table>
 
+        <!-- Pagination -->
         <div class="mt-4 flex justify-end">
           <el-pagination
             background
@@ -68,12 +102,12 @@ const router = useRouter();
 const campaigns = ref([]);
 const loading = ref(true);
 
-// Phân trang
+// Pagination
 const currentPage = ref(1);
 const pageSize = ref(10);
 const totalItems = ref(0);
 
-// Định dạng ngày giờ
+// Format datetime
 const formatDateTime = (dateStr) => {
   if (!dateStr) return '';
   const date = new Date(dateStr);
@@ -86,7 +120,7 @@ const formatDateTime = (dateStr) => {
   });
 };
 
-// Hiển thị text trạng thái
+// Status text
 const statusText = (status) => {
   switch (status) {
     case 0: return 'Sắp diễn ra';
@@ -95,8 +129,6 @@ const statusText = (status) => {
     default: return 'Không xác định';
   }
 };
-
-// Màu tag theo trạng thái
 const statusTagType = (status) => {
   switch (status) {
     case 0: return 'warning';
@@ -106,20 +138,7 @@ const statusTagType = (status) => {
   }
 };
 
-// Chuyển trang
-const handlePageChange = (page) => {
-  currentPage.value = page;
-  loadCampaigns();
-};
-
-// Đổi số bản ghi mỗi trang
-const handleSizeChange = (newSize) => {
-  pageSize.value = newSize;
-  currentPage.value = 1; // reset về trang đầu
-  loadCampaigns();
-};
-
-// Đổi trạng thái
+// Change status
 const changeStatus = async (campaign) => {
   try {
     await axios.post(`http://localhost:8080/api/admin/campaigns/${campaign.id}/delete`);
@@ -131,17 +150,43 @@ const changeStatus = async (campaign) => {
   }
 };
 
-// Tải dữ liệu
+// Pagination handlers
+const handlePageChange = (page) => {
+  currentPage.value = page;
+  loadCampaigns();
+};
+const handleSizeChange = (newSize) => {
+  pageSize.value = newSize;
+  currentPage.value = 1;
+  loadCampaigns();
+};
+
+// Load campaigns with statistics
 const loadCampaigns = async () => {
   loading.value = true;
   try {
     const res = await axios.get('http://localhost:8080/api/admin/campaigns', {
       params: {
-        page: currentPage.value - 1, // backend bắt đầu từ 0
+        page: currentPage.value - 1,
         size: pageSize.value
       }
     });
-    campaigns.value = res.data.content;
+
+    let data = res.data.content;
+
+    // Fetch statistics for each campaign
+    const statsPromises = data.map(async (campaign) => {
+      try {
+        const statsRes = await axios.get(`http://localhost:8080/api/admin/campaigns/${campaign.id}/statistics`);
+        return { ...campaign, ...statsRes.data };
+      } catch (err) {
+        console.error(`Lỗi load thống kê cho campaign ${campaign.id}`, err);
+        return campaign;
+      }
+    });
+
+    campaigns.value = await Promise.all(statsPromises);
+
     totalItems.value = res.data.page.totalElements;
     pageSize.value = res.data.page.size;
     currentPage.value = res.data.page.number + 1;
@@ -153,7 +198,7 @@ const loadCampaigns = async () => {
   }
 };
 
-// Chuyển sang trang thêm mới
+// Go to add page
 const goToAddPage = () => {
   router.push('/discount-campaigns/add');
 };
@@ -162,3 +207,18 @@ onMounted(() => {
   loadCampaigns();
 });
 </script>
+<style scoped>
+.stats-cell-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 4px; /* Tạo khoảng cách giữa các dòng */
+}
+
+/* Tùy chọn: Tối ưu hiển thị trên màn hình nhỏ */
+@media (max-width: 1200px) {
+  .el-table-column {
+    min-width: 100px !important;
+  }
+}
+</style>
+

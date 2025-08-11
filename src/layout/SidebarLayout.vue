@@ -1,196 +1,211 @@
 <template>
   <nav class="sidebar-container">
-    <el-menu
-      :default-active="route.path"
-      class="el-menu-vertical"
-      router
-    >
-      <div class="logo-container">
-        <img
-          :src="logoSrc"
-          alt="Logo"
-          class="logo-img"
-        />
-        <span class="logo-text">Sunshine Sneakers</span>
-      </div>
+    <!-- Logo đặt ngoài el-menu để không bị coi như menu item -->
+    <div class="logo-container">
+      <img :src="logoSrc" alt="Logo" class="logo-img" />
+      <span class="logo-text">Sunshine Sneakers</span>
+    </div>
 
+    <el-menu :default-active="route.path" class="el-menu-vertical" router>
       <el-menu-item index="/home">
-        <el-icon><i class="bi bi-house-door"></i></el-icon>
-        <span>Trang chủ</span>
+        <i class="menu-icon bi bi-house-door" aria-hidden="true"></i>
+        <span class="menu-label">Trang chủ</span>
       </el-menu-item>
 
       <el-sub-menu index="sales">
         <template #title>
-          <el-icon><i class="bi bi-cart-fill"></i></el-icon>
-          <span>Bán hàng</span>
+          <i class="menu-icon bi bi-cart-fill" aria-hidden="true"></i>
+          <span class="menu-label">Bán hàng</span>
         </template>
         <el-menu-item index="/sales-counter/list">
-          <el-icon><i class="bi bi-cash"></i></el-icon>
-          <span>Bán hàng tại quầy</span>
+          <i class="menu-icon bi bi-cash" aria-hidden="true"></i>
+          <span class="menu-label">Bán hàng tại quầy</span>
         </el-menu-item>
         <el-menu-item index="/sales-online">
-          <el-icon><i class="bi bi-laptop"></i></el-icon>
-          <span>Bán hàng online</span>
+          <i class="menu-icon bi bi-laptop" aria-hidden="true"></i>
+          <span class="menu-label">Bán hàng online</span>
         </el-menu-item>
       </el-sub-menu>
 
       <el-sub-menu index="product-management">
         <template #title>
-          <el-icon><i class="bi bi-box-seam"></i></el-icon>
-          <span>Quản lý sản phẩm</span>
+          <i class="menu-icon bi bi-box-seam" aria-hidden="true"></i>
+          <span class="menu-label">Quản lý sản phẩm</span>
         </template>
+
         <el-menu-item index="/product">
-          <el-icon><i class="bi bi-box"></i></el-icon>
-          <span>Sản phẩm</span>
+          <i class="menu-icon bi bi-box" aria-hidden="true"></i>
+          <span class="menu-label">Sản phẩm</span>
         </el-menu-item>
+
         <el-menu-item index="/voucher">
-          <el-icon><i class="bi bi-tag"></i></el-icon>
-          <span>Mã giảm giá</span>
+          <i class="menu-icon bi bi-tag" aria-hidden="true"></i>
+          <span class="menu-label">Mã giảm giá</span>
         </el-menu-item>
+
         <el-menu-item index="/supplier">
-          <el-icon><i class="bi bi-truck"></i></el-icon>
-          <span>Nhà cung cấp</span>
+          <i class="menu-icon bi bi-truck" aria-hidden="true"></i>
+          <span class="menu-label">Nhà cung cấp</span>
         </el-menu-item>
-         <el-menu-item index="/sole">
-          <el-icon><i class="bi bi-grid"></i></el-icon>
-          <span>Đế giày</span>
+
+        <el-menu-item index="/sole">
+          <i class="menu-icon bi bi-grid" aria-hidden="true"></i>
+          <span class="menu-label">Đế giày</span>
         </el-menu-item>
+
         <el-menu-item index="/style">
-          <el-icon><i class="bi bi-circle-half"></i></el-icon>
-          <span>Cổ giày</span>
+          <i class="menu-icon bi bi-circle-half" aria-hidden="true"></i>
+          <span class="menu-label">Cổ giày</span>
         </el-menu-item>
+
         <el-menu-item index="/material">
-          <el-icon><i class="bi bi-layers"></i></el-icon>
-          <span>Chất liệu</span>
+          <i class="menu-icon bi bi-layers" aria-hidden="true"></i>
+          <span class="menu-label">Chất liệu</span>
         </el-menu-item>
+
         <el-menu-item index="/categories">
-          <el-icon><i class="bi bi-list"></i></el-icon>
-          <span>Danh mục</span>
+          <i class="menu-icon bi bi-list" aria-hidden="true"></i>
+          <span class="menu-label">Danh mục</span>
         </el-menu-item>
+
         <el-menu-item index="/size">
-          <el-icon><i class="bi bi-arrows-angle-contract"></i></el-icon>
-          <span>Kích thước</span>
+          <i class="menu-icon bi bi-arrows-angle-contract" aria-hidden="true"></i>
+          <span class="menu-label">Kích thước</span>
         </el-menu-item>
+
         <el-menu-item index="/color">
-          <el-icon><i class="bi bi-palette"></i></el-icon>
-          <span>Màu sắc</span>
+          <i class="menu-icon bi bi-palette" aria-hidden="true"></i>
+          <span class="menu-label">Màu sắc</span>
         </el-menu-item>
+
         <el-menu-item index="/brand">
-          <el-icon><i class="bi bi-tags"></i></el-icon>
-          <span>Thương hiệu</span>
+          <i class="menu-icon bi bi-tags" aria-hidden="true"></i>
+          <span class="menu-label">Thương hiệu</span>
         </el-menu-item>
       </el-sub-menu>
 
       <el-menu-item index="/employee">
-        <el-icon><i class="bi bi-person"></i></el-icon>
-        <span>Quản lý người dùng</span>
+        <i class="menu-icon bi bi-person" aria-hidden="true"></i>
+        <span class="menu-label">Quản lý người dùng</span>
       </el-menu-item>
 
       <el-menu-item index="/customer">
-        <el-icon><i class="bi bi-person-fill"></i></el-icon>
-        <span>Quản lý khách hàng</span>
+        <i class="menu-icon bi bi-person-fill" aria-hidden="true"></i>
+        <span class="menu-label">Quản lý khách hàng</span>
       </el-menu-item>
 
       <el-menu-item index="/invoices">
-        <el-icon><i class="bi bi-file-earmark"></i></el-icon>
-        <span>Quản lý hóa đơn</span>
+        <i class="menu-icon bi bi-file-earmark" aria-hidden="true"></i>
+        <span class="menu-label">Quản lý hóa đơn</span>
       </el-menu-item>
 
       <el-menu-item index="/discount-campaigns">
-        <el-icon><i class="bi bi-file-earmark"></i></el-icon>
-        <span>Quản lý đợt giảm giá</span>
+        <i class="menu-icon bi bi-percent" aria-hidden="true"></i>
+        <span class="menu-label">Quản lý đợt giảm giá</span>
       </el-menu-item>
 
       <el-menu-item index="/blacklist-history">
-        <el-icon><i class="bi bi-file-earmark"></i></el-icon>
-        <span>Quản lý khách xấu</span>
+        <i class="menu-icon bi bi-exclamation-octagon" aria-hidden="true"></i>
+        <span class="menu-label">Quản lý khách xấu</span>
       </el-menu-item>
 
-      <el-sub-menu index="">
+      <el-sub-menu index="statistics">
         <template #title>
-          <el-icon><i class="bi bi-graph-up"></i></el-icon>
-          <span>Thống kê</span>
+          <i class="menu-icon bi bi-graph-up" aria-hidden="true"></i>
+          <span class="menu-label">Thống kê</span>
         </template>
         <el-menu-item index="/statistics">
-          <el-icon><i class="bi bi-bar-chart"></i></el-icon>
-          <span>Thống kê chi tiết</span>
+          <i class="menu-icon bi bi-bar-chart" aria-hidden="true"></i>
+          <span class="menu-label">Thống kê chi tiết</span>
         </el-menu-item>
-
       </el-sub-menu>
     </el-menu>
   </nav>
 </template>
 
 <script setup>
-import { ref } from 'vue'
 import { useRoute } from 'vue-router'
-import {
-  ElMenu,
-  ElMenuItem,
-  ElSubMenu,
-  ElIcon
-} from 'element-plus'
-
-// Lấy thông tin route hiện tại để xác định menu active
+// Dùng ảnh trong public (Vite):
+const logoSrc = `${import.meta.env.BASE_URL}logo.jpg`
 const route = useRoute()
-
-const logoSrc = ref('https://img.icons8.com/?size=100&id=juRF5DiUGr4p&format=png&color=000000')
-
-// Các biến state và hàm để quản lý đóng/mở menu không còn cần thiết nữa.
-// Element Plus sẽ tự động xử lý.
 </script>
 
 <style scoped>
 .sidebar-container {
-  background-color: #ffffff;
+  background-color: #fff;
   width: 250px;
   min-height: 100vh;
   border-right: 1px solid #e6e6e6;
-}
-
-.el-menu-vertical {
-  width: 100%;
-  border-right: none; /* Bỏ border mặc định của el-menu */
+  display: flex;
+  flex-direction: column;
 }
 
 .logo-container {
   display: flex;
   align-items: center;
-  padding: 15px 20px;
-  margin-bottom: 10px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #f0f0f0;
 }
 
 .logo-img {
-  width: 50px;
-  height: 50px;
+  width: 44px;
+  height: 44px;
   object-fit: cover;
   border-radius: 50%;
-  margin-right: 12px;
+  margin-right: 10px;
 }
 
 .logo-text {
-  font-size: 1.25rem; /* Tương đương h4 */
+  font-size: 1.1rem;
   font-weight: 600;
   color: #303133;
 }
 
-/* Căn chỉnh lại icon */
-.el-icon {
+/* El Menu */
+.el-menu-vertical {
+  border-right: none;
+  width: 100%;
+  --menu-icon-size: 18px;
+}
+
+/* Chuẩn hoá icon Bootstrap cho menu */
+.menu-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.3rem; /* Giữ kích thước icon như cũ */
-  margin-right: 8px;
+  font-size: var(--menu-icon-size);
+  width: calc(var(--menu-icon-size) + 6px); /* để label thẳng hàng */
+  height: var(--menu-icon-size);
+  margin-right: 10px;
+  line-height: 1;
+  color: #909399;
 }
 
-/* Ghi đè style của el-menu-item để trông đẹp hơn */
+.menu-label {
+  line-height: 1;
+}
+
+/* Active & hover */
+.el-menu-item.is-active .menu-label,
+.el-menu-item.is-active .menu-icon,
+.el-sub-menu.is-active .menu-label,
+.el-sub-menu.is-active .menu-icon {
+  color: #409EFF; /* màu chủ đạo Element Plus */
+}
+
+.el-menu-item:hover .menu-icon,
+.el-sub-menu__title:hover .menu-icon {
+  color: #409EFF;
+}
+
+/* Đồng bộ padding trái các item & tiêu đề submenu */
 .el-menu-item,
 .el-sub-menu__title {
-    padding-left: 20px !important; /* Đồng bộ khoảng cách lề trái */
+  padding-left: 20px !important;
 }
 
-/* Style cho các mục con trong menu */
+/* Item con trong submenu có thêm indent nhẹ */
 .el-menu-item-group .el-menu-item {
-    padding-left: 40px !important;
+  padding-left: 40px !important;
 }
 </style>

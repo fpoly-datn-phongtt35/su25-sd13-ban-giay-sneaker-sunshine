@@ -50,24 +50,26 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="Trạng thái / Lý do cấm" min-width="250">
-          <template #default="scope">
-            <el-tag :type="scope.row.isBlacklisted ? 'danger' : 'success'" effect="dark" size="small">
-              {{ scope.row.isBlacklisted ? 'Đang bị cấm' : 'Hoạt động' }}
-            </el-tag>
+ <el-table-column label="Trạng thái / Lý do cấm" min-width="300">
+  <template #default="scope">
+    <div class="flex items-center space-x-2">
+      <el-tag :type="scope.row.isBlacklisted ? 'danger' : 'success'" effect="dark" size="small">
+        {{ scope.row.isBlacklisted ? 'Đang bị cấm' : 'Hoạt động' }}
+      </el-tag>
 
-            <div v-if="scope.row.isBlacklisted && scope.row.blacklistReason && scope.row.blacklistReason.trim() !== ''" class="mt-1">
-              <span class="text-reason">Lý do: {{ scope.row.blacklistReason }}</span>
-              <el-tag v-if="scope.row.blacklistEndDate" type="danger" size="small" effect="plain" class="ml-1">
-                Đến {{ formatDate(scope.row.blacklistEndDate) }}
-              </el-tag>
-            </div>
-            <div v-else-if="scope.row.isBlacklisted" class="mt-1 text-muted-reason">
-                Không có lý do cụ thể.
-            </div>
-          </template>
-        </el-table-column>
+      <template v-if="scope.row.blacklistReason && scope.row.blacklistReason.trim()">
+        <span class="text-reason">Lý do: {{ scope.row.blacklistReason }}</span>
+        <el-tag v-if="scope.row.blacklistEndDate" type="danger" size="small" effect="plain">
+          Đến {{ formatDate(scope.row.blacklistEndDate) }}
+        </el-tag>
+      </template>
 
+      <template v-else>
+        <div class="text-muted-reason"></div>
+      </template>
+    </div>
+  </template>
+</el-table-column>
 
         <el-table-column label="Hành động" width="200" fixed="right">
           <template #default="scope">
@@ -289,7 +291,7 @@ const deleteCustomer = async (id) => {
 const confirmBlacklistCustomer = async (id) => {
   try {
     // Bước 1: Nhập lý do cấm
-    const { value: reason } = await ElMessageBox.prompt('Vui lòng nhập **lý do cấm** khách hàng:', 'Cấm khách hàng', {
+    const { value: reason } = await ElMessageBox.prompt('Vui lòng nhập lý do cấm khách hàng:', 'Cấm khách hàng', {
       confirmButtonText: 'Cấm',
       cancelButtonText: 'Hủy',
       inputType: 'textarea', // Cho phép nhập nhiều dòng

@@ -1,66 +1,109 @@
 <template>
-  <div class="pos-full-screen-container">
-    <el-button @click="$router.back()" :icon="ArrowLeft" class="mb-3"> Quay lại </el-button>
-
-    <el-row :gutter="20">
-      <el-col :xs="24" :lg="14">
-        <el-card shadow="never" class="mb-4">
-          <template #header>
-            <div class="card-header">
-              <span>Tìm kiếm sản phẩm</span>
-            </div>
+  <div class="pos-container">
+    <!-- ====== TABS HÓA ĐƠN + NÚT TẠO NHANH ====== -->
+    <div class="invoice-tabs">
+      <el-tabs v-model="activeInvoiceId" type="card" class="tabs-flat">
+        <el-tab-pane v-for="(t, idx) in openInvoices" :key="t.id" :name="String(t.id)">
+          <template #label>
+            <span class="tab-label">
+              Đơn {{ idx + 1 }}<span v-if="t.code" class="tab-code"> · {{ t.code }}</span>
+            </span>
+            <el-tooltip content="Đóng (vẫn giữ lại trên hệ thống)" placement="top">
+              <el-icon class="tab-close" @click.stop="closeInvoiceTab(t)"><CircleClose /></el-icon>
+            </el-tooltip>
           </template>
+        </el-tab-pane>
+      </el-tabs>
+
+      <el-tooltip content="Tạo hóa đơn mới" placement="top">
+        <el-button type="primary" :icon="Plus" circle @click="createInvoiceTab" />
+      </el-tooltip>
+    </div>
+
+    <!-- ====== THANH HÀNH ĐỘNG NHANH ====== -->
+    <div class="top-actions">
+      <el-button @click="$router.back()" :icon="ArrowLeft">Quay lại</el-button>
+      <div class="grow"></div>
+      <el-button
+        type="danger"
+        plain
+        :icon="CircleClose"
+        @click="cancelInvoice"
+        :disabled="!invoiceId"
+      >
+        Hủy hóa đơn
+      </el-button>
+      <el-button
+        type="primary"
+        :disabled="!invoiceDetails?.details?.length"
+        :loading="isLoading"
+        @click="checkoutInvoice"
+      >
+        <el-icon class="mr-6"><Select /></el-icon>Thanh toán
+      </el-button>
+    </div>
+
+    <!-- ====== LAYOUT 2 CỘT ====== -->
+    <el-row :gutter="16">
+      <!-- ==== CỘT TRÁI: SẢN PHẨM + GIỎ ==== -->
+      <el-col :xs="24" :lg="14">
+        <!-- TÌM SẢN PHẨM -->
+        <el-card shadow="never" class="card">
+          <template #header>
+            <div class="card-title">Tìm kiếm sản phẩm</div>
+          </template>
+
           <el-input
             v-model="searchTerm"
-            placeholder="Nhập tên hoặc mã sản phẩm..."
+            placeholder="Nhập tên hoặc mã sản phẩm…"
             clearable
             size="large"
             :prefix-icon="Search"
             aria-label="Tìm kiếm sản phẩm"
           />
 
-          <el-table :data="products" stripe v-loading="productLoading" class="mt-3">
-            <el-table-column prop="productCode" label="Mã SP" width="100" />
-            <el-table-column prop="productName" label="Tên SP" />
-            <el-table-column label="Giá" width="120">
+          <!-- Nút mở camera để quét QR (nhanh) -->
+          <div class="mt-12 flex items-center gap-8">
+            <el-button type="success" @click="openQrDialog"> Quét QR bằng camera </el-button>
+          </div>
+
+          <el-table
+            :data="products"
+            stripe
+            v-loading="productLoading"
+            class="mt-12"
+            :header-cell-style="{ background: '#fafafa' }"
+          >
+            <el-table-column prop="productCode" label="Mã SP" width="110" />
+            <el-table-column prop="productName" label="Tên SP" min-width="180" />
+            <el-table-column label="Giá" width="140">
               <template #default="{ row }">
-                <div>
-                  <span v-if="row.discountedPrice && row.discountedPrice !== row.sellPrice">
-                    <span style="text-decoration: line-through; color: #888; font-size: 12px">
-                      {{ formatCurrency(row.sellPrice) }}
-                    </span>
-                    <br />
-                    <span style="color: #f56c6c; font-weight: 600">
-                      {{ formatCurrency(row.discountedPrice) }}
-                    </span>
-                  </span>
-                  <span v-else>
-                    {{ formatCurrency(row.sellPrice) }}
-                  </span>
+                <div class="price-cell">
+                  <template v-if="row.discountedPrice && row.discountedPrice !== row.sellPrice">
+                    <span class="price-old">{{ formatCurrency(row.sellPrice) }}</span>
+                    <span class="price-new">{{ formatCurrency(row.discountedPrice) }}</span>
+                  </template>
+                  <template v-else>
+                    <span class="price-normal">{{ formatCurrency(row.sellPrice) }}</span>
+                  </template>
                 </div>
               </template>
             </el-table-column>
-            <el-table-column prop="quantity" label="Kho" width="80" />
-            <el-table-column label="Hành động" width="90" align="center">
+            <el-table-column prop="quantity" label="Kho" width="80" align="center" />
+            <el-table-column label="Thêm" width="90" align="center">
               <template #default="{ row }">
-                <el-button
-                  type="primary"
-                  :icon="Plus"
-                  circle
-                  @click="openProductDialog(row)"
-                  title="Thêm vào giỏ"
-                />
+                <el-button type="primary" :icon="Plus" circle @click="openProductDialog(row)" />
               </template>
             </el-table-column>
 
             <template #empty>
-              <el-empty description="Không tìm thấy sản phẩm nào." />
+              <el-empty description="Không tìm thấy sản phẩm." />
             </template>
           </el-table>
 
           <el-pagination
             v-if="pagination.totalPages > 1"
-            class="mt-4 justify-content-center"
+            class="mt-12 justify-center"
             background
             layout="prev, pager, next"
             :total="pagination.totalElements"
@@ -70,96 +113,100 @@
           />
         </el-card>
 
-        <el-card shadow="never" class="mb-4">
-  <template #header>
-    <div class="card-header">
-      <span v-if="invoiceDetails">Giỏ hàng: {{ invoiceDetails.invoice.invoiceCode }}</span>
-      <span v-else>Giỏ hàng</span>
-    </div>
-  </template>
+        <!-- GIỎ HÀNG -->
+        <el-card shadow="never" class="card mt-16">
+          <template #header>
+            <div class="card-title">
+              {{ invoiceDetails ? `Giỏ hàng — ${invoiceDetails.invoice.invoiceCode}` : 'Giỏ hàng' }}
+            </div>
+          </template>
 
-  <div v-if="invoiceDetails">
-    <el-table :data="invoiceDetails.details" stripe class="mt-3">
-      
-      <el-table-column prop="productName" label="Tên SP" />
-      <el-table-column prop="size.sizeName" label="Size" width="80" />
-      <el-table-column prop="color.colorName" label="Màu" width="90" />
+          <div v-if="invoiceDetails">
+            <el-table
+              :data="invoiceDetails.details"
+              stripe
+              :summary-method="tableSummary"
+              show-summary
+              :header-cell-style="{ background: '#fafafa' }"
+            >
+              <el-table-column prop="productName" label="Sản phẩm" min-width="180" />
+              <el-table-column prop="size.sizeName" label="Size" width="80" />
+              <el-table-column prop="color.colorName" label="Màu" width="90" />
 
-      <!-- Cột số lượng có nút + - -->
-      <el-table-column label="SL" width="110">
-        <template #default="{ row }">
-          <div style="display: flex; align-items: center; justify-content: center;">
-            <el-button
-              size="small"
-              :icon="Minus"
-              circle
-              @click="decreaseQuantity(row)"
-              :disabled="row.quantity <= 1"
-            />
-            <span style="margin: 0 8px;">{{ row.quantity }}</span>
-            <el-button
-              size="small"
-              :icon="Plus"
-              circle
-              @click="increaseQuantity(row)"
-            />
+              <el-table-column label="SL" width="120" align="center">
+                <template #default="{ row }">
+                  <div class="qty-inline">
+                    <el-button
+                      size="small"
+                      :icon="Minus"
+                      circle
+                      @click="decreaseQuantity(row)"
+                      :disabled="row.quantity <= 1"
+                    />
+                    <span class="qty-number">{{ row.quantity }}</span>
+                    <el-button size="small" :icon="Plus" circle @click="increaseQuantity(row)" />
+                  </div>
+                </template>
+              </el-table-column>
+
+              <el-table-column label="Đơn giá" width="140" align="right">
+                <template #default="{ row }">
+                  <div class="price-cell">
+                    <template v-if="row.discountedPrice && row.discountedPrice !== row.sellPrice">
+                      <span class="price-old">{{ formatCurrency(row.sellPrice) }}</span>
+                      <span class="price-new">{{ formatCurrency(row.discountedPrice) }}</span>
+                    </template>
+                    <template v-else>
+                      <span class="price-normal">{{ formatCurrency(row.sellPrice) }}</span>
+                    </template>
+                  </div>
+                </template>
+              </el-table-column>
+
+              <el-table-column label="Thành tiền" width="160" align="right">
+                <template #default="{ row }">
+                  {{
+                    formatCurrency(
+                      row.discountedPrice && row.discountedPrice !== row.sellPrice
+                        ? row.discountedPrice * row.quantity
+                        : row.sellPrice * row.quantity,
+                    )
+                  }}
+                </template>
+              </el-table-column>
+
+              <el-table-column label="" width="64" align="center">
+                <template #default="{ row }">
+                  <el-tooltip content="Xóa khỏi giỏ" placement="top">
+                    <el-button
+                      type="danger"
+                      :icon="Delete"
+                      circle
+                      @click="deleteCartItem(row.id)"
+                    />
+                  </el-tooltip>
+                </template>
+              </el-table-column>
+
+              <template #empty>
+                <el-empty description="Giỏ hàng trống." />
+              </template>
+            </el-table>
           </div>
-        </template>
-      </el-table-column>
-
-      <el-table-column label="Giá" width="120">
-        <template #default="{ row }">
-          <div>
-            <template v-if="row.discountedPrice && row.discountedPrice !== row.sellPrice">
-              <span style="text-decoration: line-through; color: #999; font-size: 12px;">
-                {{ formatCurrency(row.sellPrice) }}
-              </span>
-              <br />
-              <span style="color: #f56c6c; font-weight: 600;">
-                {{ formatCurrency(row.discountedPrice) }}
-              </span>
-            </template>
-            <template v-else>
-              <span>{{ formatCurrency(row.sellPrice) }}</span>
-            </template>
-          </div>
-        </template>
-      </el-table-column>
-
-      <el-table-column label="Hành động" width="90" align="center">
-        <template #default="{ row }">
-          <el-button
-            type="danger"
-            :icon="Delete"
-            circle
-            @click="deleteCartItem(row.id)"
-            title="Xóa sản phẩm"
-          />
-        </template>
-      </el-table-column>
-
-      <template #empty>
-        <el-empty description="Giỏ hàng trống." />
-      </template>
-    </el-table>
-  </div>
-
-  <el-empty v-else description="Đang tải giỏ hàng hoặc chưa có hóa đơn..." />
-</el-card>
-
-
+          <el-empty v-else description="Chưa có hóa đơn được chọn." />
+        </el-card>
       </el-col>
 
+      <!-- ==== CỘT PHẢI: KHÁCH HÀNG + THANH TOÁN + VOUCHER ==== -->
       <el-col :xs="24" :lg="10">
-        <div class="d-flex flex-column gap-3">
-          <el-card shadow="never">
-            <template #header>
-              <span>Thông tin khách hàng</span>
-            </template>
+        <div class="stack">
+          <!-- KHÁCH HÀNG -->
+          <el-card shadow="never" class="card">
+            <template #header><div class="card-title">Thông tin khách hàng</div></template>
             <CustomerSearch @select-customer="selectCustomer" />
             <el-button
               type="success"
-              class="w-100 mt-3"
+              class="w-100 mt-12"
               :icon="User"
               @click="openCreateCustomerDialog"
             >
@@ -167,152 +214,132 @@
             </el-button>
           </el-card>
 
-          <el-card shadow="never">
-            <template #header>
-              <span>Thông tin thanh toán</span>
-            </template>
+          <!-- THANH TOÁN -->
+          <el-card shadow="never" class="card">
+            <template #header><div class="card-title">Thanh toán</div></template>
+
             <div v-if="invoiceDetails">
               <el-descriptions :column="1" border>
                 <el-descriptions-item label="Khách hàng">
                   {{ invoiceDetails.invoice.customerName || 'Khách lẻ' }}
                 </el-descriptions-item>
-                <el-descriptions-item label="Tổng sản phẩm">
-                  {{ getTotalQuantity }}
-                </el-descriptions-item>
+                <el-descriptions-item label="Số SP">{{ getTotalQuantity }}</el-descriptions-item>
                 <el-descriptions-item label="Tổng tiền">
-                  <el-tag type="info" size="large">{{
-                    formatCurrency(invoiceDetails.invoice.totalAmount)
-                  }}</el-tag>
+                  <el-tag type="info" size="large">
+                    {{ formatCurrency(invoiceDetails.invoice.totalAmount) }}
+                  </el-tag>
                 </el-descriptions-item>
-                <el-descriptions-item label="Giảm giá (Voucher)">
-                  <el-tag type="warning" size="large"
-                    >- {{ formatCurrency(invoiceDetails.invoice.discountAmount) }}</el-tag
-                  >
+                <el-descriptions-item label="Giảm giá">
+                  <el-tag type="warning" size="large">
+                    - {{ formatCurrency(invoiceDetails.invoice.discountAmount || 0) }}
+                  </el-tag>
                 </el-descriptions-item>
                 <el-descriptions-item label="Khách phải trả">
-                  <el-tag type="danger" size="large">{{
-                    formatCurrency(invoiceDetails.invoice.finalAmount)
-                  }}</el-tag>
+                  <el-tag type="danger" size="large">
+                    {{ formatCurrency(invoiceDetails.invoice.finalAmount || 0) }}
+                  </el-tag>
                 </el-descriptions-item>
               </el-descriptions>
 
               <el-divider />
 
-              <el-form-item label="Tiền khách đưa:">
+              <el-form-item label="Tiền khách đưa">
                 <el-input
                   v-model="customerPaidInput"
                   @input="onCustomerPaidInput"
-                  placeholder="Nhập số tiền khách đưa"
+                  placeholder="Nhập số tiền"
                   size="large"
                   :formatter="(value) => `₫ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')"
-                  :parser="(value) => value.replace(/₫\s?|(,*)/g, '')"
+                  :parser="(value) => value.replace(/₫\\s?|(,*)/g, '')"
                 />
               </el-form-item>
-              <div class="mt-2">
-                <strong>Tiền thừa trả khách:</strong>
-                <span class="fs-5 text-success ms-2 fw-bold">{{
-                  formatCurrency(changeAmount)
-                }}</span>
+
+              <div class="change-line">
+                <span>Tiền thừa:</span>
+                <b class="text-success">{{ formatCurrency(changeAmount) }}</b>
               </div>
-              <p v-if="errorMessage" class="text-danger small mt-1">{{ errorMessage }}</p>
+              <p v-if="errorMessage" class="text-danger small mt-6">{{ errorMessage }}</p>
             </div>
+
             <el-empty v-else description="Chưa có thông tin hóa đơn." />
           </el-card>
 
-          <el-card shadow="never">
-            <template #header>
-              <span>Voucher khuyến mãi</span>
-            </template>
+          <!-- VOUCHER -->
+          <el-card shadow="never" class="card">
+            <template #header><div class="card-title">Voucher khuyến mãi</div></template>
 
             <div v-loading="voucherLoading">
-              <div v-if="voucherError" class="alert alert-danger p-2 small">{{ voucherError }}</div>
+              <div v-if="voucherError" class="alert alert-danger p-8 small">{{ voucherError }}</div>
 
-              <div v-else-if="vouchers.length > 0">
-                <el-scrollbar max-height="150px">
-                  <div
-                    v-for="voucher in vouchers"
-                    :key="voucher.id"
-                    class="d-flex justify-between align-items-center p-2 border-bottom"
-                  >
-                    <div>
+              <template v-else>
+                <el-empty
+                  v-if="vouchers.length === 0"
+                  description="Không có voucher phù hợp."
+                  :image-size="60"
+                />
+                <el-scrollbar v-else max-height="180px">
+                  <div v-for="vc in vouchers" :key="vc.id" class="voucher-row">
+                    <div class="voucher-info">
                       <div>
-                        Mã: <strong>{{ voucher.voucherCode }}</strong>
+                        Mã: <b>{{ vc.voucherCode }}</b>
                       </div>
                       <div class="text-muted small">
                         Giảm:
-                        <template v-if="voucher.discountPercentage">
-                          {{ voucher.discountPercentage }}%
-                          <template v-if="voucher.maxDiscountValue">
-                            (tối đa {{ formatCurrency(voucher.maxDiscountValue) }})
+                        <template v-if="vc.discountPercentage">
+                          {{ vc.discountPercentage }}%
+                          <template v-if="vc.maxDiscountValue">
+                            (tối đa {{ formatCurrency(vc.maxDiscountValue) }})
                           </template>
                         </template>
                         <template v-else>
-                          {{ formatCurrency(voucher.discountAmount) }}
+                          {{ formatCurrency(vc.discountAmount) }}
                         </template>
                       </div>
                     </div>
 
-                    <!-- BỎ CHỌN -->
-                    <el-button
-                      v-if="appliedVoucher?.voucherCode === voucher.voucherCode"
-                      @click="removeVoucher"
-                      :loading="removeLoading"
-                      type="danger"
-                      size="small"
-                      round
-                    >
-                      Bỏ chọn
-                    </el-button>
+                    <div>
+                      <el-button
+                        v-if="appliedVoucher?.voucherCode === vc.voucherCode"
+                        type="danger"
+                        round
+                        size="small"
+                        :loading="removeLoading"
+                        @click="removeVoucher"
+                        >Bỏ chọn</el-button
+                      >
 
-                    <!-- ÁP DỤNG -->
-                    <el-button
-                      v-else
-                      @click="applyVoucher(voucher.voucherCode)"
-                      :loading="applyLoading && applyingVoucherCode === voucher.voucherCode"
-                      :disabled="applyLoading"
-                      type="primary"
-                      size="small"
-                      round
-                    >
-                      Áp dụng
-                    </el-button>
+                      <el-button
+                        v-else
+                        type="primary"
+                        round
+                        size="small"
+                        :loading="applyLoading && applyingVoucherCode === vc.voucherCode"
+                        :disabled="applyLoading"
+                        @click="applyVoucher(vc.voucherCode)"
+                        >Áp dụng</el-button
+                      >
+                    </div>
                   </div>
                 </el-scrollbar>
-              </div>
-
-              <el-empty v-else description="Không có voucher phù hợp." :image-size="60" />
+              </template>
             </div>
           </el-card>
-
-          <div class="d-grid gap-2">
-            <el-button
-              type="primary"
-              size="large"
-              @click="checkoutInvoice"
-              :loading="isLoading"
-              :disabled="!invoiceDetails?.details?.length"
-            >
-              <i class="fas fa-credit-card me-2"></i> Thanh toán
-            </el-button>
-            <el-button type="danger" plain @click="cancelInvoice">
-              <el-icon><CircleClose /></el-icon> Hủy hóa đơn
-            </el-button>
-          </div>
         </div>
       </el-col>
     </el-row>
 
+    <!-- ====== CHỌN THUỘC TÍNH SP ====== -->
     <el-dialog
       v-model="productDialogVisible"
-      :title="`Chọn thuộc tính: ${currentProduct?.productName}`"
-      width="500px"
-      @close="closeProductDialog"
+      :title="currentProduct ? `Chọn thuộc tính: ${currentProduct.productName}` : 'Chọn thuộc tính'"
+      width="520px"
       destroy-on-close
+      @close="closeProductDialog"
     >
       <el-form label-position="top">
-        <el-row :gutter="20">
+        <el-row :gutter="16">
           <el-col :span="12">
-            <el-form-item label="Size:">
+            <el-form-item label="Size">
               <el-select
                 v-model="selectedSizeId"
                 placeholder="Chọn size"
@@ -324,7 +351,7 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="Màu sắc:">
+            <el-form-item label="Màu sắc">
               <el-select
                 v-model="selectedColorId"
                 placeholder="Chọn màu"
@@ -336,39 +363,99 @@
             </el-form-item>
           </el-col>
         </el-row>
-        <el-form-item label="Số lượng:">
+
+        <el-form-item label="Số lượng">
           <el-input-number
             v-model="selectedQuantity"
             :min="1"
             :max="Math.max(1, maxQuantity)"
             :disabled="maxQuantity === 0"
           />
-          <small v-if="maxQuantity > 0" class="form-text text-muted ms-3"
-            >Tối đa có thể chọn: {{ maxQuantity }}</small
-          >
-          <small v-else class="form-text text-danger ms-3">Sản phẩm này hiện không còn hàng.</small>
+          <small v-if="maxQuantity > 0" class="muted ms-10">Tối đa: {{ maxQuantity }}</small>
+          <small v-else class="text-danger ms-10">Hết hàng biến thể này</small>
         </el-form-item>
       </el-form>
+
       <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="closeProductDialog">Hủy</el-button>
-          <el-button
-            type="primary"
-            @click="confirmAddProduct"
-            :disabled="
-              !selectedSizeId ||
-              !selectedColorId ||
-              selectedQuantity < 1 ||
-              selectedQuantity > maxQuantity ||
-              maxQuantity === 0
-            "
-          >
-            <el-icon class="me-1"><Check /></el-icon> Xác nhận
-          </el-button>
-        </span>
+        <el-button @click="closeProductDialog">Hủy</el-button>
+        <el-button
+          type="primary"
+          :disabled="
+            !selectedSizeId ||
+            !selectedColorId ||
+            selectedQuantity < 1 ||
+            selectedQuantity > maxQuantity ||
+            maxQuantity === 0
+          "
+          @click="confirmAddProduct"
+        >
+          <el-icon class="mr-6"><Check /></el-icon>Xác nhận
+        </el-button>
       </template>
     </el-dialog>
 
+    <!-- ====== DIALOG QUÉT QR BẰNG CAMERA (NHANH) ====== -->
+    <el-dialog
+      v-model="qrDialogVisible"
+      title="Quét QR sản phẩm"
+      width="560px"
+      @closed="stopQrScan"
+    >
+      <div class="flex flex-col gap-3">
+        <div class="w-full aspect-video border rounded overflow-hidden relative">
+          <video
+            ref="qrVideoRef"
+            class="w-full h-full object-cover"
+            autoplay
+            muted
+            playsinline
+          ></video>
+
+          <!-- khung ngắm -->
+          <div class="pointer-events-none absolute inset-0 grid place-items-center">
+            <div class="qr-frame"></div>
+          </div>
+        </div>
+
+        <div class="flex gap-8 items-center">
+          <el-select
+            v-model="selectedDeviceId"
+            placeholder="Chọn camera"
+            style="flex: 1"
+            @change="restartQrScan"
+          >
+            <el-option
+              v-for="d in qrDevices"
+              :key="d.deviceId"
+              :label="d.label || 'Camera'"
+              :value="d.deviceId"
+            />
+          </el-select>
+
+          <el-button
+            @click="toggleTorch"
+            :disabled="!canTorch"
+            :type="torchOn ? 'warning' : 'default'"
+          >
+            {{ torchOn ? 'Tắt đèn' : 'Bật đèn' }}
+          </el-button>
+
+          <el-button @click="restartQrScan" :loading="qrScanning">Bắt đầu</el-button>
+          <el-button @click="stopQrScan" :disabled="!qrScanning">Dừng</el-button>
+        </div>
+
+        <el-alert v-if="qrMessage" :title="qrMessage" type="info" show-icon />
+        <el-alert
+          v-if="useNativeDetector"
+          title="Đang dùng BarcodeDetector (nhanh)"
+          type="success"
+          show-icon
+        />
+        <el-alert v-else title="Đang dùng ZXing fallback" type="warning" show-icon />
+      </div>
+    </el-dialog>
+
+    <!-- MODAL TẠO KHÁCH HÀNG -->
     <CounterSalesCreateCustomer
       ref="createCustomerDialog"
       @created="handleCustomerCreated"
@@ -378,12 +465,9 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, computed } from 'vue'
-// KHÔNG import axios trực tiếp ở đây nữa
-
-// THAY ĐỔI: Import instance axios đã được cấu hình sẵn
-import apiClient from '../../utils/axiosInstance.js'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import apiClient from '../../utils/axiosInstance.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   ArrowLeft,
@@ -396,20 +480,103 @@ import {
   CircleClose,
   Select,
 } from '@element-plus/icons-vue'
-
 import CustomerSearch from './CustomerSearch.vue'
 import CounterSalesCreateCustomer from './CounterSalesCreateCustomer.vue'
+import { BrowserMultiFormatReader } from '@zxing/browser' // npm i @zxing/browser @zxing/library
+import { BarcodeFormat, DecodeHintType } from '@zxing/library' // import enums từ library
 
+/* ----------------- Tabs Hóa đơn ----------------- */
 const route = useRoute()
 const router = useRouter()
+const employeeId = 1
 
-// State
+const openInvoices = ref([]) // [{id, code}]
+const activeInvoiceId = ref(route.params.id ? String(route.params.id) : '')
+const invoiceId = computed(() => Number(activeInvoiceId.value || 0))
+
+// tạo mới tab + hóa đơn
+const createInvoiceTab = async () => {
+  try {
+    const { data } = await apiClient.post(
+      `/admin/counter-sales/create-empty?employeeId=${employeeId}`,
+      {},
+    )
+    if (!openInvoices.value.some((t) => t.id === data.id)) {
+      openInvoices.value.push({ id: data.id, code: data.invoiceCode || '' })
+    }
+    activeInvoiceId.value = String(data.id)
+    router.replace({ name: 'CounterSalesDisplay', params: { id: activeInvoiceId.value } })
+    await loadActiveInvoice()
+    ElMessage.success(`Đã tạo ${data.invoiceCode}`)
+  } catch (e) {
+    ElMessage.error(e?.response?.data?.message || 'Tạo hóa đơn thất bại!')
+  }
+}
+
+// đóng tab (không hủy server, hỏi tùy chọn)
+const closeInvoiceTab = async (tab) => {
+  const justClose = await ElMessageBox.confirm(
+    'Đóng tab này? (Hóa đơn trên hệ thống sẽ giữ nguyên)',
+    'Đóng tab',
+    { type: 'warning', confirmButtonText: 'Đóng tab', cancelButtonText: 'Hủy' },
+  )
+    .then(() => true)
+    .catch(() => false)
+  if (!justClose) return
+
+  const closingActive = String(tab.id) === activeInvoiceId.value
+
+  // Xóa tab
+  openInvoices.value = openInvoices.value.filter((t) => t.id !== tab.id)
+
+  // Nếu không còn tab nào → về danh sách
+  if (openInvoices.value.length === 0) {
+    activeInvoiceId.value = ''
+    invoiceDetails.value = null
+    vouchers.value = []
+    router.push('/sales-counter/list')
+    return
+  }
+
+  // Nếu đóng tab đang active → kích hoạt tab cuối cùng còn lại
+  if (closingActive) {
+    const last = openInvoices.value.at(-1)
+    activeInvoiceId.value = String(last.id)
+    router.replace({ name: 'CounterSalesDisplay', params: { id: activeInvoiceId.value } })
+    await loadActiveInvoice()
+  }
+}
+
+// chuyển tab mượt
+watch(activeInvoiceId, async (newId, oldId) => {
+  if (!newId || newId === oldId) return
+  if (route.params.id !== newId) {
+    router.replace({ name: 'CounterSalesDisplay', params: { id: newId } })
+  }
+  await loadActiveInvoice()
+})
+
+// sync theo route
+watch(
+  () => route.params.id,
+  async (nid) => {
+    if (!nid) return
+    const num = Number(nid)
+    if (!openInvoices.value.some((t) => t.id === num)) {
+      openInvoices.value.push({ id: num, code: '' })
+    }
+    activeInvoiceId.value = String(num)
+    await loadActiveInvoice()
+  },
+)
+
+/* ----------------- State chính ----------------- */
 const invoiceDetails = ref(null)
+
 const searchTerm = ref('')
 const products = ref([])
 const productLoading = ref(false)
 
-// Add Product Dialog State
 const productDialogVisible = ref(false)
 const currentProduct = ref(null)
 const attributes = ref([])
@@ -419,441 +586,445 @@ const selectedSizeId = ref('')
 const selectedColorId = ref('')
 const selectedQuantity = ref(1)
 
-// Payment State
 const changeAmount = ref(0)
 const customerPaidInput = ref('')
 const customerPaid = ref(0)
 const errorMessage = ref('')
 
-// Customer State
-const selectedCustomerId = ref(null)
-const createCustomerDialog = ref(null)
-const createdCustomer = ref(null)
-
-// Voucher State
 const appliedVoucher = ref(null)
 const voucherLoading = ref(false)
 const voucherError = ref('')
 const vouchers = ref([])
 const applyLoading = ref(false)
-const applyError = ref('') // Not directly shown, but used for logic
-const applyingVoucherCode = ref(null) // To show loading on specific button
-const removeLoading = ref(false) // <- THÊM DÒNG NÀY
+const applyingVoucherCode = ref(null)
+const removeLoading = ref(false)
 
-// Action State
 const isLoading = ref(false)
-const invoiceId = Number(route.params.id)
 
-// Gọi API
-const updateInvoiceDetailQuantity = async (invoiceDetailId, newQuantity) => {
-  const response = await apiClient.put(`/admin/counter-sales/invoice-details/${invoiceDetailId}/quantity`, null, {
-    params: { quantity: newQuantity }
-  })
-  return response.data
-}
-
-// Tăng số lượng
-const increaseQuantity = async (item) => {
-  try {
-    const data = await updateInvoiceDetailQuantity(item.id, item.quantity + 1)
-    invoiceDetails.value = data
-  } catch (e) {
-    console.error('Lỗi tăng số lượng:', e)
-    // ✅ Lấy message trả về từ backend và báo lên người dùng
-    const message = e?.response?.data?.message || 'Đã có lỗi xảy ra'
-    ElMessage.error(message)
-  }
-}
-
-// Giảm số lượng
-const decreaseQuantity = async (item) => {
-  if (item.quantity > 1) {
-    try {
-      const data = await updateInvoiceDetailQuantity(item.id, item.quantity - 1)
-      invoiceDetails.value = data
-    } catch (e) {
-      console.error('Lỗi giảm số lượng:', e)
-      const message = e?.response?.data?.message || 'Đã có lỗi xảy ra'
-      ElMessage.error(message)
-    }
-  }
-}
-
-// --- Computed Properties ---
-const maxQuantity = computed(() => {
-  if (!currentProduct.value || !selectedSizeId.value || !selectedColorId.value) return 0
-  const attr = attributes.value.find(
-    (a) => a.size?.id === selectedSizeId.value && a.color?.id === selectedColorId.value,
-  )
-  return attr ? attr.quantity : 0
-})
-
-const getTotalQuantity = computed(() => {
-  if (!invoiceDetails.value || !Array.isArray(invoiceDetails.value.details)) return 0
-  return invoiceDetails.value.details.reduce((sum, item) => sum + (item.quantity || 0), 0)
-})
-
-// --- Methods ---
-const formatCurrency = (val) =>
-  val == null ? '' : val.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })
+/* ----------------- Helpers ----------------- */
+const formatCurrency = (v) =>
+  v == null ? '' : Number(v).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })
 
 const debounce = (fn, delay) => {
-  let timer
+  let t
   return (...args) => {
-    clearTimeout(timer)
-    timer = setTimeout(() => fn(...args), delay)
+    clearTimeout(t)
+    t = setTimeout(() => fn(...args), delay)
   }
 }
 
-// API Calls & Logic - Tất cả đều đã được đổi sang apiClient
+/* ----------------- API ----------------- */
 const fetchInvoiceDetails = async (id) => {
+  if (!id) return
   try {
     const { data } = await apiClient.get(`/admin/counter-sales/${id}/details`)
-    console.log(data.details)
     invoiceDetails.value = data
-
-    if (data.invoice?.voucher) {
-      appliedVoucher.value = data.invoice.voucher
-    } else {
-      appliedVoucher.value = null
-    }
-  } catch (e) {
+    appliedVoucher.value = data.invoice?.voucher || null
+    const t = openInvoices.value.find((x) => x.id === id)
+    if (t) t.code = data.invoice?.invoiceCode || t.code
+  } catch {
     ElMessage.error('Lỗi khi tải chi tiết hóa đơn.')
     invoiceDetails.value = null
   }
 }
 
-const pagination = ref({
-  currentPage: 1,
-  pageSize: 5,
-  totalPages: 1,
-  totalElements: 0,
-})
-
-const fetchProducts = async (page = 1) => {
-  productLoading.value = true
-  try {
-    const response = await apiClient.post('/admin/products/search', {
-      keyword: searchTerm.value.trim(),
-      page: page - 1,
-      size: pagination.value.pageSize,
-    })
-    products.value = response.data.data || []
-    pagination.value = {
-      ...response.data.pagination,
-      currentPage: response.data.pagination.currentPage,
-      totalElements: response.data.pagination.totalElements,
-    }
-  } catch (err) {
-    ElMessage.error('Lỗi khi tải sản phẩm.')
-  } finally {
-    productLoading.value = false
-  }
-}
-
-const changePage = (page) => {
-  pagination.value.currentPage = page
-  fetchProducts(page)
-}
-
-// --- Product Modal Logic ---
-const openProductDialog = async (product) => {
-  currentProduct.value = product
-  try {
-    const { data: attrs } = await apiClient.get(
-      // THAY ĐỔI
-      `/admin/counter-sales/${product.id}/attributes`,
-    )
-    attributes.value = attrs
-    sizes.value = [...new Map(attrs.filter((a) => a.size).map((a) => [a.size.id, a.size])).values()]
-    colors.value = [
-      ...new Map(attrs.filter((a) => a.color).map((a) => [a.color.id, a.color])).values(),
-    ]
-    productDialogVisible.value = true
-  } catch (error) {
-    ElMessage.error('Không thể lấy thuộc tính sản phẩm.')
-  }
-}
-
-const closeProductDialog = () => {
-  productDialogVisible.value = false
-  currentProduct.value = null
-  selectedSizeId.value = ''
-  selectedColorId.value = ''
-  selectedQuantity.value = 1
-  attributes.value = []
-}
-
-const confirmAddProduct = async () => {
-  const invoiceId = invoiceDetails.value?.invoice?.id
-  if (!invoiceId) {
-    ElMessage.warning('Hóa đơn không hợp lệ.')
-    return
-  }
-
-  const matchedAttr = attributes.value.find(
-    (a) => a.size?.id === selectedSizeId.value && a.color?.id === selectedColorId.value
-  )
-
-  if (!matchedAttr) {
-    ElMessage.warning('Không tìm thấy biến thể sản phẩm phù hợp.')
-    return
-  }
-
-  try {
-    // 1. Thêm sản phẩm vào hóa đơn
-    await apiClient.post(`/admin/counter-sales/${invoiceId}/details`, {
-      productDetailId: matchedAttr.id,
-      quantity: selectedQuantity.value,
-    })
-
-    ElMessage.success(`Đã thêm "${currentProduct.value.productName}" vào giỏ hàng.`)
-    closeProductDialog()
-
-    // 2. Làm mới danh sách sản phẩm & chi tiết hóa đơn
-    await Promise.all([
-      fetchProducts(pagination.value.currentPage),
-      fetchInvoiceDetails(invoiceId),
-    ])
-
-    // 3. Luôn luôn áp dụng lại voucher tốt nhất sau khi thêm sản phẩm
-    try {
-      const res = await apiClient.post(`/admin/counter-sales/${invoiceId}/apply-best-voucher`)
-      if (res.data && typeof res.data === 'object') {
-        appliedVoucher.value = res.data
-        ElMessage.success('Đã tự động áp dụng voucher tốt nhất.')
-      } else {
-        appliedVoucher.value = null
-        ElMessage.info('Không có voucher phù hợp để áp dụng.')
-      }
-    } catch (err) {
-      appliedVoucher.value = null
-      console.warn('Không thể áp dụng voucher tốt nhất:', err)
-    }
-
-    // 4. Gọi lại fetchInvoiceDetails để cập nhật lại giảm giá và tổng tiền
-    await fetchInvoiceDetails(invoiceId)
-
-    // 5. Cập nhật danh sách voucher có thể áp dụng
-    await fetchVoucherByInvoiceId(invoiceId)
-
-  } catch (error) {
-    const message = error.response?.data || 'Thêm sản phẩm thất bại.'
-    ElMessage.error(message)
-    console.error('Lỗi khi thêm sản phẩm vào hóa đơn:', error)
-  }
-}
-
-// --- Cart Logic ---
-const deleteCartItem = async (invoiceDetailId) => {
-  try {
-    await ElMessageBox.confirm(
-      'Bạn có chắc chắn muốn xóa sản phẩm này khỏi giỏ hàng?',
-      'Xác nhận xóa',
-      {
-        confirmButtonText: 'Đồng ý',
-        cancelButtonText: 'Hủy bỏ',
-        type: 'warning',
-      },
-    )
-    await apiClient.delete(`/admin/counter-sales/cart-item/${invoiceDetailId}`) // THAY ĐỔI
-    ElMessage.success('Đã xóa sản phẩm khỏi giỏ hàng.')
-    await fetchInvoiceDetails(invoiceId)
-    await fetchProducts(pagination.value.currentPage)
-  } catch (err) {
-    if (err !== 'cancel') {
-      const message = err.response?.data || 'Xóa sản phẩm thất bại.'
-      ElMessage.error(message)
-    }
-  }
-}
-
-// --- Customer Logic ---
-const selectCustomer = async (customer) => {
-  if (!invoiceDetails.value?.invoice) {
-    ElMessage.error('Hóa đơn chưa được tải hoặc không hợp lệ.')
-    return
-  }
-  try {
-    await apiClient.put(
-      // THAY ĐỔI
-      `/admin/counter-sales/${invoiceId}/assign-customer`,
-      { customerId: customer.id },
-    )
-    selectedCustomerId.value = customer.id
-    await fetchInvoiceDetails(invoiceId)
-    await fetchVoucherByInvoiceId(invoiceId)
-    ElMessage.success(`Đã chọn khách hàng: ${customer.customerName || customer.phone}`)
-  } catch (error) {
-    const message = error.response?.data?.message || 'Không thể cập nhật khách hàng.'
-    ElMessage.error(message)
-  }
-}
-
-const openCreateCustomerDialog = () => createCustomerDialog.value.openDialog()
-
-const handleCustomerCreated = (customer) => (createdCustomer.value = customer)
-
-const selectCreatedCustomer = async () => {
-  if (!createdCustomer.value) return
-  await selectCustomer(createdCustomer.value)
-  createdCustomer.value = null // Reset after selection
-}
-
-// --- Payment & Checkout Logic ---
-function onCustomerPaidInput() {
-  const numericString = customerPaidInput.value.replace(/[^\d]/g, '')
-  customerPaid.value = Number(numericString)
-  customerPaidInput.value = numericString.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-  calculateChange()
-}
-
-async function calculateChange() {
-  const finalAmount = invoiceDetails.value?.invoice?.finalAmount || 0
-  if (customerPaid.value > 0 && finalAmount > 0) {
-    changeAmount.value = customerPaid.value - finalAmount
-  } else {
-    changeAmount.value = 0
-  }
-
-  if (customerPaid.value > 0 && customerPaid.value < finalAmount) {
-    errorMessage.value = `Tiền khách đưa chưa đủ.`
-  } else {
-    errorMessage.value = ''
-  }
-}
-
-const checkoutInvoice = async () => {
-  // Kiểm tra hóa đơn hợp lệ
-  if (!invoiceId) {
-    ElMessage.error('Hóa đơn không hợp lệ!')
-    return
-  }
-
-  // Kiểm tra giỏ hàng có sản phẩm
-  if (!invoiceDetails.value?.details?.length) {
-    ElMessage.error('Giỏ hàng trống, không thể thanh toán!')
-    return
-  }
-
-  isLoading.value = true
-
-  try {
-    // Gửi yêu cầu thanh toán
-    const response = await apiClient.post(`/admin/counter-sales/${invoiceId}/checkout`)
-
-    // Hiển thị hộp thoại xác nhận sau khi thanh toán thành công
-    const confirmed = await ElMessageBox.confirm(
-      response.data?.message || 'Thanh toán thành công! Bạn có muốn in hóa đơn PDF không?',
-      'Thành công',
-      {
-        confirmButtonText: 'Có, In hóa đơn',
-        cancelButtonText: 'Không',
-        type: 'success',
-      }
-    ).then(() => true).catch(() => false)
-
-    // Nếu người dùng chọn in hóa đơn
-    if (confirmed) {
-      const res = await apiClient.get(`/admin/invoices/${invoiceId}/export-id`, {
-        responseType: 'blob',
-      })
-
-      // Tạo blob và tự động tải về file PDF
-      const blob = new Blob([res.data], { type: 'application/pdf' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `HoaDon-${invoiceId}.pdf`
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      URL.revokeObjectURL(url)
-    }
-
-    // Chuyển hướng về danh sách hóa đơn tại quầy
-    router.push('/sales-counter/list')
-  } catch (err) {
-    // Ghi log chi tiết lỗi ra console
-    console.error('%c🚨 LỖI THANH TOÁN:', 'color: red; font-weight: bold;', err)
-
-    if (err.response) {
-      console.error('↪️ Response status:', err.response.status)
-      console.error('↪️ Response data:', err.response.data)
-    } else if (err.request) {
-      console.error('🛰️ Không nhận được phản hồi từ server:', err.request)
-    } else {
-      console.error('❌ Lỗi khác:', err.message)
-    }
-
-    // Hiển thị lỗi cho người dùng
-    const message =
-      err.response?.data?.message ||
-      err.message ||
-      'Có lỗi xảy ra khi thanh toán.'
-
-    ElMessage.error(message)
-  } finally {
-    isLoading.value = false
-  }
-}
-
-const cancelInvoice = async () => {
-  try {
-    await ElMessageBox.confirm(
-      'Bạn có chắc chắn muốn hủy hóa đơn này không? Hành động này không thể hoàn tác.',
-      'Xác nhận hủy',
-      {
-        confirmButtonText: 'Đồng ý hủy',
-        cancelButtonText: 'Hủy bỏ',
-        type: 'warning',
-      },
-    )
-    await apiClient.post(`/admin/counter-sales/${invoiceId}/cancel`) // THAY ĐỔI
-    ElMessage.success('Hủy hóa đơn thành công.')
-    router.push('/sales-counter/list')
-  } catch (err) {
-    if (err !== 'cancel') {
-      const message = err.response?.data || 'Không thể hủy hóa đơn.'
-      ElMessage.error(message)
-    } else {
-      ElMessage.info('Đã hủy thao tác.')
-    }
-  }
-}
-
-// --- Voucher Logic ---
 const fetchVoucherByInvoiceId = async (id) => {
+  if (!id) return
   voucherLoading.value = true
   voucherError.value = ''
   vouchers.value = []
   try {
-    const res = await apiClient.get(`/admin/vouchers/by-invoice/${id}`) // THAY ĐỔI
+    const res = await apiClient.get(`/admin/vouchers/by-invoice/${id}`)
     vouchers.value = res.data || []
-  } catch (error) {
-    voucherError.value = 'Chưa chọn khách hàng hoặc không có voucher nào.'
+  } catch {
+    voucherError.value = 'Chưa chọn khách hàng hoặc không có voucher phù hợp.'
   } finally {
     voucherLoading.value = false
   }
 }
 
-const applyVoucher = async (voucherCode) => {
-  applyLoading.value = true
-  applyingVoucherCode.value = voucherCode
+const loadActiveInvoice = async () => {
+  if (!invoiceId.value) return
+  await Promise.all([
+    fetchInvoiceDetails(invoiceId.value),
+    fetchVoucherByInvoiceId(invoiceId.value),
+  ])
+}
+
+/* ----------------- Sản phẩm ----------------- */
+const pagination = ref({ currentPage: 1, pageSize: 5, totalPages: 1, totalElements: 0 })
+const fetchProducts = async (page = 1) => {
+  productLoading.value = true
   try {
-    const response = await apiClient.post(
-      // THAY ĐỔI
-      `/admin/counter-sales/${invoiceId}/apply-voucher`,
-      null,
-      { params: { voucherCode } },
+    const { data } = await apiClient.post('/admin/products/search', {
+      keyword: searchTerm.value.trim(),
+      page: page - 1,
+      size: pagination.value.pageSize,
+    })
+    products.value = data.data || []
+    pagination.value = {
+      ...data.pagination,
+      currentPage: data.pagination.currentPage,
+      totalElements: data.pagination.totalElements,
+    }
+  } catch {
+    ElMessage.error('Lỗi khi tải sản phẩm.')
+  } finally {
+    productLoading.value = false
+  }
+}
+const changePage = (p) => {
+  pagination.value.currentPage = p
+  fetchProducts(p)
+}
+
+watch(
+  searchTerm,
+  debounce(() => fetchProducts(1), 250),
+)
+
+/* ====== QUÉT QR BẰNG CAMERA (NHANH) ====== */
+const qrDialogVisible = ref(false)
+const qrVideoRef = ref(null)
+const qrDevices = ref([])
+const selectedDeviceId = ref('')
+const qrScanning = ref(false)
+const qrMessage = ref('')
+
+// Torch & stream
+const torchOn = ref(false)
+const canTorch = ref(false)
+let mediaStream = null
+let rafId = null
+
+// engine flags
+const useNativeDetector = 'BarcodeDetector' in window
+let barcodeDetector = null
+let zxingReader = null
+
+const openQrDialog = async () => {
+  qrDialogVisible.value = true
+  await initQrDevices()
+  await startQrScan()
+}
+
+async function initQrDevices() {
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices()
+    const videos = devices.filter((d) => d.kind === 'videoinput')
+    qrDevices.value = videos
+    if (!selectedDeviceId.value) {
+      const back = videos.find((d) => /back|trailing|environment/i.test(d.label))
+      selectedDeviceId.value = (back || videos[0])?.deviceId || ''
+    }
+  } catch {
+    qrMessage.value = 'Không truy cập được danh sách camera.'
+  }
+}
+
+function buildConstraints() {
+  const base = {
+    width: { ideal: 1280 },
+    height: { ideal: 720 },
+    frameRate: { ideal: 30, max: 60 },
+  }
+  if (selectedDeviceId.value) {
+    return {
+      video: {
+        deviceId: { exact: selectedDeviceId.value },
+        ...base,
+        advanced: [{ focusMode: 'continuous' }],
+      },
+      audio: false,
+    }
+  }
+  return {
+    video: {
+      facingMode: { ideal: 'environment' },
+      ...base,
+      advanced: [{ focusMode: 'continuous' }],
+    },
+    audio: false,
+  }
+}
+
+async function startQrScan() {
+  stopQrScan()
+  qrMessage.value = 'Đang mở camera...'
+  try {
+    mediaStream = await navigator.mediaDevices.getUserMedia(buildConstraints())
+    const video = qrVideoRef.value
+    video.srcObject = mediaStream
+    await video.play()
+
+    // Torch capability
+    canTorch.value = false
+    torchOn.value = false
+    const track = mediaStream.getVideoTracks()[0]
+    if (track && track.getCapabilities) {
+      const caps = track.getCapabilities()
+      canTorch.value = !!caps.torch
+    }
+
+    if (useNativeDetector) {
+      // NATIVE BarcodeDetector (rất nhanh)
+      try {
+        // một số trình duyệt không expose list, vẫn detect được
+        await window.BarcodeDetector.getSupportedFormats?.()
+      } catch {}
+      barcodeDetector = new window.BarcodeDetector({ formats: ['qr_code'] })
+      qrScanning.value = true
+      qrMessage.value = 'Đang quét (native)...'
+      nativeLoop()
+    } else {
+      // ZXING fallback: chỉ decode QR_CODE, giảm interval
+      const hints = new Map()
+      hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.QR_CODE])
+      zxingReader = new BrowserMultiFormatReader(hints, /*timeBetweenScansMillis*/ 80)
+      qrScanning.value = true
+      qrMessage.value = 'Đang quét (ZXing)...'
+      await zxingReader.decodeFromConstraints(buildConstraints(), video, async (result, err) => {
+        if (result) {
+          stopQrScan()
+          const code = result.getText().trim()
+          await onQrDecoded(code)
+        }
+      })
+    }
+  } catch (e) {
+    qrMessage.value = 'Không thể mở camera. Kiểm tra quyền hoặc kết nối thiết bị.'
+    qrScanning.value = false
+  }
+}
+
+async function nativeLoop() {
+  if (!qrScanning.value || !barcodeDetector) return
+  try {
+    const codes = await barcodeDetector.detect(qrVideoRef.value)
+    if (codes && codes.length) {
+      stopQrScan()
+      const code = (codes[0]?.rawValue || '').trim()
+      if (code) {
+        await onQrDecoded(code)
+        return
+      }
+    }
+  } catch {
+    // bỏ qua, tiếp tục vòng lặp
+  }
+  rafId = requestAnimationFrame(nativeLoop)
+}
+
+async function toggleTorch() {
+  if (!mediaStream) return
+  const track = mediaStream.getVideoTracks()[0]
+  if (!track?.applyConstraints) return
+  try {
+    torchOn.value = !torchOn.value
+    await track.applyConstraints({ advanced: [{ torch: torchOn.value }] })
+  } catch {
+    torchOn.value = false
+  }
+}
+
+async function restartQrScan() {
+  await startQrScan()
+}
+
+function stopQrScan() {
+  qrScanning.value = false
+  if (rafId) {
+    cancelAnimationFrame(rafId)
+    rafId = null
+  }
+  try {
+    zxingReader?.reset()
+  } catch {}
+  zxingReader = null
+  barcodeDetector = null
+  if (mediaStream) {
+    mediaStream.getTracks().forEach((t) => t.stop())
+    mediaStream = null
+  }
+}
+
+onBeforeUnmount(() => stopQrScan())
+
+// Khi đọc xong → gọi BE rồi mở dialog chọn size/màu
+async function onQrDecoded(code) {
+  try {
+    const { data: resp } = await apiClient.get('/admin/products/scan', { params: { code } })
+    qrDialogVisible.value = false
+    await openProductDialogFromScan(resp)
+  } catch (e) {
+    qrMessage.value = e?.response?.data?.message || 'Không tìm thấy sản phẩm từ QR.'
+    // người dùng có thể bấm "Bắt đầu" để quét lại
+  }
+}
+
+/* ====== Sau khi quét → mở dialog thuộc tính ====== */
+async function openProductDialogFromScan(resp) {
+  const row = { id: resp.id, productName: resp.productName }
+  currentProduct.value = row
+  try {
+    const { data: attrs } = await apiClient.get(`/admin/counter-sales/${resp.id}/attributes`)
+    attributes.value = attrs
+    sizes.value = [...new Map(attrs.filter((a) => a.size).map((a) => [a.size.id, a.size])).values()]
+    colors.value = [
+      ...new Map(attrs.filter((a) => a.color).map((a) => [a.color.id, a.color])).values(),
+    ]
+
+    // Auto chọn nếu chỉ có 1 lựa chọn
+    selectedSizeId.value = sizes.value.length === 1 ? sizes.value[0].id : ''
+    selectedColorId.value = colors.value.length === 1 ? colors.value[0].id : ''
+
+    selectedQuantity.value = 1
+    productDialogVisible.value = true
+  } catch {
+    ElMessage.error('Không thể lấy thuộc tính sản phẩm.')
+  }
+}
+
+/* ----------------- Modal chọn biến thể (dùng chung) ----------------- */
+const maxQuantity = computed(() => {
+  if (!currentProduct.value || !selectedSizeId.value || !selectedColorId.value) return 0
+  const attr = attributes.value.find(
+    (a) => a.size?.id === selectedSizeId.value && a.color?.id === selectedColorId.value,
+  )
+  return Number(attr?.quantity || 0)
+})
+
+const openProductDialog = async (product) => {
+  currentProduct.value = product
+  try {
+    const { data: attrs } = await apiClient.get(`/admin/counter-sales/${product.id}/attributes`)
+    attributes.value = attrs
+    sizes.value = [...new Map(attrs.filter((a) => a.size).map((a) => [a.size.id, a.size])).values()]
+    colors.value = [
+      ...new Map(attrs.filter((a) => a.color).map((a) => [a.color.id, a.color])).values(),
+    ]
+    selectedSizeId.value = ''
+    selectedColorId.value = ''
+    selectedQuantity.value = 1
+    productDialogVisible.value = true
+  } catch {
+    ElMessage.error('Không thể lấy thuộc tính sản phẩm.')
+  }
+}
+const closeProductDialog = () => {
+  productDialogVisible.value = false
+  currentProduct.value = null
+  attributes.value = []
+  sizes.value = []
+  colors.value = []
+}
+
+const confirmAddProduct = async () => {
+  const id = invoiceDetails.value?.invoice?.id
+  if (!id) return ElMessage.warning('Hóa đơn không hợp lệ.')
+  const matched = attributes.value.find(
+    (a) => a.size?.id === selectedSizeId.value && a.color?.id === selectedColorId.value,
+  )
+  if (!matched) return ElMessage.warning('Vui lòng chọn đủ size & màu.')
+
+  try {
+    await apiClient.post(`/admin/counter-sales/${id}/details`, {
+      productDetailId: matched.id,
+      quantity: selectedQuantity.value,
+      discountCampaignId: matched.discountCampaignId ?? null,
+    })
+    ElMessage.success(`Đã thêm "${currentProduct.value.productName}" vào giỏ.`)
+    closeProductDialog()
+
+    await fetchInvoiceDetails(id)
+
+    // auto apply best voucher (không fail app)
+    try {
+      const res = await apiClient.post(`/admin/counter-sales/${id}/apply-best-voucher`)
+      appliedVoucher.value = res.data && typeof res.data === 'object' ? res.data : null
+      if (appliedVoucher.value) ElMessage.success('Đã áp dụng voucher tốt nhất.')
+    } catch {}
+
+    await fetchInvoiceDetails(id)
+    await fetchVoucherByInvoiceId(id)
+  } catch (e) {
+    ElMessage.error(e?.response?.data || 'Thêm sản phẩm thất bại.')
+  }
+}
+
+/* ----------------- Sửa số lượng giỏ ----------------- */
+const updateInvoiceDetailQuantity = async (detailId, newQty) => {
+  const { data } = await apiClient.put(
+    `/admin/counter-sales/invoice-details/${detailId}/quantity`,
+    null,
+    { params: { quantity: newQty } },
+  )
+  return data
+}
+const increaseQuantity = async (row) => {
+  try {
+    invoiceDetails.value = await updateInvoiceDetailQuantity(row.id, row.quantity + 1)
+  } catch (e) {
+    ElMessage.error(e?.response?.data?.message || 'Không thể tăng số lượng.')
+  }
+}
+const decreaseQuantity = async (row) => {
+  if (row.quantity <= 1) return
+  try {
+    invoiceDetails.value = await updateInvoiceDetailQuantity(row.id, row.quantity - 1)
+  } catch (e) {
+    ElMessage.error(e?.response?.data?.message || 'Không thể giảm số lượng.')
+  }
+}
+const deleteCartItem = async (detailId) => {
+  try {
+    await ElMessageBox.confirm('Xóa sản phẩm này khỏi giỏ?', 'Xác nhận', { type: 'warning' })
+    await apiClient.delete(`/admin/counter-sales/cart-item/${detailId}`)
+    await fetchInvoiceDetails(invoiceId.value)
+    ElMessage.success('Đã xóa sản phẩm.')
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error(e?.response?.data || 'Xóa thất bại.')
+  }
+}
+
+/* ----------------- Khách hàng ----------------- */
+const selectCustomer = async (customer) => {
+  if (!invoiceId.value) return ElMessage.error('Chưa chọn hóa đơn.')
+  try {
+    await apiClient.put(`/admin/counter-sales/${invoiceId.value}/assign-customer`, {
+      customerId: customer.id,
+    })
+    await fetchInvoiceDetails(invoiceId.value)
+    await fetchVoucherByInvoiceId(invoiceId.value)
+    ElMessage.success(`Đã chọn khách: ${customer.customerName || customer.phone}`)
+  } catch (e) {
+    ElMessage.error(e?.response?.data?.message || 'Không thể cập nhật khách hàng.')
+  }
+}
+const createCustomerDialog = ref(null)
+const openCreateCustomerDialog = () => createCustomerDialog.value?.openDialog()
+const handleCustomerCreated = (c) => (createdCustomer.value = c)
+const createdCustomer = ref(null)
+const selectCreatedCustomer = async () => {
+  if (!createdCustomer.value) return
+  await selectCustomer(createdCustomer.value)
+  createdCustomer.value = null
+}
+
+/* ---- Voucher apply/remove (để tránh lỗi nút bấm) ---- */
+const applyVoucher = async (code) => {
+  if (!invoiceId.value) return
+  try {
+    applyLoading.value = true
+    applyingVoucherCode.value = code
+    const { data } = await apiClient.post(
+      `/admin/counter-sales/${invoiceId.value}/apply-voucher?voucherCode=${encodeURIComponent(code)}`,
     )
-    appliedVoucher.value = response.data
-    await fetchInvoiceDetails(invoiceId)
-    ElMessage.success(`Voucher ${voucherCode} đã được áp dụng.`)
-  } catch (error) {
-    const message = error.response?.data || 'Lỗi khi áp dụng voucher.'
-    ElMessage.error(message)
-    appliedVoucher.value = null // Clear if applying failed
+    appliedVoucher.value = data || null
+    await fetchInvoiceDetails(invoiceId.value)
+    ElMessage.success('Đã áp dụng voucher.')
+  } catch (e) {
+    ElMessage.error(e?.response?.data?.message || 'Không áp dụng được voucher.')
   } finally {
     applyLoading.value = false
     applyingVoucherCode.value = null
@@ -861,129 +1032,294 @@ const applyVoucher = async (voucherCode) => {
 }
 
 const removeVoucher = async () => {
+  if (!invoiceId.value) return
   try {
     removeLoading.value = true
-
-    await apiClient.put(`/admin/counter-sales/${invoiceId}/remove-voucher`)
-
-    appliedVoucher.value = null // Xóa voucher đã chọn
-    await fetchInvoiceDetails(invoiceId) // Cập nhật chi tiết hóa đơn
-
-    ElMessage.success('Đã bỏ áp dụng voucher.')
-  } catch (error) {
-    const message = error.response?.data || 'Lỗi khi bỏ voucher.'
-    ElMessage.error(message)
+    await apiClient.put(`/admin/counter-sales/${invoiceId.value}/remove-voucher`)
+    appliedVoucher.value = null
+    await fetchInvoiceDetails(invoiceId.value)
+    ElMessage.success('Đã bỏ voucher.')
+  } catch (e) {
+    ElMessage.error(e?.response?.data?.message || 'Không bỏ được voucher.')
   } finally {
     removeLoading.value = false
   }
 }
 
-// --- Lifecycle & Watchers ---
-onMounted(() => {
-  if (invoiceId) {
-    fetchInvoiceDetails(invoiceId)
-    fetchVoucherByInvoiceId(invoiceId)
+/* ----------------- Thanh toán ----------------- */
+function onCustomerPaidInput() {
+  const numeric = customerPaidInput.value.replace(/[^\d]/g, '')
+  customerPaid.value = Number(numeric)
+  customerPaidInput.value = numeric.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+  calculateChange()
+}
+function calculateChange() {
+  const finalAmount = invoiceDetails.value?.invoice?.finalAmount || 0
+  changeAmount.value =
+    customerPaid.value > 0 && finalAmount > 0 ? customerPaid.value - finalAmount : 0
+  errorMessage.value =
+    customerPaid.value > 0 && customerPaid.value < finalAmount ? 'Tiền khách đưa chưa đủ.' : ''
+}
+const checkoutInvoice = async () => {
+  if (!invoiceId.value) return ElMessage.error('Hóa đơn không hợp lệ!')
+  if (!invoiceDetails.value?.details?.length) return ElMessage.error('Giỏ hàng trống!')
+
+  isLoading.value = true
+  try {
+    const res = await apiClient.post(`/admin/counter-sales/${invoiceId.value}/checkout`)
+    const print = await ElMessageBox.confirm(
+      res.data?.message || 'Thanh toán thành công! In hóa đơn PDF?',
+      'Thành công',
+      { type: 'success', confirmButtonText: 'In hóa đơn', cancelButtonText: 'Đóng' },
+    )
+      .then(() => true)
+      .catch(() => false)
+
+    if (print) {
+      const pdf = await apiClient.get(`/admin/invoices/${invoiceId.value}/export-id`, {
+        responseType: 'blob',
+      })
+      const blob = new Blob([pdf.data], { type: 'application/pdf' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `HoaDon-${invoiceId.value}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    }
+
+    openInvoices.value = openInvoices.value.filter((t) => t.id !== invoiceId.value)
+    const last = openInvoices.value.at(-1)
+    activeInvoiceId.value = last ? String(last.id) : ''
+    if (activeInvoiceId.value) await loadActiveInvoice()
+    else router.push('/sales-counter/list')
+  } catch (e) {
+    ElMessage.error(e?.response?.data?.message || 'Có lỗi khi thanh toán.')
+  } finally {
+    isLoading.value = false
+  }
+}
+const cancelInvoice = async () => {
+  if (!invoiceId.value) return
+  try {
+    await ElMessageBox.confirm('Hủy hóa đơn này? Hành động không thể hoàn tác.', 'Xác nhận', {
+      type: 'warning',
+    })
+    await apiClient.post(`/admin/counter-sales/${invoiceId.value}/cancel`)
+    ElMessage.success('Đã hủy hóa đơn.')
+
+    openInvoices.value = openInvoices.value.filter((t) => t.id !== invoiceId.value)
+    const last = openInvoices.value.at(-1)
+    activeInvoiceId.value = last ? String(last.id) : ''
+    if (activeInvoiceId.value) await loadActiveInvoice()
+    else router.push('/sales-counter/list')
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error(e?.response?.data || 'Không thể hủy hóa đơn.')
+  }
+}
+
+/* ----------------- Tổng số & Lifecycle ----------------- */
+const getTotalQuantity = computed(() =>
+  Array.isArray(invoiceDetails.value?.details)
+    ? invoiceDetails.value.details.reduce((s, it) => s + Number(it.quantity || 0), 0)
+    : 0,
+)
+const tableSummary = ({ data, columns }) => {
+  const sums = []
+  columns.forEach((col, idx) => {
+    if (idx === 0) sums[idx] = 'Tổng cộng'
+    else if (col.label === 'Thành tiền') {
+      const total = data.reduce((acc, r) => {
+        const price =
+          r.discountedPrice && r.discountedPrice !== r.sellPrice ? r.discountedPrice : r.sellPrice
+        return acc + Number(price || 0) * Number(r.quantity || 0)
+      }, 0)
+      sums[idx] = formatCurrency(total)
+    } else {
+      sums[idx] = ''
+    }
+  })
+  return sums
+}
+
+onMounted(async () => {
+  if (route.params.id) {
+    const idNum = Number(route.params.id)
+    if (!openInvoices.value.some((t) => t.id === idNum))
+      openInvoices.value.push({ id: idNum, code: '' })
+    activeInvoiceId.value = String(idNum)
+    await loadActiveInvoice()
   }
   fetchProducts()
-})
-
-watch(
-  searchTerm,
-  debounce(() => fetchProducts(1), 300),
-)
-
-watch(maxQuantity, (newMax) => {
-  if (newMax === 0) {
-    selectedQuantity.value = 1
-  } else if (selectedQuantity.value > newMax) {
-    selectedQuantity.value = newMax
-  }
 })
 </script>
 
 <style scoped>
-/* Added padding here to compensate for removing it from the root container */
-.el-container {
-  padding: 1.5rem;
+/* Layout tổng thể */
+.pos-container {
+  padding: 12px 16px 24px;
+  background: #f5f7fb;
 }
-.mb-3 {
-  margin-bottom: 1rem;
+
+/* Tabs hoá đơn */
+.invoice-tabs {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: linear-gradient(90deg, #1976d2, #1565c0);
+  padding: 8px 12px;
+  border-radius: 10px;
+  margin-bottom: 12px;
 }
-.mb-4 {
-  margin-bottom: 1.5rem;
+.tabs-flat :deep(.el-tabs__header) {
+  margin: 0;
 }
-.mt-3 {
-  margin-top: 1rem;
+.tabs-flat :deep(.el-tabs__nav) {
+  border: 0;
 }
-.mt-4 {
-  margin-top: 1.5rem;
+.tabs-flat :deep(.el-tabs__item) {
+  color: #fff;
+}
+.tabs-flat :deep(.el-tabs__item.is-active) {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 6px;
+  color: #fff;
+}
+.tab-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.tab-code {
+  opacity: 0.85;
+  font-weight: 500;
+}
+.tab-close {
+  margin-left: 8px;
+  opacity: 0.85;
+  cursor: pointer;
+}
+.tab-close:hover {
+  opacity: 1;
+}
+
+/* Thanh hành động */
+.top-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 14px;
+}
+.grow {
+  flex: 1;
+}
+.mr-6 {
+  margin-right: 6px;
+}
+
+/* Card */
+.card {
+  border-radius: 12px;
+  overflow: hidden;
+}
+.card-title {
+  font-weight: 700;
+  font-size: 16px;
+}
+.mt-12 {
+  margin-top: 12px;
+}
+.mt-16 {
+  margin-top: 16px;
 }
 .w-100 {
   width: 100%;
 }
-.justify-content-center {
-  justify-content: center;
-}
-.d-flex {
+
+/* Table cells */
+.price-cell {
   display: flex;
-}
-.flex-column {
+  gap: 4px;
   flex-direction: column;
+  align-items: flex-end;
 }
-.gap-3 {
-  gap: 1rem;
+.price-old {
+  text-decoration: line-through;
+  color: #999;
+  font-size: 12px;
 }
-.d-grid {
-  display: grid;
+.price-new {
+  color: #f56c6c;
+  font-weight: 700;
 }
-.gap-2 {
-  gap: 0.5rem;
+.price-normal {
+  font-weight: 600;
 }
-.align-items-center {
+
+.qty-inline {
+  display: inline-flex;
   align-items: center;
+  gap: 8px;
 }
-.justify-content-between {
+.qty-number {
+  width: 28px;
+  text-align: center;
+  font-weight: 600;
+}
+
+/* Voucher list */
+.voucher-row {
+  display: flex;
   justify-content: space-between;
+  align-items: center;
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
 }
-.p-2 {
-  padding: 0.5rem;
+.voucher-info {
+  line-height: 1.3;
 }
-.border-bottom {
-  border-bottom: 1px solid var(--el-border-color-light);
+
+/* QR frame */
+.qr-frame {
+  width: 12rem;
+  height: 12rem;
+  border: 2px dashed rgba(255, 255, 255, 0.85);
+  border-radius: 10px;
 }
-.me-1 {
-  margin-right: 0.25rem;
-}
-.me-2 {
-  margin-right: 0.5rem;
-}
-.ms-2 {
-  margin-left: 0.5rem;
-}
-.ms-3 {
-  margin-left: 1rem;
-}
-.text-danger {
-  color: var(--el-color-danger);
+
+/* Misc */
+.justify-center {
+  display: flex;
+  justify-content: center;
 }
 .text-success {
   color: var(--el-color-success);
 }
-.fw-bold {
-  font-weight: bold;
-}
-.fs-5 {
-  font-size: 1.25rem;
-}
-.text-muted {
-  color: var(--el-text-color-secondary);
+.text-danger {
+  color: var(--el-color-danger);
 }
 .small {
-  font-size: 0.875em;
+  font-size: 12px;
 }
-
-/* Ensure El-Card header has no bottom padding for a tighter look */
-:deep(.el-card__header) {
-  padding-bottom: 10px;
+.ms-10 {
+  margin-left: 10px;
+}
+.mt-6 {
+  margin-top: 6px;
+}
+.p-8 {
+  padding: 8px;
+}
+.stack {
+  display: grid;
+  gap: 12px;
+}
+.change-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
 }
 </style>

@@ -24,9 +24,11 @@
       </el-col>
     </el-row>
 
-    <div class="mb-4">
+    <!-- <div class="mb-4">
       <InvoiceSearch @search="onSearch" @clear="onClear" />
-    </div>
+    </div> -->
+
+    
 
     <el-table
       :data="invoices"
@@ -48,28 +50,27 @@
           {{ getField(scope.row, 'customerName') || 'Khách lẻ' }}
         </template>
       </el-table-column>
-      <el-table-column prop="employeeName" label="Nhân viên">
+      <!-- <el-table-column prop="employeeName" label="Nhân viên">
         <template #default="scope">
           {{ getField(scope.row, 'employeeName') || '---' }}
         </template>
-      </el-table-column>
-      <el-table-column prop="totalAmount" label="Tổng tiền" align="right" width="150">
+      </el-table-column> -->
+      <!-- <el-table-column prop="totalAmount" label="Tổng tiền" align="right" width="150">
         <template #default="scope">
           {{ formatCurrency(getField(scope.row, 'totalAmount')) }}
         </template>
-      </el-table-column>
-      <el-table-column prop="discountAmount" label="Giảm giá" align="right" width="150">
+      </el-table-column> -->
+      <!-- <el-table-column prop="discountAmount" label="Giảm giá" align="right" width="150">
         <template #default="scope">
           {{ formatCurrency(getField(scope.row, 'discountAmount')) }}
         </template>
-      </el-table-column>
+      </el-table-column> -->
       <el-table-column prop="finalAmount" label="Thành tiền" align="right" width="150">
         <template #default="scope">
           {{ formatCurrency(getField(scope.row, 'finalAmount')) }}
         </template>
       </el-table-column>
 
-      <!-- Cột "Đơn hàng" — dùng orderType -->
       <el-table-column prop="orderType" label="Loại đơn hàng" align="center">
         <template #default="scope">
           <el-tag type="info" disable-transitions>
@@ -78,14 +79,13 @@
         </template>
       </el-table-column>
 
-      <!-- Cột "Trạng thái" — giữ nguyên dùng status -->
       <el-table-column prop="status" label="Trạng thái" align="center">
         <template #default="scope">
           <el-tag
-            :type="statusClass(getField(scope.row, 'status'), getField(scope.row, 'orderType'))"
+            :type="statusClass(getField(scope.row, 'status'), getField(scope.row, 'statusDetail'), getField(scope.row, 'orderType'))"
             disable-transitions
           >
-            {{ statusText(getField(scope.row, 'status'), getField(scope.row, 'orderType')) }}
+            {{ statusText(getField(scope.row, 'status'), getField(scope.row, 'statusDetail'), getField(scope.row, 'orderType')) }}
           </el-tag>
         </template>
       </el-table-column>
@@ -95,11 +95,11 @@
           {{ formatDate(getField(scope.row, 'createdDate')) }}
         </template>
       </el-table-column>
-      <el-table-column prop="description" label="Ghi chú">
+      <!-- <el-table-column prop="description" label="Ghi chú">
         <template #default="scope">
           {{ getField(scope.row, 'description') || '---' }}
         </template>
-      </el-table-column>
+      </el-table-column> -->
       <el-table-column label="Thao tác" width="120" align="center" fixed="right">
         <template #default="scope">
           <el-button-group>
@@ -139,75 +139,74 @@
       @size-change="handleSizeChange"
     />
 
-  <el-dialog v-model="dialogVisible" title="Chi tiết hóa đơn" width="60%" destroy-on-close>
-  <template #header="{ close, titleId, titleClass }">
-    <div class="my-header">
-      <h4 :id="titleId" :class="titleClass">
-        Chi tiết hóa đơn #{{ selectedInvoice?.invoiceCode || selectedInvoice?.id }}
-      </h4>
-    </div>
-  </template>
+    <el-dialog v-model="dialogVisible" title="Chi tiết hóa đơn" width="60%" destroy-on-close>
+      <template #header="{ close, titleId, titleClass }">
+        <div class="my-header">
+          <h4 :id="titleId" :class="titleClass">
+            Chi tiết hóa đơn #{{ selectedInvoice?.invoiceCode || selectedInvoice?.id }}
+          </h4>
+        </div>
+      </template>
 
-  <div v-if="selectedInvoice">
-    <el-row :gutter="20" class="mb-2">
-      <el-col :span="12">
-        <strong>Khách hàng:</strong> {{ selectedInvoice.customerName || 'Khách lẻ' }}
-      </el-col>
-      <el-col :span="12">
-        <strong>Nhân viên:</strong> {{ selectedInvoice.employeeName || '---' }}
-      </el-col>
-    </el-row>
+      <div v-if="selectedInvoice">
+        <el-row :gutter="20" class="mb-2">
+          <el-col :span="12">
+            <strong>Khách hàng:</strong> {{ selectedInvoice.customerName || 'Khách lẻ' }}
+          </el-col>
+          <el-col :span="12">
+            <strong>Nhân viên:</strong> {{ selectedInvoice.employeeName || '---' }}
+          </el-col>
+        </el-row>
 
-    <el-row :gutter="20" class="mb-3">
-      <el-col :span="12">
-        <strong>Ngày tạo:</strong> {{ formatDate(selectedInvoice.createdDate) }}
-      </el-col>
-      <el-col :span="12">
-        <strong>Ghi chú:</strong> {{ selectedInvoice.description || '---' }}
-      </el-col>
-    </el-row>
+        <el-row :gutter="20" class="mb-3">
+          <el-col :span="12">
+            <strong>Ngày tạo:</strong> {{ formatDate(selectedInvoice.createdDate) }}
+          </el-col>
+          <el-col :span="12">
+            <strong>Ghi chú:</strong> {{ selectedInvoice.description || '---' }}
+          </el-col>
+        </el-row>
 
-    <el-table :data="invoiceDetails" border size="small">
-      <el-table-column property="productName" label="Sản phẩm" />
-      <el-table-column property="quantity" label="Số lượng" align="right" />
-      <el-table-column label="Giá bán" align="right">
-        <template #default="scope">
-          <template v-if="scope.row.discountedPrice !== null">
-            <del class="text-gray-500 me-1">{{ formatCurrency(scope.row.sellPrice) }}</del>
-            <span class="text-danger">{{ formatCurrency(scope.row.discountedPrice) }}</span>
-          </template>
-          <template v-else>
-            {{ formatCurrency(scope.row.sellPrice) }}
-          </template>
-        </template>
-      </el-table-column>
-      <el-table-column label="Thành tiền" align="right">
-        <template #default="scope">
-          {{
-            formatCurrency(
-              (scope.row.discountedPrice !== null ? scope.row.discountedPrice : scope.row.sellPrice) * scope.row.quantity
-            )
-          }}
-        </template>
-      </el-table-column>
-    </el-table>
+        <el-table :data="invoiceDetails" border size="small">
+          <el-table-column property="productName" label="Sản phẩm" />
+          <el-table-column property="quantity" label="Số lượng" align="right" />
+          <el-table-column label="Giá bán" align="right">
+            <template #default="scope">
+              <template v-if="scope.row.discountedPrice !== null">
+                <del class="text-gray-500 me-1">{{ formatCurrency(scope.row.sellPrice) }}</del>
+                <span class="text-danger">{{ formatCurrency(scope.row.discountedPrice) }}</span>
+              </template>
+              <template v-else>
+                {{ formatCurrency(scope.row.sellPrice) }}
+              </template>
+            </template>
+          </el-table-column>
+          <el-table-column label="Thành tiền" align="right">
+            <template #default="scope">
+              {{
+                formatCurrency(
+                  (scope.row.discountedPrice !== null ? scope.row.discountedPrice : scope.row.sellPrice) * scope.row.quantity
+                )
+              }}
+            </template>
+          </el-table-column>
+        </el-table>
 
-    <div class="mt-4 text-end">
-      <p><strong>Tổng tiền:</strong> {{ formatCurrency(selectedInvoice.totalAmount) }}</p>
-      <p><strong>Giảm giá:</strong> {{ formatCurrency(selectedInvoice.discountAmount) }}</p>
-      <h4 class="mt-2">
-        <strong>Thành tiền:</strong> {{ formatCurrency(selectedInvoice.finalAmount) }}
-      </h4>
-    </div>
-  </div>
+        <div class="mt-4 text-end">
+          <p><strong>Tổng tiền:</strong> {{ formatCurrency(selectedInvoice.totalAmount) }}</p>
+          <p><strong>Giảm giá:</strong> {{ formatCurrency(selectedInvoice.discountAmount) }}</p>
+          <h4 class="mt-2">
+            <strong>Thành tiền:</strong> {{ formatCurrency(selectedInvoice.finalAmount) }}
+          </h4>
+        </div>
+      </div>
 
-  <template #footer>
-    <span class="dialog-footer">
-      <el-button @click="dialogVisible = false">Đóng</el-button>
-    </span>
-  </template>
-</el-dialog>
-
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="dialogVisible = false">Đóng</el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -289,7 +288,8 @@ const fetchOrSearch = async () => {
 
   try {
     const res = await apiClient.get(endpoint, { params })
-    invoices.value = res.data.content
+    // Lấy dữ liệu từ invoice object bên trong mỗi phần tử
+    invoices.value = res.data.content.map(item => item.invoice);
     totalPages.value = res.data.page.totalPages
     totalItems.value = res.data.page.totalElements
     page.value = res.data.page.number
@@ -411,7 +411,6 @@ const handleExportCommand = (command) => {
       actionDescription = 'Xuất các hóa đơn trên trang hiện tại...'
       break
 
-    // START MODIFICATION
     case 'all':
       // Gửi các tham số rỗng để báo cho backend rằng chúng ta muốn xuất tất cả,
       // mô phỏng một tìm kiếm "trống". Điều này giúp tránh lỗi 500 do
@@ -422,7 +421,6 @@ const handleExportCommand = (command) => {
       exportFileName = `tat_ca_hoa_don_${new Date().toLocaleDateString('vi-VN').replace(/\//g, '-')}.xlsx`
       actionDescription = 'Xuất tất cả hóa đơn...'
       break
-    // END MODIFICATION
 
     default:
       ElMessage.error('Hành động xuất không hợp lệ.')
@@ -478,58 +476,64 @@ const formatDate = (val) => {
   return d.toLocaleDateString('vi-VN') + ' ' + d.toLocaleTimeString('vi-VN')
 }
 
-const statusText = (status, orderType) => {
-  if (orderType === 0) {
+// Hàm mới để hiển thị text trạng thái
+const statusText = (status, statusDetail, orderType) => {
+  if (orderType === 0) { // Đơn tại quầy
     switch (status) {
-      case 0: return 'Chờ thanh toán'
-      case 1: return 'Đã thanh toán'
-      case 2: return 'Đã hủy'
+      case 'HUY_GIAO_DICH': return 'Hủy giao dịch'
+      case 'DANG_XU_LY': return 'Đang xử lý'
+      case 'THANH_CONG': return 'Thành công'
+      case 'DA_HUY': return 'Đã hủy'
+      case 'TRA_HANG': return 'Trả hàng'
+      case 'KHIEU_NAI': return 'Khiếu nại'
       default: return 'Không xác định'
     }
-  } else if (orderType === 1) {
-    switch (status) {
-      case -1: return 'Chờ xác nhận'
-      case 0: return 'Đang xử lý'
-      case 1: return 'Đã thanh toán (chờ xác nhận)'
-      case 2: return 'Đã xác nhận'
-      case 3: return 'Chờ nhập hàng'
-      case 4: return 'Đang chuẩn bị'
-      case 5: return 'Đang giao hàng'
-      case 6: return 'Giao thành công'
-      case 7: return 'Giao thất bại'
-      case 8: return 'Đã trả hàng'
-      case 9: return 'Mất hàng'
-      case 10: return 'Đã hủy'
-      case 11: return 'Thanh toán thất bại'
+  } else if (orderType === 1) { // Đơn online
+    switch (statusDetail) {
+      case 'DANG_GIAO_DICH': return 'Đang giao dịch'
+      case 'HUY_DON': return 'Hủy đơn hàng'
+      case 'HUY_GIAO_DICH': return 'Hủy giao dịch'
+      case 'CHO_XU_LY': return 'Chờ xử lý'
+      case 'DA_XU_LY': return 'Đã xử lý'
+      case 'CHO_GIAO_HANG': return 'Chờ giao hàng'
+      case 'DANG_GIAO_HANG': return 'Đang giao hàng'
+      case 'GIAO_THANH_CONG': return 'Giao hàng thành công'
+      case 'GIAO_THAT_BAI': return 'Giao hàng thất bại'
+      case 'MAT_HANG': return 'Mất hàng'
+      case 'DA_HOAN_TIEN': return 'Đã hoàn tiền'
+      case 'DA_HOAN_THANH': return 'Đã hoàn thành'
       default: return 'Không xác định'
     }
   }
   return 'Không xác định'
 }
 
-
-const statusClass = (status, orderType) => {
-  if (orderType === 0) {
+// Hàm mới để gán class cho tag trạng thái
+const statusClass = (status, statusDetail, orderType) => {
+  if (orderType === 0) { // Đơn tại quầy
     switch (status) {
-      case 0: return 'warning'
-      case 1: return 'success'
-      case 2: return 'danger'
+      case 'HUY_GIAO_DICH': return 'danger'
+      case 'DANG_XU_LY': return 'warning'
+      case 'THANH_CONG': return 'success'
+      case 'DA_HUY': return 'danger'
+      case 'TRA_HANG': return 'info'
+      case 'KHIEU_NAI': return 'info'
       default: return 'info'
     }
-  } else if (orderType === 1) {
-    switch (status) {
-      case 0: return 'warning'
-      case 1: return 'primary'
-      case 2: return 'success'
-      case 3: return 'warning'
-      case 4: return 'info'
-      case 5: return 'primary'
-      case 6: return 'success'
-      case 7: return 'danger'
-      case 8: return 'danger'
-      case 9: return 'danger'
-      case 10: return 'danger'
-      case 11: return 'danger'
+  } else if (orderType === 1) { // Đơn online
+    switch (statusDetail) {
+      case 'DANG_GIAO_DICH': return 'primary'
+      case 'HUY_DON': return 'danger'
+      case 'HUY_GIAO_DICH': return 'danger'
+      case 'CHO_XU_LY': return 'warning'
+      case 'DA_XU_LY': return 'primary'
+      case 'CHO_GIAO_HANG': return 'info'
+      case 'DANG_GIAO_HANG': return 'primary'
+      case 'GIAO_THANH_CONG': return 'success'
+      case 'GIAO_THAT_BAI': return 'danger'
+      case 'MAT_HANG': return 'danger'
+      case 'DA_HOAN_TIEN': return 'info'
+      case 'DA_HOAN_THANH': return 'success'
       default: return 'info'
     }
   }

@@ -280,9 +280,9 @@ const soleList = ref([]);
 const supplierList = ref([]);
 const styleList = ref([]);
 const isModalVisible = ref(false);
-const colorImages = ref({}); // Stores images per colorId
-const deletedImageIds = ref([]); // Stores IDs of images to be deleted from the backend
-const oldColorIds = ref([]); // Stores IDs of colors that were previously selected but are now deselected
+const colorImages = ref({});
+const deletedImageIds = ref([]);
+const oldColorIds = ref([]);
 const productDetails = ref([]);
 
 const updateProduct = ref({
@@ -367,16 +367,15 @@ const rules = ref({
     {
       validator: (rule, value, callback) => {
         for (const colorId of updateProduct.value.selectedColors) {
-          // Check if there are any files for this colorId (either existing or new)
           const filesForColor = colorImages.value[colorId];
           if (!filesForColor || filesForColor.length === 0) {
             callback(new Error(`Vui lòng tải lên ít nhất một ảnh cho màu ${getColorName(colorId)}`));
             return;
           }
         }
-        callback(); // All checks passed
+        callback();
       },
-      trigger: 'change', // Trigger when file list changes
+      trigger: 'change',
     },
   ],
   // Rules for dynamically generated product details (removed 'required')
@@ -410,11 +409,9 @@ const showError = (message) => {
   });
 };
 
-// Modal controls
 const openConfirmDialog = () => {
   productForm.value.validate(async (valid) => {
     if (valid) {
-      // **Thêm validation tùy chỉnh cho productDetails ở đây**
       const invalidDetails = productDetails.value.some(detail =>
         detail.quantity === null || detail.quantity === undefined || detail.quantity < 0 ||
         detail.sellPrice === null || detail.sellPrice === undefined || detail.sellPrice < 0
@@ -422,7 +419,7 @@ const openConfirmDialog = () => {
 
       if (invalidDetails) {
         showError('Vui lòng nhập đầy đủ giá bán và số lượng cho tất cả chi tiết sản phẩm và đảm bảo chúng không âm!');
-        return; // Dừng lại nếu có lỗi
+        return;
       }
 
       const totalQuantity = productDetails.value.reduce((sum, detail) => sum + Number(detail.quantity), 0);
@@ -434,7 +431,6 @@ const openConfirmDialog = () => {
       isModalVisible.value = true;
     } else {
       showError('Vui lòng điền đầy đủ các trường bắt buộc hoặc sửa lỗi!');
-      // Scroll to the first invalid field
       setTimeout(() => {
         const isError = document.querySelector('.is-error');
         if (isError) {
@@ -449,7 +445,6 @@ const closeModal = () => {
   isModalVisible.value = false;
 };
 
-// API calls
 const fetchCategories = async () => {
   try {
     const response = await axios.get('http://localhost:8080/api/admin/categories/hien-thi');
@@ -544,7 +539,7 @@ const fetchProduct = async () => {
       materialId: product.materialId || null,
       styleId: product.styleId || null,
       supplierId: product.supplierId || null,
-      genderId: product.genderId ? product.genderId.toString() : null, 
+      genderId: product.genderId ? product.genderId.toString() : null,
       soleId: product.soleId || null,
       brandId: product.brandId || null,
       originPrice: product.originPrice || null,
@@ -577,13 +572,13 @@ const fetchProduct = async () => {
           url: img.image.startsWith('data:image')
             ? img.image
             : `data:image/png;base64,${img.image}`,
-          isOld: true, 
-          id: img.id, 
-          file: null, 
+          isOld: true,
+          id: img.id,
+          file: null,
         });
       }
     });
-    colorImages.value = { ...colorImages.value }; 
+    colorImages.value = { ...colorImages.value };
   } catch (error) {
     console.error('Error fetching product:', error);
     showError('Lỗi lấy dữ liệu sản phẩm!');
@@ -591,7 +586,7 @@ const fetchProduct = async () => {
 };
 
 const generateProductDetails = () => {
-  const existingDetails = [...productDetails.value]; 
+  const existingDetails = [...productDetails.value];
   const newProductDetails = [];
 
   for (const sizeId of updateProduct.value.selectedSizes) {
@@ -604,7 +599,7 @@ const generateProductDetails = () => {
       );
 
       newProductDetails.push({
-        id: existingDetail?.id || null, 
+        id: existingDetail?.id || null,
         sizeId: sizeId,
         colorId: colorId,
         sizeName: size?.sizeName || '',
@@ -623,42 +618,35 @@ watch(() => updateProduct.value.selectedColors, (newColors, oldColors) => {
   );
 
   removedColorIds.forEach((colorId) => {
-    // Add the deselected color's ID to oldColorIds
     if (!oldColorIds.value.includes(colorId)) {
       oldColorIds.value.push(colorId);
     }
 
-    // Also collect image IDs associated with this deselected color
     if (colorImages.value[colorId]) {
       colorImages.value[colorId].forEach((img) => {
         if (img.isOld && img.id && !deletedImageIds.value.includes(img.id)) {
           deletedImageIds.value.push(img.id);
         }
       });
-      // Remove images for the deselected color from the local state
       delete colorImages.value[colorId];
     }
   });
-  colorImages.value = { ...colorImages.value }; // Ensure reactivity for colorImages
+  colorImages.value = { ...colorImages.value };
 
-  // Re-run validation for images when colors change
   if (productForm.value) {
     productForm.value.validateField('images');
   }
 }, { deep: true });
 
-// Watch for changes in selectedSizes to regenerate product details
+
 watch(() => updateProduct.value.selectedSizes, () => {
   generateProductDetails();
 });
 
-// Watch for changes in general sellPrice to update product details sellPrice
-// Only update if the new sellPrice is a valid number AND the detail's sellPrice hasn't been explicitly set (i.e., it's still the default 0 or null)
 watch(() => updateProduct.value.sellPrice, (newSellPrice) => {
   if (typeof newSellPrice === 'number' && newSellPrice >= 0) {
     productDetails.value.forEach(detail => {
-      // If the detail's sellPrice is 0 or null/undefined (meaning it hasn't been specifically updated)
-      // or if it matches the previous global sellPrice, then update it.
+
       if (detail.sellPrice === 0 || detail.sellPrice === null || detail.sellPrice === undefined) {
         detail.sellPrice = newSellPrice;
       }
@@ -672,10 +660,9 @@ const goBack = () => {
 };
 
 const handleFileChange = (file, fileList, colorId) => {
-  const maxSize = 5 * 1024 * 1024; // 5MB
+  const maxSize = 5 * 1024 * 1024;
   if (file.size > maxSize) {
     showError(`Ảnh ${file.name} vượt quá kích thước tối đa (5MB)!`);
-    // Filter out the oversized file from fileList
     colorImages.value[colorId] = fileList.filter(f => f.raw !== file.raw).map((item) => ({
       name: item.name,
       url: item.url || (item.raw ? URL.createObjectURL(item.raw) : ''),
@@ -688,7 +675,6 @@ const handleFileChange = (file, fileList, colorId) => {
   }
 
   const existingFilesForColor = colorImages.value[colorId] || [];
-  // Check for duplicate names (excluding old files for name comparison if needed, or refine comparison)
   const isDuplicate = existingFilesForColor.some(
     (f) => f.name === file.name && (!f.file || f.file.size === file.size) // Compare based on name and size for new files
   );
@@ -711,17 +697,15 @@ const handleFileChange = (file, fileList, colorId) => {
     colorImages.value[colorId] = [];
   }
 
-  // Update the file list for the specific color, including new raw files and existing ones
   colorImages.value[colorId] = fileList.map((item) => ({
     name: item.name,
     url: item.url || (item.raw ? URL.createObjectURL(item.raw) : ''),
-    file: item.raw || null, // raw file is present for new uploads
-    isOld: item.isOld || false, // 'isOld' flag for existing images
-    id: item.id || null, // ID for existing images
+    file: item.raw || null,
+    isOld: item.isOld || false,
+    id: item.id || null,
   }));
   colorImages.value = { ...colorImages.value };
 
-  // Re-run validation for images when files change
   if (productForm.value) {
     productForm.value.validateField('images');
   }
@@ -740,7 +724,6 @@ const handleFileRemove = (file, fileList, colorId) => {
   }));
   colorImages.value = { ...colorImages.value };
 
-  // Re-run validation for images when files change
   if (productForm.value) {
     productForm.value.validateField('images');
   }
@@ -753,7 +736,6 @@ const handlePreview = (file) => {
 const saveProduct = async () => {
   try {
     const mergedDetails = [];
-    // Ensure productDetails reflects only currently selected sizes/colors
     productDetails.value.forEach((detail) => {
       const isSizeSelected = updateProduct.value.selectedSizes.includes(detail.sizeId);
       const isColorSelected = updateProduct.value.selectedColors.includes(detail.colorId);
@@ -762,8 +744,6 @@ const saveProduct = async () => {
         mergedDetails.push({ ...detail });
       }
     });
-
-    // **Đoạn kiểm tra totalQuantity đã được di chuyển lên openConfirmDialog**
 
     const formData = new FormData();
     formData.append('productName', updateProduct.value.productName || '');
@@ -794,10 +774,9 @@ const saveProduct = async () => {
       formData.append(`productDetails[${index}].quantity`, detail.quantity);
     });
 
-    // Append deleted image IDs
     if (deletedImageIds.value.length > 0) {
       deletedImageIds.value.forEach((id, index) => {
-        formData.append(`deletedImageIds[${index}]`, id);
+        formData.append(`oldImageIds[${index}]`, id);
       });
     }
 
@@ -827,9 +806,6 @@ const saveProduct = async () => {
     showSuccess('Cập nhật sản phẩm thành công!');
     isModalVisible.value = false;
 
-    // Reset state after successful update to ensure clean form for potential re-edits or new creations if navigating within same component
-    // However, since we are routing back, a full reset might not be strictly necessary here,
-    // but it's good practice for component reusability.
     updateProduct.value = {
       categoryIds: [],
       productName: '',

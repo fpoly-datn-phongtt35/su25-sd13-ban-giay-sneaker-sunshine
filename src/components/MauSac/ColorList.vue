@@ -110,7 +110,6 @@ const rules = {
 const fetchColors = async () => {
   try {
     loading.value = true;
-    // GET request from apiClient
     const res = await apiClient.get('/admin/color/hien-thi');
     colors.value = res.data;
   } catch (err) {
@@ -121,18 +120,14 @@ const fetchColors = async () => {
   }
 };
 
-/**
- * Resets the form to its initial state and clears validation errors.
- */
+
 const resetForm = () => {
   form.value = { id: null, colorName: '' };
   isEditing.value = false;
   formRef.value?.resetFields();
 };
 
-/**
- * Handles form submission for both adding and updating colors.
- */
+
 const handleSubmit = () => {
   formRef.value.validate(async (valid) => {
     if (!valid) return;
@@ -151,12 +146,12 @@ const handleSubmit = () => {
       loading.value = true
 
       if (isEditing.value) {
-        await axios.put(`http://localhost:8080/api/admin/color/${form.value.id}`, null, {
+        await apiClient.put(`/admin/color/${form.value.id}`, null, {
           params: { name: form.value.colorName }
         })
         ElMessage.success('Cập nhật thành công')
       } else {
-        await axios.post('http://localhost:8080/api/admin/color', null, {
+        await apiClient.post('/admin/color', null, {
           params: { name: form.value.colorName }
         })
         ElMessage.success('Thêm mới thành công')

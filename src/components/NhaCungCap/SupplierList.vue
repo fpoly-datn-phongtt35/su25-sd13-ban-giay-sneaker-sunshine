@@ -62,7 +62,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 // Import your pre-configured API client
-import apiClient from '@/utils/axiosInstance' 
+import apiClient from '@/utils/axiosInstance'
 import { ElMessage, ElMessageBox } from 'element-plus'
 // Import relevant icons for the UI
 import { Plus, Edit, Delete, RefreshRight, CirclePlus, HomeFilled } from '@element-plus/icons-vue'
@@ -108,24 +108,21 @@ const rules = {
   ],
 }
 
-// Function to fetch the list of suppliers
 const fetchSuppliers = async () => {
-  loading.value = true // Set loading state
+  loading.value = true
   try {
-    // Use apiClient for the GET request
     const res = await apiClient.get('/admin/supplier/hien-thi')
     suppliers.value = res.data
     ElMessage.success('Tải danh sách nhà cung cấp thành công.')
   } catch (error) {
     console.error('Lỗi khi tải danh sách nhà cung cấp:', error)
     ElMessage.error('Lỗi khi tải danh sách nhà cung cấp.')
-    suppliers.value = [] // Clear data on error
+    suppliers.value = []
   } finally {
-    loading.value = false // Reset loading state
+    loading.value = false
   }
 }
 
-// Function to handle form submission (add or update)
 const handleSubmit = () => {
   formRef.value.validate(async (valid) => {
     if (!valid) {

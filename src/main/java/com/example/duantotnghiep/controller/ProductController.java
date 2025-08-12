@@ -37,7 +37,6 @@ import java.util.List;
 public class ProductController {
     private final ProductService productService;
 
-    // GET ALL
     @GetMapping()
     public ResponseEntity<Page<ProductResponse>> getProducts(
             @RequestParam(defaultValue = "0") int page,
@@ -47,7 +46,6 @@ public class ProductController {
         return ResponseEntity.ok(productPage);
     }
 
-    // GET BY ID
     @GetMapping("/{id}")
     public ResponseEntity<ProductResponse> getProductById(@PathVariable Long id) {
         return ResponseEntity.ok(productService.getProductById(id));
@@ -58,7 +56,6 @@ public class ProductController {
         return ResponseEntity.ok(productService.getProductDetailById(idProduct));
     }
 
-    // CREATE
     @PostMapping
     public ResponseEntity<ProductResponse> createProduct( @ModelAttribute ProductRequest request) {
         System.out.println("Tổng số ảnh: " + request.getProductImages().size());

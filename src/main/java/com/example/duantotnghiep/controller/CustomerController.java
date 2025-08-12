@@ -161,4 +161,5 @@ public class CustomerController {
         List<BadCustomerResponse> list = customerService.getAllBlacklistedCustomers();
         return ResponseEntity.ok(list);
     }
+
 }

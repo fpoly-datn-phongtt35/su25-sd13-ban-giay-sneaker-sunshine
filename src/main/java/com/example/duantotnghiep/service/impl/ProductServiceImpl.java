@@ -382,12 +382,8 @@ public class ProductServiceImpl implements ProductService {
     @Transactional(rollbackFor = Throwable.class)
     @Override
     public void deleteProduct(Long id) {
-        Product product = productRepository.findById(id)
+        Product product = productRepository.findByStatus(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm: " + id));
-
-        if (product.getStatus() == 0) {
-            throw new RuntimeException("Sản phẩm đã bị xóa rồi: " + id);
-        }
 
         product.setStatus(0);
         product.setUpdatedDate(new Date());
@@ -398,7 +394,6 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public ProductResponse getProductById(Long id) {
-        // 1. Lấy sản phẩm kèm product details
         Product product = productRepository.findByIdWithProductDetails(id)
                 .orElseThrow(() -> new IllegalArgumentException("Product not found: " + id));
 
@@ -428,31 +423,16 @@ public class ProductServiceImpl implements ProductService {
                 .collect(Collectors.toList());
         response.setProductDetails(detailResponses);
 
-        // 6. Lấy campaign đang hoạt động
+        // 6. Lấy campaign đang hoạt động và tìm discount tốt nhất cho product
         List<DiscountCampaign> activeCampaigns = discountCampaignRepository.findActiveCampaigns(LocalDateTime.now());
-
-        // 7. Giảm giá tốt nhất cho product
         double productDiscount = getBestDiscountPercentageForProduct(product, activeCampaigns);
-        Long bestProductCampaignId = getBestDiscountCampaignIdForProduct(product, activeCampaigns);
-
         response.setDiscountPercentage((int) Math.round(productDiscount));
         response.setDiscountedPrice(calculateDiscountPrice(product.getSellPrice(), productDiscount));
-        response.setDiscountCampaignId(bestProductCampaignId); // ✅ THÊM DÒNG NÀY
 
-        // 8. Áp dụng discount cho từng productDetail
+        // 7. Áp dụng discount của product cho từng productDetail
         for (ProductDetailResponse detail : detailResponses) {
-            double detailDiscount = getBestDiscountPercentageForProductDetail(detail.getId(), activeCampaigns);
-            Long bestDetailCampaignId = (long) getBestDiscountPercentageForProductDetail(detail.getId(), activeCampaigns);
-
-            // Nếu productDetail không có giảm riêng, dùng giảm của product
-            if (detailDiscount <= 0) {
-                detailDiscount = productDiscount;
-                bestDetailCampaignId = bestProductCampaignId;
-            }
-
-            detail.setDiscountPercentage((int) Math.round(detailDiscount));
-            detail.setDiscountedPrice(calculateDiscountPrice(detail.getSellPrice(), detailDiscount));
-            detail.setDiscountCampaignId(bestDetailCampaignId); // ✅ THÊM DÒNG NÀY
+            detail.setDiscountPercentage((int) Math.round(productDiscount));
+            detail.setDiscountedPrice(calculateDiscountPrice(detail.getSellPrice(), productDiscount));
         }
 
         return response;
@@ -796,6 +776,35 @@ public class ProductServiceImpl implements ProductService {
 
             return response;
         }).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<ProductResponse> findProducts(List<Long> productIds) {
+        List<Product> products = productRepository.findAllByIds(productIds);
+        List<DiscountCampaign> activeCampaigns = discountCampaignRepository.findActiveCampaigns(LocalDateTime.now());
+
+        List<ProductResponse> responses = products.stream().map(product -> {
+            ProductResponse response = productMapper.toResponse(product);
+
+            double productDiscount = getBestDiscountPercentageForProduct(product, activeCampaigns);
+            response.setDiscountPercentage((int) Math.round(productDiscount));
+            response.setDiscountedPrice(calculateDiscountPrice(product.getSellPrice(), productDiscount));
+
+            if (response.getProductDetails() != null) {
+                for (ProductDetailResponse detailResponse : response.getProductDetails()) {
+                    double detailDiscount = getBestDiscountPercentageForProductDetail(detailResponse.getId(), activeCampaigns);
+                    if (detailDiscount <= 0) {
+                        detailDiscount = productDiscount;
+                    }
+                    detailResponse.setDiscountPercentage((int) Math.round(detailDiscount));
+                    detailResponse.setDiscountedPrice(calculateDiscountPrice(detailResponse.getSellPrice(), detailDiscount));
+                }
+            }
+
+            return response;
+        }).collect(Collectors.toList());
+
+        return responses;
     }
 
 

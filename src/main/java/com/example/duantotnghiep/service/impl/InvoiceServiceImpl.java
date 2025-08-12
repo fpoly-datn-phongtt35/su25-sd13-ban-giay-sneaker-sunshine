@@ -335,17 +335,18 @@ public class InvoiceServiceImpl implements InvoiceService {
 
     @Transactional
     public void cancelInvoice(Long invoiceId) {
-        // 1. Lấy hóa đơn theo ID
         Invoice invoice = invoiceRepository.findById(invoiceId)
                 .orElseThrow(() -> new RuntimeException("Hóa đơn không tồn tại"));
 
-        // 2. Lấy danh sách chi tiết hóa đơn của hóa đơn đó
-        List<InvoiceDetail> invoiceDetails = invoiceDetailRepository.findByInvoiceAndStatus(invoice, 1);
+        // Giải phóng giữ chỗ
+        releaseOldHolds(invoice);
 
-        // 4. Xóa hết chi tiết hóa đơn liên quan
+        // Xóa chi tiết
+        List<InvoiceDetail> invoiceDetails = invoiceDetailRepository.findByInvoiceAndStatus(invoice, 1);
         invoiceDetailRepository.deleteAll(invoiceDetails);
 
-        // 5. Cập nhật trạng thái hóa đơn là đã hủy (giả sử status=2 là hủy)
+        // Bỏ voucher + reset
+        invoice.setVoucher(null);
         invoice.setStatus(TrangThaiTong.DA_HUY);
         invoice.setTotalAmount(BigDecimal.ZERO);
         invoice.setFinalAmount(BigDecimal.ZERO);
@@ -353,6 +354,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         invoice.setUpdatedDate(new Date());
         invoiceRepository.save(invoice);
     }
+
 
     @Transactional
     @Override
@@ -362,13 +364,14 @@ public class InvoiceServiceImpl implements InvoiceService {
         if (invoice.getStatus() != TrangThaiTong.DANG_XU_LY)
             throw new RuntimeException("Chỉ checkout khi hóa đơn đang xử lý");
 
-        // Tính lại giá/giảm trước khi trừ kho
+        // 1) Tính lại giá/giảm
         applyDiscountToInvoiceDetails(invoice);
         updateInvoiceTotal(invoice);
 
         String username = currentUsername();
         LocalDateTime now = LocalDateTime.now();
 
+        // 2) Trừ kho
         List<InvoiceDetail> details = invoiceDetailRepository.findByInvoiceAndStatus(invoice, 1);
         for (InvoiceDetail d : details) {
             ProductDetail pd = productDetailRepository.findById(d.getProductDetail().getId())
@@ -383,15 +386,20 @@ public class InvoiceServiceImpl implements InvoiceService {
             productDetailRepository.save(pd);
         }
 
+        // 3) Đánh dấu thanh toán thành công
         invoice.setStatus(TrangThaiTong.THANH_CONG);
         invoice.setIsPaid(true);
         invoice.setUpdatedBy(username);
         invoice.setUpdatedDate(new Date());
         invoiceRepository.save(invoice);
 
-        handleUsedVoucher(invoice, username, now);
+        // 4) Ghi nhận voucher đã dùng (chỉ lúc này)
+        markVoucherUsedIfAny(invoice, now);
+
+        // (tuỳ) tặng voucher khuyến khích sau đơn
         handleAutoPromoVoucher(invoice, username, now);
     }
+
 
     private void handleUsedVoucher(Invoice invoice, String username, LocalDateTime now) {
         Voucher usedVoucher = invoice.getVoucher();
@@ -701,32 +709,54 @@ public class InvoiceServiceImpl implements InvoiceService {
 
     @Transactional
     public Invoice applyVoucherToInvoice(Long invoiceId, String voucherCode) {
-        if (voucherCode == null || voucherCode.isBlank()) throw new RuntimeException("Voucher code trống");
+        if (voucherCode == null || voucherCode.isBlank())
+            throw new RuntimeException("Mã voucher không được để trống");
 
         Invoice invoice = invoiceRepository.findById(invoiceId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy hóa đơn"));
+
+        if (invoice.getCustomer() == null) {
+            throw new RuntimeException("Vui lòng chọn khách hàng trước khi áp voucher");
+        }
 
         Voucher voucher = voucherRepository.findByVoucherCode(voucherCode.trim())
                 .orElseThrow(() -> new RuntimeException("Voucher không tồn tại"));
 
         LocalDateTime now = LocalDateTime.now();
         if (voucher.getStatus() == null || voucher.getStatus() != 1) throw new RuntimeException("Voucher không khả dụng");
-        if (voucher.getStartDate()!=null && now.isBefore(voucher.getStartDate())) throw new RuntimeException("Voucher chưa hiệu lực");
+        if (voucher.getStartDate()!=null && now.isBefore(voucher.getStartDate())) throw new RuntimeException("Voucher chưa đến thời gian áp dụng");
         if (voucher.getEndDate()!=null && now.isAfter(voucher.getEndDate())) throw new RuntimeException("Voucher đã hết hạn");
-        if (voucher.getCustomer()!=null && invoice.getCustomer()!=null
+        if (voucher.getCustomer()!=null
                 && !voucher.getCustomer().getId().equals(invoice.getCustomer().getId()))
             throw new RuntimeException("Voucher không áp dụng cho khách hàng này");
 
-        // Gán voucher và tính lại tổng (voucher tính trên subtotal sau giảm SP)
-        invoice.setVoucher(voucher);
+        // Tính subtotal sau giảm SP để check min
         applyDiscountToInvoiceDetails(invoice);
         updateInvoiceTotal(invoice);
 
-        // Tính chính xác phần voucher để lưu history
         List<InvoiceDetail> details = invoiceDetailRepository.findByInvoiceAndStatus(invoice, 1);
         BigDecimal subtotalAfterProduct = details.stream()
                 .map(d -> money(d.getDiscountedPrice()).multiply(BigDecimal.valueOf(d.getQuantity())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal minOrderValue = voucher.getMinOrderValue() != null ? money(voucher.getMinOrderValue()) : BigDecimal.ZERO;
+        if (subtotalAfterProduct.compareTo(minOrderValue) < 0) {
+            throw new RuntimeException("Số tiền tối thiểu để áp dụng voucher là " + minOrderValue + "đ");
+        }
+
+        // ❗ Quy tắc "1 mã/khách": KH đã dùng mã này trước đó?
+        boolean usedElsewhere = voucherHistoryRepository
+                .existsByVoucherAndCustomerAndStatusAndInvoiceNot(
+                        voucher, invoice.getCustomer(), 1, invoice);
+        if (usedElsewhere) {
+            throw new RuntimeException("Khách hàng đã sử dụng mã voucher này trước đó.");
+        }
+
+        // Cho phép switch voucher trên cùng invoice → dọn hold cũ rồi giữ chỗ mới
+        releaseOldHolds(invoice);
+
+        invoice.setVoucher(voucher);
+        updateInvoiceTotal(invoice);
 
         BigDecimal voucherDiscount = calculateVoucherDiscountForAmount(subtotalAfterProduct, voucher);
 
@@ -736,11 +766,12 @@ public class InvoiceServiceImpl implements InvoiceService {
         hist.setCustomer(invoice.getCustomer());
         hist.setUsedAt(now);
         hist.setDiscountValueApplied(voucherDiscount);
-        hist.setStatus(0); // pending, sẽ set=1 khi thanh toán
+        hist.setStatus(0); // giữ chỗ
         voucherHistoryRepository.save(hist);
 
         return invoiceRepository.save(invoice);
     }
+
 
     @Transactional
     public Invoice applyBestVoucherToInvoice(Long invoiceId) {
@@ -755,70 +786,133 @@ public class InvoiceServiceImpl implements InvoiceService {
 
         Customer customer = invoice.getCustomer();
         if (customer == null) {
+            releaseOldHolds(invoice);
             invoice.setVoucher(null);
             updateInvoiceTotal(invoice);
             return invoiceRepository.save(invoice);
         }
 
         LocalDateTime now = LocalDateTime.now();
+
         BigDecimal base = details.stream()
                 .map(d -> money(d.getDiscountedPrice()).multiply(BigDecimal.valueOf(d.getQuantity())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        List<Voucher> candidates = voucherRepository.findAll().stream()
-                .filter(v -> v.getStatus()!=null && v.getStatus()==1)
-                .filter(v -> v.getQuantity()==null || v.getQuantity()>0)
-                .filter(v -> isActive(now, v.getStartDate(), v.getEndDate()))
-                .filter(v -> base.compareTo(money(v.getMinOrderValue())) >= 0)
-                .filter(v -> v.getCustomer()==null || v.getCustomer().getId().equals(customer.getId()))
-                .filter(v -> !voucherHistoryRepository.existsByVoucherAndCustomerAndInvoiceNot(v, customer, invoice))
-                .collect(Collectors.toList());
+        if (base.compareTo(BigDecimal.ZERO) <= 0) {
+            releaseOldHolds(invoice);
+            invoice.setVoucher(null);
+            updateInvoiceTotal(invoice);
+            return invoiceRepository.save(invoice);
+        }
+
+        // Lấy danh sách voucher hợp lệ
+        List<Voucher> eligible = voucherRepository.findEligibleVouchers(customer.getId(), base, now);
+
+        // ❗ Loại các voucher KH đã dùng ở hóa đơn khác
+        Set<Long> usedIds = voucherHistoryRepository
+                .findVoucherIdsUsedByCustomerExcludingInvoice(customer.getId(), invoiceId);
 
         Voucher best = null;
         BigDecimal bestDiscount = BigDecimal.ZERO;
-        for (Voucher v : candidates) {
+        for (Voucher v : eligible) {
+            if (usedIds.contains(v.getId())) continue; // bỏ qua mã đã dùng
             BigDecimal d = calculateVoucherDiscountForAmount(base, v);
             if (d.compareTo(bestDiscount) > 0) {
                 best = v; bestDiscount = d;
             }
         }
 
+        releaseOldHolds(invoice);
+
         invoice.setVoucher(best);
         updateInvoiceTotal(invoice);
 
         if (best != null) {
-            VoucherHistory h = new VoucherHistory();
-            h.setVoucher(best);
-            h.setInvoice(invoice);
-            h.setCustomer(customer);
-            h.setUsedAt(now);
-            h.setDiscountValueApplied(bestDiscount);
-            h.setStatus(0);
-            voucherHistoryRepository.save(h);
+            VoucherHistory hold = new VoucherHistory();
+            hold.setVoucher(best);
+            hold.setInvoice(invoice);
+            hold.setCustomer(customer);
+            hold.setUsedAt(now);
+            hold.setDiscountValueApplied(bestDiscount);
+            hold.setStatus(0); // giữ chỗ
+            voucherHistoryRepository.save(hold);
         }
+
         return invoiceRepository.save(invoice);
     }
+
+
+
+    /** Hủy các giữ cũ (status=0) của chính hóa đơn này để tránh trùng bản ghi */
+    private void releaseOldHolds(Invoice invoice) {
+        List<VoucherHistory> olds = voucherHistoryRepository.findByInvoice(invoice);
+        for (VoucherHistory h : olds) {
+            if (h.getStatus() != null && h.getStatus() == 0) {
+                h.setStatus(2); // hủy giữ chỗ
+            }
+        }
+        voucherHistoryRepository.saveAll(olds);
+    }
+
+
+    private void markVoucherUsedIfAny(Invoice invoice, LocalDateTime now) {
+        Voucher voucher = invoice.getVoucher();
+        Customer customer = invoice.getCustomer();
+        if (voucher == null || customer == null) return;
+
+        // ✅ Double-check: KH đã dùng mã này trước đó?
+        boolean usedElsewhere = voucherHistoryRepository
+                .existsByVoucherAndCustomerAndStatusAndInvoiceNot(voucher, customer, 1, invoice);
+        if (usedElsewhere) {
+            throw new RuntimeException("Voucher này đã được khách hàng sử dụng trước đó.");
+        }
+
+        VoucherHistory hold = voucherHistoryRepository
+                .findTopByInvoiceAndVoucherAndStatus(invoice, voucher, 0)
+                .orElse(null);
+
+        if (hold != null) {
+            hold.setStatus(1); // used
+            hold.setUsedAt(now);
+            voucherHistoryRepository.save(hold);
+        } else {
+            VoucherHistory used = new VoucherHistory();
+            used.setVoucher(voucher);
+            used.setInvoice(invoice);
+            used.setCustomer(customer);
+            used.setUsedAt(now);
+            used.setDiscountValueApplied(invoice.getDiscountAmount());
+            used.setStatus(1);
+            voucherHistoryRepository.save(used);
+        }
+
+        if (voucher.getQuantity() != null) {
+            voucher.setQuantity(voucher.getQuantity() - 1);
+            voucherRepository.save(voucher);
+        }
+    }
+
 
     @Transactional
     public Invoice removeVoucherFromInvoice(Long invoiceId) {
         Invoice invoice = invoiceRepository.findById(invoiceId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy hóa đơn"));
 
-        // Kiểm tra nếu hóa đơn không có voucher thì báo lỗi
         if (invoice.getVoucher() == null) {
             throw new RuntimeException("Hóa đơn hiện không có voucher để bỏ");
         }
 
-        // Xóa voucher
+        // Giải phóng giữ chỗ của chính invoice
+        releaseOldHolds(invoice);
+
         invoice.setVoucher(null);
         invoice.setUpdatedDate(new Date());
         invoice.setUpdatedBy(SecurityContextHolder.getContext().getAuthentication().getName());
-
-        // Tính lại tổng: discount chỉ còn giảm giá sản phẩm (nếu có)
         updateInvoiceTotal(invoice);
 
         return invoiceRepository.save(invoice);
     }
+
 
     /**
      * Tạo hóa đơn(bán tại quầy)

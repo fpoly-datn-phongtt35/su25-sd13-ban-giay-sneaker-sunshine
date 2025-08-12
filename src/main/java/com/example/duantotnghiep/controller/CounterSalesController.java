@@ -27,6 +27,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -206,20 +207,28 @@ public class CounterSalesController {
             Invoice updatedInvoice = invoiceService.applyVoucherToInvoice(invoiceId, voucherCode);
 
             if (updatedInvoice.getVoucher() == null) {
-                return ResponseEntity.badRequest().body("Không thể áp dụng voucher.");
+                return ResponseEntity.badRequest()
+                        .body("Không thể áp dụng voucher.");
             }
 
-            VoucherResponse response = voucherMapper.toDto(updatedInvoice.getVoucher());
+            // Trả kèm thông tin hóa đơn và voucher để FE cập nhật
+            Map<String, Object> response = new HashMap<>();
+            response.put("voucher", voucherMapper.toDto(updatedInvoice.getVoucher()));
+            response.put("finalAmount", updatedInvoice.getFinalAmount());
+            response.put("discountAmount", updatedInvoice.getDiscountAmount());
+
             return ResponseEntity.ok(response);
 
         } catch (RuntimeException ex) {
+            // Trả thẳng message từ service (bao gồm cả min order)
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body("Lỗi áp dụng voucher: " + ex.getMessage());
+                    .body(ex.getMessage());
         } catch (Exception ex) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Đã xảy ra lỗi hệ thống khi áp dụng voucher.");
         }
     }
+
 
     @PostMapping("/{invoiceId}/apply-best-voucher")
     public ResponseEntity<?> applyBestVoucher(@PathVariable Long invoiceId) {

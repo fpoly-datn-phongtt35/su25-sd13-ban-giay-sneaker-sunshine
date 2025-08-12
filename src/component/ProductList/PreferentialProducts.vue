@@ -2,7 +2,7 @@
   <div class="product-collection-container">
     <!-- Header -->
     <div class="collection-header">
-      <h2 class="collection-title">Bộ sưu tập</h2>
+      <h2 class="collection-title">Sản Phẩm Ưu Đãi</h2>
     </div>
 
     <!-- States -->
@@ -11,91 +11,97 @@
 
     <!-- Product grid -->
     <el-main v-else class="product-list-main">
-      <el-row :gutter="30">
-        <el-col
-          v-for="p in products"
-          :key="p.id"
-          :xs="24" :sm="12" :md="8" :lg="6"
-        >
-          <div class="product-card">
-            <div class="product-card__image-wrapper">
-              <span v-if="p.discountPercentage > 0" class="product-card__discount-badge">
-                -{{ p.discountPercentage }}%
-              </span>
+      <template v-if="discountedProducts.length === 0">
+        <el-empty description="Không có sản phẩm đang giảm ở trang này" />
+      </template>
 
-              <img
-                :src="p.activeImage"
-                class="product-card__image"
-                :alt="`Ảnh ${p.productName}`"
-                loading="lazy"
-                decoding="async"
-                @click="goToDetail(p.id)"
-              />
+      <template v-else>
+        <el-row :gutter="30">
+          <el-col
+            v-for="p in discountedProducts"
+            :key="p.id"
+            :xs="24" :sm="12" :md="8" :lg="6"
+          >
+            <div class="product-card">
+              <div class="product-card__image-wrapper">
+                <span v-if="hasDiscount(p)" class="product-card__discount-badge">
+                  -{{ discountPercent(p) }}%
+                </span>
 
-              <el-button
-                :icon="ShoppingCart"
-                circle
-                size="large"
-                class="product-card__quick-view-btn"
-                aria-label="Xem nhanh"
-                @click.stop="openQuickViewModal(p)"
-              />
-            </div>
+                <img
+                  :src="p.activeImage"
+                  class="product-card__image"
+                  :alt="`Ảnh ${p.productName}`"
+                  loading="lazy"
+                  decoding="async"
+                  @click="goToDetail(p.id)"
+                />
 
-            <div class="product-card__info">
-              <p class="product-card__name" @click="goToDetail(p.id)">
-                {{ p.productName }}
-              </p>
-
-              <div class="product-card__price-container">
-                <template v-if="p.discountPercentage > 0 && Number(p.discountedPrice) > 0">
-                  <span class="discounted-price">{{ formatPrice(p.discountedPrice) }}</span>
-                  <del class="original-price">{{ formatPrice(p.sellPrice) }}</del>
-                </template>
-                <template v-else>
-                  <span class="normal-price">{{ formatPrice(p.sellPrice) }}</span>
-                </template>
-              </div>
-
-              <div class="product-card__colors" v-if="p.variants?.length">
-                <span
-                  v-for="v in p.variants"
-                  :key="v.colorId"
-                  class="product-card__color-dot"
-                  :style="{ backgroundColor: v.colorCode }"
-                  :title="v.colorName"
-                  aria-label="Chọn màu"
-                  @click.stop="changeProductImage(p, v.image)"
+                <el-button
+                  :icon="ShoppingCart"
+                  circle
+                  size="large"
+                  class="product-card__quick-view-btn"
+                  aria-label="Xem nhanh"
+                  @click.stop="openQuickViewModal(p)"
                 />
               </div>
 
-              <el-button
-                v-if="p.id"
-                size="small"
-                :type="isFavorite(p.id) ? 'primary' : 'success'"
-                :icon="Star"
-                @click="toggleFavorite(p.id, p.productName)"
-              >
-                {{ isFavorite(p.id) ? 'Đã yêu thích' : 'Thêm vào Yêu thích' }}
-              </el-button>
-            </div>
-          </div>
-        </el-col>
-      </el-row>
+              <div class="product-card__info">
+                <p class="product-card__name" @click="goToDetail(p.id)">
+                  {{ p.productName }}
+                </p>
 
-      <!-- Pagination -->
-      <div class="pagination-container">
-        <el-pagination
-          v-if="totalItems > 0"
-          v-model:current-page="currentPage"
-          v-model:page-size="pageSize"
-          :page-sizes="[12, 24, 36, 48]"
-          :total="totalItems"
-          layout="total, prev, pager, next, jumper"
-          @size-change="handlePageChange"
-          @current-change="handlePageChange"
-        />
-      </div>
+                <div class="product-card__price-container">
+                  <template v-if="hasDiscount(p)">
+                    <span class="discounted-price">{{ formatPrice(bestPrice(p).discounted) }}</span>
+                    <del class="original-price">{{ formatPrice(bestPrice(p).sell) }}</del>
+                  </template>
+                  <template v-else>
+                    <span class="normal-price">{{ formatPrice(p.sellPrice) }}</span>
+                  </template>
+                </div>
+
+                <div class="product-card__colors" v-if="p.variants?.length">
+                  <span
+                    v-for="v in p.variants"
+                    :key="v.colorId"
+                    class="product-card__color-dot"
+                    :style="{ backgroundColor: v.colorCode }"
+                    :title="v.colorName"
+                    aria-label="Chọn màu"
+                    @click.stop="changeProductImage(p, v.image)"
+                  />
+                </div>
+
+                <el-button
+                  v-if="p.id"
+                  size="small"
+                  :type="isFavorite(p.id) ? 'primary' : 'success'"
+                  :icon="Star"
+                  @click="toggleFavorite(p.id, p.productName)"
+                >
+                  {{ isFavorite(p.id) ? 'Đã yêu thích' : 'Thêm vào Yêu thích' }}
+                </el-button>
+              </div>
+            </div>
+          </el-col>
+        </el-row>
+
+        <!-- Pagination -->
+        <div class="pagination-container">
+          <el-pagination
+            v-if="displayTotal > 0"
+            v-model:current-page="currentPage"
+            v-model:page-size="pageSize"
+            :page-sizes="[12, 24, 36, 48]"
+            :total="displayTotal"
+            layout="total, prev, pager, next, jumper"
+            @size-change="handlePageChange"
+            @current-change="handlePageChange"
+          />
+        </div>
+      </template>
     </el-main>
 
     <!-- Quick View Dialog -->
@@ -186,11 +192,7 @@
       <template v-if="preOrderItem">
         <p><strong>{{ preOrderItem.productName }}</strong></p>
 
-        <div
-          class="quick-view__color-selector"
-          style="margin-top: 20px"
-          v-if="preOrderAvailableColors.length"
-        >
+        <div class="quick-view__color-selector" style="margin-top: 20px" v-if="preOrderAvailableColors.length">
           <p class="selector-label">Chọn màu:</p>
           <div
             v-for="v in preOrderAvailableColors"
@@ -203,11 +205,7 @@
           </div>
         </div>
 
-        <div
-          class="quick-view__size-selector"
-          style="margin-top: 20px"
-          v-if="preOrderAvailableSizes.length"
-        >
+        <div class="quick-view__size-selector" style="margin-top: 20px" v-if="preOrderAvailableSizes.length">
           <p class="selector-label">Chọn kích thước:</p>
           <el-button
             v-for="s in preOrderAvailableSizes"
@@ -245,7 +243,7 @@ import { addToCart } from '@/utils/cart.js'
 const router = useRouter()
 
 /* =========================
- * Constants / base helpers
+ * Helpers
  * ========================= */
 const PLACEHOLDER_IMG = 'https://via.placeholder.com/400'
 
@@ -260,11 +258,9 @@ const colorCodeOf = (colorName) => {
   const name = String(colorName).trim().toLowerCase()
   if (isHexColor(name)) return name
   const map = {
-    // vi-VN
     'đen':'#000000','trắng':'#FFFFFF','đỏ':'#FF0000','xanh dương':'#0000FF','xanh lá':'#008000','xám':'#808080',
     'bạc':'#C0C0C0','hồng':'#FFC0CB','vàng':'#FFFF00','tím':'#800080','cam':'#FFA500','nâu':'#A52A2A',
     'xanh navy':'#000080','be':'#F5F5DC','vàng gold':'#FFD700',
-    // en-US
     'black':'#000000','white':'#FFFFFF','red':'#FF0000','blue':'#0000FF','green':'#008000','grey':'#808080','gray':'#808080',
     'silver':'#C0C0C0','pink':'#FFC0CB','yellow':'#FFFF00','purple':'#800080','orange':'#FFA500','brown':'#A52A2A',
     'navy':'#000080','beige':'#F5F5DC','gold':'#FFD700',
@@ -282,6 +278,14 @@ const sizeComparator = (a, b) => {
   const wa = order[A] ?? 999
   const wb = order[B] ?? 999
   return wa - wb || A.localeCompare(B)
+}
+const toNum = (v) => {
+  const n = Number(v)
+  return Number.isFinite(n) ? n : 0
+}
+const isDiscountedPrice = (sell, disc) => {
+  const s = toNum(sell), d = toNum(disc)
+  return s > 0 && d > 0 && d < s
 }
 
 /* =========================
@@ -355,9 +359,7 @@ const fetchProducts = async () => {
 
     // Unique by id + normalize
     const map = new Map()
-    for (const item of content) {
-      if (item && item.id != null) map.set(item.id, item)
-    }
+    for (const item of content) if (item && item.id != null) map.set(item.id, item)
     products.value = Array.from(map.values()).map(normalizeProduct)
 
     const pageMeta = payload.page || payload.data?.page || {}
@@ -372,6 +374,7 @@ const fetchProducts = async () => {
     isLoading.value = false
   }
 }
+
 const normalizeProduct = (p) => {
   const details = Array.isArray(p.productDetails) ? p.productDetails : []
   const images = Array.isArray(p.productImages) ? p.productImages : []
@@ -395,6 +398,44 @@ const normalizeProduct = (p) => {
   const activeImage = variants[0]?.image || images[0]?.url || PLACEHOLDER_IMG
   return { ...p, variants, activeImage }
 }
+
+/* =========================
+ * Discount logic (filter + display)
+ * ========================= */
+const hasDiscount = (p) => {
+  if (!p) return false
+  if (toNum(p.discountPercentage) > 0) return true
+  if (isDiscountedPrice(p.sellPrice, p.discountedPrice)) return true
+  const details = Array.isArray(p.productDetails) ? p.productDetails : []
+  return details.some(d => toNum(d?.discountPercentage) > 0 || isDiscountedPrice(d?.sellPrice ?? p.sellPrice, d?.discountedPrice))
+}
+
+const bestPrice = (p) => {
+  // Trả về { sell, discounted, percent } để hiển thị card
+  let sell = toNum(p.sellPrice)
+  let discounted = isDiscountedPrice(p.sellPrice, p.discountedPrice) ? toNum(p.discountedPrice) : null
+  let percent = toNum(p.discountPercentage)
+
+  if (discounted == null) {
+    const details = Array.isArray(p.productDetails) ? p.productDetails : []
+    for (const d of details) {
+      const s = toNum(d?.sellPrice ?? sell)
+      const disc = toNum(d?.discountedPrice)
+      if (isDiscountedPrice(s, disc)) {
+        if (discounted == null || disc < discounted) {
+          discounted = disc
+          sell = s
+          percent = Math.max(percent, ((s - disc) * 100) / s)
+        }
+      }
+    }
+  }
+  return { sell, discounted: discounted ?? sell, percent: Math.round(percent) }
+}
+const discountPercent = (p) => bestPrice(p).percent
+
+const discountedProducts = computed(() => products.value.filter(hasDiscount))
+const displayTotal = computed(() => discountedProducts.value.length)
 
 /* =========================
  * Pagination
@@ -460,8 +501,6 @@ const selectSize = (s) => {
 const findSelectedProductDetail = () => {
   const sp = selectedProduct.value
   if (!sp || !Array.isArray(sp.productDetails)) return null
-
-  // single detail, no color/size
   if (sp.productDetails.length === 1 && !sp.productDetails[0].colorId && !sp.productDetails[0].sizeName) {
     return sp.productDetails[0]
   }
@@ -476,7 +515,7 @@ const getStockForSize = (size) => {
   const sp = selectedProduct.value
   if (!sp) return 0
   const d = sp.productDetails?.find((x) => x.colorId === quickViewSelectedColorId.value && x.sizeName === size)
-  return Number(d?.quantity || 0)
+  return toNum(d?.quantity)
 }
 
 const availableSizesForQuickView = computed(() => {
@@ -490,7 +529,7 @@ const availableSizesForQuickView = computed(() => {
 })
 const selectedVariantStock = computed(() => {
   const d = findSelectedProductDetail()
-  return d ? Number(d.quantity || 0) : 0
+  return d ? toNum(d.quantity) : 0
 })
 const needSize = computed(() => {
   const sp = selectedProduct.value
@@ -538,13 +577,16 @@ const handleAddToCartInModal = () => {
     ElMessage.warning('Số lượng phải lớn hơn 0.')
     return false
   }
-  if (quickViewQuantity.value > Number(detail.quantity || 0)) {
+  if (quickViewQuantity.value > toNum(detail.quantity)) {
     ElMessage.warning(`Tồn kho không đủ (còn ${detail.quantity}). Bạn có thể đặt trước nếu muốn.`)
     openPreOrderDialog()
     return false
   }
 
-  const price = Number(detail.discountedPrice) > 0 ? Number(detail.discountedPrice) : Number(detail.sellPrice)
+  const price = isDiscountedPrice(detail.sellPrice, detail.discountedPrice)
+    ? toNum(detail.discountedPrice)
+    : toNum(detail.sellPrice)
+
   const item = {
     productDetailId: detail.id,
     productId: sp.id,
@@ -554,7 +596,7 @@ const handleAddToCartInModal = () => {
     size: quickViewSelectedSize.value || 'N/A',
     price,
     quantity: quickViewQuantity.value,
-    maxQuantity: Number(detail.quantity || 0),
+    maxQuantity: toNum(detail.quantity),
     discountCampaignId: detail.discountCampaignId || null,
   }
 
@@ -580,7 +622,6 @@ const openPreOrderDialog = () => { preOrderDialogVisible.value = true }
 
 watch(preOrderDialogVisible, (opened) => {
   if (opened && selectedProduct.value) {
-    // deep clone to not mutate quick view
     preOrderItem.value = JSON.parse(JSON.stringify(selectedProduct.value))
     if (preOrderItem.value.variants?.length) {
       preOrderSelectedColorId.value = preOrderItem.value.variants[0].colorId

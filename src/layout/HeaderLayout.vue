@@ -2,7 +2,10 @@
   <div class="header-wrapper">
     <div class="top-announcement-bar">
       <p class="scrolling-text">
-        <span>Chào mừng đến với cửa hàng giày Sunshine! Mua sắm ngay hôm nay để nhận ưu đãi đặc biệt!</span>
+        <span
+          >Chào mừng đến với cửa hàng giày Sunshine! Mua sắm ngay hôm nay để nhận ưu đãi đặc
+          biệt!</span
+        >
         <span>Miễn phí vận chuyển cho đơn hàng trên 500.000đ!</span>
         <span>Giảm giá 20% cho đơn hàng đầu tiên khi đăng ký tài khoản!</span>
       </p>
@@ -10,10 +13,9 @@
 
     <header class="main-header" :class="{ 'is-scrolled': isScrolled }">
       <div class="container d-flex align-items-center justify-content-between">
-
         <div class="header-logo-container">
           <RouterLink to="/">
-            <img :src="logoSrc" alt="Logo" class="site-logo" >
+            <img :src="logoSrc" alt="Logo" class="site-logo" />
           </RouterLink>
         </div>
 
@@ -33,7 +35,6 @@
         </nav>
 
         <div class="header-actions">
-
           <div class="search-input-container">
             <el-input
               v-model.trim="searchQuery"
@@ -56,14 +57,24 @@
             <Transition name="fade">
               <div v-if="showUserOptions" class="user-dropdown-menu">
                 <template v-if="user">
-                  <span class="dropdown-greeting">👋 {{ user.customerName || user.employeeName }}</span>
-                  <RouterLink to="/don-hang" class="dropdown-item" @click="closeDropdown"><i class="fas fa-receipt"></i> Đơn hàng</RouterLink>
+                  <span class="dropdown-greeting"
+                    >👋 {{ user.customerName || user.employeeName }}</span
+                  >
+                  <RouterLink to="/don-hang" class="dropdown-item" @click="closeDropdown"
+                    ><i class="fas fa-receipt"></i> Đơn hàng</RouterLink
+                  >
                   <RouterLink to="/san-pham-da-mua" class="dropdown-item" @click="closeDropdown">
-        <i class="fas fa-box-open"></i> Sản phẩm đã mua
-      </RouterLink>
-                  <RouterLink to="/thong-tin-ca-nhan" class="dropdown-item" @click="closeDropdown"><i class="fas fa-user-circle"></i> Thông tin cá nhân</RouterLink>
-                  <RouterLink to="/ma-giam-gia" class="dropdown-item" @click="closeDropdown"><i class="fas fa-tags"></i> Mã giảm giá</RouterLink>
-                  <button class="btn-logout" @click="logout"><i class="fas fa-sign-out-alt"></i> Đăng xuất</button>
+                    <i class="fas fa-box-open"></i> Sản phẩm đã mua
+                  </RouterLink>
+                  <RouterLink to="/thong-tin-ca-nhan" class="dropdown-item" @click="closeDropdown"
+                    ><i class="fas fa-user-circle"></i> Thông tin cá nhân</RouterLink
+                  >
+                  <RouterLink to="/ma-giam-gia" class="dropdown-item" @click="closeDropdown"
+                    ><i class="fas fa-tags"></i> Mã giảm giá</RouterLink
+                  >
+                  <button class="btn-logout" @click="logout">
+                    <i class="fas fa-sign-out-alt"></i> Đăng xuất
+                  </button>
                 </template>
                 <template v-else>
                   <button class="btn-register" @click="openRegisterModal">Đăng ký</button>
@@ -76,6 +87,10 @@
           <RouterLink to="/cart" class="header-icon-btn cart-icon-container" aria-label="Giỏ hàng">
             <el-icon :size="24"><ShoppingCart /></el-icon>
             <span v-if="cartCount > 0" class="cart-badge">{{ cartCount }}</span>
+          </RouterLink>
+
+          <RouterLink to="/san-pham-yeu-thich" class="header-icon-btn cart-icon-container" aria-label="Giỏ hàng">
+            <i class="bi bi-heart heart-icon"></i>
           </RouterLink>
         </div>
       </div>
@@ -109,110 +124,110 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch, onUnmounted } from 'vue';
-import { useRouter } from 'vue-router';
-import { ElMessage, ElIcon, ElInput, ElButton } from 'element-plus';
-import { User, Search, ShoppingCart, ArrowUp } from '@element-plus/icons-vue';
+import { ref, onMounted, watch, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { ElMessage, ElIcon, ElInput, ElButton } from 'element-plus'
+import { User, Search, ShoppingCart, ArrowUp } from '@element-plus/icons-vue'
 
 // Import các component con và tài nguyên
-import LoginModal from '@/component/LoginModal.vue';
-import RegisterCustomerModal from '@/component/RegisterCustomerModal.vue';
-import logoSrc from '@/img/logo.png';
+import LoginModal from '@/component/LoginModal.vue'
+import RegisterCustomerModal from '@/component/RegisterCustomerModal.vue'
+import logoSrc from '@/img/logo.png'
 
 // Khởi tạo
-const router = useRouter();
+const router = useRouter()
 
 // --- STATE ---
-const user = ref(null);
-const cartCount = ref(0);
-const searchQuery = ref('');
-const showLogin = ref(false);
-const showRegister = ref(false);
-const showUserOptions = ref(false);
-const isScrolled = ref(false);
-const showScrollTopButton = ref(false);
+const user = ref(null)
+const cartCount = ref(0)
+const searchQuery = ref('')
+const showLogin = ref(false)
+const showRegister = ref(false)
+const showUserOptions = ref(false)
+const isScrolled = ref(false)
+const showScrollTopButton = ref(false)
 
 const navLinks = [
   { path: '/', label: 'TRANG CHỦ' },
   { path: '/collections', label: 'SẢN PHẨM' },
-  { path: '/', label: 'SẢN PHẨM' },
-  { path: '/', label: 'SẢN PHẨM' },
-  { path: '/', label: 'GIẢM GIÁ', isSale: true },
+  { path: '/san-pham-uu-dai', label: 'ƯU ĐÃI' },
+  { path: '/', label: 'THƯƠNG HIỆU' },
+  // { path: '/', label: 'GIẢM GIÁ', isSale: true },
   { path: '/', label: 'STEAL KARINA STYLE' },
-];
+]
 
 // --- LIFECYCLE HOOKS ---
 onMounted(() => {
-  const storedUser = localStorage.getItem('user');
+  const storedUser = localStorage.getItem('user')
   if (storedUser) {
-    user.value = JSON.parse(storedUser);
+    user.value = JSON.parse(storedUser)
   }
-  updateCartCount();
+  updateCartCount()
 
-  window.addEventListener('scroll', handleScroll);
-  window.addEventListener('cart-updated', updateCartCount);
-  document.addEventListener('click', handleClickOutsideUserMenu);
-});
+  window.addEventListener('scroll', handleScroll)
+  window.addEventListener('cart-updated', updateCartCount)
+  document.addEventListener('click', handleClickOutsideUserMenu)
+})
 
 onUnmounted(() => {
-  window.removeEventListener('scroll', handleScroll);
-  window.removeEventListener('cart-updated', updateCartCount);
-  document.removeEventListener('click', handleClickOutsideUserMenu);
-});
+  window.removeEventListener('scroll', handleScroll)
+  window.removeEventListener('cart-updated', updateCartCount)
+  document.removeEventListener('click', handleClickOutsideUserMenu)
+})
 
 // --- WATCHERS ---
 watch(user, () => {
-  updateCartCount();
-});
+  updateCartCount()
+})
 
 // --- METHODS ---
 function updateCartCount() {
   try {
-    const userId = user.value?.id || 'guest';
-    const cartKey = `cart_${userId}`;
-    const cart = JSON.parse(localStorage.getItem(cartKey) || '[]');
+    const userId = user.value?.id || 'guest'
+    const cartKey = `cart_${userId}`
+    const cart = JSON.parse(localStorage.getItem(cartKey) || '[]')
     cartCount.value = Array.isArray(cart)
       ? cart.reduce((acc, item) => acc + (item.quantity || 0), 0)
-      : 0;
+      : 0
   } catch (error) {
-    console.error("Lỗi khi cập nhật giỏ hàng:", error);
-    cartCount.value = 0;
+    console.error('Lỗi khi cập nhật giỏ hàng:', error)
+    cartCount.value = 0
   }
 }
 
 const handleLoggedIn = (userData) => {
-  localStorage.setItem('user', JSON.stringify(userData));
-  user.value = userData;
-  ElMessage.success('Đăng nhập thành công!');
-  showLogin.value = false;
-};
+  localStorage.setItem('user', JSON.stringify(userData))
+  user.value = userData
+  ElMessage.success('Đăng nhập thành công!')
+  showLogin.value = false
+}
 
 const handleRegisterSuccess = () => {
-  ElMessage.success('Đăng ký thành công! Vui lòng đăng nhập.');
-  showRegister.value = false;
-  showLogin.value = true;
-};
+  ElMessage.success('Đăng ký thành công! Vui lòng đăng nhập.')
+  showRegister.value = false
+  showLogin.value = true
+}
 
 const logout = () => {
-  const userId = user.value?.id; // Lấy userId trước khi user.value bị xóa
+  const userId = user.value?.id // Lấy userId trước khi user.value bị xóa
 
   // --- BẮT ĐẦU XÓA TẤT CẢ CÁC MỤC LIÊN QUAN ĐẾN PHIÊN ---
 
   // 1. Xóa thông tin người dùng chính (đối tượng JSON được lưu dưới khóa 'user')
-  localStorage.removeItem('user');
+  localStorage.removeItem('user')
 
   // 2. Xóa các mục riêng lẻ nếu chúng vẫn còn tồn tại (do cách lưu trữ cũ hoặc lỗi/thiếu đồng bộ)
-  localStorage.removeItem('token');
-  localStorage.removeItem('employeeName');
-  localStorage.removeItem('customerName');
-  localStorage.removeItem('userId');
+  localStorage.removeItem('token')
+  localStorage.removeItem('employeeName')
+  localStorage.removeItem('customerName')
+  localStorage.removeItem('userId')
 
   // 3. Xóa các mục giỏ hàng
   if (userId) {
-    localStorage.removeItem(`cart_${userId}`); // Giỏ hàng của người dùng đã đăng nhập
+    localStorage.removeItem(`cart_${userId}`) // Giỏ hàng của người dùng đã đăng nhập
   }
-  localStorage.removeItem('cart_guest'); // Giỏ hàng của khách vãng lai
-  localStorage.removeItem('cart'); // Xóa key 'cart' chung nếu nó không phải là giỏ hàng guest/user cụ thể
+  localStorage.removeItem('cart_guest') // Giỏ hàng của khách vãng lai
+  localStorage.removeItem('cart') // Xóa key 'cart' chung nếu nó không phải là giỏ hàng guest/user cụ thể
 
   // 4. Nếu bạn có bất kỳ key nào khác liên quan đến phiên đăng nhập được lưu riêng lẻ,
   // hãy thêm chúng vào đây. Ví dụ:
@@ -222,51 +237,51 @@ const logout = () => {
   // --- KẾT THÚC XÓA TẤT CẢ CÁC MỤC LIÊN QUAN ĐẾN PHIÊN ---
 
   // Đặt lại trạng thái trong ứng dụng sau khi đăng xuất
-  user.value = null;
-  cartCount.value = 0;
-  showUserOptions.value = false; // Đóng dropdown menu
-  ElMessage.success('Đăng xuất thành công!');
-  router.push('/'); // Chuyển hướng về trang chủ hoặc trang đăng nhập
-};
+  user.value = null
+  cartCount.value = 0
+  showUserOptions.value = false // Đóng dropdown menu
+  ElMessage.success('Đăng xuất thành công!')
+  router.push('/') // Chuyển hướng về trang chủ hoặc trang đăng nhập
+}
 const handleScroll = () => {
-  const scrollPosition = window.scrollY;
-  isScrolled.value = scrollPosition > 50;
-  showScrollTopButton.value = scrollPosition > 300;
-};
+  const scrollPosition = window.scrollY
+  isScrolled.value = scrollPosition > 50
+  showScrollTopButton.value = scrollPosition > 300
+}
 
 const scrollToTop = () => {
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-};
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
 
 const performSearch = () => {
-  if (!searchQuery.value) return;
-  router.push({ path: '/search-results', query: { q: searchQuery.value } });
-};
+  if (!searchQuery.value) return
+  router.push({ path: '/search-results', query: { q: searchQuery.value } })
+}
 
 const toggleUserDropdown = (event) => {
-  event.stopPropagation();
-  showUserOptions.value = !showUserOptions.value;
-};
+  event.stopPropagation()
+  showUserOptions.value = !showUserOptions.value
+}
 
 const closeDropdown = () => {
-  showUserOptions.value = false;
-};
+  showUserOptions.value = false
+}
 
 const openLoginModal = () => {
-  closeDropdown();
-  showLogin.value = true;
-};
+  closeDropdown()
+  showLogin.value = true
+}
 
 const openRegisterModal = () => {
-  closeDropdown();
-  showRegister.value = true;
-};
+  closeDropdown()
+  showRegister.value = true
+}
 
 const handleClickOutsideUserMenu = (event) => {
   if (showUserOptions.value && !event.target.closest('.user-menu-container')) {
-    showUserOptions.value = false;
+    showUserOptions.value = false
   }
-};
+}
 </script>
 
 <style scoped>
@@ -288,8 +303,12 @@ const handleClickOutsideUserMenu = (event) => {
 
 /* --- THANH THÔNG BÁO CHẠY CHỮ --- */
 @keyframes scroll-text {
-  0% { transform: translateX(0%); }
-  100% { transform: translateX(-50%); }
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
 }
 .top-announcement-bar {
   background-color: #000;
@@ -357,7 +376,8 @@ const handleClickOutsideUserMenu = (event) => {
   transition: color 0.2s ease;
   border-radius: 5px;
 }
-.nav-link:hover, .nav-link.is-active {
+.nav-link:hover,
+.nav-link.is-active {
   color: var(--primary-color);
 }
 .nav-link.text-red-sale {
@@ -416,7 +436,7 @@ const handleClickOutsideUserMenu = (event) => {
   background-color: #fff;
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
   padding: 10px;
   width: 200px;
   z-index: 1010;
@@ -467,7 +487,6 @@ const handleClickOutsideUserMenu = (event) => {
   border-color: var(--danger-color);
 }
 
-
 /* Scroll-to-top Button */
 .scroll-to-top-btn {
   position: fixed;
@@ -489,8 +508,20 @@ const handleClickOutsideUserMenu = (event) => {
 
 /* Responsive */
 @media (max-width: 992px) {
-  .header-nav, .search-input-container {
+  .header-nav,
+  .search-input-container {
     display: none;
   }
 }
+
+.heart-icon {
+  font-size: 24px;
+  color: black;
+  transition: color 0.2s ease;
+}
+
+.cart-icon-container:hover .heart-icon {
+  color: red;
+}
+
 </style>

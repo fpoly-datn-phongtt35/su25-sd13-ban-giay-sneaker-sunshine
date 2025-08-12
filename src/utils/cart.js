@@ -56,3 +56,17 @@ export function addToCart(item) {
 export function clearCart() {
   localStorage.removeItem('cart')
 }
+
+export async function getFavoritesByCustomer(customerId) {
+  const favorites = JSON.parse(localStorage.getItem('favorites')) || []
+
+  // Lọc ra sản phẩm yêu thích của customerId
+  const myFavorites = favorites.filter(
+    fav => fav.customerId === customerId
+  )
+
+  // Giả lập delay API
+  await new Promise(resolve => setTimeout(resolve, 200))
+
+  return myFavorites
+}

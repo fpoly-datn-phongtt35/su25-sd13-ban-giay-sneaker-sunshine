@@ -601,6 +601,10 @@ const removeLoading = ref(false)
 
 const isLoading = ref(false)
 
+
+const addingProduct = ref(false)
+const selectingCustomer = ref(false)
+
 /* ----------------- Helpers ----------------- */
 const formatCurrency = (v) =>
   v == null ? '' : Number(v).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })
@@ -922,10 +926,14 @@ const closeProductDialog = () => {
 const confirmAddProduct = async () => {
   const id = invoiceDetails.value?.invoice?.id
   if (!id) return ElMessage.warning('Hóa đơn không hợp lệ.')
+
   const matched = attributes.value.find(
-    (a) => a.size?.id === selectedSizeId.value && a.color?.id === selectedColorId.value,
+    (a) => a.size?.id === selectedSizeId.value && a.color?.id === selectedColorId.value
   )
   if (!matched) return ElMessage.warning('Vui lòng chọn đủ size & màu.')
+
+  if (addingProduct.value) return
+  addingProduct.value = true
 
   try {
     await apiClient.post(`/admin/counter-sales/${id}/details`, {
@@ -933,22 +941,22 @@ const confirmAddProduct = async () => {
       quantity: selectedQuantity.value,
       discountCampaignId: matched.discountCampaignId ?? null,
     })
+
     ElMessage.success(`Đã thêm "${currentProduct.value.productName}" vào giỏ.`)
     closeProductDialog()
 
-    await fetchInvoiceDetails(id)
+    // Áp voucher tự động sau khi thêm sp
+    const { applied, message } = await autoApplyBestVoucher(id)
+    if (message) {
+      applied ? ElMessage.success(message) : ElMessage.info(message)
+    }
 
-    // auto apply best voucher (không fail app)
-    try {
-      const res = await apiClient.post(`/admin/counter-sales/${id}/apply-best-voucher`)
-      appliedVoucher.value = res.data && typeof res.data === 'object' ? res.data : null
-      if (appliedVoucher.value) ElMessage.success('Đã áp dụng voucher tốt nhất.')
-    } catch {}
-
-    await fetchInvoiceDetails(id)
-    await fetchVoucherByInvoiceId(id)
+    // Refresh UI đồng thời
+    await Promise.all([fetchInvoiceDetails(id), fetchVoucherByInvoiceId(id)])
   } catch (e) {
     ElMessage.error(e?.response?.data || 'Thêm sản phẩm thất bại.')
+  } finally {
+    addingProduct.value = false
   }
 }
 
@@ -990,15 +998,35 @@ const deleteCartItem = async (detailId) => {
 /* ----------------- Khách hàng ----------------- */
 const selectCustomer = async (customer) => {
   if (!invoiceId.value) return ElMessage.error('Chưa chọn hóa đơn.')
+  if (!customer?.id)   return ElMessage.warning('Khách hàng không hợp lệ.')
+
+  if (selectingCustomer.value) return
+  selectingCustomer.value = true
+
   try {
+    // 1) Gán khách cho hóa đơn
     await apiClient.put(`/admin/counter-sales/${invoiceId.value}/assign-customer`, {
       customerId: customer.id,
     })
-    await fetchInvoiceDetails(invoiceId.value)
-    await fetchVoucherByInvoiceId(invoiceId.value)
+
+    // 2) Tự động áp voucher tốt nhất (không làm vỡ luồng nếu lỗi)
+    const { applied, message } = await autoApplyBestVoucher(invoiceId.value)
+    if (message) {
+      applied ? ElMessage.success(message) : ElMessage.info(message)
+    }
+
+    // 3) Refresh dữ liệu hiển thị
+    await Promise.all([
+      fetchInvoiceDetails(invoiceId.value),
+      fetchVoucherByInvoiceId(invoiceId.value),
+    ])
+
     ElMessage.success(`Đã chọn khách: ${customer.customerName || customer.phone}`)
   } catch (e) {
-    ElMessage.error(e?.response?.data?.message || 'Không thể cập nhật khách hàng.')
+    const msg = e?.response?.data || e?.response?.data?.message || 'Không thể cập nhật khách hàng.'
+    ElMessage.error(msg)
+  } finally {
+    selectingCustomer.value = false
   }
 }
 const createCustomerDialog = ref(null)
@@ -1014,17 +1042,24 @@ const selectCreatedCustomer = async () => {
 /* ---- Voucher apply/remove (để tránh lỗi nút bấm) ---- */
 const applyVoucher = async (code) => {
   if (!invoiceId.value) return
+
   try {
     applyLoading.value = true
     applyingVoucherCode.value = code
+
     const { data } = await apiClient.post(
-      `/admin/counter-sales/${invoiceId.value}/apply-voucher?voucherCode=${encodeURIComponent(code)}`,
+      `/admin/counter-sales/${invoiceId.value}/apply-voucher?voucherCode=${encodeURIComponent(code)}`
     )
-    appliedVoucher.value = data || null
+
+    // BE trả object có voucher + finalAmount
+    appliedVoucher.value = data?.voucher || null
+
     await fetchInvoiceDetails(invoiceId.value)
     ElMessage.success('Đã áp dụng voucher.')
   } catch (e) {
-    ElMessage.error(e?.response?.data?.message || 'Không áp dụng được voucher.')
+    // Lấy message trực tiếp từ backend
+    const errMsg = e?.response?.data || 'Không áp dụng được voucher.'
+    ElMessage.warning(errMsg) // warning thay vì error nếu muốn hiển thị nhẹ nhàng hơn
   } finally {
     applyLoading.value = false
     applyingVoucherCode.value = null
@@ -1043,6 +1078,40 @@ const removeVoucher = async () => {
     ElMessage.error(e?.response?.data?.message || 'Không bỏ được voucher.')
   } finally {
     removeLoading.value = false
+  }
+}
+
+const autoApplyBestVoucher = async (invoiceId) => {
+  try {
+    const { data } = await apiClient.post(`/admin/counter-sales/${invoiceId}/apply-best-voucher`)
+
+    // Trường hợp BE trả về string
+    if (typeof data === 'string') {
+      const msg = data.trim()
+      const noVoucher = /không có voucher/i.test(msg)
+      if (noVoucher) {
+        appliedVoucher.value = null
+        return { applied: false, message: msg }
+      }
+      // Fallback: có thể BE trả message thành công nhưng không có DTO
+      await fetchVoucherByInvoiceId(invoiceId)
+      return { applied: true, message: msg || 'Đã áp dụng voucher tốt nhất.' }
+    }
+
+    // Trường hợp BE trả object:
+    // - kiểu { voucher: {...}, finalAmount, discountAmount }
+    // - hoặc trả thẳng DTO voucher {...}
+    if (data?.voucher || data?.id) {
+      appliedVoucher.value = data.voucher || data
+      return { applied: true, message: 'Đã áp dụng voucher tốt nhất.' }
+    }
+
+    // Shape lạ -> refetch để đồng bộ UI
+    await fetchVoucherByInvoiceId(invoiceId)
+    return { applied: true, message: 'Đã áp dụng voucher tốt nhất.' }
+  } catch {
+    // nuốt lỗi để không ảnh hưởng UX
+    return { applied: false, message: null }
   }
 }
 

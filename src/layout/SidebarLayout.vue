@@ -7,7 +7,7 @@
     </div>
 
     <el-menu :default-active="route.path" class="el-menu-vertical" router>
-      <el-menu-item index="/home">
+      <el-menu-item index="/statistics">
         <i class="menu-icon bi bi-house-door" aria-hidden="true"></i>
         <span class="menu-label">Trang chủ</span>
       </el-menu-item>
@@ -109,7 +109,7 @@
         <span class="menu-label">Quản lý khách xấu</span>
       </el-menu-item>
 
-      <el-sub-menu index="statistics">
+      <!-- <el-sub-menu index="statistics">
         <template #title>
           <i class="menu-icon bi bi-graph-up" aria-hidden="true"></i>
           <span class="menu-label">Thống kê</span>
@@ -118,7 +118,7 @@
           <i class="menu-icon bi bi-bar-chart" aria-hidden="true"></i>
           <span class="menu-label">Thống kê chi tiết</span>
         </el-menu-item>
-      </el-sub-menu>
+      </el-sub-menu> -->
     </el-menu>
   </nav>
 </template>

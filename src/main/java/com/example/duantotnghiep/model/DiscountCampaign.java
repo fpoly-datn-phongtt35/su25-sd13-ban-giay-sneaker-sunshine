@@ -7,6 +7,8 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
@@ -83,4 +85,32 @@ public class DiscountCampaign {
     @OneToMany(mappedBy = "campaign", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<DiscountCampaignProductDetail> productDetails = new ArrayList<>();
 
+    /* ------ Lifecycle ------ */
+    @PrePersist
+    public void prePersist() {
+        LocalDateTime now = LocalDateTime.now();
+        if (createdDate == null) createdDate = now;
+        if (updatedDate == null) updatedDate = now;
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        updatedDate = LocalDateTime.now();
+    }
+
+    /* ------ Helpers (không gán list mới!) ------ */
+    public void addProduct(Product product) {
+        DiscountCampaignProduct link = new DiscountCampaignProduct();
+        link.setCampaign(this);
+        link.setProduct(product);
+        products.add(link);
+    }
+
+    public void removeProductById(Long productId) {
+        products.removeIf(l -> l.getProduct() != null && productId.equals(l.getProduct().getId()));
+    }
+
+    public void clearProducts() {
+        products.clear(); // orphanRemoval sẽ xóa rows liên quan khi flush
+    }
 }

@@ -2,8 +2,14 @@ package com.example.duantotnghiep.controller;
 
 import com.example.duantotnghiep.dto.request.CategoryRequest;
 import com.example.duantotnghiep.dto.response.CategoryResponse;
+import com.example.duantotnghiep.dto.response.ProductResponse;
 import com.example.duantotnghiep.service.CategoryService;
+import com.example.duantotnghiep.service.impl.ProductServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,6 +28,8 @@ public class CategoryController {
 
     @Autowired
     private CategoryService categoryService;
+    @Autowired
+    private ProductServiceImpl productServiceImpl;
 
     @GetMapping("/hien-thi")
     public ResponseEntity<List<CategoryResponse>> getAll(){
@@ -48,6 +56,23 @@ public class CategoryController {
     @GetMapping("/{id}")
     public ResponseEntity<CategoryResponse> getCategoryById(@PathVariable Long id) {
         return ResponseEntity.ok(categoryService.getCategoryById(id));
+    }
+
+    @GetMapping("/{categoryId}/products")
+    public Page<ProductResponse> getByCategoryId(
+            @PathVariable Long categoryId,
+            @PageableDefault(size = 12, sort = "id", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        return productServiceImpl.getProductsByCategoryId(categoryId, pageable);
+    }
+
+    // /api/categories/by-name/{categoryName}/products?page=0&size=12
+    @GetMapping("/by-name/{categoryName}/products")
+    public Page<ProductResponse> getByCategoryName(
+            @PathVariable String categoryName,
+            @PageableDefault(size = 12, sort = "id", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        return productServiceImpl.getProductsByCategoryName(categoryName, pageable);
     }
 
 }

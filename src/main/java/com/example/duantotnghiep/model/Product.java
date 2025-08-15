@@ -17,6 +17,9 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
+import org.hibernate.annotations.Fetch;
+import org.hibernate.annotations.FetchMode;
 import org.hibernate.annotations.Nationalized;
 
 import java.math.BigDecimal;
@@ -108,12 +111,18 @@ public class Product {
     private String updatedBy;
 
     @OneToMany(mappedBy = "product", fetch = FetchType.LAZY)
+    @Fetch(FetchMode.SUBSELECT)
+    @BatchSize(size = 20)
     private List<ProductImage> productImages;
 
     @OneToMany(mappedBy = "product", fetch = FetchType.LAZY)
+    @Fetch(FetchMode.SUBSELECT)
+    @BatchSize(size = 20)
     private List<ProductCategory> productCategories;
 
     @OneToMany(mappedBy = "product", fetch = FetchType.LAZY)
+    @Fetch(FetchMode.SUBSELECT)
+    @BatchSize(size = 20)
     private List<ProductDetail> productDetails;
 
 }

@@ -49,7 +49,7 @@ public interface InvoiceDetailRepository extends JpaRepository<InvoiceDetail, Lo
     LEFT JOIN invoice_details id ON id.invoice_id = i.id
     LEFT JOIN product_details pd ON pd.id = id.product_detail_id
     LEFT JOIN product p ON p.id = pd.product_id
-    WHERE i.customer_id = :customerId
+    WHERE i.customer_id = :customerId and i.status = 1
     GROUP BY i.customer_id, p.id, p.product_name
 """, nativeQuery = true)
     List<Object[]> findAllByCustomerId(@Param("customerId") Long customerId);

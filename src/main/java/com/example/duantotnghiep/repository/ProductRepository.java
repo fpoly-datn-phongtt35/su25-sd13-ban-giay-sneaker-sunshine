@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface ProductRepository extends JpaRepository<Product,Long> {
+public interface ProductRepository extends JpaRepository<Product, Long> {
 
     @Query("SELECT p FROM Product p WHERE p.id = :id and p.status = 1")
     Optional<Product> findByStatus(@Param("id") Long id);
@@ -70,4 +70,56 @@ public interface ProductRepository extends JpaRepository<Product,Long> {
     @Query("SELECT p FROM Product p WHERE p.id in :ids and p.status = 1 order by p.createdDate desc ")
     List<Product> findAllByIds(List<Long> ids);
 
+    @Query("""
+                select p from Product p
+                join fetch p.material
+                join fetch p.brand
+                join fetch p.style
+                join fetch p.gender
+                join fetch p.sole
+                join fetch p.supplier
+                where coalesce(p.status, 1) = 1 
+                  and p.brand.id = :brandId
+                order by p.createdDate desc
+            """)
+    Page<Product> findAllByBrand(@Param("brandId") Long brandId, Pageable pageable);
+
+
+    @Query("""
+                select p from Product p
+                join fetch p.material
+                join fetch p.brand
+                join fetch p.style
+                join fetch p.gender
+                join fetch p.sole
+                join fetch p.supplier
+                where coalesce(p.status,1)=1 and lower(p.brand.brandName) = lower(:brandName)
+                order by p.createdDate desc
+            """)
+    Page<Product> findAllByBrandName(@Param("brandName") String brandName, Pageable pageable);
+
+    @Query("""
+    SELECT p
+    FROM Product p
+    WHERE p.status = 1
+      AND EXISTS (
+        SELECT 1
+        FROM ProductCategory pc
+        WHERE pc.product = p
+          AND pc.category.id = :categoryId
+          AND pc.status = 1
+      )
+    """)
+    Page<Product> findAllByCategoryId(@Param("categoryId") Long categoryId, Pageable pageable);
+
+
+    // Nếu bạn muốn lọc trực tiếp qua tên danh mục (vd: Sneaker)
+    @Query("""
+        select p
+        from Product p
+        join ProductCategory pc on pc.product = p
+        join Category c on pc.category = c
+        where lower(c.categoryName) = lower(:categoryName)
+        """)
+    Page<Product> findAllByCategoryName(@Param("categoryName") String categoryName, Pageable pageable);
 }

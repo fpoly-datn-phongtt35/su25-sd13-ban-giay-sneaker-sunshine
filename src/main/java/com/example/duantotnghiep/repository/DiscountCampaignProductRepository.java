@@ -3,6 +3,7 @@ package com.example.duantotnghiep.repository;
 import com.example.duantotnghiep.model.DiscountCampaign;
 import com.example.duantotnghiep.model.DiscountCampaignProduct;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -27,5 +28,7 @@ public interface DiscountCampaignProductRepository extends JpaRepository<Discoun
           @Param("now") LocalDateTime now
   );
 
-
+  @Modifying
+  @Query("DELETE FROM DiscountCampaignProduct d WHERE d.campaign.id = :campaignId")
+  void deleteByCampaignId(@Param("campaignId") Long campaignId);
 }

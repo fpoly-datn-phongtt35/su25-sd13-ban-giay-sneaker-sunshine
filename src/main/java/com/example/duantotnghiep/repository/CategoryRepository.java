@@ -7,6 +7,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface CategoryRepository extends JpaRepository<Category,Long> {
@@ -17,5 +18,8 @@ public interface CategoryRepository extends JpaRepository<Category,Long> {
 
     @Query("SELECT p FROM Category p where p.status = 1 order by p.createdDate desc ")
     List<Category> findByStatus();
+
+    Optional<Category> findByCategoryNameIgnoreCase(String categoryName);
+
 
 }

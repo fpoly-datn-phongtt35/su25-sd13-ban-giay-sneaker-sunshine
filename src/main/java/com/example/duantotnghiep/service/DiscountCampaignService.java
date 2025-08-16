@@ -17,5 +17,8 @@ public interface DiscountCampaignService {
     @Transactional
     DiscountCampaignResponse createDiscountCampaign(DiscountCampaignRequest request);
 
+    @Transactional
+    DiscountCampaignResponse updateDiscountCampaign(Long id, DiscountCampaignRequest request);
+
     DiscountCampaignStatisticsResponse getStatistics(Long campaignId);
 }

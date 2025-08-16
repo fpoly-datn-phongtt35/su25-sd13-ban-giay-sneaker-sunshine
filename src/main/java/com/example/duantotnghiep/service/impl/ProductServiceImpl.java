@@ -33,12 +33,15 @@ import com.example.duantotnghiep.repository.ProductSearchRepository;
 import com.example.duantotnghiep.service.ProductService;
 import com.example.duantotnghiep.xuatExcel.ProductExcelExporter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.crossstore.ChangeSetPersister;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -823,4 +826,106 @@ public class ProductServiceImpl implements ProductService {
         String randomPart = String.format("%04d", (int) (Math.random() * 10000));
         return prefix + datePart + "-" + randomPart;
     }
+
+    public Page<ProductResponse> getProductsByBrand(Long brandId, Pageable pageable) {
+        Page<Product> products = productRepository.findAllByBrand(brandId, pageable);
+        return getProductsFiltered(products, pageable);
+    }
+
+    public Page<ProductResponse> getProductsByBrandName(String brandName, Pageable pageable) {
+        Page<Product> products = productRepository.findAllByBrandName(brandName, pageable);
+        return getProductsFiltered(products, pageable);
+    }
+
+    private Page<ProductResponse> getProductsFiltered(Page<Product> products, Pageable pageable) {
+        List<DiscountCampaign> activeCampaigns = discountCampaignRepository.findActiveCampaigns(LocalDateTime.now());
+
+        List<ProductResponse> responses = products.getContent().stream()
+                .map(product -> mapToProductResponse(product, activeCampaigns))
+                .toList();
+
+        return new PageImpl<>(responses, pageable, products.getTotalElements());
+    }
+
+    private ProductResponse mapToProductResponse(Product product, List<DiscountCampaign> activeCampaigns) {
+        ProductResponse response = productMapper.toResponse(product);
+
+        double productDiscount = getBestDiscountPercentageForProduct(product, activeCampaigns);
+        Long bestCampaignId = getBestDiscountCampaignIdForProduct(product, activeCampaigns);
+
+        response.setDiscountPercentage((int) Math.round(productDiscount));
+        response.setDiscountedPrice(calculateDiscountPrice(product.getSellPrice(), productDiscount));
+        response.setDiscountCampaignId(bestCampaignId);
+
+        if (response.getProductDetails() != null) {
+            for (ProductDetailResponse detail : response.getProductDetails()) {
+                double detailDiscount = getBestDiscountPercentageForProductDetail(detail.getId(), activeCampaigns);
+                Long bestDetailCampaignId = getBestDiscountCampaignIdForProductDetail(detail.getId(), activeCampaigns);
+
+                if (detailDiscount <= 0) {
+                    detailDiscount = productDiscount;
+                    bestDetailCampaignId = bestCampaignId;
+                }
+
+                detail.setDiscountPercentage((int) Math.round(detailDiscount));
+                detail.setDiscountedPrice(calculateDiscountPrice(detail.getSellPrice(), detailDiscount));
+                detail.setDiscountCampaignId(bestDetailCampaignId);
+            }
+        }
+
+        return response;
+    }
+
+    private Page<ProductResponse> mapWithDiscounts(Page<Product> products, Pageable pageable) {
+        List<DiscountCampaign> activeCampaigns =
+                discountCampaignRepository.findActiveCampaigns(LocalDateTime.now());
+
+        List<ProductResponse> responses = products.getContent().stream().map(product -> {
+            ProductResponse response = productMapper.toResponse(product);
+
+            double productDiscount = getBestDiscountPercentageForProduct(product, activeCampaigns);
+            response.setDiscountPercentage((int) Math.round(productDiscount));
+            response.setDiscountedPrice(calculateDiscountPrice(product.getSellPrice(), productDiscount));
+
+            Long bestCampaignId = getBestDiscountCampaignIdForProduct(product, activeCampaigns);
+            response.setDiscountCampaignId(bestCampaignId);
+
+            if (response.getProductDetails() != null) {
+                for (ProductDetailResponse d : response.getProductDetails()) {
+                    double detailDiscount = getBestDiscountPercentageForProductDetail(d.getId(), activeCampaigns);
+                    Long bestDetailCampaignId = detailDiscount > 0
+                            ? getBestDiscountCampaignIdForProductDetail(d.getId(), activeCampaigns) // nếu bạn có hàm này, dùng; nếu chưa, có thể gán null
+                            : bestCampaignId;
+
+                    if (detailDiscount <= 0) detailDiscount = productDiscount;
+
+                    d.setDiscountPercentage((int) Math.round(detailDiscount));
+                    d.setDiscountedPrice(calculateDiscountPrice(d.getSellPrice(), detailDiscount));
+                    d.setDiscountCampaignId(bestDetailCampaignId);
+                }
+            }
+            return response;
+        }).collect(Collectors.toList());
+
+        return new PageImpl<>(responses, pageable, products.getTotalElements());
+    }
+
+    public Page<ProductResponse> getProductsByCategoryId(Long categoryId, Pageable pageable) {
+        Page<Product> products = productRepository.findAllByCategoryId(categoryId, pageable);
+        return mapWithDiscounts(products, pageable);
+    }
+
+    // ======== (tuỳ chọn) theo categoryName, ví dụ "Sneaker" ========
+    public Page<ProductResponse> getProductsByCategoryName(String categoryName, Pageable pageable) {
+        // Cách 1: gọi repo theo tên trực tiếp
+//        Page<Product> products = productRepository.findAllByCategoryName(categoryName, pageable);
+//        return mapWithDiscounts(products, pageable);
+
+        // Cách 2 (khuyến nghị hiệu năng): resolve sang ID rồi gọi theo ID
+         Long id = categoryRepository.findByCategoryNameIgnoreCase(categoryName)
+                 .map(Category::getId)
+                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy danh mục: " + categoryName));
+         return getProductsByCategoryId(id, pageable);
+    }
+
 }

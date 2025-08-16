@@ -48,6 +48,7 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
         Invoice invoice = invoiceRepository.findById(invoiceId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
 
+        invoice.setEmployee(employee);
         if(employee.getId() == null ){
             throw new RuntimeException("ko lấy đc nhân viên.");
         }
@@ -125,6 +126,7 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
             throw new RuntimeException("Trạng thái mới trùng với trạng thái hiện tại.");
         }
 
+        invoice.setEmployee(c);
         invoice.setStatusDetail(nextStatus);
 
         if (nextStatus == TrangThaiChiTiet.HUY_DON) {
@@ -177,7 +179,7 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
         if (nextStatus == TrangThaiChiTiet.HUY_DON) {
             invoice.setStatus(TrangThaiTong.DA_HUY); // hoặc HUY, DA_HUY,... tùy định nghĩa
         }
-        invoice.setUpdatedDate(new Date()); // ✅ THÊM DÒNG NÀY
+        invoice.setUpdatedDate(new Date()); // THÊM DÒNG NÀY
         invoiceRepository.save(invoice);
 
         OrderStatusHistory history = new OrderStatusHistory();
@@ -189,7 +191,7 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
 
         historyRepository.save(history);
 
-        // ✅ Gọi hàm kiểm tra và cấm nếu cần
+        // Gọi hàm kiểm tra và cấm nếu cần
         invoiceService.autoBlacklistIfTooManyCancellations(c);
     }
 
@@ -213,7 +215,7 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
 
         huyDonClient(invoiceId, nextKey); // ✅ Gọi hàm hủy đơn
 
-        // ✅ Cập nhật lại kho cho từng sản phẩm
+        // Cập nhật lại kho cho từng sản phẩm
         List<InvoiceDetail> invoiceDetails = invoiceDetailRepository.findByInvoiceId(invoiceId);
         for (InvoiceDetail detail : invoiceDetails) {
             ProductDetail productDetail = detail.getProductDetail();
@@ -258,6 +260,7 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
         Invoice invoice = invoiceRepository.findPaidInvoiceById(invoiceId, isPaid)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
 
+        invoice.setEmployee(employee);
         huyDonEmployee(invoiceId, nextKey);
 
         List<InvoiceDetail> invoiceDetails = invoiceDetailRepository.findByInvoiceId(invoiceId);

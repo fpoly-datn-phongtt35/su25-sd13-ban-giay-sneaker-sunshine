@@ -4,15 +4,7 @@ import com.example.duantotnghiep.dto.PaymentSummary;
 import com.example.duantotnghiep.dto.request.AddressRequest;
 import com.example.duantotnghiep.dto.request.CartItemRequest;
 import com.example.duantotnghiep.dto.request.InvoiceRequest;
-import com.example.duantotnghiep.dto.response.CustomerResponse;
-import com.example.duantotnghiep.dto.response.InvoiceDetailResponse;
-import com.example.duantotnghiep.dto.response.InvoiceDisplayResponse;
-import com.example.duantotnghiep.dto.response.InvoiceResponse;
-import com.example.duantotnghiep.dto.response.InvoiceWithVnpayResponse;
-import com.example.duantotnghiep.dto.response.InvoiceWithZaloPayResponse;
-import com.example.duantotnghiep.dto.response.ProductAttributeResponse;
-import com.example.duantotnghiep.dto.response.VnpayResponse;
-import com.example.duantotnghiep.dto.response.ZaloPayResponse;
+import com.example.duantotnghiep.dto.response.*;
 import com.example.duantotnghiep.mapper.InvoiceMapper;
 import com.example.duantotnghiep.model.AddressCustomer;
 import com.example.duantotnghiep.model.Customer;
@@ -1683,6 +1675,7 @@ public class InvoiceServiceImpl implements InvoiceService {
             }
         }
     }
+
 
     private boolean hasVoucher(Long customerId, int amount) {
         return voucherRepository.existsByCustomerIdAndDiscountAmount(customerId, amount);

@@ -454,6 +454,8 @@ public class ProductServiceImpl implements ProductService {
         List<ProductResponse> responses = products.getContent().stream().map(product -> {
             ProductResponse response = productMapper.toResponse(product);
 
+
+
             // Tính phần trăm giảm giá tốt nhất cho sản phẩm
             double productDiscount = getBestDiscountPercentageForProduct(product, activeCampaigns);
             response.setDiscountPercentage((int) Math.round(productDiscount));

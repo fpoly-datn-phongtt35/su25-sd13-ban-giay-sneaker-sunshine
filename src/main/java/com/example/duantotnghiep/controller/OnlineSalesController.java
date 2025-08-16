@@ -1,9 +1,6 @@
 package com.example.duantotnghiep.controller;
 
-import com.example.duantotnghiep.dto.response.InvoiceOnlineResponse;
-import com.example.duantotnghiep.dto.response.InvoiceResponse;
-import com.example.duantotnghiep.dto.response.OrderStatusHistoryResponse;
-import com.example.duantotnghiep.dto.response.StatusCountResponse;
+import com.example.duantotnghiep.dto.response.*;
 import com.example.duantotnghiep.service.InvoiceService;
 import com.example.duantotnghiep.service.impl.OnlineSaleServiceImpl;
 import lombok.RequiredArgsConstructor;
@@ -104,8 +101,8 @@ public class OnlineSalesController {
     }
 
     @GetMapping("/count-by-status")
-    public ResponseEntity<List<StatusCountResponse>> getCountByStatus() {
-        return ResponseEntity.ok(onlineSaleService.getCountByStatusDetail());
+    public ResponseEntity<List<StatusCountDTO>> getCountByStatus() {
+        return ResponseEntity.ok(onlineSaleService.getCountByStatus());
     }
 
     @GetMapping("/get-order-customer")
@@ -126,5 +123,6 @@ public class OnlineSalesController {
         List<OrderStatusHistoryResponse> list = onlineSaleService.getOrderStatusHistory(invoiceId);
         return ResponseEntity.ok(list);
     }
+
 
 }

@@ -11,9 +11,8 @@ import java.util.Date;
 @NoArgsConstructor
 @Getter
 @Setter
-public class NhanVienXuLySearchRequest {
-    private Date startDate;
-    private Date endDate;
+public class EmployeeReportRequest {
     private Long employeeId;
-    private Integer orderType;
+    private Date  startDate;
+    private Date endDate;
 }

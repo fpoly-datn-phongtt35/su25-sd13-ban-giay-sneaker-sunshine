@@ -2,6 +2,7 @@ package com.example.duantotnghiep.service.impl;
 
 import com.example.duantotnghiep.dto.request.EmployeeRequest;
 import com.example.duantotnghiep.dto.response.EmployeeResponse;
+import com.example.duantotnghiep.mapper.EmployeeMapper;
 import com.example.duantotnghiep.mapper.UserMapper;
 import com.example.duantotnghiep.model.Employee;
 import com.example.duantotnghiep.model.User;
@@ -16,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -23,6 +25,7 @@ import java.util.Optional;
 public class EmployeeServiceImpl implements EmployeeService {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
+    private final EmployeeMapper employeeMapper;
     private final EmployeeRepository employeeRepository;
     @Override
     public Page<EmployeeResponse> getAllUsers(Pageable pageable) {
@@ -121,6 +124,12 @@ public class EmployeeServiceImpl implements EmployeeService {
         user = userRepository.save(user);
 
         return userMapper.toEmployeeResponse(user);
+    }
+
+    @Override
+    public List<EmployeeResponse> getAllData() {
+        List<Employee> employees = employeeRepository.getData();
+        return employeeMapper.toEmployeeResponseList(employees);
     }
 
     private String generateEmployeeCode() {

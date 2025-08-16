@@ -1,10 +1,7 @@
 package com.example.duantotnghiep.service.impl;
 
-import com.example.duantotnghiep.dto.response.InvoiceStatusStatisticResponse;
-import com.example.duantotnghiep.dto.response.MonthlyRevenueResponse;
-import com.example.duantotnghiep.dto.response.OrderTypeRevenueResponse;
-import com.example.duantotnghiep.dto.response.TopProductResponse;
-import com.example.duantotnghiep.dto.response.YearlyRevenueResponse;
+import com.example.duantotnghiep.dto.request.EmployeeReportRequest;
+import com.example.duantotnghiep.dto.response.*;
 import com.example.duantotnghiep.repository.InvoiceRepository;
 import com.example.duantotnghiep.service.StatisticService;
 import com.example.duantotnghiep.state.TrangThaiTong;
@@ -16,6 +13,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -89,6 +87,28 @@ public class StatisticServiceImpl implements StatisticService {
         LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
         LocalDateTime endOfDay = startOfDay.plusDays(1);
         return invoiceRepository.getTodayRevenue(startOfDay, endOfDay, TrangThaiTong.THANH_CONG);
+    }
+
+    @Override
+    public List<EmployeeReportDto> getEmployeeSalesReport(EmployeeReportRequest request) {
+        List<Object[]> rawResults = invoiceRepository.getEmployeeSalesReportNative(request.getEmployeeId(), request.getStartDate(), request.getEndDate());
+
+        return rawResults.stream().map(result -> {
+            int i = 0;
+            return new EmployeeReportDto(
+                    ((Long) result[i++]),
+                    (String) result[i++],                    // employeeName
+                    ((Number) result[i++]).intValue(),       // totalInvoices
+                    ((Number) result[i++]).intValue(),       // totalProducts
+                    (BigDecimal) result[i++],                // totalRevenue
+                    ((Number) result[i++]).intValue(),       // successInvoices
+                    ((Number) result[i++]).intValue(),       // successProducts
+                    (BigDecimal) result[i++],                // successRevenue
+                    ((Number) result[i++]).intValue(),       // cancelledInvoices
+                    ((Number) result[i++]).intValue(),       // cancelledProducts
+                    (BigDecimal) result[i++]                 // cancelledRevenue
+            );
+        }).collect(Collectors.toList());
     }
 
 

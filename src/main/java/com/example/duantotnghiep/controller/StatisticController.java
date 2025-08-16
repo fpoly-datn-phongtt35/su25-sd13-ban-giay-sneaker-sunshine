@@ -1,18 +1,13 @@
 package com.example.duantotnghiep.controller;
 
-import com.example.duantotnghiep.dto.response.InvoiceStatusStatisticResponse;
-import com.example.duantotnghiep.dto.response.MonthlyRevenueResponse;
-import com.example.duantotnghiep.dto.response.OrderTypeRevenueResponse;
-import com.example.duantotnghiep.dto.response.TopProductResponse;
-import com.example.duantotnghiep.dto.response.YearlyRevenueResponse;
+import com.example.duantotnghiep.dto.request.EmployeeReportRequest;
+import com.example.duantotnghiep.dto.response.*;
+import com.example.duantotnghiep.service.InvoiceService;
 import com.example.duantotnghiep.service.StatisticService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -65,6 +60,12 @@ public class StatisticController {
     public ResponseEntity<Long> getTodayRevenue() {
         Long revenue = statisticService.getTodayRevenue();
         return ResponseEntity.ok(revenue);
+    }
+
+    @PostMapping("/employee-sales")
+    public ResponseEntity<List<EmployeeReportDto>> getEmployeeSalesReport(@RequestBody EmployeeReportRequest request) {
+        List<EmployeeReportDto> reports = statisticService.getEmployeeSalesReport(request);
+        return ResponseEntity.ok(reports);
     }
 
 }

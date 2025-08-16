@@ -3,6 +3,7 @@ package com.example.duantotnghiep.service;
 import com.example.duantotnghiep.dto.request.OrderRequest;
 import com.example.duantotnghiep.dto.response.InvoiceOnlineResponse;
 import com.example.duantotnghiep.dto.response.OrderStatusHistoryResponse;
+import com.example.duantotnghiep.dto.response.StatusCountDTO;
 import com.example.duantotnghiep.dto.response.StatusCountResponse;
 
 import java.util.List;
@@ -26,5 +27,8 @@ public interface OnlineSaleService {
     List<OrderStatusHistoryResponse> getOrderStatusHistory(Long invoiceId);
 
     void updateAddressShipping(Long invoiceId,String address);
+
+    List<StatusCountDTO> getCountByStatus();
+
 
 }

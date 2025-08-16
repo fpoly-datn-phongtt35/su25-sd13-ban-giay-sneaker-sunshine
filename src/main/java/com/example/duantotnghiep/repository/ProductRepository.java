@@ -20,7 +20,7 @@ public interface ProductRepository extends JpaRepository<Product,Long> {
     @Query("SELECT p FROM Product p WHERE p.id = :id and p.status = 0")
     Optional<Product> findByStatusRemoved(@Param("id") Long id);
 
-    @Query("SELECT p FROM Product p LEFT JOIN FETCH p.productDetails WHERE p.id = :id AND p.status IN (0, 1)")
+    @Query("SELECT p FROM Product p LEFT JOIN FETCH p.productDetails WHERE p.id = :id and p.status = 1 ")
     Optional<Product> findByIdWithProductDetails(@Param("id") Long id);
 
     @Query("SELECT p FROM Product p LEFT JOIN FETCH p.productImages WHERE p.id = :id")

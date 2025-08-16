@@ -5,6 +5,7 @@ import com.example.duantotnghiep.dto.request.InvoiceRequest;
 import com.example.duantotnghiep.dto.response.InvoiceDisplayResponse;
 import com.example.duantotnghiep.dto.response.InvoiceResponse;
 import com.example.duantotnghiep.dto.response.ProductResponse;
+import com.example.duantotnghiep.dto.response.StatusCountDTO;
 import com.example.duantotnghiep.mapper.InvoiceMapper;
 import com.example.duantotnghiep.model.Invoice;
 import com.example.duantotnghiep.model.Product;
@@ -75,7 +76,6 @@ public class SaleOnlineController {
         }
     }
 
-
     @GetMapping("/{id}")
     public ResponseEntity<ProductResponse> getProductById(@PathVariable Long id) {
         return ResponseEntity.ok(productService.getProductById(id));
@@ -138,5 +138,9 @@ public class SaleOnlineController {
         return ResponseEntity.ok(products);
     }
 
+    @GetMapping("/count-by-status")
+    public ResponseEntity<List<StatusCountDTO>> getCountByStatus() {
+        return ResponseEntity.ok(onlineSaleService.getCountByStatus());
+    }
 
 }

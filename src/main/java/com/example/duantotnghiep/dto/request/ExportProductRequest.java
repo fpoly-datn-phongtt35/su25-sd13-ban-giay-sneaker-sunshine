@@ -12,6 +12,6 @@ import java.util.List;
 @Getter
 @Setter
 public class ExportProductRequest {
-    private ProductSearchRequest filter;  // điều kiện tìm kiếm (có thể null)
-    private List<Long> productIds;       // danh sách Id sản phẩm (có thể null hoặc rỗng)
+    private ProductSearchRequest filter;
+    private List<Long> productIds;
 }

@@ -1,8 +1,6 @@
 package com.example.duantotnghiep.repository;
 
-import com.example.duantotnghiep.dto.response.DiscountCampaignStatisticsResponse;
-import com.example.duantotnghiep.dto.response.InvoiceResponse;
-import com.example.duantotnghiep.dto.response.NhanVienXuLySearchResponse;
+import com.example.duantotnghiep.dto.response.*;
 import com.example.duantotnghiep.model.Customer;
 import com.example.duantotnghiep.model.Invoice;
 import com.example.duantotnghiep.state.TrangThaiChiTiet;
@@ -15,6 +13,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
@@ -190,6 +189,52 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
 """)
     DiscountCampaignStatisticsResponse getStatisticsByCampaignId(@Param("campaignId") Long campaignId);
 
+    @Query(value = """
+        SELECT
+            e.id,
+            e.employee_name AS employeeName,
+            COUNT(DISTINCT i.id) AS totalInvoices,
+            SUM(idt.quantity) AS totalProducts,
+            SUM(i.final_amount) AS totalRevenue,
+            COUNT(DISTINCT CASE WHEN i.status = 1 THEN i.id END) AS successInvoices,
+            SUM(CASE WHEN i.status = 1 THEN idt.quantity ELSE 0 END) AS successProducts,
+            SUM(CASE WHEN i.status = 1 THEN i.final_amount ELSE 0 END) AS successRevenue,
+            COUNT(DISTINCT CASE WHEN i.status = 2 THEN i.id END) AS cancelledInvoices,
+            SUM(CASE WHEN i.status = 2 THEN idt.quantity ELSE 0 END) AS cancelledProducts,
+            SUM(CASE WHEN i.status = 2 THEN i.final_amount ELSE 0 END) AS cancelledRevenue
+        FROM invoice i
+        JOIN employee e ON i.employee_id = e.id
+        JOIN invoice_details idt ON i.id = idt.invoice_id
+        WHERE (:employeeId IS NULL OR e.id = :employeeId)
+          AND (:startDate IS NULL OR i.created_date >= :startDate)
+          AND (:endDate IS NULL OR i.created_date <= :endDate)
+        GROUP BY e.id, e.employee_name
+        ORDER BY e.employee_name
+        """, nativeQuery = true)
+    List<Object[]> getEmployeeSalesReportNative(
+            @Param("employeeId") Long employeeId,
+            @Param("startDate") Date startDate,
+            @Param("endDate") Date endDate);
+
+    @Query(value = """
+    SELECT
+        CASE status_detail
+            WHEN 0 THEN 'CHO_XU_LY'
+            WHEN 1 THEN 'DA_XU_LY'
+            WHEN 2 THEN 'CHO_GIAO_HANG'
+            WHEN 3 THEN 'DANG_GIAO_HANG'
+            WHEN 4 THEN 'GIAO_THANH_CONG'
+            WHEN 5 THEN 'GIAO_THAT_BAI'
+            WHEN -2 THEN 'HUY_DON'
+        END AS statusDetail,
+        COUNT(*) AS countInvoice
+    FROM invoice
+    WHERE order_type = 1
+    GROUP BY status_detail
+    """, nativeQuery = true)
+    List<Object[]> countInvoicesByStatusNative();
 
 
 }
+
+

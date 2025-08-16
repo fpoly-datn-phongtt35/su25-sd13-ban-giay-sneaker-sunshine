@@ -46,6 +46,14 @@ public class ProductController {
         return ResponseEntity.ok(productPage);
     }
 
+    @GetMapping("/hien-thi")
+    public ResponseEntity<List<ProductResponse>> getProducts() {
+        Pageable pageable = Pageable.unpaged();
+        Page<ProductResponse> productPage = productService.getAllProducts(pageable);
+        List<ProductResponse> productResponseList = productPage.getContent();
+        return ResponseEntity.ok(productResponseList);
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ProductResponse> getProductById(@PathVariable Long id) {
         return ResponseEntity.ok(productService.getProductById(id));

@@ -1,11 +1,7 @@
 package com.example.duantotnghiep.service.impl;
 
 import com.example.duantotnghiep.dto.request.OrderRequest;
-import com.example.duantotnghiep.dto.response.InvoiceDetailOnline;
-import com.example.duantotnghiep.dto.response.InvoiceOnlineResponse;
-import com.example.duantotnghiep.dto.response.InvoiceTransactionResponse;
-import com.example.duantotnghiep.dto.response.OrderStatusHistoryResponse;
-import com.example.duantotnghiep.dto.response.StatusCountResponse;
+import com.example.duantotnghiep.dto.response.*;
 import com.example.duantotnghiep.model.*;
 import com.example.duantotnghiep.repository.*;
 import com.example.duantotnghiep.service.CustomerService;
@@ -21,10 +17,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
 import java.math.BigDecimal;
-import java.util.Date;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -369,6 +362,19 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
                 .orElseThrow(() -> new RuntimeException("Ko thấy hóa đơn với id: " + invoiceId));
         invoice.setDeliveryAddress(address);
         invoiceRepository.save(invoice);
+    }
+
+    @Override
+    public List<StatusCountDTO> getCountByStatus() {
+        List<Object[]> results = invoiceRepository.countInvoicesByStatusNative();
+        List<StatusCountDTO> list = new ArrayList<>();
+
+        for (Object[] row : results) {
+            String status = (String) row[0];
+            Integer count = ((Number) row[1]).intValue();
+            list.add(new StatusCountDTO(status, count));
+        }
+        return list;
     }
 
 

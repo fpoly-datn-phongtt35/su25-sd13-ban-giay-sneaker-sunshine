@@ -2,11 +2,7 @@ package com.example.duantotnghiep.service;
 
 import com.example.duantotnghiep.dto.PaymentSummary;
 import com.example.duantotnghiep.dto.request.InvoiceRequest;
-import com.example.duantotnghiep.dto.response.CustomerResponse;
-import com.example.duantotnghiep.dto.response.InvoiceDisplayResponse;
-import com.example.duantotnghiep.dto.response.InvoiceResponse;
-import com.example.duantotnghiep.dto.response.InvoiceWithVnpayResponse;
-import com.example.duantotnghiep.dto.response.InvoiceWithZaloPayResponse;
+import com.example.duantotnghiep.dto.response.*;
 import com.example.duantotnghiep.model.Customer;
 import com.example.duantotnghiep.model.Invoice;
 import com.example.duantotnghiep.model.PromotionSuggestion;
@@ -78,4 +74,5 @@ public interface InvoiceService {
     void processInvoicePayment(Long invoiceId);
 
     void checkAndGiftVoucher(Long customerId);
+
 }

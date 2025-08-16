@@ -170,7 +170,7 @@ const router = useRouter()
 
 // Trạng thái reactive
 const filters = ref({ search: '', dateRange: [] })
-const currentTab = ref('CHO_XU_LY') // Tab khởi tạo là 'Chờ xử lý'
+const currentTab = ref('CHO_XU_LY')
 const invoices = ref([])
 const loading = ref(false)
 
@@ -253,7 +253,6 @@ const fetchProductsByOrderId = async (orderId) => {
 }
 
 
-
 const selectedOrderProducts = ref([])
 const reviewDialogVisible = ref(false)
 
@@ -267,8 +266,6 @@ const openReviewDialog = async (order) => {
   }));
   reviewDialogVisible.value = true;
 };
-
-
 
 
 // Gửi đánh giá
@@ -288,6 +285,22 @@ const openReviewDialog = async (order) => {
 //     ElMessage.error('Gửi đánh giá thất bại.');
 //   }
 // };
+
+const fetchStatusCounts = async () => {
+  try {
+    const response = await apiClient.get('/admin/online-sales/count-by-status')
+    const data = response.data || []
+
+    // Map count về tabs
+    tabs.value = tabs.value.map(tab => {
+      const found = data.find(d => d.statusDetail === tab.key)
+      return { ...tab, count: found ? found.countInvoice : 0 }
+    })
+  } catch (err) {
+    console.error('Lỗi lấy số lượng trạng thái:', err)
+    ElMessage.error('Không thể lấy số lượng trạng thái')
+  }
+}
 
 const submitReview = async () => {
   const firstProduct = selectedOrderProducts.value[0];
@@ -309,16 +322,6 @@ const submitReview = async () => {
     ElMessage.error('Gửi đánh giá thất bại.');
   }
 };
-
-
-
-
-
-// Đặt lại bộ lọc và tìm kiếm lại
-const resetFilters = () => {
-  filters.value = { search: '', dateRange: [] }
-  search()
-}
 
 // Điều hướng đến trang chi tiết hóa đơn
 const goToStatusPage = (invoiceId) => {
@@ -348,16 +351,13 @@ const handleReturnChoice = (type) => {
   }
 }
 
-
-// Format tiền VND
 const formatCurrency = (val) => (val || 0).toLocaleString('vi-VN') + ' ₫'
 
-// Format ngày
 const formatDate = (val) => val ? dayjs(val).format('DD/MM/YYYY HH:mm:ss') : ''
 
 
-// Gọi tìm kiếm khi component được mount
 onMounted(() => {
+  fetchStatusCounts()
   search()
 })
 </script>

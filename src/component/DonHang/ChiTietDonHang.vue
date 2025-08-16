@@ -156,7 +156,6 @@ const canEditAddress = computed(() => {
     mainStepKeys.indexOf(status) < mainStepKeys.indexOf('CHO_GIAO_HANG')
 })
 
-
 const provinces = ref([])
 const districts = ref([])
 const wards = ref([])

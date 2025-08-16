@@ -33,7 +33,6 @@
               <source :src="file.url" />
             </video>
             <img v-else :src="file.url" class="el-upload-list__item-thumbnail" />
-
             <span class="el-upload-list__item-actions">
               <span
                 class="el-upload-list__item-preview"

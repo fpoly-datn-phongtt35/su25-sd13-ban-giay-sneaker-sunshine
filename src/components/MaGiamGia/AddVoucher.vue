@@ -143,7 +143,7 @@
           </el-form-item>
 
           <el-row :gutter="20">
-            <el-col :span="8">
+            <!-- <el-col :span="8">
               <el-form-item label="Loại đơn hàng" prop="orderType">
                 <el-select v-model="voucher.orderType" placeholder="Chọn loại đơn hàng" class="w-full">
                   <el-option :value="1" label="Bán tại quầy" />
@@ -163,7 +163,7 @@
                   <el-option :value="2" label="Riêng tư" />
                 </el-select>
               </el-form-item>
-            </el-col>
+            </el-col> -->
             <el-col :span="8" v-if="voucher.voucherType === 2">
               <el-form-item label="Khách hàng áp dụng" prop="customerId">
                 <el-select
@@ -241,10 +241,10 @@
           </el-form-item>
 
           <div class="flex gap-4 mt-4">
-            <el-button type="primary" @click="submitForm" :icon="Check">
+            <el-button type="primary" @click="submitForm" >
               <el-icon class="mr-2"><Check /></el-icon> Thêm Voucher
             </el-button>
-            <el-button type="info" @click="resetForm" :icon="Refresh">
+            <el-button type="info" @click="resetForm">
               <el-icon class="mr-2"><Refresh /></el-icon> Reset Form
             </el-button>
           </div>
@@ -356,18 +356,6 @@ const rules = reactive({
         }
       },
       trigger: 'change',
-    },
-  ],
-  customerId: [
-    {
-      validator: (rule, value, callback) => {
-        if (voucher.voucherType === 2 && !value) {
-          callback(new Error('Vui lòng chọn khách hàng cho voucher riêng tư'));
-        } else {
-          callback();
-        }
-      },
-      trigger: ['blur', 'change'],
     },
   ],
   quantity: [

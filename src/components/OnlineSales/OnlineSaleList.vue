@@ -162,14 +162,17 @@ const statusLabelToCode = (label) => {
 
 const fetchStatusCounts = async () => {
   try {
-    const res = await apiClient.get('/admin/online-sales/count-by-status')
-    statusCounts.value = res.data || []
+    const response = await apiClient.get('/admin/online-sales/count-by-status')
+    const data = response.data || []
+
+    // Map count về tabs
     tabs.value = tabs.value.map(tab => {
-      const found = statusCounts.value.find(i => i.statusDetail === tab.key)
-      return { ...tab, count: found ? found.count : 0 }
+      const found = data.find(d => d.statusDetail === tab.key)
+      return { ...tab, count: found ? found.countInvoice : 0 }
     })
   } catch (err) {
     console.error('Lỗi lấy số lượng trạng thái:', err)
+    ElMessage.error('Không thể lấy số lượng trạng thái')
   }
 }
 
@@ -216,6 +219,7 @@ const formatDateTime = (dateStr) => {
 }
 
 onMounted(() => {
+  fetchStatusCounts();
   search()
 })
 </script>

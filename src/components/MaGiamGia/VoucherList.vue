@@ -1,173 +1,123 @@
 <template>
-  <div class="voucher-wrapper">
-    <div class="card shadow-lg">
-      <div class="card-body p-4">
-        <div class="search-section mb-4 p-3 bg-light rounded">
-          <div class="row g-3">
-            <div class="col-md-3 col-sm-6">
-              <input
-                v-model="searchVoucher.keyword"
-                class="form-control form-control-sm"
-                placeholder="Tìm mã, tên voucher, tên sản phẩm"
-              />
-            </div>
-            <div class="col-md-2 col-sm-6">
-              <select v-model="searchVoucher.status" class="form-select form-select-sm">
-                <option :value="null">Tất cả trạng thái</option>
-                <option :value="1">Đang diễn ra</option>
-                <option :value="0">Ngừng hoạt động</option>
-                <option :value="2">Sắp diễn ra</option>
-              </select>
-            </div>
-            <div class="col-md-2 col-sm-6">
-              <select v-model="searchVoucher.orderType" class="form-select form-select-sm">
-                <option :value="null">Tất cả loại đơn hàng</option>
-                <option :value="1">Tại quầy</option>
-                <option :value="2">Online</option>
-              </select>
-            </div>
-            <div class="col-md-2 col-sm-6">
-              <select v-model="searchVoucher.voucherType" class="form-select form-select-sm">
-                <option :value="null">Tất cả loại</option>
-                <option :value="1">Công khai</option>
-                <option :value="2">Cá nhân</option>
-              </select>
-            </div>
-            <div class="col-md-3 col-sm-12">
-              <select
-                id="category"
-                v-model="searchVoucher.categoryIds"
-                class="form-select form-select-sm"
-              >
-                <option :value="null">-- Chọn danh mục --</option>
-                <option v-for="cat in categoryList" :key="cat.id" :value="cat.id">
-                  {{ cat.categoryName }}
-                </option>
-              </select>
-            </div>
-            <div class="col-md-3 col-sm-12 d-flex gap-2 align-items-end">
-              <el-button type="primary" size="small" @click="fetchVoucher(0)">Tìm</el-button>
-              <el-button type="default" size="small" @click="resetForm">Xóa bộ lọc</el-button>
-            </div>
-          </div>
+  <div class="voucher-wrapper p-4">
+    <!-- Search Section -->
+    <el-card shadow="hover" class="mb-4">
+      <div class="row g-3">
+        <div class="col-md-4 col-sm-6 mb-2">
+          <el-input
+            v-model="searchVoucher.keyword"
+            placeholder="Tìm mã, tên voucher"
+            size="small"
+            clearable
+          />
         </div>
-
-        <div class="voucher-header d-flex align-items-center mb-4">
-          <el-icon class="me-2 text-primary" size="24"><ticket /></el-icon>
-          <h2 class="flex-grow-1 mb-0 fs-5 fw-bold text-dark">Danh sách Voucher</h2>
-          <el-button type="primary" :icon="Plus" @click="onAddVoucher">Thêm Voucher</el-button>
+        <div class="col-md-2 col-sm-6 mb-2">
+          <el-select v-model="searchVoucher.status" placeholder="Tất cả trạng thái" size="small" clearable>
+            <el-option :label="'Đang diễn ra'" :value="1" />
+            <el-option :label="'Ngừng hoạt động'" :value="0" />
+            <el-option :label="'Sắp diễn ra'" :value="2" />
+          </el-select>
+        </div>
+        <div class="col-md-2 col-sm-6 mb-2">
+          <el-select v-model="searchVoucher.orderType" placeholder="Tất cả loại đơn hàng" size="small" clearable>
+            <el-option :label="'Tại quầy'" :value="1" />
+            <el-option :label="'Online'" :value="2" />
+          </el-select>
+        </div>
+        <div class="col-md-4 col-sm-12 mb-2 d-flex gap-2">
+          <el-button type="primary" size="small" @click="fetchVoucher(0)">Tìm</el-button>
+          <el-button type="default" size="small" @click="resetForm">Xóa bộ lọc</el-button>
           <el-button type="success" size="small" @click="exportExcel">Xuất Excel</el-button>
+          <el-button type="primary" size="small" @click="onAddVoucher">Thêm Voucher</el-button>
         </div>
-
-        <div class="table-responsive">
-          <table class="table table-hover table-sm table-bordered align-middle">
-            <thead class="table-light">
-              <tr>
-                <th scope="col" class="text-center" style="width: 50px">
-                  <input type="checkbox" v-model="selectAll" @change="toggleSelectAll" />
-                </th>
-                <th scope="col" class="text-center" style="width: 80px">Mã</th>
-                <th scope="col" class="text-wrap">Tên</th>
-                <th scope="col" class="text-wrap">Sản phẩm</th>
-                <th scope="col" class="text-center" style="width: 70px">Giảm (%)</th>
-                <th scope="col" class="text-end" style="width: 90px">Tiền giảm</th>
-                <th scope="col" class="text-end" style="width: 90px">Tối thiểu</th>
-                <th scope="col" class="text-end" style="width: 90px">Tối đa</th>
-                <th scope="col" class="text-center" style="width: 100px">Bắt đầu</th>
-                <th scope="col" class="text-center" style="width: 100px">Kết thúc</th>
-                <th scope="col" class="text-center" style="width: 90px">Trạng thái</th>
-                <th scope="col" class="text-center d-none d-md-table-cell" style="width: 90px">KH</th>
-                <th scope="col" class="text-center d-none d-md-table-cell" style="width: 90px">NV</th>
-                <th scope="col" class="text-center" style="width: 80px">Loại đơn hàng</th>
-                <th scope="col" class="text-center" style="width: 80px">Loại</th>
-                <th scope="col" class="text-center" style="width: 80px">Số lượng</th> <th scope="col" class="text-center d-none d-md-table-cell" style="width: 100px">Danh mục</th>
-                <th scope="col" class="text-center" style="width: 100px">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="row in vouchers" :key="row.id">
-                <td class="text-center">
-                  <input type="checkbox" v-model="selectedVouchers" :value="row.id" />
-                </td>
-                <td class="text-center">{{ row.voucherCode || '-' }}</td>
-                <td class="text-wrap">{{ row.voucherName || '-' }}</td>
-                <td class="text-wrap">{{ row.productName || '-' }}</td>
-                <td class="text-center">{{ formatDiscountPercent(row) }}</td>
-                <td class="text-end">{{ formatDiscountAmount(row) }}</td>
-                <td class="text-end">{{ formatCurrency(row, null, row.minOrderValue) }}</td>
-                <td class="text-end">{{ formatCurrency(row, null, row.maxDiscountValue) }}</td>
-                <td class="text-center">{{ formatDate(row, null, row.startDate) }}</td>
-                <td class="text-center">{{ formatDate(row, null, row.endDate) }}</td>
-                <td class="text-center">
-                  <span :class="{
-                    'badge bg-success': row.status === 1,
-                    'badge bg-danger': row.status === 0,
-                    'badge bg-warning': row.status === 2
-                  }">
-                    {{ formatStatus(row) }}
-                  </span>
-                </td>
-                <td class="text-center d-none d-md-table-cell">{{ row.customerName || '-' }}</td>
-                <td class="text-center d-none d-md-table-cell">{{ row.employeeName || '-' }}</td>
-                <td class="text-center">{{ formatOrderType(row) }}</td>
-                <td class="text-center">{{ formatVoucherType(row) }}</td>
-                <td class="text-center">{{ row.quantity || '-' }}</td> <td class="text-center d-none d-md-table-cell">{{ row.categoryName || '-' }}</td>
-                <td class="text-center">
-                  <el-tooltip content="Sửa" placement="top">
-                    <el-button
-                      type="primary"
-                      :icon="Edit"
-                      size="small"
-                      circle
-                      @click="onEditVoucher(row)"
-                    />
-                  </el-tooltip>
-                  <el-tooltip content="Xóa" placement="top">
-                    <el-button
-                      type="danger"
-                      :icon="Delete"
-                      size="small"
-                      circle
-                      @click="onDeleteVoucher(row)"
-                    />
-                  </el-tooltip>
-                </td>
-              </tr>
-              <tr v-if="!vouchers.length">
-                <td colspan="18" class="text-center text-muted">Không có dữ liệu</td> </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <nav aria-label="Page navigation" class="mt-4" v-if="totalPages > 1">
-          <ul class="pagination pagination-sm justify-content-center">
-            <li class="page-item" :class="{ disabled: !hasPrevious }">
-              <button class="page-link" @click="fetchVoucher(page - 1)" :disabled="!hasPrevious">Trước</button>
-            </li>
-
-            <li
-              class="page-item"
-              v-for="p in totalPages"
-              :key="p"
-              :class="{ active: page === p - 1 }"
-            >
-              <button class="page-link" @click="fetchVoucher(p - 1)">{{ p }}</button>
-            </li>
-
-            <li class="page-item" :class="{ disabled: !hasNext }">
-              <button class="page-link" @click="fetchVoucher(page + 1)" :disabled="!hasNext">Sau</button>
-            </li>
-          </ul>
-        </nav>
       </div>
-    </div>
+    </el-card>
+
+    <!-- Table -->
+    <el-card shadow="hover">
+      <el-table
+        :data="vouchers"
+        stripe
+        border
+        style="width: 100%"
+        :row-key="row => row.id"
+        @selection-change="handleSelectionChange"
+      >
+        <el-table-column type="selection" width="55" />
+        <el-table-column prop="voucherCode" label="Mã" width="200" />
+        <el-table-column prop="voucherName" label="Tên" width="200" />
+        <el-table-column
+          label="Giảm (%)"
+          width="200"
+          :formatter="row => formatDiscountPercent(row)"
+        />
+        <el-table-column
+          label="Tiền giảm"
+          width="200"
+          :formatter="row => formatDiscountAmount(row)"
+        />
+        <el-table-column
+          label="Tối thiểu"
+          width="170"
+          :formatter="row => formatCurrency(row, null, row.minOrderValue)"
+        />
+        <el-table-column
+          label="Tối đa"
+          width="170"
+          :formatter="row => formatCurrency(row, null, row.maxDiscountValue)"
+        />
+        <el-table-column
+          label="Bắt đầu"
+          width="200"
+          :formatter="row => formatDate(row, null, row.startDate)"
+        />
+        <el-table-column
+          label="Kết thúc"
+          width="200"
+          :formatter="row => formatDate(row, null, row.endDate)"
+        />
+        <el-table-column label="Thao tác" width="120">
+          <template #default="scope">
+            <el-tooltip content="Sửa" placement="top">
+              <el-button
+                type="primary"
+                :icon="Edit "
+                size="small"
+                circle
+                @click="onEditVoucher(scope.row)"
+              />
+            </el-tooltip>
+            <el-tooltip content="Xóa" placement="top">
+              <el-button
+                type="danger"
+                :icon="Delete"
+                size="small"
+                circle
+                @click="onDeleteVoucher(scope.row)"
+              />
+            </el-tooltip>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <!-- Pagination -->
+      <div class="d-flex justify-content-end mt-3">
+        <el-pagination
+          background
+          layout="prev, pager, next"
+          :current-page="page + 1"
+          :page-size="pageSize"
+          :total="totalItems"
+          @current-change="fetchVoucher"
+        />
+      </div>
+    </el-card>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
-// Import your pre-configured API client
-import apiClient from '@/utils/axiosInstance' 
+import apiClient from '@/utils/axiosInstance'
 import { ElMessageBox, ElButton, ElIcon, ElMessage } from 'element-plus'
 import { Ticket, Edit, Delete, Plus } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'

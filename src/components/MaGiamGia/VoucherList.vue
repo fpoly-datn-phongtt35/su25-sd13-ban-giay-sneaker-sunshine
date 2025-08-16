@@ -1,6 +1,5 @@
 <template>
   <div class="voucher-wrapper p-4">
-    <!-- Search Section -->
     <el-card shadow="hover" class="mb-4">
       <div class="row g-3">
         <div class="col-md-4 col-sm-6 mb-2">
@@ -33,7 +32,6 @@
       </div>
     </el-card>
 
-    <!-- Table -->
     <el-card shadow="hover">
       <el-table
         :data="vouchers"
@@ -81,7 +79,7 @@
             <el-tooltip content="Sửa" placement="top">
               <el-button
                 type="primary"
-                :icon="Edit "
+                :icon="Edit"
                 size="small"
                 circle
                 @click="onEditVoucher(scope.row)"
@@ -100,15 +98,16 @@
         </el-table-column>
       </el-table>
 
-      <!-- Pagination -->
       <div class="d-flex justify-content-end mt-3">
         <el-pagination
           background
-          layout="prev, pager, next"
+          layout="total, sizes, prev, pager, next, jumper"
           :current-page="page + 1"
-          :page-size="pageSize"
-          :total="totalItems"
-          @current-change="fetchVoucher"
+          :page-size="size"
+          :total="totalElements"
+          :page-sizes="[5, 10, 20, 50]"
+          @current-change="handlePageChange"
+          @size-change="handlePageSizeChange"
         />
       </div>
     </el-card>
@@ -123,12 +122,9 @@ import { Ticket, Edit, Delete, Plus } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 
 const vouchers = ref([])
-const totalPages = ref(0)
-const totalElements = ref(0)
-const hasNext = ref(false)
-const hasPrevious = ref(false)
+const totalElements = ref(0) // Đã đổi tên từ totalPages sang totalElements
 const page = ref(0)
-const size = ref(8)
+const size = ref(10) // Mặc định 10 phần tử mỗi trang
 const categoryList = ref([])
 const selectedVouchers = ref([])
 const selectAll = ref(false)
@@ -163,7 +159,6 @@ const resetForm = async () => {
 // Lấy danh mục
 const fetchCategories = async () => {
   try {
-    // Use apiClient for the GET request
     const response = await apiClient.get('/admin/categories/hien-thi')
     categoryList.value = response.data || []
   } catch (error) {
@@ -178,18 +173,9 @@ const fetchVoucher = async (newPage = 0) => {
   try {
     const searchParams = {
       keyword: searchVoucher.value.keyword?.trim() || null,
-      status:
-        searchVoucher.value.status !== '' && searchVoucher.value.status != null
-          ? Number(searchVoucher.value.status)
-          : null,
-      orderType:
-        searchVoucher.value.orderType !== '' && searchVoucher.value.orderType != null
-          ? Number(searchVoucher.value.orderType)
-          : null,
-      voucherType:
-        searchVoucher.value.voucherType !== '' && searchVoucher.value.voucherType != null
-          ? Number(searchVoucher.value.voucherType)
-          : null,
+      status: searchVoucher.value.status ?? null,
+      orderType: searchVoucher.value.orderType ?? null,
+      voucherType: searchVoucher.value.voucherType ?? null,
       categoryId: searchVoucher.value.categoryIds ?? null,
       page: newPage,
       size: size.value,
@@ -201,16 +187,11 @@ const fetchVoucher = async (newPage = 0) => {
       ? {}
       : searchParams
 
-    // Use apiClient for the POST request
     const response = await apiClient.post('/admin/vouchers/search', requestBody)
     vouchers.value = response.data.data || []
-    totalPages.value = response.data.pagination?.totalPages || 0
     totalElements.value = response.data.pagination?.totalElements || 0
-    hasNext.value = response.data.pagination?.hasNext || false
-    hasPrevious.value = newPage > 0
     page.value = newPage
 
-    // Reset selected vouchers when fetching new page
     selectedVouchers.value = []
     selectAll.value = false
 
@@ -221,21 +202,25 @@ const fetchVoucher = async (newPage = 0) => {
     console.error('Lỗi tải danh sách voucher:', error)
     ElMessage.error(`Tải danh sách voucher thất bại: ${error.message}`)
     vouchers.value = []
-    totalPages.value = 0
     totalElements.value = 0
-    hasNext.value = false // Fixed typo: hasGonext.value -> hasNext.value
-    hasPrevious.value = false
   }
 }
 
-// Chọn tất cả checkbox
-const toggleSelectAll = () => {
-  if (selectAll.value) {
-    selectedVouchers.value = vouchers.value.map(voucher => voucher.id)
-  } else {
-    selectedVouchers.value = []
-  }
-}
+// Cập nhật danh sách các voucher được chọn
+const handleSelectionChange = (val) => {
+  selectedVouchers.value = val.map(voucher => voucher.id);
+};
+
+// Xử lý khi người dùng chuyển trang
+const handlePageChange = (newPage) => {
+  fetchVoucher(newPage - 1); // Trừ 1 vì API bắt đầu từ trang 0
+};
+
+// Xử lý khi người dùng thay đổi số lượng mục trên mỗi trang
+const handlePageSizeChange = (newSize) => {
+  size.value = newSize;
+  fetchVoucher(0); // Chuyển về trang 1 khi thay đổi kích thước
+};
 
 // Xuất Excel
 const exportExcel = async () => {
@@ -251,7 +236,6 @@ const exportExcel = async () => {
       responseType: 'blob' // Expect binary data (Excel file)
     })
 
-    // Create a URL for the blob and trigger download
     const url = window.URL.createObjectURL(new Blob([response.data]))
     const link = document.createElement('a')
     link.href = url
@@ -328,7 +312,6 @@ const onDeleteVoucher = (row) => {
   })
     .then(async () => {
       try {
-        // Use apiClient for the DELETE request
         await apiClient.delete(`/admin/vouchers/${row.id}`)
         ElMessage.success('Xóa voucher thành công!')
         await fetchVoucher(page.value)

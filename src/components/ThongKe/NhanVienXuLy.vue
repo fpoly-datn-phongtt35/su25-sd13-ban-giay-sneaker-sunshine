@@ -2,6 +2,11 @@
   <div class="employee-sales-report-container">
     <h2>Báo Cáo Doanh Số Nhân Viên</h2>
 
+    <!-- Nút quay lại -->
+    <div class="back-btn">
+      <el-button type="default" @click="goBack">Quay lại</el-button>
+    </div>
+
     <!-- Form lọc -->
     <el-form :inline="true" :model="filters" class="filters-form" label-width="120px">
       <el-form-item label="Tên nhân viên">
@@ -90,6 +95,7 @@
 import { ref, onMounted, computed } from 'vue'
 import apiClient from '@/utils/axiosInstance'
 import { ElMessage } from 'element-plus'
+import { useRouter } from 'vue-router'
 
 // Dữ liệu và trạng thái
 const reports = ref([])
@@ -100,6 +106,12 @@ const filters = ref({
   startDate: null,
   endDate: null,
 })
+
+const router = useRouter()
+
+const goBack = () => {
+  router.back() // Quay lại trang trước
+}
 
 // Dữ liệu nhân viên
 const employeeData = ref([])

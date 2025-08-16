@@ -143,7 +143,7 @@
           </el-form-item>
 
           <el-row :gutter="20">
-            <!-- <el-col :span="8">
+            <el-col :span="8">
               <el-form-item label="Loại đơn hàng" prop="orderType">
                 <el-select v-model="voucher.orderType" placeholder="Chọn loại đơn hàng" class="w-full">
                   <el-option :value="1" label="Bán tại quầy" />
@@ -151,7 +151,7 @@
                 </el-select>
               </el-form-item>
             </el-col>
-            <el-col :span="8">
+            <!-- <el-col :span="8">
               <el-form-item label="Loại voucher" prop="voucherType">
                 <el-select
                   v-model="voucher.voucherType"
@@ -283,7 +283,7 @@ const voucher = reactive({
   updatedAt: new Date().toISOString(),
   createdBy: 'admin',
   updatedBy: 'admin',
-  orderType: 1,
+  orderType: null,
   voucherType: 1,
   productId: null,
   categoryId: null,
@@ -345,19 +345,36 @@ const rules = reactive({
       trigger: 'change',
     },
   ],
-  startDate: [{ required: true, message: 'Vui lòng chọn ngày bắt đầu', trigger: 'change' }],
-  endDate: [
-    {
-      validator: (rule, value, callback) => {
-        if (value && new Date(value) <= new Date(voucher.startDate)) {
-          callback(new Error('Ngày kết thúc phải sau ngày bắt đầu'));
-        } else {
-          callback();
-        }
-      },
-      trigger: 'change',
+startDate: [
+  {
+    validator: (rule, value, callback) => {
+      if (!value) {
+        callback(new Error('Vui lòng chọn ngày bắt đầu'));
+      } else if (new Date(value) < new Date()) {
+        callback(new Error('Ngày bắt đầu phải lớn hơn hoặc bằng ngày hiện tại'));
+      } else {
+        callback();
+      }
     },
-  ],
+    trigger: 'change',
+  },
+],
+endDate: [
+  {
+    validator: (rule, value, callback) => {
+      if (!value) {
+        callback(new Error('Vui lòng chọn ngày kết thúc'));
+      } else if (new Date(value) < new Date()) {
+        callback(new Error('Ngày kết thúc phải lớn hơn hoặc bằng ngày hiện tại'));
+      } else if (voucher.startDate && new Date(value) <= new Date(voucher.startDate)) {
+        callback(new Error('Ngày kết thúc phải sau ngày bắt đầu'));
+      } else {
+        callback();
+      }
+    },
+    trigger: 'change',
+  },
+],
   quantity: [
     { required: true, message: 'Vui lòng nhập số lượng voucher', trigger: 'change' },
     {
@@ -456,7 +473,6 @@ const resetForm = () => {
     categoryId: null,
     quantity: null, // Reset quantity
   });
-  ElMessage.success('Form đã được reset.');
 };
 
 const updateStatus = () => {

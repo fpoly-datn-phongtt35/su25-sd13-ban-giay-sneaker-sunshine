@@ -1,6 +1,5 @@
 <template>
   <div class="p-4 bg-light">
-    <!-- Bộ lọc tìm kiếm -->
     <el-card class="mb-4 shadow-sm card-filter">
       <el-form
         :inline="true"
@@ -39,10 +38,9 @@
       </el-form>
     </el-card>
 
-    <!-- Tabs trạng thái -->
     <el-tabs
       v-model="currentTab"
-      @tab-change="search"
+      @tab-change="handleTabChange"
       type="border-card"
       class="mb-4 shadow-sm"
     >
@@ -54,7 +52,6 @@
       />
     </el-tabs>
 
-    <!-- Bảng dữ liệu -->
     <el-table
       :data="invoices"
       v-loading="loading"
@@ -98,40 +95,42 @@
       </el-table-column>
     </el-table>
 
-    <!-- Phân trang -->
     <div class="d-flex justify-end mt-4">
       <el-pagination
         background
-        layout="prev, pager, next"
+        layout="total, sizes, prev, pager, next, jumper"
         :total="total"
-        :page-size="pageSize"
-        :current-page="page"
-        @current-change="handlePageChange"
+        v-model:page-size="pageSize"
+        v-model:current-page="page"
+        :page-sizes="[10, 20, 50, 100]"
+        @current-change="search"
+        @size-change="search"
       />
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import dayjs from 'dayjs'
 import apiClient from '@/utils/axiosInstance'
+import { ElMessage } from 'element-plus';
 
 const router = useRouter()
 
 const filters = ref({
   search: '',
-  dateRange: []
+  dateRange: [],
+  sortBy: null // Thêm thuộc tính sắp xếp
 })
 
 const currentTab = ref('CHO_XU_LY')
 const page = ref(1)
-const pageSize = ref(100)
+const pageSize = ref(10)
 const total = ref(0)
 const invoices = ref([])
 const loading = ref(false)
-const statusCounts = ref([])
 
 const tabs = ref([
   { key: 'CHO_XU_LY', label: 'Chờ xử lý', count: 0 },
@@ -164,8 +163,6 @@ const fetchStatusCounts = async () => {
   try {
     const response = await apiClient.get('/admin/online-sales/count-by-status')
     const data = response.data || []
-
-    // Map count về tabs
     tabs.value = tabs.value.map(tab => {
       const found = data.find(d => d.statusDetail === tab.key)
       return { ...tab, count: found ? found.countInvoice : 0 }
@@ -188,6 +185,12 @@ const search = async () => {
       page: page.value - 1,
       size: pageSize.value
     }
+
+    // Thêm tham số sắp xếp nếu có
+    if (filters.value.sortBy) {
+        params.sort = `${filters.value.sortBy.field},${filters.value.sortBy.direction}`
+    }
+
     const res = await apiClient.get('/admin/online-sales/search', { params })
     invoices.value = res.data.content
     total.value = res.data.totalElements
@@ -200,13 +203,22 @@ const search = async () => {
 }
 
 const resetFilters = () => {
-  filters.value = { search: '', dateRange: [] }
+  filters.value = { search: '', dateRange: [], sortBy: null }
   page.value = 1
   search()
 }
 
-const handlePageChange = (val) => {
-  page.value = val
+// Cập nhật phương thức xử lý chuyển tab
+const handleTabChange = () => {
+  page.value = 1
+
+  // Sắp xếp giảm dần theo ngày tạo khi chọn tab "Đơn hàng hủy"
+  if (currentTab.value === 'HUY_DON') {
+    filters.value.sortBy = { field: 'createdDate', direction: 'desc' };
+  } else {
+    filters.value.sortBy = null;
+  }
+
   search()
 }
 
@@ -218,8 +230,13 @@ const formatDateTime = (dateStr) => {
   return dayjs(dateStr).format('DD/MM/YYYY HH:mm:ss')
 }
 
+// Giám sát thay đổi của page và pageSize để tự động gọi search
+watch([page, pageSize], () => {
+  search();
+});
+
 onMounted(() => {
-  fetchStatusCounts();
+  fetchStatusCounts()
   search()
 })
 </script>

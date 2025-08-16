@@ -139,14 +139,14 @@
                 </el-select>
               </el-form-item>
             </el-col>
-            <el-col :span="8">
+            <!-- <el-col :span="8">
               <el-form-item label="Loại voucher" prop="voucherType">
                 <el-select v-model="voucher.voucherType" @change="onVoucherTypeChange">
                   <el-option label="Công khai" :value="1" />
                   <el-option label="Riêng tư" :value="0" />
                 </el-select>
               </el-form-item>
-            </el-col>
+            </el-col> -->
             <el-col :span="8" v-if="voucher.voucherType === 0">
               <el-form-item label="Khách hàng áp dụng" prop="customerId">
                 <el-select
@@ -263,7 +263,7 @@ const voucher = reactive({
   startDate: null,
   endDate: null,
   description: '',
-  orderType: 1,
+  orderType: null,
   voucherType: 1,
   customerId: null,
   productId: null,
@@ -272,48 +272,63 @@ const voucher = reactive({
   status: 1,
 })
 
+const parseDate = (str) => {
+  // "YYYY-MM-DD HH:mm:ss" -> "YYYY-MM-DDTHH:mm:ssZ" để JS parse đúng UTC
+  return new Date(str.replace(' ', 'T') + 'Z')
+}
+
 const rules = {
   voucherName: [{ required: true, message: 'Vui lòng nhập tên voucher', trigger: 'blur' }],
-  startDate: [
-    { required: true, message: 'Chọn ngày bắt đầu', trigger: 'change' },
-    {
-      validator: (rule, value, callback) => {
-        if (value && voucher.endDate && new Date(value) >= new Date(voucher.endDate)) {
-          callback(new Error('Ngày bắt đầu phải trước ngày kết thúc'))
-        } else {
-          callback()
+startDate: [
+  { required: true, message: 'Chọn ngày bắt đầu', trigger: 'change' },
+  {
+    validator: (rule, value, callback) => {
+      console.log('Validator startDate called')
+      console.log('value (raw from date picker):', value)
+      const selected = parseDate(value)
+      console.log('selected (parsed Date):', selected)
+
+      const now = new Date()
+      now.setHours(0, 0, 0, 0)
+      console.log('now (today start):', now)
+
+      if (selected <= now) {
+        console.warn('Ngày bắt đầu không hợp lệ: <= ngày hiện tại')
+        return callback(new Error('Ngày bắt đầu phải lớn hơn ngày hiện tại'))
+      }
+
+      if (voucher.endDate) {
+        const end = parseDate(voucher.endDate)
+        console.log('voucher.endDate:', voucher.endDate, 'parsed end:', end)
+        if (selected >= end) {
+          console.warn('Ngày bắt đầu không hợp lệ: >= ngày kết thúc')
+          return callback(new Error('Ngày bắt đầu phải trước ngày kết thúc'))
         }
-      },
-      trigger: 'change',
+      }
+
+      callback()
     },
-  ],
-  endDate: [
-    { required: true, message: 'Chọn ngày kết thúc', trigger: 'change' },
-    {
-      validator: (rule, value, callback) => {
-        if (value && voucher.startDate && new Date(value) <= new Date(voucher.startDate)) {
-          callback(new Error('Ngày kết thúc phải sau ngày bắt đầu'))
-        } else {
-          callback()
-        }
-      },
-      trigger: 'change',
+    trigger: 'change',
+  },
+],
+endDate: [
+  { required: true, message: 'Chọn ngày kết thúc', trigger: 'change' },
+  {
+    validator: (rule, value, callback) => {
+      const now = new Date()
+      if (!value) {
+        callback(new Error('Chọn ngày kết thúc'))
+      } else if (new Date(value) <= now) {
+        callback(new Error('Ngày kết thúc phải lớn hơn hiện tại'))
+      } else if (voucher.startDate && new Date(value) <= new Date(voucher.startDate)) {
+        callback(new Error('Ngày kết thúc phải sau ngày bắt đầu'))
+      } else {
+        callback()
+      }
     },
-  ],
-  voucherType: [{ required: true, message: 'Chọn loại voucher', trigger: 'change' }],
-  orderType: [{ required: true, message: 'Chọn loại đơn hàng', trigger: 'change' }],
-  customerId: [
-    {
-      validator: (rule, value, callback) => {
-        if (voucher.voucherType === 0 && !value) {
-          callback(new Error('Vui lòng chọn khách hàng cho voucher riêng tư'))
-        } else {
-          callback()
-        }
-      },
-      trigger: ['blur', 'change'],
-    },
-  ],
+    trigger: 'change',
+  },
+],
   discountPercentage: [
     {
       validator: (rule, value, callback) => {
@@ -365,13 +380,16 @@ const fetchVoucher = async () => {
   try {
     // Use apiClient
     const res = await apiClient.get(`/admin/vouchers/${voucherId}`)
+
+    console.log('Dữ liệu voucher từ API:', res.data) // <-- log dữ liệu ở đây
+
     Object.assign(voucher, res.data)
     Object.assign(originalVoucher.value, res.data) // Store original data
     if (res.data.startDate) {
-      voucher.startDate = new Date(res.data.startDate)
+      voucher.startDate = res.data.startDate ? res.data.startDate.replace('T', ' ') : null
     }
     if (res.data.endDate) {
-      voucher.endDate = new Date(res.data.endDate)
+      voucher.endDate = res.data.endDate ? res.data.endDate.replace('T', ' ') : null
     }
     voucher.discountPercentage = res.data.discountPercentage ?? null
     voucher.discountAmount = res.data.discountAmount ?? null
@@ -383,6 +401,7 @@ const fetchVoucher = async () => {
     ElMessage.error('Không thể tải dữ liệu voucher!')
   }
 }
+
 
 const filterProducts = async (query) => {
   try {
@@ -428,6 +447,8 @@ const updateStatus = () => {
     voucher.status = 1
     return
   }
+
+  console.log('Ngày bắt đầu selected:', voucher.startDate)
   const now = new Date()
   const start = new Date(voucher.startDate)
   voucher.status = start > now ? 2 : 1
@@ -536,7 +557,7 @@ const updateVoucher = async () => {
 
     console.log('Payload sent:', payload); // Log the payload for debugging
 
-    const res = await axios.put(`http://localhost:8080/api/admin/vouchers/update/${voucherId}`, payload);
+    const res = await apiClient.put(`/admin/vouchers/update/${voucherId}`, payload);
 
     if (res.status !== 200) {
       throw new Error(res.data.message || 'Cập nhật voucher thất bại')

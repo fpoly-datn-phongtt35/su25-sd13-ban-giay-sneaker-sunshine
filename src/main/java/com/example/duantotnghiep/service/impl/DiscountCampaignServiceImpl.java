@@ -1,6 +1,7 @@
 package com.example.duantotnghiep.service.impl;
 
 
+import com.example.duantotnghiep.dto.request.DiscountCampaignProductDetailRequest;
 import com.example.duantotnghiep.dto.request.DiscountCampaignProductRequest;
 import com.example.duantotnghiep.dto.request.DiscountCampaignRequest;
 import com.example.duantotnghiep.dto.response.DiscountCampaignResponse;
@@ -8,7 +9,9 @@ import com.example.duantotnghiep.dto.response.DiscountCampaignStatisticsResponse
 import com.example.duantotnghiep.mapper.DiscountCampaignMapper;
 import com.example.duantotnghiep.model.DiscountCampaign;
 import com.example.duantotnghiep.model.DiscountCampaignProduct;
+import com.example.duantotnghiep.model.DiscountCampaignProductDetail;
 import com.example.duantotnghiep.model.Product;
+import com.example.duantotnghiep.model.ProductDetail;
 import com.example.duantotnghiep.repository.DiscountCampaignProductRepository;
 import com.example.duantotnghiep.repository.DiscountCampaignRepository;
 import com.example.duantotnghiep.repository.InvoiceRepository;
@@ -23,12 +26,16 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -84,45 +91,112 @@ public class DiscountCampaignServiceImpl implements DiscountCampaignService {
         // 0) Tạo campaignCode nếu chưa có
         String campaignCode = (request.getCampaignCode() == null || request.getCampaignCode().trim().isEmpty())
                 ? "CAMPAIGN_" + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"))
-                + "_" + ((int)(Math.random() * 9000) + 1000)
+                + "_" + ((int) (Math.random() * 9000) + 1000)
                 : request.getCampaignCode();
 
-        // 1) Map từ request sang entity (bỏ qua products)
-        DiscountCampaign campaign = discountCampaignMapper.toEntity(request);
+        // 1) Map cơ bản
+        DiscountCampaign campaign = new DiscountCampaign();
         campaign.setCampaignCode(campaignCode);
-        campaign.setStatus(1); // Đang hoạt động
-        campaign.setDiscountPercentage(request.getDiscountPercentage());
+        campaign.setName(request.getName());
         campaign.setDescription(request.getDescription());
-
-        // ✅ Gán ngày bắt đầu / kết thúc nếu có
         campaign.setStartDate(request.getStartDate());
         campaign.setEndDate(request.getEndDate());
 
-        // ✅ Gán ngày tạo / cập nhật
+        // status mặc định 1 nếu null
+        campaign.setStatus(request.getStatus() != null ? request.getStatus() : 1);
+
+        // % giảm giá mặc định ở campaign (BigDecimal 0..100, scale 2)
+        campaign.setDiscountPercentage(normalizePercentageOrNull(request.getDiscountPercentage()));
+
         LocalDateTime now = LocalDateTime.now();
         campaign.setCreatedDate(now);
         campaign.setUpdatedDate(now);
+        // createdBy/updatedBy nếu bạn có context user thì set thêm
 
-        // 2) Gán danh sách sản phẩm nếu có
+        // 2) Mức PRODUCT (tuỳ bạn còn dùng không)
         if (request.getProducts() != null && !request.getProducts().isEmpty()) {
-            List<DiscountCampaignProduct> productList = new ArrayList<>();
-            for (DiscountCampaignProductRequest productReq : request.getProducts()) {
-                Product product = productRepository.findById(productReq.getProductId())
-                        .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm với ID: " + productReq.getProductId()));
+            List<DiscountCampaignProduct> productLinks = new ArrayList<>();
+            for (DiscountCampaignProductRequest pReq : request.getProducts()) {
+                if (pReq == null || pReq.getProductId() == null) continue;
 
-                DiscountCampaignProduct dcp = new DiscountCampaignProduct();
-                dcp.setProduct(product);
-                dcp.setCampaign(campaign);
-                productList.add(dcp);
+                Product product = productRepository.findById(pReq.getProductId())
+                        .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy sản phẩm ID: " + pReq.getProductId()));
+
+                DiscountCampaignProduct link = new DiscountCampaignProduct();
+                link.setCampaign(campaign);
+                link.setProduct(product);
+                link.setCreatedDate(now);
+                link.setUpdatedDate(now);
+                productLinks.add(link);
             }
-            campaign.setProducts(productList);
+            campaign.setProducts(productLinks);
         }
 
-        // 3) Lưu chiến dịch giảm giá
-        DiscountCampaign savedCampaign = discountCampaignRepository.save(campaign);
+        // 3) Mức PRODUCT DETAIL (SPCT) – chỉ insert những SPCT được gửi lên
+        if (request.getProductDetails() != null && !request.getProductDetails().isEmpty()) {
+            // Lọc ID hợp lệ + distinct
+            List<Long> pdIds = request.getProductDetails().stream()
+                    .filter(Objects::nonNull)
+                    .map(DiscountCampaignProductDetailRequest::getProductDetailId)
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .toList();
 
-        // 4) Trả về response
-        return discountCampaignMapper.toResponse(savedCampaign);
+            if (!pdIds.isEmpty()) {
+                // Load batch để kiểm tra tồn tại
+                Map<Long, ProductDetail> pdMap = productDetailRepository.findAllById(pdIds)
+                        .stream().collect(Collectors.toMap(ProductDetail::getId, it -> it));
+
+                for (Long id : pdIds) {
+                    if (!pdMap.containsKey(id)) {
+                        throw new IllegalArgumentException("Không tìm thấy SPCT ID: " + id);
+                    }
+                }
+
+                List<DiscountCampaignProductDetail> items = new ArrayList<>();
+                for (DiscountCampaignProductDetailRequest dReq : request.getProductDetails()) {
+                    if (dReq == null || dReq.getProductDetailId() == null) continue;
+
+                    ProductDetail pd = pdMap.get(dReq.getProductDetailId());
+                    if (pd == null) {
+                        throw new IllegalArgumentException("Không tìm thấy SPCT ID: " + dReq.getProductDetailId());
+                    }
+
+                    DiscountCampaignProductDetail item = new DiscountCampaignProductDetail();
+                    item.setCampaign(campaign);
+                    item.setProductDetail(pd);
+
+                    // % riêng trên SPCT (nullable => dùng % campaign khi tính)
+                    BigDecimal perItem = normalizePercentageOrNull(dReq.getDiscountPercentage());
+                    item.setDiscountPercentage(perItem);
+
+                    item.setCreatedDate(java.sql.Timestamp.valueOf(now));
+                    item.setUpdatedDate(java.sql.Timestamp.valueOf(now));
+
+                    items.add(item);
+                }
+                campaign.setProductDetails(items);
+            }
+        }
+
+        // 4) Lưu
+        DiscountCampaign saved = discountCampaignRepository.save(campaign);
+
+        // 5) Trả response
+        // Nếu bạn đã có mapper:
+        return discountCampaignMapper.toResponse(saved);
+    }
+
+    /**
+     * Chuẩn hoá % BigDecimal về scale(2), kiểm tra 0..100. Null => null
+     */
+    private BigDecimal normalizePercentageOrNull(BigDecimal percent) {
+        if (percent == null) return null;
+        BigDecimal p = percent.setScale(2, RoundingMode.HALF_UP);
+        if (p.compareTo(BigDecimal.ZERO) < 0 || p.compareTo(new BigDecimal("100.00")) > 0) {
+            throw new IllegalArgumentException("discountPercentage phải nằm trong [0, 100]");
+        }
+        return p;
     }
 
     @Transactional

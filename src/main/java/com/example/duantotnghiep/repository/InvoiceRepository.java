@@ -234,6 +234,17 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
     """, nativeQuery = true)
     List<Object[]> countInvoicesByStatusNative();
 
+    int countByCustomerAndStatusDetailAndUpdatedDateAfter(
+            Customer customer,
+            TrangThaiChiTiet statusDetail,
+            Date updatedAfter
+    );
+
+    int countByCustomerAndStatusAndUpdatedDateAfter(
+            Customer customer,
+            TrangThaiTong status,
+            Date updatedAfter
+    );
 
 }
 

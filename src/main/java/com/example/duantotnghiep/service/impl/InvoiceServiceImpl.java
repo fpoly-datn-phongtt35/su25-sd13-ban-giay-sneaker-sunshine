@@ -49,12 +49,15 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.security.SecureRandom;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -89,6 +92,7 @@ public class InvoiceServiceImpl implements InvoiceService {
     private final VoucherService voucherService;
     private final CustomerBlacklistHistoryRepository customerBlacklistHistoryRepository;
     private final DiscountCampaignProductRepository discountCampaignProductRepository;
+    private final PasswordEncoder passwordEncoder;
 //    private final InvoiceService invoiceService;
 
     @Transactional
@@ -272,20 +276,87 @@ public class InvoiceServiceImpl implements InvoiceService {
     @Transactional
     @Override
     public CustomerResponse createQuickCustomer(String phone, String name, String email) {
-        if (phone == null || phone.isBlank()) throw new RuntimeException("Số điện thoại không được trống");
-        Optional<Customer> existed = customerRepository.findTop1ByPhoneAndStatus(phone, 1);
-        if (existed.isPresent()) return invoiceMapper.toCustomerResponse(existed.get());
+        // ===== Validate input =====
+        if (phone == null || phone.isBlank()) {
+            throw new RuntimeException("Số điện thoại không được trống");
+        }
 
-        Customer c = new Customer();
-        c.setCustomerName((name==null||name.isBlank()) ? "Khách lẻ" : name.trim());
-        c.setPhone(phone.trim());
-        c.setEmail((email==null||email.isBlank()) ? null : email.trim());
-        c.setCustomerCode("CUS-" + System.currentTimeMillis());
-        c.setStatus(1);
-        c.setCreatedDate(LocalDateTime.now());
-        c.setCreatedBy(currentUsername());
-        return invoiceMapper.toCustomerResponse(customerRepository.save(c));
+        final String normalizedPhone = phone.trim();
+        final String normalizedName  = (name == null || name.isBlank()) ? "Khách lẻ" : name.trim();
+        final String normalizedEmail = (email == null || email.isBlank()) ? null : email.trim();
+        final LocalDateTime now = LocalDateTime.now();
+
+        // ===== 1) Kiểm tra trùng SĐT =====
+        Optional<Customer> existedOpt = customerRepository.findTop1ByPhoneAndStatus(normalizedPhone, 1);
+        if (existedOpt.isPresent()) {
+            // Nếu đã có khách với số điện thoại này → báo lỗi
+            throw new RuntimeException("Số điện thoại đã tồn tại");
+        }
+
+        // ===== 2) Tạo customer mới =====
+        Customer customer = new Customer();
+        customer.setCustomerName(normalizedName);
+        customer.setPhone(normalizedPhone);
+        customer.setEmail(normalizedEmail);
+        customer.setCustomerCode("CUS-" + System.currentTimeMillis());
+        customer.setStatus(1);
+        customer.setCreatedDate(now);
+        customer.setCreatedBy(currentUsername());
+        customer = customerRepository.save(customer);
+
+        // ===== 3) Nếu có email → auto tạo User =====
+        if (normalizedEmail != null) {
+            if (!userRepository.existsByUsername(normalizedEmail)) {
+                createUserForCustomer(customer, normalizedEmail);
+            } else {
+                Optional<User> userOpt = userRepository.findByUsername(normalizedEmail);
+                if (userOpt.isPresent()) {
+                    User u = userOpt.get();
+                    if (u.getCustomer() == null) {
+                        u.setCustomer(customer);
+                        u.setUpdatedAt(new Date());          // User dùng java.util.Date
+                        u.setUpdatedBy(currentUsername());
+                        userRepository.save(u);
+                    }
+                }
+            }
+        }
+
+        // ===== 4) Trả về DTO =====
+        return invoiceMapper.toCustomerResponse(customer);
     }
+
+
+    /** Tạo tài khoản User cho customer với username=email, mật khẩu ngẫu nhiên (băm BCrypt). */
+    private void createUserForCustomer(Customer customer, String emailAsUsername) {
+        String rawPassword = generateRandomPassword(10);
+        String hashed = passwordEncoder.encode(rawPassword);
+
+        User u = new User();
+        u.setUsername(emailAsUsername);
+        u.setPassword(hashed);
+        u.setCreatedAt(new Date());           // User.createdAt là java.util.Date
+        u.setCreatedBy(currentUsername());
+        u.setRole(3);                         // ví dụ: 3 = CUSTOMER, tuỳ hệ thống quyền của bạn
+        u.setCustomer(customer);
+
+        userRepository.save(u);
+
+        // TODO: Gửi email thông báo mật khẩu tạm cho khách hoặc phát kênh khác.
+        // KHÔNG trả mật khẩu thô qua API response.
+    }
+
+    /** Sinh mật khẩu ngẫu nhiên (trộn chữ và ký tự đặc biệt). */
+    private String generateRandomPassword(int length) {
+        final String dict = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789@#$%!";
+        SecureRandom rnd = new SecureRandom();
+        StringBuilder sb = new StringBuilder(length);
+        for (int i = 0; i < length; i++) {
+            sb.append(dict.charAt(rnd.nextInt(dict.length())));
+        }
+        return sb.toString();
+    }
+
 
     @Transactional
     public void assignCustomer(Long invoiceId, Long customerId) {
@@ -833,8 +904,6 @@ public class InvoiceServiceImpl implements InvoiceService {
         return invoiceRepository.save(invoice);
     }
 
-
-
     /** Hủy các giữ cũ (status=0) của chính hóa đơn này để tránh trùng bản ghi */
     private void releaseOldHolds(Invoice invoice) {
         List<VoucherHistory> olds = voucherHistoryRepository.findByInvoice(invoice);
@@ -845,7 +914,6 @@ public class InvoiceServiceImpl implements InvoiceService {
         }
         voucherHistoryRepository.saveAll(olds);
     }
-
 
     private void markVoucherUsedIfAny(Invoice invoice, LocalDateTime now) {
         Voucher voucher = invoice.getVoucher();
@@ -1367,15 +1435,33 @@ public class InvoiceServiceImpl implements InvoiceService {
     @Override
     public void autoBlacklistIfTooManyCancellations(Customer customer) {
         LocalDateTime now = LocalDateTime.now();
-
-        LocalDateTime lastChecked = Optional.ofNullable(customer.getLastBlacklistChecked())
+        LocalDateTime lastCheckedLdt = Optional.ofNullable(customer.getLastBlacklistChecked())
                 .orElse(now.minusDays(30));
 
+        // Invoice.updatedDate là java.util.Date → convert mốc thời gian sang Date
+        Date lastCheckedDate = Date.from(lastCheckedLdt.atZone(ZoneId.systemDefault()).toInstant());
+
+        // 1) Số đơn HUỶ mới (status_detail = HUY_DON) sau mốc lastChecked
         int newCancelledOrders = invoiceRepository.countByCustomerAndStatusDetailAndUpdatedDateAfter(
                 customer,
                 TrangThaiChiTiet.HUY_DON,
-                lastChecked
+                lastCheckedDate
         );
+
+        // 2) Số đơn THÀNH CÔNG mới (status = HOAN_THANH) sau mốc lastChecked  → điều kiện ân xá
+        int newSuccessfulOrders = invoiceRepository.countByCustomerAndStatusAndUpdatedDateAfter(
+                customer,
+                TrangThaiTong.THANH_CONG, // đổi lại nếu enum trạng thái hoàn tất của bạn khác tên
+                lastCheckedDate
+        );
+
+        // ===== Luật ân xá =====
+        if (newSuccessfulOrders > 0) {
+            resetBlacklistState(customer, now);
+            customerRepository.save(customer);
+            return;
+        }
+        // ======================
 
         if (newCancelledOrders <= 0) {
             customer.setLastBlacklistChecked(now);
@@ -1391,48 +1477,74 @@ public class InvoiceServiceImpl implements InvoiceService {
         int newTrustScore = Math.max(0, currentScore - deducted);
         customer.setTrustScore(newTrustScore);
 
-        boolean warned = false;
-        boolean blacklisted = false;
-
-        // ⚠️ Cảnh báo nếu hủy 3 hoặc 4 đơn
+        // ⚠️ Cảnh báo nếu hủy 3 hoặc 4 đơn (chỉ log khi lần đầu chạm mốc)
         if ((totalCancelled == 3 || totalCancelled == 4) && previousCancelCount < totalCancelled) {
-            String warningMsg = "⚠️ Cảnh báo: Đã hủy " + totalCancelled + " đơn hàng. Nếu hủy đến 5 đơn sẽ bị cấm mua hàng 3 ngày.";
+            String warningMsg = "⚠️ Cảnh báo: Đã hủy " + totalCancelled + " đơn hàng. "
+                    + "Nếu hủy đến 5 đơn sẽ bị cấm mua hàng 3 ngày.";
 
-            // Lưu cảnh báo vào lịch sử
             CustomerBlacklistHistory warning = new CustomerBlacklistHistory();
             warning.setCustomer(customer);
             warning.setReason(warningMsg);
             warning.setStartTime(now);
-            warning.setEndTime(null); // chỉ là cảnh báo, không có thời hạn
+            warning.setEndTime(null); // cảnh báo, không có hạn
             customerBlacklistHistoryRepository.save(warning);
 
-            // Ghi cảnh báo vào bảng khách hàng
             customer.setBlacklistReason(warningMsg);
-            warned = true;
         }
 
-        // ⛔ Cấm nếu hủy từ 5 đơn trở lên
+        // ⛔ Cấm nếu hủy từ 5 đơn trở lên (vừa mới chạm ngưỡng)
         if (totalCancelled >= 5 && previousCancelCount < 5) {
             customer.setIsBlacklisted(true);
             customer.setBlacklistReason("Đã hủy ≥ 5 đơn hàng");
             customer.setBlacklistExpiryDate(now.plusDays(3));
 
-            // Lưu lịch sử blacklist
             CustomerBlacklistHistory blacklist = new CustomerBlacklistHistory();
             blacklist.setCustomer(customer);
             blacklist.setReason(customer.getBlacklistReason());
             blacklist.setStartTime(now);
             blacklist.setEndTime(customer.getBlacklistExpiryDate());
             customerBlacklistHistoryRepository.save(blacklist);
-
-            blacklisted = true;
         }
 
-        // Cập nhật thông tin sau cùng
+        // Cập nhật cuối
         customer.setLastBlacklistChecked(now);
         customer.setLastBlacklistCancelCount(totalCancelled);
         customerRepository.save(customer);
     }
+
+    /**
+     * Gỡ cấm + reset toàn bộ trạng thái cảnh báo/blacklist.
+     * Đồng thời đóng các history còn mở (endTime = null).
+     */
+    private void resetBlacklistState(Customer customer, LocalDateTime now) {
+        List<CustomerBlacklistHistory> openHistories =
+                customerBlacklistHistoryRepository.findOpenHistoriesByCustomer(customer.getId());
+        for (CustomerBlacklistHistory h : openHistories) {
+            h.setEndTime(now);
+        }
+        if (!openHistories.isEmpty()) {
+            customerBlacklistHistoryRepository.saveAll(openHistories);
+        }
+
+        customer.setIsBlacklisted(false);
+        customer.setBlacklistReason(null);
+        customer.setBlacklistExpiryDate(null);
+        customer.setLastBlacklistCancelCount(0);
+
+        // Khôi phục điểm tin cậy (tuỳ chính sách: set 100 hoặc +10,…)
+        customer.setTrustScore(100);
+
+        customer.setLastBlacklistChecked(now);
+
+        // Ghi nhận 1 bản ghi ân xá
+        CustomerBlacklistHistory pardon = new CustomerBlacklistHistory();
+        pardon.setCustomer(customer);
+        pardon.setReason("Ân xá: Có đơn giao thành công sau lần kiểm tra trước, reset trạng thái.");
+        pardon.setStartTime(now);
+        pardon.setEndTime(now);
+        customerBlacklistHistoryRepository.save(pardon);
+    }
+
 
     @Transactional
     @Override

@@ -1,5 +1,6 @@
 package com.example.duantotnghiep.repository;
 
+import com.example.duantotnghiep.model.Customer;
 import com.example.duantotnghiep.model.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -39,7 +40,9 @@ public interface UserRepository extends JpaRepository<User,Long> {
     @Query("UPDATE Employee e SET e.status = 0 WHERE e.id =:employeeId")
     void deleteByEmployeeId(@Param("employeeId") Long employeeId);
 
+    boolean existsByUsername(String username);
 
+    Optional<User> findByCustomer(Customer customer);
 
 }
 

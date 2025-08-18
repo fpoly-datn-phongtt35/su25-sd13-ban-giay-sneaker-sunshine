@@ -247,7 +247,7 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
 
     @Override
     @Transactional
-    public void huyDonVaHoanTienEmployee(Long invoiceId, String nextKey, String note, String paymentMenthod, Boolean isPaid) {
+    public void huyDonVaHoanTienEmployee(Long invoiceId, String nextKey, String note, String paymentMenthod, Boolean isPaid,String tradeCode) {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
 
         User user = userRepository.findByUsername(username)
@@ -282,6 +282,7 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
         invoiceTransaction.setInvoice(invoice);
         invoiceTransaction.setAmount(invoice.getFinalAmount());
         invoiceTransaction.setPaymentStatus(2);
+        invoiceTransaction.setTradeCode(tradeCode);
         invoiceTransaction.setPaymentMethod(paymentMenthod);
         invoiceTransaction.setTransactionType("Hoàn tiền");
         invoiceTransaction.setNote(note);
@@ -292,8 +293,8 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
     }
 
     @Override
-    public void giaoHangThatBaiVaHoanTien(Long invoiceId, String nextKey, String note, String paymentMenthod,Boolean isPaid) {
-        huyDonVaHoanTienEmployee(invoiceId,nextKey,note,paymentMenthod,isPaid);
+    public void giaoHangThatBaiVaHoanTien(Long invoiceId, String nextKey, String note, String paymentMenthod,Boolean isPaid,String tradeCode) {
+        huyDonVaHoanTienEmployee(invoiceId,nextKey,note,paymentMenthod,isPaid,tradeCode);
     }
 
     @Override

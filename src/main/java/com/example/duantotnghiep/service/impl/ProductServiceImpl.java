@@ -4,12 +4,7 @@ import com.example.duantotnghiep.dto.request.ProductDetailRequest;
 import com.example.duantotnghiep.dto.request.ProductImageRequest;
 import com.example.duantotnghiep.dto.request.ProductRequest;
 import com.example.duantotnghiep.dto.request.ProductSearchRequest;
-import com.example.duantotnghiep.dto.response.CategoryResponse;
-import com.example.duantotnghiep.dto.response.PaginationDTO;
-import com.example.duantotnghiep.dto.response.ProductDetailResponse;
-import com.example.duantotnghiep.dto.response.ProductImageResponse;
-import com.example.duantotnghiep.dto.response.ProductResponse;
-import com.example.duantotnghiep.dto.response.ProductSearchResponse;
+import com.example.duantotnghiep.dto.response.*;
 import com.example.duantotnghiep.mapper.CategoryMapper;
 import com.example.duantotnghiep.mapper.ProductDetailMapper;
 import com.example.duantotnghiep.mapper.ProductImageMapper;
@@ -22,14 +17,7 @@ import com.example.duantotnghiep.model.ProductCategory;
 import com.example.duantotnghiep.model.ProductCategoryId;
 import com.example.duantotnghiep.model.ProductDetail;
 import com.example.duantotnghiep.model.ProductImage;
-import com.example.duantotnghiep.repository.CategoryRepository;
-import com.example.duantotnghiep.repository.ColorRepository;
-import com.example.duantotnghiep.repository.DiscountCampaignRepository;
-import com.example.duantotnghiep.repository.ProductCategoryRepository;
-import com.example.duantotnghiep.repository.ProductDetailRepository;
-import com.example.duantotnghiep.repository.ProductImageRepository;
-import com.example.duantotnghiep.repository.ProductRepository;
-import com.example.duantotnghiep.repository.ProductSearchRepository;
+import com.example.duantotnghiep.repository.*;
 import com.example.duantotnghiep.service.ProductService;
 import com.example.duantotnghiep.xuatExcel.ProductExcelExporter;
 import lombok.RequiredArgsConstructor;
@@ -80,8 +68,7 @@ public class ProductServiceImpl implements ProductService {
     private final ProductSearchRepository productSearchRepository;
     private final ColorRepository colorRepository;
     private final DiscountCampaignRepository discountCampaignRepository;
-
-
+    private final FavoriteProductRepository favoriteProductRepository;
 
     @Transactional(rollbackFor = Throwable.class)
     @Override
@@ -809,6 +796,12 @@ public class ProductServiceImpl implements ProductService {
             return response;
         }).collect(Collectors.toList());
 
+        return responses;
+    }
+
+    @Override
+    public List<FavoriteProductResponse> getFavoritesByProductId(Long productId) {
+        List<FavoriteProductResponse> responses = favoriteProductRepository.getFavoritesByProductId(productId);
         return responses;
     }
 

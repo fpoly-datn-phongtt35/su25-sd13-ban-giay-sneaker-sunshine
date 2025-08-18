@@ -36,6 +36,10 @@ public class InvoiceTransaction {
     @Column(name = "transaction_code", length = 100)
     private String transactionCode;
 
+    @Size(max = 100)
+    @Column(name = "trade_code", length = 100)
+    private String tradeCode;
+
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "invoice_id", nullable = false)

@@ -89,7 +89,7 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
 
     @Override
     @Transactional
-    public void huyDonVaHoanTien(Long invoiceId, String nextKey, String note, String paymentMenthod, Boolean isPaid) {
+    public void huyDonVaHoanTien(Long invoiceId, String nextKey, String note, String paymentMenthod, Boolean isPaid,String tradeCode) {
         Invoice invoice = invoiceRepository.findPaidInvoiceById(invoiceId, isPaid)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
 
@@ -132,8 +132,8 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
 
 
     @Override
-    public void giaoHangThatBaiVaHoanTien(Long invoiceId, String nextKey, String note, String paymentMenthod,Boolean isPaid) {
-        huyDonVaHoanTien(invoiceId,nextKey,note,paymentMenthod,isPaid);
+    public void giaoHangThatBaiVaHoanTien(Long invoiceId, String nextKey, String note, String paymentMenthod,Boolean isPaid,String tradeCode) {
+        huyDonVaHoanTien(invoiceId,nextKey,note,paymentMenthod,isPaid,tradeCode);
     }
 
     @Override

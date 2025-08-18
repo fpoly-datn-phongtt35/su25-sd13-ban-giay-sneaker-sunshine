@@ -73,10 +73,11 @@ public class OnlineSalesController {
             @RequestParam String statusDetail,
             @RequestParam String note,
             @RequestParam(required = false) String paymentMethod,
+            @RequestParam(required = false) String tradeCode,
             @RequestParam Boolean isPaid
     ) {
         try {
-            onlineSaleService.huyDonVaHoanTien(invoiceId, statusDetail, note, paymentMethod,isPaid);
+            onlineSaleService.huyDonVaHoanTien(invoiceId, statusDetail, note, paymentMethod,isPaid,tradeCode);
             return ResponseEntity.ok("Hủy đơn và hoàn tiền thành công");
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body("Lỗi: " + e.getMessage());
@@ -91,10 +92,11 @@ public class OnlineSalesController {
             @RequestParam String statusDetail,
             @RequestParam String note,
             @RequestParam(required = false) String paymentMethod,
+            @RequestParam(required = false) String tradeCode,
             @RequestParam Boolean isPaid
     ) {
         try {
-            onlineSaleService.giaoHangThatBaiVaHoanTien(invoiceId, statusDetail, note, paymentMethod,isPaid);
+            onlineSaleService.giaoHangThatBaiVaHoanTien(invoiceId, statusDetail, note, paymentMethod,isPaid,tradeCode);
             return ResponseEntity.ok("Giao hàng thất bại và hoàn tiền thành công");
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body("Lỗi: " + e.getMessage());

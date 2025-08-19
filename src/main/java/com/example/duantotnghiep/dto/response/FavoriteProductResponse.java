@@ -14,6 +14,7 @@ import java.util.Date;
 public class FavoriteProductResponse {
     private Long id;
     private Long customerId;
+    private String customerName;
     private Long productId;
     private Integer rate;
     private String comment;

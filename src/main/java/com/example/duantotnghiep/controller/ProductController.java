@@ -2,10 +2,7 @@ package com.example.duantotnghiep.controller;
 
 import com.example.duantotnghiep.dto.request.ProductRequest;
 import com.example.duantotnghiep.dto.request.ProductSearchRequest;
-import com.example.duantotnghiep.dto.response.PaginationDTO;
-import com.example.duantotnghiep.dto.response.ProductDetailResponse;
-import com.example.duantotnghiep.dto.response.ProductResponse;
-import com.example.duantotnghiep.dto.response.ProductSearchResponse;
+import com.example.duantotnghiep.dto.response.*;
 import com.example.duantotnghiep.service.ProductService;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.MultiFormatWriter;
@@ -180,5 +177,10 @@ public class ProductController {
     @GetMapping("/scan")
     public ResponseEntity<ProductSearchResponse> scan(@RequestParam String code) {
         return ResponseEntity.ok(productService.scanProductToSearchResponse(code));
+    }
+
+    @GetMapping("/reviews-product/{productId}")
+    public ResponseEntity<List<FavoriteProductResponse>> favouriteProduct(@PathVariable("productId") Long productId) {
+        return ResponseEntity.ok(productService.getFavoritesByProductId(productId));
     }
 }

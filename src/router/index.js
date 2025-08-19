@@ -40,6 +40,7 @@ import NhanVienXuLy from '@/components/ThongKe/NhanVienXuLy.vue'
 import CustomerBlacklistHistory from '@/components/KhachHang/CustomerBlacklistHistory.vue'
 import CustomerBlacklistHistoryDetail from '@/components/KhachHang/CustomerBlacklistHistoryDetail.vue'
 import DiscountCampaignDetails from '@/components/DotGiamGia/DiscountCampaignDetails.vue'
+import DiscountCampaignUpdate from '@/components/DotGiamGia/DiscountCampaignUpdate.vue'
 
 const routes = [
   {
@@ -127,6 +128,7 @@ const routes = [
 
       { path: '/discount-campaigns', name: 'DiscountCampaignList', component: DiscountCampaignList },
       { path: '/discount-campaigns/add', name: 'DiscountCampaignAdd', component: DiscountCampaignAdd },
+      { path: '/discount-campaigns/update/:id', name: 'DiscountCampaignUpdate', component: DiscountCampaignUpdate },
       { path: '/discount-campaigns/detail/:id', name: 'DiscountCampaignDetail', component: DiscountCampaignDetails },
 
       { path: '/pre-orders', name: 'DonHangDatTruoc', component: DonHangDatTruoc },

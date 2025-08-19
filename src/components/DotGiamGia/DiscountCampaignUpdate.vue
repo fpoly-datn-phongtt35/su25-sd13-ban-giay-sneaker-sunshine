@@ -4,54 +4,56 @@
       <el-card class="form-card" shadow="never">
         <template #header>
           <div class="card-header">
-            <h1>Tạo đợt giảm giá mới</h1>
-            <p class="subtitle">Chọn sản phẩm/SPCT và áp dụng phần trăm giảm</p>
+            <h1>Cập nhật đợt giảm giá</h1>
+            <p class="subtitle">Chỉnh sửa thông tin, thời gian và sản phẩm/SPCT áp dụng</p>
           </div>
         </template>
 
-        <el-form :model="form" label-position="top" @submit.prevent="createCampaign">
+        <el-form :model="form" label-position="top" @submit.prevent="updateCampaign">
           <el-row :gutter="24" class="flex-row">
             <!-- ====== Cột trái: thông tin chung ====== -->
             <el-col :span="24" :md="10">
               <el-card class="section-card" shadow="hover">
                 <template #header><div class="section-title">Thông tin chiến dịch</div></template>
 
-                <el-form-item label="Tên đợt giảm giá" required>
-                  <el-input v-model="form.name" placeholder="Ví dụ: Black Friday 2025" />
-                </el-form-item>
+                <el-skeleton v-if="loadingCampaign" :rows="6" animated />
 
-                <el-form-item label="Giá trị giảm (%) (mặc định cho toàn chiến dịch)" required>
-                  <el-input-number
-                    v-model="form.discountPercentage"
-                    :min="0" :max="100" :precision="2" :step="0.5"
-                    controls-position="right" placeholder="%" style="width:100%"
+                <template v-else>
+                  <el-form-item label="Tên đợt giảm giá" required>
+                    <el-input v-model="form.name" placeholder="Ví dụ: Black Friday 2025" />
+                  </el-form-item>
+
+                  <el-form-item label="Giá trị giảm (%) (mặc định cho toàn chiến dịch)" required>
+                    <el-input-number
+                      v-model="form.discountPercentage"
+                      :min="0" :max="100" :precision="2" :step="0.5"
+                      controls-position="right" placeholder="%" style="width:100%"
+                    />
+                  </el-form-item>
+
+                  <el-form-item label="Thời gian diễn ra" required>
+                    <el-date-picker
+                      v-model="dateRange"
+                      type="datetimerange"
+                      range-separator="Đến"
+                      start-placeholder="Bắt đầu"
+                      end-placeholder="Kết thúc"
+                      format="YYYY-MM-DD HH:mm:ss"
+                      value-format="YYYY-MM-DDTHH:mm:ss"
+                      style="width: 100%;"
+                    />
+                  </el-form-item>
+
+                  <el-form-item label="Ghi chú">
+                    <el-input v-model="form.description" type="textarea" :rows="5" placeholder="Mô tả..." />
+                  </el-form-item>
+
+                  <el-alert
+                    type="info" :closable="false" show-icon class="mt-2"
+                    title="Mẹo"
+                    description="Để trống % ở từng SPCT sẽ dùng % mặc định của chiến dịch."
                   />
-                </el-form-item>
-
-                <el-form-item label="Thời gian diễn ra" required>
-               <el-date-picker
-  v-model="dateRange"
-  type="datetimerange"
-  range-separator="Đến"
-  start-placeholder="Bắt đầu"
-  end-placeholder="Kết thúc"
-  format="YYYY-MM-DD HH:mm:ss"
-  value-format="YYYY-MM-DDTHH:mm:ss"
-  style="width: 100%;"
-/>
-<!-- FIX: định dạng ISO đúng -->
-
-                </el-form-item>
-
-                <el-form-item label="Ghi chú">
-                  <el-input v-model="form.description" type="textarea" :rows="5" placeholder="Mô tả..." />
-                </el-form-item>
-
-                <el-alert
-                  type="info" :closable="false" show-icon class="mt-2"
-                  title="Mẹo"
-                  description="Để trống % ở từng SPCT sẽ dùng % mặc định của chiến dịch."
-                />
+                </template>
               </el-card>
             </el-col>
 
@@ -168,7 +170,7 @@
             </div>
             <div class="right">
               <el-button @click="goBack" size="large">Quay lại</el-button>
-              <el-button type="primary" @click="createCampaign" size="large">Tạo mới đợt giảm giá</el-button>
+              <el-button type="primary" @click="updateCampaign" size="large">Lưu cập nhật</el-button>
             </div>
           </div>
         </el-form>
@@ -179,21 +181,23 @@
 
 <script setup>
 import { reactive, ref, computed, onMounted, nextTick } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
 
 const router = useRouter()
+const route = useRoute()
+const campaignId = route.params.id
 
 /** ======== API ENDPOINTS ======== */
 const BASE_URL = 'http://localhost:8080'
 const PRODUCTS_API = `${BASE_URL}/api/admin/products`
 const PRODUCT_DETAILS_API = `${BASE_URL}/api/admin/products/details`
-const CREATE_CAMPAIGN_API = `${BASE_URL}/api/admin/campaigns` // POST
+const CAMPAIGN_API = `${BASE_URL}/api/admin/campaigns` // GET/:id, PUT/:id
 
 /** ======== STATE FORM ======== */
 const form = reactive({
-  campaignCode: '',       // optional
+  campaignCode: '', // optional
   name: '',
   discountPercentage: null,
   description: '',
@@ -204,14 +208,18 @@ const form = reactive({
   productDetails: []
 })
 
-/** ======== DATE RANGE ======== */
+/** ======== LOADING FLAGS ======== */
+const loadingCampaign = ref(true)
+const loadingProducts = ref(false)
+const loadingDetails = ref(false)
+
+/** ======== DATE RANGE (ISO) ======== */
 const dateRange = computed({
   get() {
     return form.startDate && form.endDate ? [form.startDate, form.endDate] : []
   },
   set(val) {
     if (Array.isArray(val) && val.length === 2) {
-      // el-date-picker với value-format="YYYY-MM-DDTHH:mm:ss" trả sẵn ISO đúng
       form.startDate = val[0]
       form.endDate   = val[1]
     } else {
@@ -221,7 +229,13 @@ const dateRange = computed({
   }
 })
 
-/** ========= Helpers: chuẩn hoá hiển thị ========= */
+/** ======== Helpers ======== */
+const normalizeIso = (s) => {
+  if (!s) return ''
+  // Nếu backend trả "yyyy-MM-dd HH:mm:ss" => đổi khoảng trắng thành 'T'
+  if (typeof s === 'string') return s.replace(' ', 'T')
+  return s
+}
 const fallbackId = (id) => (id !== undefined && id !== null ? `#${id}` : '')
 const textOf = (obj, keys) => {
   for (const k of keys) {
@@ -243,10 +257,9 @@ const normalizeDetail = (row) => {
   return { ...row, productText, brandText, colorText, sizeText }
 }
 
-/** ======== PRODUCTS ======== */
+/** ======== PRODUCTS TABLE ======== */
 const productTableRef = ref()
 const products = ref([])
-const loadingProducts = ref(false)
 const currentPage = ref(1)
 const pageSize = ref(10)
 const totalItems = ref(0)
@@ -260,6 +273,7 @@ const fetchProducts = async () => {
     products.value = content.map(normalizeProduct)
     totalItems.value = res.data?.page?.totalElements ?? res.data?.totalElements ?? content.length
     await nextTick()
+    // re-apply selection
     productTableRef.value?.clearSelection?.()
     products.value.forEach(row => {
       if (selectedProductIds.value.has(row.id)) productTableRef.value?.toggleRowSelection?.(row, true)
@@ -279,10 +293,9 @@ const onProductSelectionChange = (rows) => {
 }
 const totalSelectedProducts = computed(() => selectedProductIds.value.size)
 
-/** ======== SPCT ======== */
+/** ======== SPCT TABLE ======== */
 const spctTableRef = ref()
 const details = ref([])
-const loadingDetails = ref(false)
 const detailsPage = ref(1)
 const detailsSize = ref(10)
 const detailsTotal = ref(0)
@@ -297,6 +310,7 @@ const fetchDetails = async () => {
     details.value = content.map(normalizeDetail)
     detailsTotal.value = data?.totalElements ?? data?.page?.totalElements ?? content.length
     await nextTick()
+    // re-apply selection
     spctTableRef.value?.clearSelection?.()
     details.value.forEach(row => {
       if (selectedDetailIds.value.has(row.id) && Number(row.quantity) > 0) {
@@ -320,7 +334,50 @@ const onDetailSelectionChange = (rows) => {
 }
 const totalSelectedDetails = computed(() => selectedDetailIds.value.size)
 
-/** ======== VALIDATE + SUBMIT ======== */
+/** ======== LOAD CAMPAIGN ======== */
+const fetchCampaign = async () => {
+  loadingCampaign.value = true
+  try {
+    const { data } = await axios.get(`${CAMPAIGN_API}/${campaignId}`)
+    // Scalar
+    form.campaignCode       = data?.campaignCode ?? ''
+    form.name               = data?.name ?? ''
+    form.discountPercentage = data?.discountPercentage ?? null
+    form.description        = data?.description ?? ''
+    form.status             = data?.status ?? 1
+    form.startDate          = normalizeIso(data?.startDate) || ''
+    form.endDate            = normalizeIso(data?.endDate) || ''
+
+    // Preselect products
+    selectedProductIds.value.clear()
+    const prodLinks = data?.products || data?.productLinks || []
+    prodLinks.forEach(link => {
+      const pid = link?.product?.id ?? link?.productId
+      if (pid != null) selectedProductIds.value.add(pid)
+    })
+
+    // Preselect product details + per-item %
+    selectedDetailIds.value.clear()
+    Object.keys(spctExtraPercent).forEach(k => delete spctExtraPercent[k])
+    const pdLinks = data?.productDetails || data?.productDetailLinks || []
+    pdLinks.forEach(link => {
+      const pdId = link?.productDetail?.id ?? link?.productDetailId
+      if (pdId != null) {
+        selectedDetailIds.value.add(pdId)
+        const pct = link?.discountPercentage
+        if (pct !== null && pct !== undefined) spctExtraPercent[pdId] = Number(pct)
+      }
+    })
+  } catch (e) {
+    console.error(e)
+    ElMessage.error(e?.response?.data?.message || 'Không thể tải thông tin đợt giảm giá.')
+    router.back()
+  } finally {
+    loadingCampaign.value = false
+  }
+}
+
+/** ======== VALIDATE & SUBMIT ======== */
 const validateBeforeSubmit = () => {
   if (!form.name?.trim() || form.discountPercentage === null || form.discountPercentage === '' || !form.startDate || !form.endDate) {
     ElMessage.warning('Vui lòng điền đủ Tên, %, và Thời gian diễn ra.')
@@ -354,9 +411,7 @@ const buildProductDetailsPayload = () => {
   })
   return list
 }
-
 const sanitize = (obj) => {
-  // loại bỏ các field trống không cần thiết (giữ 0)
   const out = {}
   Object.entries(obj).forEach(([k, v]) => {
     if (v === '' || v === undefined) return
@@ -365,10 +420,10 @@ const sanitize = (obj) => {
   return out
 }
 
-const createCampaign = async () => {
+const updateCampaign = async () => {
   if (!validateBeforeSubmit()) return
   const payload = sanitize({
-    campaignCode: form.campaignCode?.trim() || null, // optional
+    campaignCode: form.campaignCode?.trim() || null, // gửi nếu muốn đổi code
     name: form.name.trim(),
     discountPercentage: Number(form.discountPercentage),
     description: form.description?.trim() || null,
@@ -380,22 +435,27 @@ const createCampaign = async () => {
   })
 
   try {
-    await axios.post(CREATE_CAMPAIGN_API, payload, { headers: { 'Content-Type': 'application/json' } })
-    ElMessage.success('Tạo đợt giảm giá thành công!')
+    await axios.put(`${CAMPAIGN_API}/${campaignId}`, payload, { headers: { 'Content-Type': 'application/json' } })
+    ElMessage.success('Cập nhật đợt giảm giá thành công!')
     router.back()
   } catch (e) {
-    console.error('Create campaign error:', {
-      url: CREATE_CAMPAIGN_API,
+    console.error('Update campaign error:', {
+      url: `${CAMPAIGN_API}/${campaignId}`,
       status: e?.response?.status,
       data: e?.response?.data,
       payload
     })
-    ElMessage.error(e?.response?.data?.message || `Không thể tạo đợt giảm giá (HTTP ${e?.response?.status || 'ERR'}).`)
+    ElMessage.error(e?.response?.data?.message || `Không thể cập nhật (HTTP ${e?.response?.status || 'ERR'}).`)
   }
 }
 
 /** ======== INIT ======== */
-onMounted(() => { fetchProducts(); fetchDetails() })
+onMounted(async () => {
+  await fetchCampaign()
+  fetchProducts()
+  fetchDetails()
+})
+
 const goBack = () => router.back()
 const formatCurrency = (v) => (v === null || v === undefined ? '' : Number(v).toLocaleString('vi-VN'))
 </script>

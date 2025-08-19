@@ -200,22 +200,20 @@ public class DiscountCampaignServiceImpl implements DiscountCampaignService {
     }
 
     @Transactional
+    @Override
     public DiscountCampaignResponse updateDiscountCampaign(Long id, DiscountCampaignRequest request) {
         DiscountCampaign c = discountCampaignRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đợt giảm giá với ID: " + id));
 
         // ===== Cập nhật scalar fields =====
+        if (request.getCampaignCode() != null && !request.getCampaignCode().trim().isEmpty()) {
+            c.setCampaignCode(request.getCampaignCode().trim());
+        }
         if (request.getName() != null && !request.getName().trim().isEmpty()) {
             c.setName(request.getName().trim());
         }
         if (request.getDescription() != null) {
             c.setDescription(request.getDescription());
-        }
-        if (request.getDiscountPercentage() != null) {
-            c.setDiscountPercentage(request.getDiscountPercentage());
-        }
-        if (request.getCampaignCode() != null && !request.getCampaignCode().trim().isEmpty()) {
-            c.setCampaignCode(request.getCampaignCode().trim());
         }
         if (request.getStartDate() != null) {
             c.setStartDate(request.getStartDate());
@@ -226,27 +224,35 @@ public class DiscountCampaignServiceImpl implements DiscountCampaignService {
         if (request.getStatus() != null) {
             c.setStatus(request.getStatus());
         }
+        if (request.getDiscountPercentage() != null) {
+            c.setDiscountPercentage(normalizePercentageOrNull(request.getDiscountPercentage()));
+        }
 
         // Validate thời gian
         if (c.getStartDate() != null && c.getEndDate() != null && c.getEndDate().isBefore(c.getStartDate())) {
             throw new IllegalArgumentException("Ngày kết thúc không được nhỏ hơn ngày bắt đầu.");
         }
 
-        // ===== Cập nhật products theo kiểu diff (orphanRemoval=true) =====
-        if (request.getProducts() != null) {
-            // set hiện có
-            java.util.Set<Long> existing = c.getProducts().stream()
-                    .map(l -> l.getProduct().getId())
-                    .collect(java.util.stream.Collectors.toSet());
+        LocalDateTime now = LocalDateTime.now();
 
-            // set mới (lọc null/trùng)
-            java.util.Set<Long> incoming = request.getProducts().stream()
+        // ====== Cập nhật PRODUCTS theo kiểu diff ======
+        if (request.getProducts() != null) {
+            // existing set
+            java.util.Set<Long> existing = c.getProducts() == null
+                    ? new java.util.HashSet<>()
+                    : c.getProducts().stream().map(link -> link.getProduct().getId()).collect(java.util.stream.Collectors.toSet());
+
+            // incoming set (lọc null & trùng)
+            java.util.LinkedHashSet<Long> incoming = request.getProducts().stream()
                     .filter(java.util.Objects::nonNull)
                     .map(DiscountCampaignProductRequest::getProductId)
                     .filter(java.util.Objects::nonNull)
                     .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new));
 
-            // remove những productId không còn
+            // Nếu collection null, đảm bảo không NPE
+            if (c.getProducts() == null) c.setProducts(new java.util.ArrayList<>());
+
+            // remove những productId không còn trong incoming
             c.getProducts().removeIf(link -> !incoming.contains(link.getProduct().getId()));
 
             // add những productId mới
@@ -255,19 +261,90 @@ public class DiscountCampaignServiceImpl implements DiscountCampaignService {
                     Product p = productRepository.findById(pid)
                             .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm với ID: " + pid));
                     DiscountCampaignProduct link = new DiscountCampaignProduct();
-                    link.setCampaign(c);   // rất quan trọng
+                    link.setCampaign(c);
                     link.setProduct(p);
+                    // nếu entity con có timestamps:
+                    link.setCreatedDate(now);
+                    link.setUpdatedDate(now);
                     c.getProducts().add(link);
+                }
+            }
+
+            // cập nhật updatedDate cho links còn lại (tuỳ nhu cầu)
+            for (DiscountCampaignProduct link : c.getProducts()) {
+                link.setUpdatedDate(now);
+            }
+        }
+
+        // ====== Cập nhật PRODUCT DETAILS (SPCT) theo kiểu diff ======
+        if (request.getProductDetails() != null) {
+            // Chuẩn bị map existing: productDetailId -> entity link
+            java.util.Map<Long, DiscountCampaignProductDetail> existingMap = new java.util.HashMap<>();
+            if (c.getProductDetails() != null) {
+                for (DiscountCampaignProductDetail d : c.getProductDetails()) {
+                    existingMap.put(d.getProductDetail().getId(), d);
+                }
+            } else {
+                c.setProductDetails(new java.util.ArrayList<>());
+            }
+
+            // Lấy incoming pdIds (lọc null/trùng)
+            java.util.LinkedHashMap<Long, java.math.BigDecimal> incoming = new java.util.LinkedHashMap<>();
+            for (DiscountCampaignProductDetailRequest dReq : request.getProductDetails()) {
+                if (dReq == null || dReq.getProductDetailId() == null) continue;
+                // Chuẩn hoá % riêng từng SPCT (nullable)
+                java.math.BigDecimal perItem = normalizePercentageOrNull(dReq.getDiscountPercentage());
+                incoming.put(dReq.getProductDetailId(), perItem); // nếu trùng id, giữ giá trị cuối
+            }
+
+            // Nếu rỗng → xoá hết
+            if (incoming.isEmpty()) {
+                c.getProductDetails().clear(); // orphanRemoval=true sẽ xoá DB row
+            } else {
+                // Load batch kiểm tra tồn tại
+                java.util.List<Long> pdIds = new java.util.ArrayList<>(incoming.keySet());
+                java.util.Map<Long, ProductDetail> pdMap = productDetailRepository.findAllById(pdIds)
+                        .stream().collect(java.util.stream.Collectors.toMap(ProductDetail::getId, it -> it));
+
+                // Validate all exist
+                for (Long idPd : pdIds) {
+                    if (!pdMap.containsKey(idPd)) {
+                        throw new IllegalArgumentException("Không tìm thấy SPCT ID: " + idPd);
+                    }
+                }
+
+                // 1) Remove những cái không còn trong incoming
+                c.getProductDetails().removeIf(link -> !incoming.containsKey(link.getProductDetail().getId()));
+
+                // 2) Upsert (update nếu đã có, add nếu chưa)
+                for (java.util.Map.Entry<Long, java.math.BigDecimal> e : incoming.entrySet()) {
+                    Long pdId = e.getKey();
+                    java.math.BigDecimal perItem = e.getValue();
+
+                    DiscountCampaignProductDetail existed = existingMap.get(pdId);
+                    if (existed != null) {
+                        // update % + updatedDate
+                        existed.setDiscountPercentage(perItem);
+                        existed.setUpdatedDate(java.sql.Timestamp.valueOf(now));
+                    } else {
+                        // add mới
+                        ProductDetail pd = pdMap.get(pdId);
+                        DiscountCampaignProductDetail item = new DiscountCampaignProductDetail();
+                        item.setCampaign(c);
+                        item.setProductDetail(pd);
+                        item.setDiscountPercentage(perItem);
+                        item.setCreatedDate(java.sql.Timestamp.valueOf(now));
+                        item.setUpdatedDate(java.sql.Timestamp.valueOf(now));
+                        c.getProductDetails().add(item);
+                    }
                 }
             }
         }
 
-        c.setUpdatedDate(java.time.LocalDateTime.now());
+        c.setUpdatedDate(now);
         DiscountCampaign saved = discountCampaignRepository.save(c);
-        return discountCampaignMapper.toResponse(saved); // map từ entity
+        return discountCampaignMapper.toResponse(saved);
     }
-
-
 
     @Override
     public DiscountCampaignStatisticsResponse getStatistics(Long campaignId) {

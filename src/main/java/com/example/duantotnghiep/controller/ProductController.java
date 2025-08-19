@@ -59,6 +59,15 @@ public class ProductController {
         return ResponseEntity.ok(productService.getProductById(id));
     }
 
+    @GetMapping("/details")
+    public ResponseEntity<Page<ProductDetailResponse>> pageProductDetails(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        return ResponseEntity.ok(productService.pageProductDetails(page, size));
+    }
+
+
     @GetMapping("/product-detail/{idProduct}")
     public ResponseEntity<List<ProductDetailResponse>> getProductDetailById(@PathVariable Long idProduct) {
         return ResponseEntity.ok(productService.getProductDetailById(idProduct));

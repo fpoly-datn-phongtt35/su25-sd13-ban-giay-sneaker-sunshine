@@ -13,8 +13,8 @@ import java.util.List;
 
 public interface DiscountCampaignRepository extends JpaRepository<DiscountCampaign, Long> {
     boolean existsByCampaignCode(@Size(max = 100) String campaignCode);
-    @Query("SELECT c FROM DiscountCampaign c WHERE c.startDate <= :now AND c.endDate >= :now AND c.status = 1")
-    List<DiscountCampaign> findActiveCampaigns(@Param("now") LocalDateTime now);
+//    @Query("SELECT c FROM DiscountCampaign c WHERE c.startDate <= :now AND c.endDate >= :now AND c.status = 1")
+//    List<DiscountCampaign> findActiveCampaigns(@Param("now") LocalDateTime now);
 
     @Query("SELECT c FROM DiscountCampaign c WHERE c.startDate > :now AND c.status = 0")
     List<DiscountCampaign> findUpcomingCampaigns(@Param("now") LocalDateTime now);
@@ -30,4 +30,17 @@ public interface DiscountCampaignRepository extends JpaRepository<DiscountCampai
           AND (c.endDate   IS NULL OR c.endDate   >= :now)
     """)
     List<DiscountCampaign> findActiveCampaignsQr(@Param("now") LocalDateTime now);
+
+    @Query(
+            "SELECT DISTINCT c " +
+                    "FROM DiscountCampaign c " +
+                    "LEFT JOIN FETCH c.productDetails dcpd " +         // fetch 1 collection: OK
+                    "LEFT JOIN FETCH dcpd.productDetail pd " +         // fetch đơn trị: OK
+                    "WHERE c.status = 1 " +
+                    "  AND (c.startDate IS NULL OR c.startDate <= :now) " +
+                    "  AND (c.endDate   IS NULL OR c.endDate   >= :now)"
+    )
+    List<DiscountCampaign> findActiveCampaigns(@Param("now") LocalDateTime now);
+
+
 }

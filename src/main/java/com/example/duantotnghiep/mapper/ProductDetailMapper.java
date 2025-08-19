@@ -10,6 +10,11 @@ import java.util.List;
 
 @Mapper(componentModel = "spring")
 public interface ProductDetailMapper {
+
+    @Mapping(target = "productId", source = "product.id")
+    @Mapping(target = "productName", source = "product.productName")
+    @Mapping(target = "brandId", source = "product.brand.id")
+    @Mapping(target = "brandName", source = "product.brand.brandName")
     @Mapping(target = "sizeId", source = "size.id")
     @Mapping(target = "sizeName", source = "size.sizeName")
     @Mapping(target = "colorId", source = "color.id")
@@ -19,8 +24,10 @@ public interface ProductDetailMapper {
 
     @Mapping(target = "size.id", source = "sizeId")
     @Mapping(target = "color.id", source = "colorId")
-    @Mapping(target = "product", ignore = true)
+    @Mapping(target = "product", ignore = true) // set ở service hoặc controller
     ProductDetail fromRequest(ProductDetailRequest request);
 
     List<ProductDetail> mapProductDetailRequests(List<ProductDetailRequest> requests);
 }
+
+

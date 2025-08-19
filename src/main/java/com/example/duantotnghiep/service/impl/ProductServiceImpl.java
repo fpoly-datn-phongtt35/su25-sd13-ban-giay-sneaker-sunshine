@@ -33,7 +33,6 @@ import com.example.duantotnghiep.repository.ProductSearchRepository;
 import com.example.duantotnghiep.service.ProductService;
 import com.example.duantotnghiep.xuatExcel.ProductExcelExporter;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.crossstore.ChangeSetPersister;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -448,6 +447,14 @@ public class ProductServiceImpl implements ProductService {
 
         return response;
     }
+
+    @Override
+    public Page<ProductDetailResponse> pageProductDetails(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size); // không sort => để FE tự sort nếu muốn
+        Page<ProductDetail> pdPage = productDetailRepository.pageAllActive(pageable);
+        return pdPage.map(productDetailMapper::toResponse);
+    }
+
 
     @Override
     public List<ProductDetailResponse> getProductDetailById(Long productId) {

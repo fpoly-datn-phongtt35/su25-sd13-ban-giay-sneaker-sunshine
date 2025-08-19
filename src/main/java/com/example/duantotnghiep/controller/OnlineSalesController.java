@@ -1,5 +1,6 @@
 package com.example.duantotnghiep.controller;
 
+import com.example.duantotnghiep.dto.request.InvoiceSearchRequest;
 import com.example.duantotnghiep.dto.request.UpdateAddress;
 import com.example.duantotnghiep.dto.response.*;
 import com.example.duantotnghiep.service.InvoiceService;
@@ -20,6 +21,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/admin/online-sales")
@@ -28,15 +30,11 @@ public class OnlineSalesController {
     private final InvoiceService invoiceService;
     private final OnlineSaleServiceImpl onlineSaleService;
 
-    @GetMapping("/search")
+    @PostMapping("/search")
     public ResponseEntity<List<InvoiceResponse>> searchInvoices(
-            @RequestParam(name="isPaid") Boolean isPaid,
-            @RequestParam(name="createdFrom") @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") Date createdFrom,
-            @RequestParam(name="createdTo") @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") Date createdTo,
-            @RequestParam(name="phone") String phone,
-            @RequestParam(name="code") String code
-    ) {
-        List<InvoiceResponse> result = invoiceService.searchInvoices(isPaid,1, createdFrom, createdTo, phone, code);
+            @RequestBody InvoiceSearchRequest request
+            ) {
+        List<InvoiceResponse> result = invoiceService.searchInvoices(request);
         return ResponseEntity.ok(result);
     }
 
@@ -126,6 +124,15 @@ public class OnlineSalesController {
             ) {
         onlineSaleService.updateAddressShipping(request);
         return ResponseEntity.ok("Cập nhật địa chỉ giao hàng thành công.");
+    }
+
+    @GetMapping("/get-revenue")
+    public ResponseEntity<?> getRevenue(@RequestParam String type) {
+        BigDecimal revenue = onlineSaleService.getRevenue(type);
+        return ResponseEntity.ok(Map.of(
+                "type", type,
+                "revenue", revenue
+        ));
     }
 
 }

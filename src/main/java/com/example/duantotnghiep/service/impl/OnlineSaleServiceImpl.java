@@ -385,5 +385,74 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
         return list;
     }
 
+    @Override
+    public BigDecimal getRevenue(String type) {
+        Date now = new Date();
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(now);
+
+        Date fromDate;
+        Date toDate;
+
+        switch (type.toLowerCase()) {
+            case "day":
+                calendar.set(Calendar.HOUR_OF_DAY, 0);
+                calendar.set(Calendar.MINUTE, 0);
+                calendar.set(Calendar.SECOND, 0);
+                calendar.set(Calendar.MILLISECOND, 0);
+                fromDate = calendar.getTime();
+
+                calendar.add(Calendar.DATE, 1);
+                toDate = calendar.getTime();
+                break;
+
+            case "week":
+                calendar.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY);
+                calendar.set(Calendar.HOUR_OF_DAY, 0);
+                calendar.set(Calendar.MINUTE, 0);
+                calendar.set(Calendar.SECOND, 0);
+                calendar.set(Calendar.MILLISECOND, 0);
+                fromDate = calendar.getTime();
+
+                calendar.add(Calendar.WEEK_OF_YEAR, 1);
+                toDate = calendar.getTime();
+                break;
+
+            case "quarter":
+                int month = calendar.get(Calendar.MONTH);
+                int quarterStartMonth = (month / 3) * 3;
+
+                calendar.set(Calendar.MONTH, quarterStartMonth);
+                calendar.set(Calendar.DAY_OF_MONTH, 1);
+                calendar.set(Calendar.HOUR_OF_DAY, 0);
+                calendar.set(Calendar.MINUTE, 0);
+                calendar.set(Calendar.SECOND, 0);
+                calendar.set(Calendar.MILLISECOND, 0);
+                fromDate = calendar.getTime();
+
+                calendar.add(Calendar.MONTH, 3);
+                toDate = calendar.getTime();
+                break;
+
+            case "year":
+                calendar.set(Calendar.MONTH, Calendar.JANUARY);
+                calendar.set(Calendar.DAY_OF_MONTH, 1);
+                calendar.set(Calendar.HOUR_OF_DAY, 0);
+                calendar.set(Calendar.MINUTE, 0);
+                calendar.set(Calendar.SECOND, 0);
+                calendar.set(Calendar.MILLISECOND, 0);
+                fromDate = calendar.getTime();
+
+                calendar.add(Calendar.YEAR, 1);
+                toDate = calendar.getTime();
+                break;
+
+            default:
+                throw new IllegalArgumentException("Invalid type. Use: day|week|quarter|year");
+        }
+        BigDecimal result = invoiceRepository.sumRevenueBetween(fromDate, toDate);
+
+        return  result != null ? result : BigDecimal.ZERO;
+    }
 
 }

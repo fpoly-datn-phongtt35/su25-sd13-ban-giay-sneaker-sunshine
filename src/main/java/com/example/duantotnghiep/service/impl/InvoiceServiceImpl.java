@@ -4,6 +4,7 @@ import com.example.duantotnghiep.dto.PaymentSummary;
 import com.example.duantotnghiep.dto.request.AddressRequest;
 import com.example.duantotnghiep.dto.request.CartItemRequest;
 import com.example.duantotnghiep.dto.request.InvoiceRequest;
+import com.example.duantotnghiep.dto.request.InvoiceSearchRequest;
 import com.example.duantotnghiep.dto.response.*;
 import com.example.duantotnghiep.mapper.InvoiceMapper;
 import com.example.duantotnghiep.model.AddressCustomer;
@@ -1555,14 +1556,9 @@ public class InvoiceServiceImpl implements InvoiceService {
     }
 
     @Override
-    public List<InvoiceResponse> searchInvoices(Boolean isPaid,Integer orderType, Date createdFrom, Date createdTo, String phone, String code) {
-        if (phone != null) {
-            phone = phone.trim();
-        }
-        if (code != null) {
-            code = code.trim();
-        }
-        List<InvoiceResponse> invoices = invoiceRepository.searchInvoices(isPaid,orderType,createdFrom,createdTo,phone,code);
+    public List<InvoiceResponse> searchInvoices(InvoiceSearchRequest request) {
+        TrangThaiChiTiet statusEnum  = TrangThaiChiTiet.tuMa(request.getStatusDetail());
+        List<InvoiceResponse> invoices = invoiceRepository.searchInvoices(statusEnum,request.getIsPaid(),1,request.getCreatedFrom(),request.getCreatedTo(),request.getPhone(),request.getCode());
         return invoices;
     }
 

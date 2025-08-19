@@ -8,6 +8,7 @@ import com.example.duantotnghiep.dto.response.StatusCountResponse;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 public interface OnlineSaleService {
 
@@ -30,6 +31,8 @@ public interface OnlineSaleService {
     void updateAddressShipping(UpdateAddress address);
 
     List<StatusCountDTO> getCountByStatus();
+
+    BigDecimal getRevenue(String type);
 
 
 }

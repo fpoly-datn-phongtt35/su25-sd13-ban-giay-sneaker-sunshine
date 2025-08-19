@@ -2,6 +2,7 @@ package com.example.duantotnghiep.service;
 
 import com.example.duantotnghiep.dto.PaymentSummary;
 import com.example.duantotnghiep.dto.request.InvoiceRequest;
+import com.example.duantotnghiep.dto.request.InvoiceSearchRequest;
 import com.example.duantotnghiep.dto.response.*;
 import com.example.duantotnghiep.model.Customer;
 import com.example.duantotnghiep.model.Invoice;
@@ -67,7 +68,7 @@ public interface InvoiceService {
     InvoiceWithVnpayResponse createInvoiceAndVnpay(InvoiceRequest request) throws Exception;
     void updateStatusIfPaid(String appTransId) throws Exception;
 
-    List<InvoiceResponse> searchInvoices(Boolean isPaid, Integer orderType, Date createdFrom, Date createdTo, String phone, String code);
+    List<InvoiceResponse> searchInvoices(InvoiceSearchRequest request);
 
     PromotionSuggestion getSuggestedPromotion(Long customerId);
 

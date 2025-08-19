@@ -12,6 +12,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
@@ -32,15 +33,17 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
         i.totalAmount
     )
     FROM Invoice i
-    WHERE (:isPaid IS NULL OR i.isPaid = :isPaid)
+    WHERE (:status IS NULL OR i.statusDetail = :status)
+      AND  (:isPaid IS NULL OR i.isPaid = :isPaid)
       AND (:orderType IS NULL OR i.orderType = :orderType)
       AND (:createdFrom IS NULL OR i.createdDate >= :createdFrom)
       AND (:createdTo IS NULL OR i.createdDate <= :createdTo)
-      AND (:phone IS NULL OR i.customer.phone LIKE CONCAT('%', :phone, '%'))
-      AND (:code IS NULL OR i.invoiceCode LIKE CONCAT('%', :code, '%'))
+      AND (:phone IS NULL OR i.customer.phone LIKE %:phone%)
+      AND (:code IS NULL OR i.invoiceCode LIKE %:code%)
     ORDER BY i.createdDate ASC
 """)
     List<InvoiceResponse> searchInvoices(
+            @Param("status")  TrangThaiChiTiet status,
             @Param("isPaid") Boolean isPaid,
             @Param("orderType") Integer orderType,
             @Param("createdFrom") Date createdFrom,
@@ -232,6 +235,19 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
     GROUP BY status_detail
     """, nativeQuery = true)
     List<Object[]> countInvoicesByStatusNative();
+
+    @Query(
+            value = """
+    SELECT SUM(i.final_amount) 
+    FROM invoice i 
+    WHERE i.created_date >= :fromDate 
+      AND i.created_date < :toDate 
+      AND i.status = 1
+  """,
+            nativeQuery = true
+    )
+    BigDecimal sumRevenueBetween(@Param("fromDate") Date fromDate,
+                                 @Param("toDate") Date toDate);
 
 
 }

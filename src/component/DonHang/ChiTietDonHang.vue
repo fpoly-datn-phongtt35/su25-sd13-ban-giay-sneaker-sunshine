@@ -250,6 +250,57 @@ const handleWardChangeForAddress = () => {
   addressForm.value.wardName = selected?.WardName || ''
 }
 
+const shippingFee = ref(null);
+const calculateShippingFee = async () => {
+  // Kiểm tra nếu chưa chọn Quận/Huyện hoặc Phường/Xã thì không tính phí
+  if (!addressForm.value.districtCode || !addressForm.value.wardCode) {
+    ElMessage.warning('Vui lòng chọn đầy đủ Tỉnh/Thành, Quận/Huyện, Phường/Xã');
+    return 0; // Trả về 0 nếu thông tin chưa đủ
+  }
+
+  const FROM_DISTRICT_ID = 1483; // ID Quận/Huyện của kho hàng
+  const FROM_WARD_CODE = "21108"; // Mã Phường/Xã của kho hàng
+  const SHOP_ID = 5851480; // ID của shop bạn trên GHN
+  const GHN_TOKEN = '741f1c91-4f42-11f0-8cf5-d2552bfd31d8';
+
+  try {
+
+    const totalWeight = invoice.value.invoiceDetailResponses.reduce(
+      (sum, item) => sum + (item.weight || 200) * item.quantity, 0
+    );
+
+    // 2. Gọi API tính phí của GHN
+    const res = await axios.post(
+      'https://online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/fee',
+      {
+        from_district_id: FROM_DISTRICT_ID,
+        from_ward_code: FROM_WARD_CODE,
+        to_district_id: addressForm.value.districtCode,
+        to_ward_code: addressForm.value.wardCode,
+        weight: Math.max(totalWeight, 100), // GHN yêu cầu tối thiểu 100g
+        insurance_value: invoice.value.totalAmount, // Giá trị đơn hàng
+        service_type_id: 2, // 2: Chuyển phát nhanh (Fast Delivery)
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          Token: GHN_TOKEN,
+          ShopId: SHOP_ID,
+        },
+      }
+    );
+
+    shippingFee.value = res.data.data.total || 0;
+    ElMessage.success(`Phí vận chuyển dự kiến: ${formatCurrency(shippingFee.value)}`);
+    return shippingFee;
+
+  } catch (err) {
+    console.error('❌ Lỗi tính phí ship:', err);
+    ElMessage.error('Không thể tính phí vận chuyển. Vui lòng thử lại.');
+    return 0; // Trả về 0 khi có lỗi
+  }
+};
+
 
 // Cập nhật địa chỉ mới
 const submitAddressUpdate = async () => {
@@ -260,29 +311,26 @@ const submitAddressUpdate = async () => {
     wardName
   } = addressForm.value
 
-  // if (!houseNumber || !provinceName || !districtName || !wardName) {
-  //   ElMessage.warning('Vui lòng nhập đầy đủ thông tin địa chỉ.')
-  //   return
-  // }
-
-  console.log('tỉnh: ',addressForm.value);
-
-  const fullAddress = `${houseNumber} - ${wardName} - ${districtName} - ${provinceName} - Việt Nam`
+  const fullAddress = `${houseNumber} - ${wardName} - ${districtName} - ${provinceName}`;
+  const newShippingFee = await calculateShippingFee();
+   const totalAmount = Number(invoice.value.totalAmount) || 0;
+    const discountAmount = Number(invoice.value.discountAmount) || 0;
+    const finalAmount = totalAmount + newShippingFee.value - discountAmount;
 
   try {
-    await apiClient.put(`/online-sale/cap-nhat-dia-chi`, null, {
-      params: {
-        invoiceId,
-        newAddress: fullAddress
-      }
-    })
+    await apiClient.put(`/admin/online-sales/update-address`, {
+  invoiceId,
+  newAddress: fullAddress,
+  shippingFee: newShippingFee.value,
+  finalAmount: finalAmount
+});
 
-    ElMessage.success('Cập nhật địa chỉ thành công!')
-    addressDialogVisible.value = false
-    fetchInvoice() // Cập nhật lại thông tin hóa đơn sau khi đổi địa chỉ
+    ElMessage.success('Cập nhật địa chỉ thành công!');
+    addressDialogVisible.value = false;
+    fetchInvoice();
   } catch (err) {
-    ElMessage.error('Lỗi cập nhật địa chỉ!')
-    console.error(err)
+    ElMessage.error('Lỗi cập nhật địa chỉ!');
+    console.error(err);
   }
 }
 

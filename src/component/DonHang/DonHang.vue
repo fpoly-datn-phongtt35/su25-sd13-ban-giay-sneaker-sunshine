@@ -24,136 +24,38 @@
         row-class-name="hover:bg-gray-100 transition-colors duration-200"
         header-cell-class-name="bg-blue-50 text-gray-700 font-semibold"
       >
-        <el-table-column label="STT" type="index" width="70" align="center" />
-        <el-table-column prop="invoiceCode" label="Mã hóa đơn" width="160" />
-        <el-table-column prop="totalAmount" label="Tổng tiền" width="140" align="right">
+        <el-table-column label="STT" type="index" width="300" align="center" />
+        <el-table-column prop="invoiceCode" label="Mã hóa đơn" width="300" />
+        <el-table-column prop="totalAmount" label="Tổng tiền" width="300" align="center">
           <template #default="scope">{{ formatCurrency(scope.row.totalAmount) }}</template>
         </el-table-column>
-        <el-table-column prop="shippingFee" label="Tiền ship" width="120" align="right">
+        <el-table-column prop="shippingFee" label="Tiền ship" width="280" align="center">
           <template #default="scope">{{ formatCurrency(scope.row.shippingFee) }}</template>
         </el-table-column>
-        <el-table-column prop="amountToPay" label="Tiền phải trả" width="140" align="right">
+        <el-table-column prop="amountToPay" label="Tiền phải trả" width="200" align="center">
           <template #default="scope">{{ formatCurrency(scope.row.amountToPay) }}</template>
         </el-table-column>
-        <el-table-column prop="createdDate" label="Ngày tạo" width="200">
+        <el-table-column prop="createdDate" label="Ngày tạo" width="300">
           <template #default="scope">
             <el-tooltip :content="formatDate(scope.row.createdDate)" placement="top">
               <span>{{ formatDate(scope.row.createdDate) }}</span>
             </el-tooltip>
           </template>
         </el-table-column>
-<el-table-column label="Hành động" width="220" align="center" fixed="right">
-  <template #default="scope">
-    <el-button
-      type="primary"
-      :icon="View"
-      size="default"
-      @click="goToStatusPage(scope.row.invoiceId)"
-    >
-      Chi tiết
-    </el-button>
-
-    <!--  Chuyển v-if trực tiếp vào el-button -->
-    <el-button
-      v-if="currentTab === 'GIAO_THANH_CONG'"
-      type="danger"
-      :icon="Refresh"
-      size="default"
-      class="ml-2"
-      @click="openReturnDialog(scope.row)"
-    >
-      Trả hàng/Hoàn tiền
-    </el-button>
-
-<el-button
-  v-if="currentTab === 'GIAO_THANH_CONG'"
-  type="danger"
-  :icon="Refresh"
-  size="default"
-  class="ml-2"
-  @click="openReviewDialog(scope.row)"
->
-  Đánh giá sản phẩm
-</el-button>
-
-  </template>
-</el-table-column>
-
-
+        <el-table-column label="Hành động" width="300" align="center" fixed="right">
+          <template #default="scope">
+            <el-button
+              type="primary"
+              :icon="View"
+              size="default"
+              @click="goToStatusPage(scope.row.invoiceId)"
+            >
+              Chi tiết
+            </el-button>
+          </template>
+        </el-table-column>
       </el-table>
     </el-card>
-
-<el-dialog
-      v-model="returnDialogVisible"
-      title="Bạn muốn trả hàng vì lý do gì?"
-      width="35%"
-      class="return-dialog-custom"
-      destroy-on-close
-    >
-      <div class="dialog-content-wrapper text-left space-y-4">
-        <p class="dialog-description-text">Vui lòng chọn lý do phù hợp nhất để chúng tôi xử lý yêu cầu trả hàng/hoàn tiền của bạn:</p>
-        <el-button
-          type="warning"
-          plain
-          class="w-full return-reason-button"
-          @click="handleReturnChoice('ISSUE')"
-        >
-          <div class="button-content">
-            <el-icon><WarningFilled /></el-icon>
-            <span class="button-text">Đã nhận hàng nhưng lỗi, khác mô tả, không giống mẫu đặt</span>
-          </div>
-        </el-button>
-        <el-button
-          type="info"
-          plain
-          class="w-full return-reason-button"
-          @click="handleReturnChoice('MISSING')"
-        >
-          <div class="button-content">
-            <el-icon><QuestionFilled /></el-icon>
-            <span class="button-text">Không nhận được hàng hoặc nhận thiếu hàng</span>
-          </div>
-        </el-button>
-      </div>
-    </el-dialog>
-
- <el-dialog
-  v-model="reviewDialogVisible"
-  title="Đánh giá sản phẩm"
-  width="600px"
->
-  <div
-    v-for="(item, index) in selectedOrderProducts"
-    :key="item.productId"
-    class="mb-6 border-b pb-4"
-  >
-    <div class="flex items-center justify-between mb-2">
-      <div class="font-medium text-gray-700">
-       Product Name: {{ item.productName }} (ID: {{ item.productId }})
-      </div>
-      <el-rate
-        v-model="item.rating"
-        :max="5"
-        allow-half
-        show-score
-        score-template="{value} sao"
-      />
-    </div>
-
-    <el-input
-      v-model="item.comment"
-      type="textarea"
-      :rows="3"
-      placeholder="Nhập nhận xét của bạn"
-    />
-  </div>
-
-  <template #footer>
-    <el-button @click="reviewDialogVisible = false">Hủy</el-button>
-    <el-button type="primary" @click="submitReview">Gửi đánh giá</el-button>
-  </template>
-</el-dialog>
-
   </div>
 </template>
 
@@ -162,7 +64,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import dayjs from 'dayjs'
 import apiClient from '@/utils/axiosInstance'
-import { View, Refresh } from '@element-plus/icons-vue' // Nhập icon View
+import { View } from '@element-plus/icons-vue' // Nhập icon View
 import { ElMessage } from 'element-plus'
 
 // Router để điều hướng

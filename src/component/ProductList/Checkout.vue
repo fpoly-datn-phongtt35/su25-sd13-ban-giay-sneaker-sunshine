@@ -251,7 +251,7 @@ const applyBestVoucherAutomatically = async () => {
       if (res.data) {
         appliedVoucher.value = res.data;
         // Corrected variable name: appliedVoucher.value.voucherName instead of appliedVulatedVoucher.value.voucherName
-        ElMessage.success(`Tự động áp dụng voucher tốt nhất: ${appliedVoucher.value.voucherName}`); 
+        ElMessage.success(`Tự động áp dụng voucher tốt nhất: ${appliedVoucher.value.voucherName}`);
 
         let discount = 0;
         if (appliedVoucher.value.discountPercentage) {
@@ -581,7 +581,7 @@ const payload = {
 
         if (customerId) {
           localStorage.setItem('userId', customerId.toString())
-          console.log("✅ Đã lưu customerId vào localStorage:", customerId)
+          console.log(" Đã lưu customerId vào localStorage:", customerId)
         } else {
           console.warn("⚠️ Không tìm thấy customerId trong response từ ZaloPay")
         }

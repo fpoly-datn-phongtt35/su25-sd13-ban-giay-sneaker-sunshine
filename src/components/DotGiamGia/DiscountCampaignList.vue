@@ -12,71 +12,61 @@
 
       <!-- Table -->
       <div v-else>
-        <el-table :data="campaigns" border style="width: 100%; table-layout: auto" :fit="true">
+        <el-table :data="campaigns" border style="width: 100%" :fit="true" stripe>
           <!-- STT -->
           <el-table-column type="index" label="STT" width="60" align="center" />
 
           <!-- Tên -->
-          <el-table-column prop="name" label="Tên đợt giảm giá" min-width="180" />
+          <el-table-column prop="name" label="Tên đợt giảm giá" min-width="180" show-overflow-tooltip />
 
           <!-- Mã -->
-          <el-table-column prop="campaignCode" label="Mã" min-width="100" />
+          <el-table-column prop="campaignCode" label="Mã" min-width="120" />
 
           <!-- Giảm giá -->
           <el-table-column label="Giảm giá" width="100" align="center">
-            <template #default="{ row }"> {{ row.discountPercentage }}% </template>
+            <template #default="{ row }">
+              <el-tag type="success" effect="plain">{{ row.discountPercentage }}%</el-tag>
+            </template>
           </el-table-column>
 
           <!-- Mô tả -->
           <el-table-column prop="description" label="Mô tả" min-width="200" show-overflow-tooltip />
 
-          <!-- Thời gian -->
-          <el-table-column label="Thời gian" min-width="200">
-            <template #default="{ row }">
-              {{ formatDateTime(row.startDate) }} → {{ formatDateTime(row.endDate) }}
-            </template>
-          </el-table-column>
-
           <!-- Trạng thái -->
-          <el-table-column label="Trạng thái" width="130" align="center">
+          <el-table-column label="Trạng thái" width="140" align="center">
             <template #default="{ row }">
-              <el-tag :type="statusTagType(row.status)">
-                {{ statusText(row.status) }}
-              </el-tag>
-            </template>
-          </el-table-column>
-
-          <!-- Thống kê gộp -->
-          <el-table-column label="Thống kê" min-width="200" align="left">
-            <template #default="{ row }">
-              <div class="stats-cell">
-                <div><strong>Hóa đơn:</strong> {{ row.totalInvoices ?? '-' }}</div>
-                <div>
-                  <strong>Doanh thu:</strong>
-                  {{
-                    row.totalAfterDiscount
-                      ? row.totalAfterDiscount.toLocaleString('vi-VN') + ' đ'
-                      : '-'
-                  }}
-                </div>
-                <div><strong>SP bán ra:</strong> {{ row.totalProductsSold ?? '-' }}</div>
-                <div>
-                  <strong>Giảm TB:</strong>
-                  {{ row.averageDiscountRate ? row.averageDiscountRate + '%' : '-' }}
-                </div>
-              </div>
+              <el-tag :type="statusTagType(row.status)" round>{{ statusText(row.status) }}</el-tag>
             </template>
           </el-table-column>
 
           <!-- Hành động -->
-          <el-table-column label="Hành động" min-width="180" fixed="right">
+          <el-table-column label="Hành động" width="160" fixed="right" align="center">
             <template #default="{ row }">
-              <el-button size="small" type="warning" @click="changeStatus(row)"
-                >Chuyển trạng thái</el-button
-              >
-              <el-button size="small" @click="$router.push(`/discount-campaigns/detail/${row.id}`)">
-                Xem chi tiết
-              </el-button>
+              <div class="action-group">
+                <!-- Nút xem -->
+                <el-button class="action-btn view" size="small"
+                  @click="$router.push(`/discount-campaigns/detail/${row.id}`)">
+                  <el-icon><View /></el-icon>
+                </el-button>
+
+                <!-- Nút in -->
+                <!-- <el-button class="action-btn print" size="small" @click="printCampaign(row)">
+                  <el-icon><Printer /></el-icon>
+                </el-button> -->
+
+                <!-- Menu thêm -->
+                <el-dropdown trigger="click">
+                  <span class="el-dropdown-link more-btn">
+                    <el-icon><MoreFilled /></el-icon>
+                  </span>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item @click="goToUpdate(row.id)">Cập nhật</el-dropdown-item>
+                      <el-dropdown-item @click="changeStatus(row)">Chuyển trạng thái</el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
+              </div>
             </template>
           </el-table-column>
         </el-table>
@@ -104,6 +94,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
+import { View, Printer, MoreFilled } from '@element-plus/icons-vue'
 
 const router = useRouter()
 
@@ -115,10 +106,11 @@ const currentPage = ref(1)
 const pageSize = ref(10)
 const totalItems = ref(0)
 
-// Format datetime
 const formatDateTime = (dateStr) => {
   if (!dateStr) return ''
-  const date = new Date(dateStr)
+  const safe = typeof dateStr === 'string' ? dateStr.replace(' ', 'T') : dateStr
+  const date = new Date(safe)
+  if (isNaN(date.getTime())) return dateStr
   return date.toLocaleString('vi-VN', {
     day: '2-digit',
     month: '2-digit',
@@ -128,33 +120,23 @@ const formatDateTime = (dateStr) => {
   })
 }
 
-// Status text
 const statusText = (status) => {
   switch (status) {
-    case 0:
-      return 'Sắp diễn ra'
-    case 1:
-      return 'Đang hoạt động'
-    case 2:
-      return 'Đã kết thúc'
-    default:
-      return 'Không xác định'
+    case 0: return 'Sắp diễn ra'
+    case 1: return 'Đang hoạt động'
+    case 2: return 'Đã kết thúc'
+    default: return 'Không xác định'
   }
 }
 const statusTagType = (status) => {
   switch (status) {
-    case 0:
-      return 'warning'
-    case 1:
-      return 'success'
-    case 2:
-      return 'info'
-    default:
-      return ''
+    case 0: return 'warning'
+    case 1: return 'success'
+    case 2: return 'info'
+    default: return ''
   }
 }
 
-// Change status
 const changeStatus = async (campaign) => {
   try {
     await axios.post(`http://localhost:8080/api/admin/campaigns/${campaign.id}/delete`)
@@ -166,7 +148,6 @@ const changeStatus = async (campaign) => {
   }
 }
 
-// Pagination handlers
 const handlePageChange = (page) => {
   currentPage.value = page
   loadCampaigns()
@@ -177,37 +158,28 @@ const handleSizeChange = (newSize) => {
   loadCampaigns()
 }
 
-// Load campaigns with statistics
 const loadCampaigns = async () => {
   loading.value = true
   try {
     const res = await axios.get('http://localhost:8080/api/admin/campaigns', {
-      params: {
-        page: currentPage.value - 1,
-        size: pageSize.value,
-      },
+      params: { page: currentPage.value - 1, size: pageSize.value },
     })
 
-    let data = res.data.content
-
-    // Fetch statistics for each campaign
-    const statsPromises = data.map(async (campaign) => {
+    const data = res.data?.content ?? []
+    const statsPromises = data.map(async (c) => {
       try {
-        const statsRes = await axios.get(
-          `http://localhost:8080/api/admin/campaigns/${campaign.id}/statistics`,
-        )
-        return { ...campaign, ...statsRes.data }
-      } catch (err) {
-        console.error(`Lỗi load thống kê cho campaign ${campaign.id}`, err)
-        return campaign
+        const statsRes = await axios.get(`http://localhost:8080/api/admin/campaigns/${c.id}/statistics`)
+        return { ...c, ...statsRes.data }
+      } catch {
+        return c
       }
     })
-
     campaigns.value = await Promise.all(statsPromises)
 
-    totalItems.value = res.data.page.totalElements
-    pageSize.value = res.data.page.size
-    currentPage.value = res.data.page.number + 1
+    const pageMeta = res.data?.page ?? {}
+    totalItems.value = pageMeta.totalElements ?? 0
+    pageSize.value = pageMeta.size ?? pageSize.value
+    currentPage.value = (pageMeta.number ?? 0) + 1
   } catch (error) {
     console.error('Lỗi tải đợt giảm giá:', error)
     ElMessage.error('Không thể tải danh sách đợt giảm giá.')
@@ -216,26 +188,56 @@ const loadCampaigns = async () => {
   }
 }
 
-// Go to add page
-const goToAddPage = () => {
-  router.push('/discount-campaigns/add')
+const goToAddPage = () => router.push('/discount-campaigns/add')
+const goToUpdate = (id) => router.push(`/discount-campaigns/update/${id}`)
+
+const printCampaign = (row) => {
+  // Tạm in toàn trang, bạn thay bằng in report theo yêu cầu
+  window.print()
 }
 
 onMounted(() => {
   loadCampaigns()
 })
 </script>
-<style scoped>
-.stats-cell-compact {
-  display: flex;
-  flex-direction: column;
-  gap: 4px; /* Tạo khoảng cách giữa các dòng */
-}
 
-/* Tùy chọn: Tối ưu hiển thị trên màn hình nhỏ */
-@media (max-width: 1200px) {
-  .el-table-column {
-    min-width: 100px !important;
-  }
+<style scoped>
+.action-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.action-btn {
+  border: none !important;
+  width: 40px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.action-btn :deep(.el-icon) {
+  font-size: 16px;
+  color: #fff;
+}
+.action-btn.view { background: #3b82f6; }
+.action-btn.view:hover { background: #2563eb; }
+.action-btn.print { background: #22c55e; }
+.action-btn.print:hover { background: #16a34a; }
+
+/* More menu */
+.more-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #6b7280;
+}
+.more-btn:hover {
+  background: #f3f4f6;
+  color: #111827;
 }
 </style>

@@ -134,7 +134,6 @@ const filters = ref({
 })
 
 const currentTab = ref('CHO_XU_LY')
-
 const invoices = ref([])
 const loading = ref(false)
 

@@ -14,6 +14,7 @@ import com.example.duantotnghiep.repository.InvoiceRepository;
 import com.example.duantotnghiep.service.InvoiceService;
 import com.example.duantotnghiep.service.ProductService;
 import com.example.duantotnghiep.service.impl.InvoiceEmailService;
+import com.example.duantotnghiep.service.impl.InvoiceServiceImpl;
 import com.example.duantotnghiep.service.impl.OnlineSaleServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -39,6 +40,7 @@ public class SaleOnlineController {
     private final InvoiceEmailService invoiceEmailService;
     private final InvoiceRepository invoiceRepository;
     private final OnlineSaleServiceImpl onlineSaleService;
+    private final InvoiceServiceImpl invoiceServiceImpl;
 
     @GetMapping("/online-home")
     public ResponseEntity<List<ProductResponse>> hienThi(){
@@ -143,6 +145,19 @@ public class SaleOnlineController {
         return ResponseEntity.ok(onlineSaleService.getCountByStatus());
     }
 
+    @GetMapping("/sold-quantity/product/{productId}")
+    public ResponseEntity<Map<String, Object>> getSoldQuantityByProduct(
+            @PathVariable Long productId
+    ) {
+        Long totalSold = invoiceServiceImpl.getSoldQuantityByProduct(productId);
+
+        Map<String, Object> resp = new HashMap<>();
+        resp.put("productId", productId);
+        resp.put("totalSoldQuantity", totalSold);
+        resp.put("statusCondition", 1);
+
+        return ResponseEntity.ok(resp);
+    }
 
 
 }

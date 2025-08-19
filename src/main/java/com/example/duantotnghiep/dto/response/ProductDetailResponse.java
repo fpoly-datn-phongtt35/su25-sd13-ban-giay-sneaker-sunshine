@@ -16,6 +16,10 @@ import java.util.Date;
 public class ProductDetailResponse {
     private Long id;
     private Long sizeId;
+    private Long brandId;
+    private String brandName;
+    private Long productId;
+    private String productName;
     private String sizeName;
     private Long colorId;
     private String colorName;

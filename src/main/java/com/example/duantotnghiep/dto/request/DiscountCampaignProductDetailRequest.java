@@ -15,6 +15,6 @@ public class DiscountCampaignProductDetailRequest {
     private Long id;
     private Long productDetailId;
     private String productDetailName;
-    private BigDecimal discountAmount;
+    private BigDecimal discountPercentage;
 }
 

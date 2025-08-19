@@ -619,7 +619,7 @@ const preOrderAvailableColors = computed(() => {
 }
 .carousel-image {
   width: 100%;
-  height: 100%;
+  height: 110%;
   object-fit: cover;
 }
 .selector-label {

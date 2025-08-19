@@ -21,7 +21,7 @@ public class ComplaintResponse {
     private String customerName;
     private String reason;
     private TrangThaiKhieuNai status;
-    private String result;
+    private String description;
     private List<ComplainImageResponse> images;
     private String createdBy;
     private Date createdDate;

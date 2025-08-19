@@ -5,6 +5,8 @@ import com.example.duantotnghiep.dto.response.EmployeeResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.util.List;
+
 public interface EmployeeService {
     Page<EmployeeResponse> getAllUsers(Pageable pageable);
 
@@ -12,4 +14,6 @@ public interface EmployeeService {
     EmployeeResponse updateUser(Long id, EmployeeRequest employeeRequest);
     void deleteUser(Long id);
     EmployeeResponse createUser(EmployeeRequest employeeRequest);
+
+    List<EmployeeResponse> getAllData();
 }

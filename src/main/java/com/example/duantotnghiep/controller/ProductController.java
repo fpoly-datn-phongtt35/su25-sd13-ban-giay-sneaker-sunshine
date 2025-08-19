@@ -2,10 +2,7 @@ package com.example.duantotnghiep.controller;
 
 import com.example.duantotnghiep.dto.request.ProductRequest;
 import com.example.duantotnghiep.dto.request.ProductSearchRequest;
-import com.example.duantotnghiep.dto.response.PaginationDTO;
-import com.example.duantotnghiep.dto.response.ProductDetailResponse;
-import com.example.duantotnghiep.dto.response.ProductResponse;
-import com.example.duantotnghiep.dto.response.ProductSearchResponse;
+import com.example.duantotnghiep.dto.response.*;
 import com.example.duantotnghiep.service.ProductService;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.MultiFormatWriter;
@@ -37,7 +34,6 @@ import java.util.List;
 public class ProductController {
     private final ProductService productService;
 
-    // GET ALL
     @GetMapping()
     public ResponseEntity<Page<ProductResponse>> getProducts(
             @RequestParam(defaultValue = "0") int page,
@@ -47,7 +43,14 @@ public class ProductController {
         return ResponseEntity.ok(productPage);
     }
 
-    // GET BY ID
+    @GetMapping("/hien-thi")
+    public ResponseEntity<List<ProductResponse>> getProducts() {
+        Pageable pageable = Pageable.unpaged();
+        Page<ProductResponse> productPage = productService.getAllProducts(pageable);
+        List<ProductResponse> productResponseList = productPage.getContent();
+        return ResponseEntity.ok(productResponseList);
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ProductResponse> getProductById(@PathVariable Long id) {
         return ResponseEntity.ok(productService.getProductById(id));
@@ -58,7 +61,6 @@ public class ProductController {
         return ResponseEntity.ok(productService.getProductDetailById(idProduct));
     }
 
-    // CREATE
     @PostMapping
     public ResponseEntity<ProductResponse> createProduct( @ModelAttribute ProductRequest request) {
         System.out.println("Tổng số ảnh: " + request.getProductImages().size());
@@ -163,4 +165,13 @@ public class ProductController {
         return ResponseEntity.ok(productResponseList);
     }
 
+    @GetMapping("/scan")
+    public ResponseEntity<ProductSearchResponse> scan(@RequestParam String code) {
+        return ResponseEntity.ok(productService.scanProductToSearchResponse(code));
+    }
+
+    @GetMapping("/reviews-product/{productId}")
+    public ResponseEntity<List<FavoriteProductResponse>> favouriteProduct(@PathVariable("productId") Long productId) {
+        return ResponseEntity.ok(productService.getFavoritesByProductId(productId));
+    }
 }

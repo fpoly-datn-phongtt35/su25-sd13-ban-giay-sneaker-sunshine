@@ -49,6 +49,9 @@ public class InvoiceTransaction {
     @Column(name = "transaction_type", length = 50)
     private String transactionType;
 
+    @Column(name = "bank_name")
+    private String bankName;
+
     @Size(max = 50)
     @Column(name = "payment_method", length = 50)
     private String paymentMethod;

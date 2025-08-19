@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -47,5 +48,32 @@ public interface VoucherRepository extends JpaRepository<Voucher, Long> {
 
     boolean existsByCustomerIdAndDiscountAmount(Long customerId, int discountAmount);
 
+    List<Voucher> findByCustomerId(Long customerId);
 
+    @Query("""
+      select v
+      from Voucher v
+      where v.status = 1
+        and (v.quantity is null or v.quantity > 0)
+        and (:now is null or (coalesce(v.startDate, :now) <= :now and coalesce(v.endDate, :now) >= :now))
+        and (v.minOrderValue is null or v.minOrderValue <= :base)
+        and (v.customer is null or v.customer.id = :customerId)
+    """)
+    List<Voucher> findEligibleVouchers(
+            @Param("customerId") Long customerId,
+            @Param("base") BigDecimal base,
+            @Param("now") LocalDateTime now
+    );
+
+
+    @Query("""
+      select v
+      from Voucher v
+      where v.status = 1
+        and (v.quantity is null or v.quantity > 0)
+        and v.customer.id = :customerId
+        and (:now is null or (coalesce(v.startDate, :now) <= :now and coalesce(v.endDate, :now) >= :now))
+    """)
+    List<Voucher> findActiveOwnedByCustomer(@Param("customerId") Long customerId,
+                                            @Param("now") LocalDateTime now);
 }

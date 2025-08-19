@@ -9,14 +9,13 @@ public enum TrangThaiChiTiet {
     HUY_GIAO_DICH(-1, "Hủy giao dịch"),
     CHO_XU_LY(0, "Chờ xử lý"),
     DA_XU_LY(1, "Đã xử lý"),
-    CHO_NHAP_HANG(2, "Chờ nhập hàng"),
-    CHO_GIAO_HANG(3, "Chờ giao hàng"),
-    DANG_GIAO_HANG(4, "Đang giao hàng"),
-    GIAO_THANH_CONG(5, "Giao hàng thành công"),
-    GIAO_THAT_BAI(6, "Giao hàng thất bại"),
-    MAT_HANG(7, "Mất hàng"),
-    DA_HOAN_TIEN(8, "Đã hoàn tiền"),
-    DA_HOAN_THANH(9, "Đã hoàn thành");
+    CHO_GIAO_HANG(2, "Chờ giao hàng"),
+    DANG_GIAO_HANG(3, "Đang giao hàng"),
+    GIAO_THANH_CONG(4, "Giao hàng thành công"),
+    GIAO_THAT_BAI(5, "Giao hàng thất bại"),
+    MAT_HANG(6, "Mất hàng"),
+    DA_HOAN_TIEN(7, "Đã hoàn tiền"),
+    DA_HOAN_THANH(8, "Đã hoàn thành");
 
     private final int ma;
     private final String moTa;
@@ -52,8 +51,7 @@ public enum TrangThaiChiTiet {
 
         return switch (this) {
             case CHO_XU_LY -> next == DA_XU_LY;
-            case DA_XU_LY -> next == CHO_NHAP_HANG || next == CHO_GIAO_HANG;
-            case CHO_NHAP_HANG -> next == CHO_GIAO_HANG;
+            case DA_XU_LY ->  next == CHO_GIAO_HANG;
             case CHO_GIAO_HANG -> next == DANG_GIAO_HANG;
             case DANG_GIAO_HANG -> next == GIAO_THANH_CONG || next == GIAO_THAT_BAI || next == MAT_HANG;
             case GIAO_THAT_BAI, MAT_HANG -> next == DA_HOAN_TIEN;

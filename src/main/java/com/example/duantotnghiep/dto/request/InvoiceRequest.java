@@ -28,6 +28,7 @@ public class InvoiceRequest {
     private Boolean isPaid;
     private TrangThaiChiTiet statusDetail;
     private Date deliveredAt;
+    private Long discountCampaignId;
 
 }
 

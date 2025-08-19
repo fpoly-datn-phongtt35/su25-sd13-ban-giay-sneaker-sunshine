@@ -4,11 +4,14 @@ package com.example.duantotnghiep.service.impl;
 import com.example.duantotnghiep.dto.request.DiscountCampaignProductRequest;
 import com.example.duantotnghiep.dto.request.DiscountCampaignRequest;
 import com.example.duantotnghiep.dto.response.DiscountCampaignResponse;
+import com.example.duantotnghiep.dto.response.DiscountCampaignStatisticsResponse;
 import com.example.duantotnghiep.mapper.DiscountCampaignMapper;
 import com.example.duantotnghiep.model.DiscountCampaign;
 import com.example.duantotnghiep.model.DiscountCampaignProduct;
 import com.example.duantotnghiep.model.Product;
+import com.example.duantotnghiep.repository.DiscountCampaignProductRepository;
 import com.example.duantotnghiep.repository.DiscountCampaignRepository;
+import com.example.duantotnghiep.repository.InvoiceRepository;
 import com.example.duantotnghiep.repository.ProductDetailRepository;
 import com.example.duantotnghiep.repository.ProductRepository;
 import com.example.duantotnghiep.service.DiscountCampaignService;
@@ -24,7 +27,11 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -35,6 +42,8 @@ public class DiscountCampaignServiceImpl implements DiscountCampaignService {
     private final DiscountCampaignRepository discountCampaignRepository;
     private final ProductRepository productRepository;
     private final ProductDetailRepository productDetailRepository;
+    private final InvoiceRepository invoiceRepository;
+    private final DiscountCampaignProductRepository discountCampaignProductRepository;
 
     @Override
     public Page<DiscountCampaignResponse> getAll(int page, int size) {
@@ -68,7 +77,6 @@ public class DiscountCampaignServiceImpl implements DiscountCampaignService {
 
         repository.save(campaign);
     }
-
 
     @Transactional
     @Override
@@ -115,6 +123,81 @@ public class DiscountCampaignServiceImpl implements DiscountCampaignService {
 
         // 4) Trả về response
         return discountCampaignMapper.toResponse(savedCampaign);
+    }
+
+    @Transactional
+    public DiscountCampaignResponse updateDiscountCampaign(Long id, DiscountCampaignRequest request) {
+        DiscountCampaign c = discountCampaignRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đợt giảm giá với ID: " + id));
+
+        // ===== Cập nhật scalar fields =====
+        if (request.getName() != null && !request.getName().trim().isEmpty()) {
+            c.setName(request.getName().trim());
+        }
+        if (request.getDescription() != null) {
+            c.setDescription(request.getDescription());
+        }
+        if (request.getDiscountPercentage() != null) {
+            c.setDiscountPercentage(request.getDiscountPercentage());
+        }
+        if (request.getCampaignCode() != null && !request.getCampaignCode().trim().isEmpty()) {
+            c.setCampaignCode(request.getCampaignCode().trim());
+        }
+        if (request.getStartDate() != null) {
+            c.setStartDate(request.getStartDate());
+        }
+        if (request.getEndDate() != null) {
+            c.setEndDate(request.getEndDate());
+        }
+        if (request.getStatus() != null) {
+            c.setStatus(request.getStatus());
+        }
+
+        // Validate thời gian
+        if (c.getStartDate() != null && c.getEndDate() != null && c.getEndDate().isBefore(c.getStartDate())) {
+            throw new IllegalArgumentException("Ngày kết thúc không được nhỏ hơn ngày bắt đầu.");
+        }
+
+        // ===== Cập nhật products theo kiểu diff (orphanRemoval=true) =====
+        if (request.getProducts() != null) {
+            // set hiện có
+            java.util.Set<Long> existing = c.getProducts().stream()
+                    .map(l -> l.getProduct().getId())
+                    .collect(java.util.stream.Collectors.toSet());
+
+            // set mới (lọc null/trùng)
+            java.util.Set<Long> incoming = request.getProducts().stream()
+                    .filter(java.util.Objects::nonNull)
+                    .map(DiscountCampaignProductRequest::getProductId)
+                    .filter(java.util.Objects::nonNull)
+                    .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new));
+
+            // remove những productId không còn
+            c.getProducts().removeIf(link -> !incoming.contains(link.getProduct().getId()));
+
+            // add những productId mới
+            for (Long pid : incoming) {
+                if (!existing.contains(pid)) {
+                    Product p = productRepository.findById(pid)
+                            .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm với ID: " + pid));
+                    DiscountCampaignProduct link = new DiscountCampaignProduct();
+                    link.setCampaign(c);   // rất quan trọng
+                    link.setProduct(p);
+                    c.getProducts().add(link);
+                }
+            }
+        }
+
+        c.setUpdatedDate(java.time.LocalDateTime.now());
+        DiscountCampaign saved = discountCampaignRepository.save(c);
+        return discountCampaignMapper.toResponse(saved); // map từ entity
+    }
+
+
+
+    @Override
+    public DiscountCampaignStatisticsResponse getStatistics(Long campaignId) {
+        return invoiceRepository.getStatisticsByCampaignId(campaignId);
     }
 
 }

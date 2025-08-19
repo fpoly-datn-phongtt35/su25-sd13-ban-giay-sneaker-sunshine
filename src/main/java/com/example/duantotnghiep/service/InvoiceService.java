@@ -2,11 +2,8 @@ package com.example.duantotnghiep.service;
 
 import com.example.duantotnghiep.dto.PaymentSummary;
 import com.example.duantotnghiep.dto.request.InvoiceRequest;
-import com.example.duantotnghiep.dto.response.CustomerResponse;
-import com.example.duantotnghiep.dto.response.InvoiceDisplayResponse;
-import com.example.duantotnghiep.dto.response.InvoiceResponse;
-import com.example.duantotnghiep.dto.response.InvoiceWithVnpayResponse;
-import com.example.duantotnghiep.dto.response.InvoiceWithZaloPayResponse;
+import com.example.duantotnghiep.dto.response.*;
+import com.example.duantotnghiep.model.Customer;
 import com.example.duantotnghiep.model.Invoice;
 import com.example.duantotnghiep.model.PromotionSuggestion;
 import org.springframework.data.domain.Page;
@@ -16,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Date;
 import java.util.List;
 
 public interface InvoiceService {
@@ -56,6 +54,8 @@ public interface InvoiceService {
     InvoiceDisplayResponse createInvoice(InvoiceRequest request);
 
 
+    void autoBlacklistIfTooManyCancellations(Customer customer);
+
     @Transactional
     InvoiceWithZaloPayResponse createInvoiceAndZaloPay(InvoiceRequest request) throws Exception;
 
@@ -67,7 +67,7 @@ public interface InvoiceService {
     InvoiceWithVnpayResponse createInvoiceAndVnpay(InvoiceRequest request) throws Exception;
     void updateStatusIfPaid(String appTransId) throws Exception;
 
-    Page<InvoiceResponse> searchInvoices(Integer status,Integer orderType, LocalDateTime createdFrom, LocalDateTime createdTo, String phone, String code, Pageable pageable);
+    List<InvoiceResponse> searchInvoices(Boolean isPaid, Integer orderType, Date createdFrom, Date createdTo, String phone, String code);
 
     PromotionSuggestion getSuggestedPromotion(Long customerId);
 
@@ -75,4 +75,5 @@ public interface InvoiceService {
     void processInvoicePayment(Long invoiceId);
 
     void checkAndGiftVoucher(Long customerId);
+
 }

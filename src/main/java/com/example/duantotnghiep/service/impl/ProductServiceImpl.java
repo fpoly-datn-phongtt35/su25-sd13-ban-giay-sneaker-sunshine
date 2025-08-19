@@ -4,12 +4,7 @@ import com.example.duantotnghiep.dto.request.ProductDetailRequest;
 import com.example.duantotnghiep.dto.request.ProductImageRequest;
 import com.example.duantotnghiep.dto.request.ProductRequest;
 import com.example.duantotnghiep.dto.request.ProductSearchRequest;
-import com.example.duantotnghiep.dto.response.CategoryResponse;
-import com.example.duantotnghiep.dto.response.PaginationDTO;
-import com.example.duantotnghiep.dto.response.ProductDetailResponse;
-import com.example.duantotnghiep.dto.response.ProductImageResponse;
-import com.example.duantotnghiep.dto.response.ProductResponse;
-import com.example.duantotnghiep.dto.response.ProductSearchResponse;
+import com.example.duantotnghiep.dto.response.*;
 import com.example.duantotnghiep.mapper.CategoryMapper;
 import com.example.duantotnghiep.mapper.ProductDetailMapper;
 import com.example.duantotnghiep.mapper.ProductImageMapper;
@@ -22,23 +17,19 @@ import com.example.duantotnghiep.model.ProductCategory;
 import com.example.duantotnghiep.model.ProductCategoryId;
 import com.example.duantotnghiep.model.ProductDetail;
 import com.example.duantotnghiep.model.ProductImage;
-import com.example.duantotnghiep.repository.CategoryRepository;
-import com.example.duantotnghiep.repository.ColorRepository;
-import com.example.duantotnghiep.repository.DiscountCampaignRepository;
-import com.example.duantotnghiep.repository.ProductCategoryRepository;
-import com.example.duantotnghiep.repository.ProductDetailRepository;
-import com.example.duantotnghiep.repository.ProductImageRepository;
-import com.example.duantotnghiep.repository.ProductRepository;
-import com.example.duantotnghiep.repository.ProductSearchRepository;
+import com.example.duantotnghiep.repository.*;
 import com.example.duantotnghiep.service.ProductService;
 import com.example.duantotnghiep.xuatExcel.ProductExcelExporter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.crossstore.ChangeSetPersister;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -48,11 +39,13 @@ import java.math.RoundingMode;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -75,8 +68,7 @@ public class ProductServiceImpl implements ProductService {
     private final ProductSearchRepository productSearchRepository;
     private final ColorRepository colorRepository;
     private final DiscountCampaignRepository discountCampaignRepository;
-
-
+    private final FavoriteProductRepository favoriteProductRepository;
 
     @Transactional(rollbackFor = Throwable.class)
     @Override
@@ -380,12 +372,8 @@ public class ProductServiceImpl implements ProductService {
     @Transactional(rollbackFor = Throwable.class)
     @Override
     public void deleteProduct(Long id) {
-        Product product = productRepository.findById(id)
+        Product product = productRepository.findByStatus(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm: " + id));
-
-        if (product.getStatus() == 0) {
-            throw new RuntimeException("Sản phẩm đã bị xóa rồi: " + id);
-        }
 
         product.setStatus(0);
         product.setUpdatedDate(new Date());
@@ -396,7 +384,6 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public ProductResponse getProductById(Long id) {
-        // 1. Lấy sản phẩm kèm product details
         Product product = productRepository.findByIdWithProductDetails(id)
                 .orElseThrow(() -> new IllegalArgumentException("Product not found: " + id));
 
@@ -442,6 +429,7 @@ public class ProductServiceImpl implements ProductService {
     }
 
 
+
     @Override
     public List<ProductDetailResponse> getProductDetailById(Long productId) {
         List<ProductDetail> responses = productDetailRepository.findByProductIdAndStatus(productId,1);
@@ -456,18 +444,33 @@ public class ProductServiceImpl implements ProductService {
         List<ProductResponse> responses = products.getContent().stream().map(product -> {
             ProductResponse response = productMapper.toResponse(product);
 
+
+
+            // Tính phần trăm giảm giá tốt nhất cho sản phẩm
             double productDiscount = getBestDiscountPercentageForProduct(product, activeCampaigns);
             response.setDiscountPercentage((int) Math.round(productDiscount));
             response.setDiscountedPrice(calculateDiscountPrice(product.getSellPrice(), productDiscount));
 
+            // Lấy id của campaign áp dụng tốt nhất cho sản phẩm
+            Long bestCampaignId = getBestDiscountCampaignIdForProduct(product, activeCampaigns);
+            response.setDiscountCampaignId(bestCampaignId);
+
+            // Áp dụng giảm giá cho từng chi tiết sản phẩm (nếu có)
             if (response.getProductDetails() != null) {
                 for (ProductDetailResponse detailResponse : response.getProductDetails()) {
                     double detailDiscount = getBestDiscountPercentageForProductDetail(detailResponse.getId(), activeCampaigns);
+
+                    Long bestDetailCampaignId = (long) getBestDiscountPercentageForProductDetail(detailResponse.getId(), activeCampaigns);
+
+                    // Nếu không có giảm riêng cho detail, dùng giảm của product
                     if (detailDiscount <= 0) {
                         detailDiscount = productDiscount;
+                        bestDetailCampaignId = bestCampaignId;
                     }
+
                     detailResponse.setDiscountPercentage((int) Math.round(detailDiscount));
                     detailResponse.setDiscountedPrice(calculateDiscountPrice(detailResponse.getSellPrice(), detailDiscount));
+                    detailResponse.setDiscountCampaignId(bestDetailCampaignId); // đảm bảo field này tồn tại trong ProductDetailResponse
                 }
             }
 
@@ -476,6 +479,24 @@ public class ProductServiceImpl implements ProductService {
 
         return new PageImpl<>(responses, pageable, products.getTotalElements());
     }
+
+    private Long getBestDiscountCampaignIdForProduct(Product product, List<DiscountCampaign> campaigns) {
+        return campaigns.stream()
+                .filter(campaign -> campaign.getDiscountPercentage() != null)
+                .flatMap(campaign -> {
+                    if (campaign.getProducts() != null) {
+                        return campaign.getProducts().stream()
+                                .filter(dcp -> dcp.getProduct() != null
+                                        && dcp.getProduct().getId().equals(product.getId()))
+                                .map(dcp -> Map.entry(campaign.getId(), campaign.getDiscountPercentage().doubleValue()));
+                    }
+                    return Stream.empty();
+                })
+                .max(Comparator.comparingDouble(Map.Entry::getValue))
+                .map(Map.Entry::getKey)
+                .orElse(null);
+    }
+
 
 
     // Tìm discount tốt nhất cho product
@@ -537,6 +558,77 @@ public class ProductServiceImpl implements ProductService {
                 .max(Double::compare)
                 .orElse(0.0);
     }
+
+    @Transactional(readOnly = true)
+    @Override
+    public ProductSearchResponse scanProductToSearchResponse(String rawCode) {
+        String code = rawCode == null ? "" : rawCode.trim();
+        if (code.isEmpty()) throw new IllegalArgumentException("Mã QR trống.");
+
+        // 1) Ưu tiên QR = productDetailCode; fallback = productCode
+        Long scannedDetailId = null;
+        Product product;
+
+        Optional<ProductDetail> opd = productDetailRepository.findActiveByDetailCode(code);
+        if (opd.isPresent()) {
+            ProductDetail pd = opd.get();
+            scannedDetailId = pd.getId();
+            product = pd.getProduct();
+        } else {
+            product = productRepository.findTop1ByProductCodeAndStatus(code, 1)
+                    .orElseThrow(() -> new NoSuchElementException("Không tìm thấy sản phẩm từ mã quét."));
+        }
+
+        // 2) Nạp dữ liệu phục vụ mapper
+        Long productId = product.getId();
+        product.setProductCategories(
+                productCategoryRepository.findActiveByProductIdFetchCategory(productId)
+        );
+        product.setProductDetails(
+                productDetailRepository.findActiveByProductIdFetchAttrs(productId)
+        );
+
+        // 3) Tính giảm giá theo các hàm sẵn có của bạn
+        List<DiscountCampaign> active = discountCampaignRepository.findActiveCampaigns(LocalDateTime.now());
+
+        double pctDetail  = (scannedDetailId != null)
+                ? getBestDiscountPercentageForProductDetail(scannedDetailId, active) : 0.0;
+        double pctProduct = getBestDiscountPercentageForProduct(product, active);
+        double bestPct    = Math.max(pctDetail, pctProduct);
+
+        Long bestCampaignId = (pctDetail >= pctProduct)
+                ? getBestDiscountCampaignIdForProductDetail(scannedDetailId, active)
+                : getBestDiscountCampaignIdForProduct(product, active);
+
+        // 4) Map -> ProductSearchResponse & set discount/campaign
+        ProductSearchResponse resp = productMapper.toResponseSearch(product);
+        resp.setDiscountPercentage((int) Math.round(bestPct));
+        resp.setDiscountedPrice(calculateDiscountPrice(resp.getSellPrice(), bestPct));
+        resp.setDiscountCampaignId(bestCampaignId);
+
+        // (Nếu muốn, có thể lan toả % giảm xuống từng ProductDetailResponse ở đây)
+
+        return resp;
+    }
+
+    private Long getBestDiscountCampaignIdForProductDetail(Long productDetailId, List<DiscountCampaign> campaigns) {
+        if (productDetailId == null) return null;
+        return campaigns.stream()
+                .filter(c -> c.getDiscountPercentage() != null)
+                .flatMap(c -> {
+                    if (c.getProductDetails() != null) {
+                        return c.getProductDetails().stream()
+                                .filter(link -> link.getProductDetail() != null
+                                        && link.getProductDetail().getId().equals(productDetailId))
+                                .map(link -> Map.entry(c.getId(), c.getDiscountPercentage().doubleValue()));
+                    }
+                    return Stream.empty();
+                })
+                .max(Comparator.comparingDouble(Map.Entry::getValue))
+                .map(Map.Entry::getKey)
+                .orElse(null);
+    }
+
 
 
     @Override
@@ -678,6 +770,41 @@ public class ProductServiceImpl implements ProductService {
         }).collect(Collectors.toList());
     }
 
+    @Override
+    public List<ProductResponse> findProducts(List<Long> productIds) {
+        List<Product> products = productRepository.findAllByIds(productIds);
+        List<DiscountCampaign> activeCampaigns = discountCampaignRepository.findActiveCampaigns(LocalDateTime.now());
+
+        List<ProductResponse> responses = products.stream().map(product -> {
+            ProductResponse response = productMapper.toResponse(product);
+
+            double productDiscount = getBestDiscountPercentageForProduct(product, activeCampaigns);
+            response.setDiscountPercentage((int) Math.round(productDiscount));
+            response.setDiscountedPrice(calculateDiscountPrice(product.getSellPrice(), productDiscount));
+
+            if (response.getProductDetails() != null) {
+                for (ProductDetailResponse detailResponse : response.getProductDetails()) {
+                    double detailDiscount = getBestDiscountPercentageForProductDetail(detailResponse.getId(), activeCampaigns);
+                    if (detailDiscount <= 0) {
+                        detailDiscount = productDiscount;
+                    }
+                    detailResponse.setDiscountPercentage((int) Math.round(detailDiscount));
+                    detailResponse.setDiscountedPrice(calculateDiscountPrice(detailResponse.getSellPrice(), detailDiscount));
+                }
+            }
+
+            return response;
+        }).collect(Collectors.toList());
+
+        return responses;
+    }
+
+    @Override
+    public List<FavoriteProductResponse> getFavoritesByProductId(Long productId) {
+        List<FavoriteProductResponse> responses = favoriteProductRepository.getFavoritesByProductId(productId);
+        return responses;
+    }
+
 
     private String generateProductCode() {
         String prefix = "P-";
@@ -692,4 +819,106 @@ public class ProductServiceImpl implements ProductService {
         String randomPart = String.format("%04d", (int) (Math.random() * 10000));
         return prefix + datePart + "-" + randomPart;
     }
+
+    public Page<ProductResponse> getProductsByBrand(Long brandId, Pageable pageable) {
+        Page<Product> products = productRepository.findAllByBrand(brandId, pageable);
+        return getProductsFiltered(products, pageable);
+    }
+
+    public Page<ProductResponse> getProductsByBrandName(String brandName, Pageable pageable) {
+        Page<Product> products = productRepository.findAllByBrandName(brandName, pageable);
+        return getProductsFiltered(products, pageable);
+    }
+
+    private Page<ProductResponse> getProductsFiltered(Page<Product> products, Pageable pageable) {
+        List<DiscountCampaign> activeCampaigns = discountCampaignRepository.findActiveCampaigns(LocalDateTime.now());
+
+        List<ProductResponse> responses = products.getContent().stream()
+                .map(product -> mapToProductResponse(product, activeCampaigns))
+                .toList();
+
+        return new PageImpl<>(responses, pageable, products.getTotalElements());
+    }
+
+    private ProductResponse mapToProductResponse(Product product, List<DiscountCampaign> activeCampaigns) {
+        ProductResponse response = productMapper.toResponse(product);
+
+        double productDiscount = getBestDiscountPercentageForProduct(product, activeCampaigns);
+        Long bestCampaignId = getBestDiscountCampaignIdForProduct(product, activeCampaigns);
+
+        response.setDiscountPercentage((int) Math.round(productDiscount));
+        response.setDiscountedPrice(calculateDiscountPrice(product.getSellPrice(), productDiscount));
+        response.setDiscountCampaignId(bestCampaignId);
+
+        if (response.getProductDetails() != null) {
+            for (ProductDetailResponse detail : response.getProductDetails()) {
+                double detailDiscount = getBestDiscountPercentageForProductDetail(detail.getId(), activeCampaigns);
+                Long bestDetailCampaignId = getBestDiscountCampaignIdForProductDetail(detail.getId(), activeCampaigns);
+
+                if (detailDiscount <= 0) {
+                    detailDiscount = productDiscount;
+                    bestDetailCampaignId = bestCampaignId;
+                }
+
+                detail.setDiscountPercentage((int) Math.round(detailDiscount));
+                detail.setDiscountedPrice(calculateDiscountPrice(detail.getSellPrice(), detailDiscount));
+                detail.setDiscountCampaignId(bestDetailCampaignId);
+            }
+        }
+
+        return response;
+    }
+
+    private Page<ProductResponse> mapWithDiscounts(Page<Product> products, Pageable pageable) {
+        List<DiscountCampaign> activeCampaigns =
+                discountCampaignRepository.findActiveCampaigns(LocalDateTime.now());
+
+        List<ProductResponse> responses = products.getContent().stream().map(product -> {
+            ProductResponse response = productMapper.toResponse(product);
+
+            double productDiscount = getBestDiscountPercentageForProduct(product, activeCampaigns);
+            response.setDiscountPercentage((int) Math.round(productDiscount));
+            response.setDiscountedPrice(calculateDiscountPrice(product.getSellPrice(), productDiscount));
+
+            Long bestCampaignId = getBestDiscountCampaignIdForProduct(product, activeCampaigns);
+            response.setDiscountCampaignId(bestCampaignId);
+
+            if (response.getProductDetails() != null) {
+                for (ProductDetailResponse d : response.getProductDetails()) {
+                    double detailDiscount = getBestDiscountPercentageForProductDetail(d.getId(), activeCampaigns);
+                    Long bestDetailCampaignId = detailDiscount > 0
+                            ? getBestDiscountCampaignIdForProductDetail(d.getId(), activeCampaigns) // nếu bạn có hàm này, dùng; nếu chưa, có thể gán null
+                            : bestCampaignId;
+
+                    if (detailDiscount <= 0) detailDiscount = productDiscount;
+
+                    d.setDiscountPercentage((int) Math.round(detailDiscount));
+                    d.setDiscountedPrice(calculateDiscountPrice(d.getSellPrice(), detailDiscount));
+                    d.setDiscountCampaignId(bestDetailCampaignId);
+                }
+            }
+            return response;
+        }).collect(Collectors.toList());
+
+        return new PageImpl<>(responses, pageable, products.getTotalElements());
+    }
+
+    public Page<ProductResponse> getProductsByCategoryId(Long categoryId, Pageable pageable) {
+        Page<Product> products = productRepository.findAllByCategoryId(categoryId, pageable);
+        return mapWithDiscounts(products, pageable);
+    }
+
+    // ======== (tuỳ chọn) theo categoryName, ví dụ "Sneaker" ========
+    public Page<ProductResponse> getProductsByCategoryName(String categoryName, Pageable pageable) {
+        // Cách 1: gọi repo theo tên trực tiếp
+//        Page<Product> products = productRepository.findAllByCategoryName(categoryName, pageable);
+//        return mapWithDiscounts(products, pageable);
+
+        // Cách 2 (khuyến nghị hiệu năng): resolve sang ID rồi gọi theo ID
+         Long id = categoryRepository.findByCategoryNameIgnoreCase(categoryName)
+                 .map(Category::getId)
+                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy danh mục: " + categoryName));
+         return getProductsByCategoryId(id, pageable);
+    }
+
 }

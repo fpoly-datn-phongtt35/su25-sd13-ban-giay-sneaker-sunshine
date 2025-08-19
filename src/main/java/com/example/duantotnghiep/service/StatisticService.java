@@ -1,12 +1,10 @@
 package com.example.duantotnghiep.service;
 
-import com.example.duantotnghiep.dto.response.InvoiceStatusStatisticResponse;
-import com.example.duantotnghiep.dto.response.MonthlyRevenueResponse;
-import com.example.duantotnghiep.dto.response.OrderTypeRevenueResponse;
-import com.example.duantotnghiep.dto.response.TopProductResponse;
-import com.example.duantotnghiep.dto.response.YearlyRevenueResponse;
+import com.example.duantotnghiep.dto.request.EmployeeReportRequest;
+import com.example.duantotnghiep.dto.response.*;
 
 import java.time.LocalDateTime;
+import java.util.Date;
 import java.util.List;
 
 public interface StatisticService {
@@ -23,4 +21,5 @@ public interface StatisticService {
     List<InvoiceStatusStatisticResponse> getInvoiceStatusStatistics();
 
     Long getTodayRevenue();
+    List<EmployeeReportDto> getEmployeeSalesReport(EmployeeReportRequest request);
 }

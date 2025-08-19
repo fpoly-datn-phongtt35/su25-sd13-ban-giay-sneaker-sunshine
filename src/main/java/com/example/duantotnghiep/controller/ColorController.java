@@ -19,6 +19,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/admin/color")
 public class ColorController {
+
     @Autowired
     private ColorService service;
 
@@ -28,14 +29,12 @@ public class ColorController {
         return ResponseEntity.ok(list);
     }
 
-    // Thêm màu sắc
     @PostMapping
     public ResponseEntity<Color> addColor(@RequestParam String name) {
         Color newColor = service.them(name);
         return ResponseEntity.status(HttpStatus.CREATED).body(newColor);
     }
 
-    // Cập nhật màu sắc
     @PutMapping("/{id}")
     public ResponseEntity<Color> updateColor(@PathVariable Long id, @RequestParam String name) {
         Color updatedColor = service.sua(id, name);

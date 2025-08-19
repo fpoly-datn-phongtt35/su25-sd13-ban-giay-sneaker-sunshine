@@ -1,9 +1,7 @@
 package com.example.duantotnghiep.controller;
 
-import com.example.duantotnghiep.dto.response.InvoiceOnlineResponse;
-import com.example.duantotnghiep.dto.response.InvoiceResponse;
-import com.example.duantotnghiep.dto.response.OrderStatusHistoryResponse;
-import com.example.duantotnghiep.dto.response.StatusCountResponse;
+import com.example.duantotnghiep.dto.request.UpdateAddress;
+import com.example.duantotnghiep.dto.response.*;
 import com.example.duantotnghiep.service.InvoiceService;
 import com.example.duantotnghiep.service.impl.OnlineSaleServiceImpl;
 import lombok.RequiredArgsConstructor;
@@ -14,15 +12,13 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.Date;
 import java.util.List;
 
 @RestController
@@ -33,21 +29,14 @@ public class OnlineSalesController {
     private final OnlineSaleServiceImpl onlineSaleService;
 
     @GetMapping("/search")
-    public ResponseEntity<Page<InvoiceResponse>> searchInvoices(
-            @RequestParam(required = false) Integer status,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate createdFrom,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate createdTo,
-            @RequestParam(required = false) String phone,
-            @RequestParam(required = false) String code,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
+    public ResponseEntity<List<InvoiceResponse>> searchInvoices(
+            @RequestParam(name="isPaid") Boolean isPaid,
+            @RequestParam(name="createdFrom") @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") Date createdFrom,
+            @RequestParam(name="createdTo") @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") Date createdTo,
+            @RequestParam(name="phone") String phone,
+            @RequestParam(name="code") String code
     ) {
-        System.out.println("status: "+status);
-        LocalDateTime from = createdFrom != null ? createdFrom.atStartOfDay() : null;
-        LocalDateTime to = createdTo != null ? createdTo.atTime(LocalTime.MAX) : null;
-        Pageable pageable = PageRequest.of(page,size);
-
-        Page<InvoiceResponse> result = invoiceService.searchInvoices(status,1, from, to, phone, code, pageable);
+        List<InvoiceResponse> result = invoiceService.searchInvoices(isPaid,1, createdFrom, createdTo, phone, code);
         return ResponseEntity.ok(result);
     }
 
@@ -74,10 +63,11 @@ public class OnlineSalesController {
             @RequestParam String note,
             @RequestParam(required = false) String paymentMethod,
             @RequestParam(required = false) String tradeCode,
+            @RequestParam(required = false) String bankName,
             @RequestParam Boolean isPaid
     ) {
         try {
-            onlineSaleService.huyDonVaHoanTien(invoiceId, statusDetail, note, paymentMethod,isPaid,tradeCode);
+            onlineSaleService.huyDonVaHoanTienEmployee(invoiceId, statusDetail, note, paymentMethod,isPaid,tradeCode,bankName);
             return ResponseEntity.ok("Hủy đơn và hoàn tiền thành công");
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body("Lỗi: " + e.getMessage());
@@ -93,10 +83,11 @@ public class OnlineSalesController {
             @RequestParam String note,
             @RequestParam(required = false) String paymentMethod,
             @RequestParam(required = false) String tradeCode,
+            @RequestParam(required = false) String bankName,
             @RequestParam Boolean isPaid
     ) {
         try {
-            onlineSaleService.giaoHangThatBaiVaHoanTien(invoiceId, statusDetail, note, paymentMethod,isPaid,tradeCode);
+            onlineSaleService.giaoHangThatBaiVaHoanTien(invoiceId, statusDetail, note, paymentMethod,isPaid,tradeCode,bankName);
             return ResponseEntity.ok("Giao hàng thất bại và hoàn tiền thành công");
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body("Lỗi: " + e.getMessage());
@@ -106,8 +97,8 @@ public class OnlineSalesController {
     }
 
     @GetMapping("/count-by-status")
-    public ResponseEntity<List<StatusCountResponse>> getCountByStatus() {
-        return ResponseEntity.ok(onlineSaleService.getCountByStatusDetail());
+    public ResponseEntity<List<StatusCountDTO>> getCountByStatus() {
+        return ResponseEntity.ok(onlineSaleService.getCountByStatus());
     }
 
     @GetMapping("/get-order-customer")
@@ -127,6 +118,14 @@ public class OnlineSalesController {
     public ResponseEntity<List<OrderStatusHistoryResponse>> getOrderHistory(@Param("invoiceId") Long invoiceId){
         List<OrderStatusHistoryResponse> list = onlineSaleService.getOrderStatusHistory(invoiceId);
         return ResponseEntity.ok(list);
+    }
+
+    @PutMapping("/update-address")
+    public ResponseEntity<String> capNhatDiaChi(
+            @RequestBody UpdateAddress request
+            ) {
+        onlineSaleService.updateAddressShipping(request);
+        return ResponseEntity.ok("Cập nhật địa chỉ giao hàng thành công.");
     }
 
 }

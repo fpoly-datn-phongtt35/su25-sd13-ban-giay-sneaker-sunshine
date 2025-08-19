@@ -1,8 +1,13 @@
 package com.example.duantotnghiep.controller;
 
+import com.example.duantotnghiep.dto.response.ProductResponse;
 import com.example.duantotnghiep.model.Brand;
 import com.example.duantotnghiep.service.BrandService;
+import com.example.duantotnghiep.service.ProductService;
+import com.example.duantotnghiep.service.impl.ProductServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -22,6 +27,10 @@ public class BrandController {
 
     @Autowired
     private BrandService service;
+    @Autowired
+    private ProductService productService;
+    @Autowired
+    private ProductServiceImpl productServiceImpl;
 
     @GetMapping("/hien-thi")
     public ResponseEntity<List<Brand>> getAll(){
@@ -51,6 +60,17 @@ public class BrandController {
     public ResponseEntity<Void> deleteBrand(@PathVariable Long id) {
         service.xoa(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{brandId}/products")
+    public Page<ProductResponse> getProductsOfBrand(@PathVariable Long brandId, Pageable pageable) {
+        return productServiceImpl.getProductsByBrand(brandId, pageable);
+    }
+
+    // (tuỳ chọn) nếu dùng tên brand
+    @GetMapping("/by-name/{brandName}/products")
+    public Page<ProductResponse> getProductsOfBrandName(@PathVariable String brandName, Pageable pageable) {
+        return productServiceImpl.getProductsByBrandName(brandName, pageable);
     }
 
 }

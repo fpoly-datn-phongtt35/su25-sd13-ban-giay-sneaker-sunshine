@@ -74,4 +74,8 @@ public class InvoiceDetail {
     @Column(name = "discount_percentage")
     private Integer discountPercentage;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "discount_campaign_id")
+    private DiscountCampaign discountCampaign;
+
 }

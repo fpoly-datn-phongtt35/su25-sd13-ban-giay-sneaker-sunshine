@@ -28,7 +28,6 @@ public class SoleController {
         return ResponseEntity.ok(list);
     }
 
-    // Thêm loại đế
     @PostMapping
     public ResponseEntity<Sole> addSole(@RequestParam String name) {
         Sole newSole = service.them(name);

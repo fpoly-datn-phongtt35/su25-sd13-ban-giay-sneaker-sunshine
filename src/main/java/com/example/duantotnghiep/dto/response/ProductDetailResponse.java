@@ -23,6 +23,7 @@ public class ProductDetailResponse {
     private BigDecimal sellPrice;
     private BigDecimal discountedPrice;       // thêm
     private Integer discountPercentage;       // thêm
+    private Long discountCampaignId; // <- Thêm dòng này
     private Integer quantity;
     private String description;
     private Integer status;

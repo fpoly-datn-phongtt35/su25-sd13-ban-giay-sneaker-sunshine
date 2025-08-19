@@ -1,42 +1,46 @@
 package com.example.duantotnghiep.controller;
 
+import com.example.duantotnghiep.dto.request.FavoriteRequest;
 import com.example.duantotnghiep.dto.request.InvoiceRequest;
+import com.example.duantotnghiep.dto.request.UpdateAddress;
 import com.example.duantotnghiep.dto.response.InvoiceDisplayResponse;
 import com.example.duantotnghiep.dto.response.InvoiceResponse;
 import com.example.duantotnghiep.dto.response.ProductResponse;
+import com.example.duantotnghiep.dto.response.StatusCountDTO;
 import com.example.duantotnghiep.mapper.InvoiceMapper;
 import com.example.duantotnghiep.model.Invoice;
+import com.example.duantotnghiep.model.Product;
 import com.example.duantotnghiep.model.PromotionSuggestion;
 import com.example.duantotnghiep.repository.InvoiceRepository;
 import com.example.duantotnghiep.service.InvoiceService;
 import com.example.duantotnghiep.service.ProductService;
 import com.example.duantotnghiep.service.impl.InvoiceEmailService;
+import com.example.duantotnghiep.service.impl.OnlineSaleServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/online-sale")
 @RequiredArgsConstructor
 public class SaleOnlineController {
+
     private final ProductService productService;
     private final InvoiceService invoiceService;
     private final InvoiceEmailService invoiceEmailService;
     private final InvoiceRepository invoiceRepository;
-    private final InvoiceMapper invoiceMapper;
-
+    private final OnlineSaleServiceImpl onlineSaleService;
 
     @GetMapping("/online-home")
     public ResponseEntity<List<ProductResponse>> hienThi(){
@@ -58,9 +62,19 @@ public class SaleOnlineController {
             }
 
             return ResponseEntity.ok(response);
+        } catch (ResponseStatusException ex) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("status", ex.getStatusCode().value());
+            error.put("message", ex.getReason());
+            error.put("timestamp", LocalDateTime.now());
+            return ResponseEntity.status(ex.getStatusCode()).body(error);
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(" Lỗi thanh toán: " + e.getMessage());
+            //  Lỗi hệ thống khác
+            Map<String, Object> error = new HashMap<>();
+            error.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
+            error.put("message", "Lỗi thanh toán: " + e.getMessage());
+            error.put("timestamp", LocalDateTime.now());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
     }
 
@@ -89,4 +103,48 @@ public class SaleOnlineController {
         invoiceService.processInvoicePayment(invoiceId);
         return ResponseEntity.ok("Thanh toán hóa đơn thành công và xét duyệt voucher.");
     }
+
+    @PutMapping("/huy-don-va-hoan-tien")
+    public ResponseEntity<?> huyDonVaHoanTien(
+            @RequestParam Long invoiceId,
+            @RequestParam String statusDetail,
+            @RequestParam String note,
+            @RequestParam(required = false) String paymentMethod,
+            @RequestParam Boolean isPaid
+    ) {
+        try {
+            onlineSaleService.huyDonVaHoanTienClient(invoiceId, statusDetail, note, paymentMethod,isPaid);
+            return ResponseEntity.ok("Hủy đơn và hoàn tiền thành công");
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body("Lỗi: " + e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Đã xảy ra lỗi máy chủ");
+        }
+    }
+
+    @PutMapping("/cap-nhat-dia-chi")
+    public ResponseEntity<String> capNhatDiaChi(@RequestBody UpdateAddress request) {
+        onlineSaleService.updateAddressShipping(request);
+        return ResponseEntity.ok("Cập nhật địa chỉ giao hàng thành công.");
+    }
+
+    @PostMapping("/favorites")
+    public ResponseEntity<List<ProductResponse>> getFavoriteProducts(@RequestBody FavoriteRequest request) {
+        List<Long> productIds = request.getProductIds();
+
+        if (productIds == null || productIds.isEmpty()) {
+            return ResponseEntity.ok(List.of());
+        }
+
+        List<ProductResponse> products = productService.findProducts(productIds);
+        return ResponseEntity.ok(products);
+    }
+
+    @GetMapping("/count-by-status")
+    public ResponseEntity<List<StatusCountDTO>> getCountByStatus() {
+        return ResponseEntity.ok(onlineSaleService.getCountByStatus());
+    }
+
+
+
 }

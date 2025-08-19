@@ -27,6 +27,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.util.Date;
@@ -34,7 +35,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -237,6 +237,48 @@ public class VoucherServiceIpml implements VoucherService {
         }
 
         return voucher;
+    }
+
+    @Override
+    public Voucher findBestVoucherForCustomer(Long customerId, BigDecimal orderTotal) {
+        Customer customer = customerRepository.findById(customerId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy khách hàng"));
+
+        LocalDateTime now = LocalDateTime.now();
+
+        // Lọc các voucher mà khách hàng đang sở hữu (được gán riêng cho khách đó)
+        List<Voucher> ownedVouchers = voucherRepository.findByCustomerId(customerId).stream()
+                .filter(v -> v.getStatus() != null && v.getStatus() == 1) // Voucher đang hoạt động
+                .filter(v -> v.getQuantity() == null || v.getQuantity() > 0) // Còn số lượng
+                .filter(v -> now.isAfter(v.getStartDate()) && now.isBefore(v.getEndDate())) // Trong thời gian áp dụng
+                .filter(v -> v.getMinOrderValue() == null || orderTotal.compareTo(v.getMinOrderValue()) >= 0) // Đủ điều kiện đơn hàng tối thiểu
+                .filter(v -> !voucherHistoryRepository.existsByVoucherAndCustomer(v, customer)) // Chưa từng dùng
+                .collect(Collectors.toList());
+
+        Voucher bestVoucher = null;
+        BigDecimal bestDiscount = BigDecimal.ZERO;
+
+        for (Voucher v : ownedVouchers) {
+            BigDecimal discount = BigDecimal.ZERO;
+
+            if (v.getDiscountPercentage() != null && v.getDiscountPercentage().compareTo(BigDecimal.ZERO) > 0) {
+                discount = orderTotal.multiply(v.getDiscountPercentage())
+                        .divide(BigDecimal.valueOf(100), 0, RoundingMode.HALF_UP);
+
+                if (v.getMaxDiscountValue() != null && discount.compareTo(v.getMaxDiscountValue()) > 0) {
+                    discount = v.getMaxDiscountValue();
+                }
+            } else if (v.getDiscountAmount() != null && BigDecimal.valueOf(v.getDiscountAmount()).compareTo(BigDecimal.ZERO) > 0) {
+                discount = BigDecimal.valueOf(v.getDiscountAmount());
+            }
+
+            if (discount.compareTo(bestDiscount) > 0) {
+                bestDiscount = discount;
+                bestVoucher = v;
+            }
+        }
+
+        return bestVoucher;
     }
 
     @Override

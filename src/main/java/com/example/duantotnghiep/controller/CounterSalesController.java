@@ -27,6 +27,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -66,7 +67,8 @@ public class CounterSalesController {
                     invoiceId,
                     request.getProductDetailId(),
                     request.getQuantity(),
-                    request.getDiscountPercentage() != null ? request.getDiscountPercentage() : 0
+                    request.getDiscountPercentage() != null ? request.getDiscountPercentage() : 0,
+                    request.getDiscountCampaignId() // truyền thêm id chiến dịch giảm giá
             );
             return ResponseEntity.ok().build();
         } catch (Exception e) {
@@ -205,15 +207,44 @@ public class CounterSalesController {
             Invoice updatedInvoice = invoiceService.applyVoucherToInvoice(invoiceId, voucherCode);
 
             if (updatedInvoice.getVoucher() == null) {
-                return ResponseEntity.badRequest().body("Không thể áp dụng voucher.");
+                return ResponseEntity.badRequest()
+                        .body("Không thể áp dụng voucher.");
+            }
+
+            // Trả kèm thông tin hóa đơn và voucher để FE cập nhật
+            Map<String, Object> response = new HashMap<>();
+            response.put("voucher", voucherMapper.toDto(updatedInvoice.getVoucher()));
+            response.put("finalAmount", updatedInvoice.getFinalAmount());
+            response.put("discountAmount", updatedInvoice.getDiscountAmount());
+
+            return ResponseEntity.ok(response);
+
+        } catch (RuntimeException ex) {
+            // Trả thẳng message từ service (bao gồm cả min order)
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ex.getMessage());
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Đã xảy ra lỗi hệ thống khi áp dụng voucher.");
+        }
+    }
+
+
+    @PostMapping("/{invoiceId}/apply-best-voucher")
+    public ResponseEntity<?> applyBestVoucher(@PathVariable Long invoiceId) {
+        try {
+            Invoice updatedInvoice = invoiceService.applyBestVoucherToInvoice(invoiceId);
+
+            if (updatedInvoice.getVoucher() == null) {
+                return ResponseEntity.ok("Không có voucher nào phù hợp để áp dụng.");
             }
 
             VoucherResponse response = voucherMapper.toDto(updatedInvoice.getVoucher());
             return ResponseEntity.ok(response);
 
         } catch (RuntimeException ex) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body("Lỗi áp dụng voucher: " + ex.getMessage());
+            return ResponseEntity.badRequest()
+                    .body("Lỗi khi áp dụng voucher: " + ex.getMessage());
         } catch (Exception ex) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Đã xảy ra lỗi hệ thống khi áp dụng voucher.");

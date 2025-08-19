@@ -51,6 +51,12 @@
                 aria-label="Xem nhanh"
                 @click.stop="openQuickViewModal(p)"
               />
+
+              <!-- THÊM: Badge ĐÃ BÁN (góc dưới bên phải) -->
+              <div class="product-card__sold-badge">
+                Đã bán: <strong>{{ soldCounts[p.id] ?? '...' }}</strong>
+              </div>
+              <!-- HẾT THÊM -->
             </div>
 
             <div class="product-card__info">
@@ -80,11 +86,26 @@
                 />
               </div>
 
+              <!-- THÊM: Rating (trung bình & tổng lượt) -->
+              <div style="margin-top:8px; display:flex; justify-content:space-between; align-items:center;">
+                <el-rate
+                  :model-value="(ratingSummaries[p.id]?.avg ?? 0)"
+                  disabled
+                  allow-half
+                  :max="5"
+                  size="small"
+                />
+                <span style="font-size:12px; color:#666; white-space:nowrap;">
+                  {{ (ratingSummaries[p.id]?.avg ?? 0).toFixed(1) }} ⭐ ({{ ratingSummaries[p.id]?.count ?? 0 }})
+                </span>
+              </div>
+              <!-- HẾT THÊM -->
+
               <el-button
                 v-if="p.id"
                 size="small"
                 :type="isFavorite(p.id) ? 'primary' : 'success'"
-                :icon="Star"
+
                 @click="toggleFavorite(p.id, p.productName)"
               >
                 {{ isFavorite(p.id) ? 'Đã yêu thích' : 'Thêm vào Yêu thích' }}
@@ -435,6 +456,11 @@ const fetchProductsByCategory = async (params) => {
     Number(payload.data?.totalElements) ||
     Number(payload.page?.totalElements) ||
     content.length
+
+  // THÊM: gọi đếm đã bán cho danh sách trang hiện tại
+  await fetchSoldCountsForPage(products.value)
+  // THÊM: gọi lấy rating cho danh sách trang hiện tại
+  await fetchRatingsForPage(products.value)
 }
 
 /* =========================
@@ -459,7 +485,6 @@ const fetchProducts = async () => {
       url = `/admin/brand/${brandId.value}/products`
     } else {
       url = `/online-sale`
-      // hoặc url = `/online-sale/online-home` nếu bạn muốn feed khác
     }
 
     const { data } = await apiClient.get(url, { params })
@@ -483,6 +508,11 @@ const fetchProducts = async () => {
       Number(payload.data?.totalElements) ||
       Number(payload.page?.totalElements) ||
       content.length
+
+    // THÊM: gọi đếm đã bán cho danh sách trang hiện tại
+    await fetchSoldCountsForPage(products.value)
+    // THÊM: gọi lấy rating cho danh sách trang hiện tại
+    await fetchRatingsForPage(products.value)
   } catch (e) {
     console.error(e)
     error.value = 'Không thể tải sản phẩm. Vui lòng thử lại sau.'
@@ -763,6 +793,89 @@ const restoreProductImage = (p) => {
 const goToDetail = (id) => router.push(`/product/${id}`)
 
 /* =========================
+ * THÊM MỚI: Sold count (giữ nguyên theo file của bạn)
+ * ========================= */
+const soldCounts = ref({})
+const loadingSet = new Set()
+
+const fetchSoldCount = async (productId) => {
+  const pid = Number(productId)
+  if (!Number.isFinite(pid)) return
+  if (soldCounts.value[pid] != null) return
+  if (loadingSet.has(pid)) return
+  loadingSet.add(pid)
+  try {
+    const { data } = await apiClient.get(`/online-sale/sold-quantity/product/${pid}`)
+    const total = Number(data?.totalSoldQuantity ?? 0)
+    soldCounts.value[pid] = Number.isFinite(total) ? total : 0
+  } catch (e) {
+    console.error('Fetch sold count error', pid, e)
+    soldCounts.value[pid] = 0
+  } finally {
+    loadingSet.delete(pid)
+  }
+}
+const fetchSoldCountsForPage = async (items) => {
+  const ids = (items || []).map(x => x?.id).filter(id => Number.isFinite(Number(id)))
+  for (const id of ids) {
+    fetchSoldCount(id)
+  }
+}
+
+/* =========================
+ * THÊM: Ratings (avg & count)
+ * ========================= */
+const ratingSummaries = ref({}) // { [productId]: { avg, count } }
+const ratingLoading = new Set()
+
+// Fallback 1 sản phẩm
+const fetchRatingSingle = async (pid) => {
+  const id = Number(pid)
+  if (!Number.isFinite(id)) return
+  if (ratingSummaries.value[id] || ratingLoading.has(id)) return
+  ratingLoading.add(id)
+  try {
+    const { data } = await apiClient.get(`/online-sale/ratings/product/${id}`)
+    ratingSummaries.value[id] = {
+      avg: Number(data?.avgRating ?? 0),
+      count: Number(data?.totalReviews ?? 0),
+    }
+  } catch (e) {
+    console.error('rating single error:', id, e)
+    ratingSummaries.value[id] = { avg: 0, count: 0 }
+  } finally {
+    ratingLoading.delete(id)
+  }
+}
+
+// Bulk theo trang
+const fetchRatingsForPage = async (items) => {
+  const ids = (items || []).map(x => Number(x?.id)).filter(Number.isFinite)
+  const need = ids.filter(id => !ratingSummaries.value[id])
+  if (need.length === 0) return
+  try {
+    const { data } = await apiClient.get('/online-sale/ratings/products', {
+      params: { ids: need.join(',') }
+    })
+    const map = {}
+    for (const r of (Array.isArray(data) ? data : [])) {
+      const pid = Number(r?.productId)
+      if (!Number.isFinite(pid)) continue
+      map[pid] = {
+        avg: Number(r?.avgRating ?? 0),
+        count: Number(r?.totalReviews ?? 0),
+      }
+    }
+    ratingSummaries.value = { ...ratingSummaries.value, ...map }
+    const missing = need.filter(id => !map[id])
+    for (const id of missing) await fetchRatingSingle(id)
+  } catch (e) {
+    console.warn('rating bulk error -> fallback singles', e)
+    for (const id of need) await fetchRatingSingle(id)
+  }
+}
+
+/* =========================
  * Lifecycle & watchers
  * ========================= */
 onMounted(() => {
@@ -816,6 +929,20 @@ watch(categoryId, (n, o) => {
 .product-card__colors { display: flex; gap: 6px; height: 14px; margin-top: 10px; }
 .product-card__color-dot { width: 14px; height: 14px; border-radius: 50%; border: 1px solid #e0e0e0; cursor: pointer; transition: transform .2s; }
 .product-card__color-dot:hover { transform: scale(1.2); }
+
+/* THÊM: Badge ĐÃ BÁN ở góc dưới bên phải của ảnh */
+.product-card__sold-badge {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  background: rgba(0,0,0,.65);
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1;
+  z-index: 2;
+}
 
 /* Quick view */
 :deep(.el-dialog.quick-view-dialog) { border-radius: 8px; background-color: #fff; }

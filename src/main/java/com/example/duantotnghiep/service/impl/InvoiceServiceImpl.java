@@ -11,6 +11,7 @@ import com.example.duantotnghiep.model.AddressCustomer;
 import com.example.duantotnghiep.model.Customer;
 import com.example.duantotnghiep.model.CustomerBlacklistHistory;
 import com.example.duantotnghiep.model.DiscountCampaign;
+import com.example.duantotnghiep.model.DiscountCampaignProductDetail;
 import com.example.duantotnghiep.model.Employee;
 import com.example.duantotnghiep.model.Invoice;
 import com.example.duantotnghiep.model.InvoiceDetail;
@@ -50,12 +51,15 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.security.SecureRandom;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -90,6 +94,7 @@ public class InvoiceServiceImpl implements InvoiceService {
     private final VoucherService voucherService;
     private final CustomerBlacklistHistoryRepository customerBlacklistHistoryRepository;
     private final DiscountCampaignProductRepository discountCampaignProductRepository;
+    private final PasswordEncoder passwordEncoder;
 //    private final InvoiceService invoiceService;
 
     @Transactional
@@ -136,29 +141,82 @@ public class InvoiceServiceImpl implements InvoiceService {
      */
     @Transactional
     public void applyDiscountToInvoiceDetails(Invoice invoice) {
-        LocalDateTime now = LocalDateTime.now();
-        List<DiscountCampaign> activeCampaigns = discountCampaignRepository.findActiveCampaigns(now);
-        List<InvoiceDetail> details = invoiceDetailRepository.findByInvoiceAndStatus(invoice, 1);
-
-        String username = currentUsername();
+        final LocalDateTime now = LocalDateTime.now();
+        final List<DiscountCampaign> active = discountCampaignRepository.findActiveCampaigns(now);
+        final List<InvoiceDetail> details = invoiceDetailRepository.findByInvoiceAndStatus(invoice, 1);
+        final String username = currentUsername();
 
         for (InvoiceDetail d : details) {
+            ProductDetail pd = d.getProductDetail();
+            Long pdId = (pd != null && pd.getId() != null) ? pd.getId() : null;
+            Long productId = (pd != null && pd.getProduct() != null) ? pd.getProduct().getId() : null;
+
             BigDecimal sellPrice = money(d.getSellPrice());
             if (sellPrice.compareTo(BigDecimal.ZERO) < 0) sellPrice = BigDecimal.ZERO;
 
             int percent = 0;
-            if (d.getDiscountCampaign() != null) {
-                DiscountCampaign dc = d.getDiscountCampaign();
-                if (dc.getDiscountPercentage() != null && isActive(now, dc.getStartDate(), dc.getEndDate())) {
-                    percent = clampPercent(dc.getDiscountPercentage().intValue());
+
+            // 1) Nếu dòng đã gắn campaign → ưu tiên % ở link SPCT
+            DiscountCampaign lineDc = d.getDiscountCampaign();
+            if (lineDc != null && isActive(now, lineDc.getStartDate(), lineDc.getEndDate())) {
+                // tìm % ở DCPD (SPCT)
+                if (lineDc.getProductDetails() != null && pdId != null) {
+                    for (DiscountCampaignProductDetail link : lineDc.getProductDetails()) {
+                        if (link.getProductDetail() != null
+                                && pdId.equals(link.getProductDetail().getId())
+                                && link.getDiscountPercentage() != null) {
+                            percent = clampPercent(link.getDiscountPercentage().setScale(0, RM).intValue());
+                            break;
+                        }
+                    }
+                }
+                // không có % ở DCPD → dùng % chung campaign (hoặc % link product nếu hệ thống bạn có)
+                if (percent == 0 && lineDc.getDiscountPercentage() != null) {
+                    percent = clampPercent(lineDc.getDiscountPercentage().setScale(0, RM).intValue());
                 }
             }
+
+            // 2) Nếu chưa có % (chưa gắn campaign hoặc campaign không có DCPD phù hợp) → tìm best trong tất cả campaign active
             if (percent == 0) {
-                double best = getBestDiscountPercentageForProductCode(
-                        d.getProductDetail().getProduct().getProductCode(), activeCampaigns);
-                percent = clampPercent((int) Math.round(best));
+                int best = 0;
+
+                // a) Best theo SPCT (DCPD)
+                if (pdId != null) {
+                    for (DiscountCampaign c : active) {
+                        if (!isActive(now, c.getStartDate(), c.getEndDate())) continue;
+                        if (c.getProductDetails() == null) continue;
+                        for (DiscountCampaignProductDetail link : c.getProductDetails()) {
+                            if (link.getProductDetail() != null && pdId.equals(link.getProductDetail().getId())) {
+                                BigDecimal pct = (link.getDiscountPercentage() != null)
+                                        ? link.getDiscountPercentage()
+                                        : c.getDiscountPercentage(); // fallback % chung campaign
+                                if (pct != null) {
+                                    int v = clampPercent(pct.setScale(0, RM).intValue());
+                                    if (v > best) best = v;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // b) Fallback theo Product (nếu bạn có mapping % riêng theo link Product thì thay vào đây;
+                // còn nếu không có, chỉ dùng % chung campaign khi product thuộc campaign)
+                if (best == 0 && productId != null) {
+                    for (DiscountCampaign c : active) {
+                        if (!isActive(now, c.getStartDate(), c.getEndDate())) continue;
+                        // Nếu bạn cần kiểm tra membership product, dùng repo khác (exists...) hoặc để LAZY
+                        // Ở đây, chỉ dùng % chung nếu muốn cho toàn bộ product của campaign:
+                        if (c.getDiscountPercentage() != null) {
+                            int v = clampPercent(c.getDiscountPercentage().setScale(0, RM).intValue());
+                            if (v > best) best = v;
+                        }
+                    }
+                }
+
+                percent = best;
             }
 
+            // 3) Tính giá sau giảm
             BigDecimal discountAmount = sellPrice.multiply(BigDecimal.valueOf(percent))
                     .divide(BigDecimal.valueOf(100), MONEY_SCALE, RM);
             BigDecimal discountedPrice = money(sellPrice.subtract(discountAmount));
@@ -172,6 +230,7 @@ public class InvoiceServiceImpl implements InvoiceService {
             invoiceDetailRepository.save(d);
         }
     }
+
 
     @Transactional
     public void updateInvoiceTotal(Invoice invoice) {
@@ -273,20 +332,87 @@ public class InvoiceServiceImpl implements InvoiceService {
     @Transactional
     @Override
     public CustomerResponse createQuickCustomer(String phone, String name, String email) {
-        if (phone == null || phone.isBlank()) throw new RuntimeException("Số điện thoại không được trống");
-        Optional<Customer> existed = customerRepository.findTop1ByPhoneAndStatus(phone, 1);
-        if (existed.isPresent()) return invoiceMapper.toCustomerResponse(existed.get());
+        // ===== Validate input =====
+        if (phone == null || phone.isBlank()) {
+            throw new RuntimeException("Số điện thoại không được trống");
+        }
 
-        Customer c = new Customer();
-        c.setCustomerName((name==null||name.isBlank()) ? "Khách lẻ" : name.trim());
-        c.setPhone(phone.trim());
-        c.setEmail((email==null||email.isBlank()) ? null : email.trim());
-        c.setCustomerCode("CUS-" + System.currentTimeMillis());
-        c.setStatus(1);
-        c.setCreatedDate(LocalDateTime.now());
-        c.setCreatedBy(currentUsername());
-        return invoiceMapper.toCustomerResponse(customerRepository.save(c));
+        final String normalizedPhone = phone.trim();
+        final String normalizedName  = (name == null || name.isBlank()) ? "Khách lẻ" : name.trim();
+        final String normalizedEmail = (email == null || email.isBlank()) ? null : email.trim();
+        final LocalDateTime now = LocalDateTime.now();
+
+        // ===== 1) Kiểm tra trùng SĐT =====
+        Optional<Customer> existedOpt = customerRepository.findTop1ByPhoneAndStatus(normalizedPhone, 1);
+        if (existedOpt.isPresent()) {
+            // Nếu đã có khách với số điện thoại này → báo lỗi
+            throw new RuntimeException("Số điện thoại đã tồn tại");
+        }
+
+        // ===== 2) Tạo customer mới =====
+        Customer customer = new Customer();
+        customer.setCustomerName(normalizedName);
+        customer.setPhone(normalizedPhone);
+        customer.setEmail(normalizedEmail);
+        customer.setCustomerCode("CUS-" + System.currentTimeMillis());
+        customer.setStatus(1);
+        customer.setCreatedDate(now);
+        customer.setCreatedBy(currentUsername());
+        customer = customerRepository.save(customer);
+
+        // ===== 3) Nếu có email → auto tạo User =====
+        if (normalizedEmail != null) {
+            if (!userRepository.existsByUsername(normalizedEmail)) {
+                createUserForCustomer(customer, normalizedEmail);
+            } else {
+                Optional<User> userOpt = userRepository.findByUsername(normalizedEmail);
+                if (userOpt.isPresent()) {
+                    User u = userOpt.get();
+                    if (u.getCustomer() == null) {
+                        u.setCustomer(customer);
+                        u.setUpdatedAt(new Date());          // User dùng java.util.Date
+                        u.setUpdatedBy(currentUsername());
+                        userRepository.save(u);
+                    }
+                }
+            }
+        }
+
+        // ===== 4) Trả về DTO =====
+        return invoiceMapper.toCustomerResponse(customer);
     }
+
+
+    /** Tạo tài khoản User cho customer với username=email, mật khẩu ngẫu nhiên (băm BCrypt). */
+    private void createUserForCustomer(Customer customer, String emailAsUsername) {
+        String rawPassword = generateRandomPassword(10);
+        String hashed = passwordEncoder.encode(rawPassword);
+
+        User u = new User();
+        u.setUsername(emailAsUsername);
+        u.setPassword(hashed);
+        u.setCreatedAt(new Date());           // User.createdAt là java.util.Date
+        u.setCreatedBy(currentUsername());
+        u.setRole(3);                         // ví dụ: 3 = CUSTOMER, tuỳ hệ thống quyền của bạn
+        u.setCustomer(customer);
+
+        userRepository.save(u);
+
+        // TODO: Gửi email thông báo mật khẩu tạm cho khách hoặc phát kênh khác.
+        // KHÔNG trả mật khẩu thô qua API response.
+    }
+
+    /** Sinh mật khẩu ngẫu nhiên (trộn chữ và ký tự đặc biệt). */
+    private String generateRandomPassword(int length) {
+        final String dict = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789@#$%!";
+        SecureRandom rnd = new SecureRandom();
+        StringBuilder sb = new StringBuilder(length);
+        for (int i = 0; i < length; i++) {
+            sb.append(dict.charAt(rnd.nextInt(dict.length())));
+        }
+        return sb.toString();
+    }
+
 
     @Transactional
     public void assignCustomer(Long invoiceId, Long customerId) {
@@ -599,57 +725,164 @@ public class InvoiceServiceImpl implements InvoiceService {
 
     @Transactional
     public InvoiceDisplayResponse addInvoiceDetails(
-            Long invoiceId, Long productDetailId, Integer quantity,
-            Integer discountPercentage, Long discountCampaignId
+            Long invoiceId,
+            Long productDetailId,
+            Integer quantity,
+            Integer discountPercentage /* ignored */,
+            Long discountCampaignId
     ) {
-        if (invoiceId == null || productDetailId == null) throw new RuntimeException("Thiếu id");
-        if (quantity == null || quantity <= 0) throw new RuntimeException("Số lượng phải > 0");
+        // ===== Validate =====
+        if (invoiceId == null || productDetailId == null) {
+            throw new RuntimeException("Thiếu id");
+        }
+        if (quantity == null || quantity <= 0) {
+            throw new RuntimeException("Số lượng phải > 0");
+        }
 
-        Invoice invoice = invoiceRepository.findById(invoiceId)
+        // ===== Invoice & state =====
+        final Invoice invoice = invoiceRepository.findById(invoiceId)
                 .orElseThrow(() -> new RuntimeException("Hóa đơn không tồn tại"));
-        if (invoice.getStatus() != TrangThaiTong.DANG_XU_LY)
+        if (invoice.getStatus() != TrangThaiTong.DANG_XU_LY) {
             throw new RuntimeException("Chỉ thêm sản phẩm khi hóa đơn đang xử lý");
+        }
 
-        ProductDetail pd = productDetailRepository.findById(productDetailId)
+        // ===== ProductDetail & stock =====
+        final ProductDetail pd = productDetailRepository.findById(productDetailId)
                 .orElseThrow(() -> new RuntimeException("Biến thể sản phẩm không tồn tại"));
+        final int available = pd.getQuantity() == null ? 0 : pd.getQuantity();
+        if (available < quantity) {
+            throw new RuntimeException("Số lượng trong kho không đủ");
+        }
 
-        int available = pd.getQuantity() == null ? 0 : pd.getQuantity();
-        if (available < quantity) throw new RuntimeException("Số lượng trong kho không đủ");
+        // ===== Constants / context (final cho lambda) =====
+        final int SCALE = 2;
+        final RoundingMode RM = RoundingMode.HALF_UP;
+        final BigDecimal ONE_HUNDRED = new BigDecimal("100");
+        final LocalDateTime now = LocalDateTime.now();
+        final String username = currentUsername(); // lấy user hiện tại theo hệ thống của bạn
+        final Long pdIdFinal = productDetailId;
+        final Long productIdFinal = pd.getProduct().getId();
 
-        // chọn campaign nếu có & còn hiệu lực
-        DiscountCampaign dc = null;
-        LocalDateTime now = LocalDateTime.now();
+        // Giá gốc theo SPCT
+        final BigDecimal sellPrice = Optional.ofNullable(pd.getSellPrice())
+                .orElse(BigDecimal.ZERO)
+                .setScale(SCALE, RM);
+
+        // ===== Active campaigns (đã join-fetch) =====
+        final List<DiscountCampaign> active = discountCampaignRepository.findActiveCampaigns(now);
+        final java.util.function.Predicate<DiscountCampaign> isActive = c ->
+                (c.getStartDate() == null || !now.isBefore(c.getStartDate())) &&
+                        (c.getEndDate() == null || !now.isAfter(c.getEndDate()));
+
+        // ===== Chọn % giảm tốt nhất (ƯU TIÊN SPCT → Product → % chung) =====
+        BigDecimal bestPercent = BigDecimal.ZERO;
+        Long bestCampaignId = null;
+
+        // 1) Nếu FE gửi sẵn campaignId: dùng khi campaign hợp lệ & áp dụng cho SPCT/Product
         if (discountCampaignId != null) {
-            dc = discountCampaignRepository.findById(discountCampaignId)
+            final Long dcIdFinal = discountCampaignId; // alias final
+            final DiscountCampaign tmp = discountCampaignRepository.findById(dcIdFinal)
                     .orElseThrow(() -> new RuntimeException("Chiến dịch giảm giá không tồn tại"));
-            if (!isActive(now, dc.getStartDate(), dc.getEndDate())) dc = null;
+            if (isActive.test(tmp)) {
+                final boolean appliesPd = tmp.getProductDetails() != null &&
+                        tmp.getProductDetails().stream().anyMatch(link ->
+                                link.getProductDetail() != null &&
+                                        Objects.equals(link.getProductDetail().getId(), pdIdFinal));
+                final boolean appliesP = !appliesPd && tmp.getProducts() != null &&
+                        tmp.getProducts().stream().anyMatch(link ->
+                                link.getProduct() != null &&
+                                        Objects.equals(link.getProduct().getId(), productIdFinal));
+                if (appliesPd || appliesP) {
+                    // Ưu tiên % trên link SPCT nếu có; nếu không, dùng % chung của campaign
+                    final Optional<BigDecimal> pctOnPdLink = Optional.ofNullable(tmp.getProductDetails())
+                            .orElseGet(java.util.Collections::emptyList).stream()
+                            .filter(link -> link.getProductDetail() != null &&
+                                    Objects.equals(link.getProductDetail().getId(), pdIdFinal))
+                            .map(DiscountCampaignProductDetail::getDiscountPercentage)
+                            .filter(Objects::nonNull)
+                            .findFirst();
+
+                    bestPercent = pctOnPdLink.orElse(Optional.ofNullable(tmp.getDiscountPercentage())
+                            .orElse(BigDecimal.ZERO));
+                    bestCampaignId = tmp.getId();
+                }
+            }
         }
 
-        int percent = clampPercent(discountPercentage);
-        if (percent == 0 && dc != null && dc.getDiscountPercentage() != null) {
-            percent = clampPercent(dc.getDiscountPercentage().intValue());
+        // 2) Nếu chưa “chốt”, tự tìm best trong các campaign đang active
+        if (bestCampaignId == null) {
+            // a) Best theo SPCT: lấy % ở link DCPD; nếu null thì fallback % chung campaign
+            final Optional<AbstractMap.SimpleEntry<Long, BigDecimal>> pdBest = active.stream()
+                    .filter(isActive)
+                    .filter(c -> c.getProductDetails() != null)
+                    .flatMap(c -> c.getProductDetails().stream()
+                            .filter(link -> link.getProductDetail() != null &&
+                                    Objects.equals(link.getProductDetail().getId(), pdIdFinal))
+                            .map(link -> new AbstractMap.SimpleEntry<>(
+                                    c.getId(),
+                                    link.getDiscountPercentage() != null ? link.getDiscountPercentage()
+                                            : Optional.ofNullable(c.getDiscountPercentage()).orElse(BigDecimal.ZERO)
+                            )))
+                    .max(Comparator.comparing(Map.Entry::getValue, Comparator.nullsFirst(BigDecimal::compareTo)));
+
+            if (pdBest.isPresent()) {
+                bestCampaignId = pdBest.get().getKey();
+                bestPercent    = pdBest.get().getValue();
+            } else {
+                // b) Fallback: Best theo Product (nếu link Product có % riêng thì thay vào đây)
+                final Optional<AbstractMap.SimpleEntry<Long, BigDecimal>> pBest = active.stream()
+                        .filter(isActive)
+                        .filter(c -> c.getProducts() != null)
+                        .flatMap(c -> c.getProducts().stream()
+                                .filter(link -> link.getProduct() != null &&
+                                        Objects.equals(link.getProduct().getId(), productIdFinal))
+                                .map(link -> new AbstractMap.SimpleEntry<>(
+                                        c.getId(),
+                                        Optional.ofNullable(c.getDiscountPercentage()).orElse(BigDecimal.ZERO)
+                                )))
+                        .max(Comparator.comparing(Map.Entry::getValue, Comparator.nullsFirst(BigDecimal::compareTo)));
+
+                if (pBest.isPresent()) {
+                    bestCampaignId = pBest.get().getKey();
+                    bestPercent    = pBest.get().getValue();
+                }
+            }
         }
 
-        BigDecimal sellPrice = money(pd.getSellPrice());
-        BigDecimal discountAmount = sellPrice.multiply(BigDecimal.valueOf(percent))
-                .divide(BigDecimal.valueOf(100), MONEY_SCALE, RM);
-        BigDecimal discountedPrice = money(sellPrice.subtract(discountAmount));
-        if (discountedPrice.compareTo(BigDecimal.ZERO) < 0) discountedPrice = BigDecimal.ZERO;
+        if (bestPercent == null) bestPercent = BigDecimal.ZERO;
+        final int percentInt = Math.max(0, Math.min(bestPercent.setScale(0, RM).intValue(), 100));
 
+        // ===== Tính giá sau giảm =====
+        final BigDecimal discountAmount = sellPrice.multiply(BigDecimal.valueOf(percentInt))
+                .divide(ONE_HUNDRED, SCALE, RM);
+        final BigDecimal discountedPrice = sellPrice.subtract(discountAmount)
+                .max(BigDecimal.ZERO).setScale(SCALE, RM);
+
+        // ===== Gộp/Cập nhật dòng HĐ =====
         InvoiceDetail line = invoiceDetailRepository.findByInvoiceAndProductDetail(invoice, pd).orElse(null);
-        String username = currentUsername();
+        final Long finalBestCampaignId = bestCampaignId; // alias final cho lambda
 
         if (line != null) {
-            if (line.getStatus() != null && line.getStatus() == 2) {
+            if (Objects.equals(line.getStatus(), 2)) {
                 line.setStatus(1);
                 line.setQuantity(quantity);
             } else {
                 line.setQuantity(line.getQuantity() + quantity);
             }
             line.setSellPrice(sellPrice);
-            line.setDiscountPercentage(percent);
+            line.setDiscountPercentage(percentInt);
             line.setDiscountedPrice(discountedPrice);
-            line.setDiscountCampaign(dc);
+
+            if (finalBestCampaignId != null) {
+                final DiscountCampaign dc = active.stream()
+                        .filter(c -> Objects.equals(c.getId(), finalBestCampaignId))
+                        .findFirst()
+                        .orElse(null);
+                line.setDiscountCampaign(dc);
+            } else {
+                line.setDiscountCampaign(null);
+            }
+
             line.setUpdatedDate(now);
             line.setUpdatedBy(username);
         } else {
@@ -658,22 +891,36 @@ public class InvoiceServiceImpl implements InvoiceService {
             line.setProductDetail(pd);
             line.setQuantity(quantity);
             line.setSellPrice(sellPrice);
-            line.setDiscountPercentage(percent);
+            line.setDiscountPercentage(percentInt);
             line.setDiscountedPrice(discountedPrice);
-            line.setDiscountCampaign(dc);
+
+            if (finalBestCampaignId != null) {
+                final DiscountCampaign dc = active.stream()
+                        .filter(c -> Objects.equals(c.getId(), finalBestCampaignId))
+                        .findFirst()
+                        .orElse(null);
+                line.setDiscountCampaign(dc);
+            }
+
             line.setStatus(1);
             line.setCreatedDate(now);
             line.setCreatedBy(username);
-            line.setInvoiceCodeDetail("INV-D-" + invoice.getId() + "-" + (System.nanoTime()%100000));
+            line.setInvoiceCodeDetail("INV-D-" + invoice.getId() + "-" + (System.nanoTime() % 100000));
         }
 
+        // ===== Trừ kho & lưu =====
+        pd.setQuantity(available - quantity);
         invoiceDetailRepository.saveAndFlush(line);
-        applyDiscountToInvoiceDetails(invoice);
+
+        // Không gọi “recalc toàn giỏ” để tránh bị đè discount dòng
         updateInvoiceTotal(invoice);
 
-        List<InvoiceDetail> all = invoiceDetailRepository.findByInvoiceAndStatus(invoice, 1);
+        final List<InvoiceDetail> all = invoiceDetailRepository.findByInvoiceAndStatus(invoice, 1);
         return invoiceMapper.toInvoiceDisplayResponse(invoice, all);
     }
+
+
+
 
     @Transactional
     public InvoiceDisplayResponse updateInvoiceDetailQuantity(Long invoiceDetailId, Integer newQuantity) {
@@ -834,8 +1081,6 @@ public class InvoiceServiceImpl implements InvoiceService {
         return invoiceRepository.save(invoice);
     }
 
-
-
     /** Hủy các giữ cũ (status=0) của chính hóa đơn này để tránh trùng bản ghi */
     private void releaseOldHolds(Invoice invoice) {
         List<VoucherHistory> olds = voucherHistoryRepository.findByInvoice(invoice);
@@ -846,7 +1091,6 @@ public class InvoiceServiceImpl implements InvoiceService {
         }
         voucherHistoryRepository.saveAll(olds);
     }
-
 
     private void markVoucherUsedIfAny(Invoice invoice, LocalDateTime now) {
         Voucher voucher = invoice.getVoucher();
@@ -1207,7 +1451,7 @@ public class InvoiceServiceImpl implements InvoiceService {
     @Override
     public InvoiceDisplayResponse createInvoiceShipCode(InvoiceRequest request) {
         try {
-            // 1. Xử lý khách hàng
+            // ===== 1) KHÁCH HÀNG =====
             Customer customer;
             Long customerId = request.getCustomerInfo().getCustomerId();
             String phone = request.getCustomerInfo().getPhone();
@@ -1217,7 +1461,6 @@ public class InvoiceServiceImpl implements InvoiceService {
                         .orElseThrow(() -> new RuntimeException("Không tìm thấy khách hàng với ID: " + customerId));
             } else if (phone != null && !phone.isBlank()) {
                 customer = customerRepository.findTop1ByPhoneAndStatus(phone, 1).orElse(null);
-
                 if (customer == null) {
                     customer = new Customer();
                     customer.setCustomerName(request.getCustomerInfo().getCustomerName());
@@ -1233,24 +1476,23 @@ public class InvoiceServiceImpl implements InvoiceService {
                 throw new RuntimeException("Thiếu thông tin khách hàng (cần có customerId hoặc phone)");
             }
 
-            // Kiểm tra blacklist
+            // Blacklist
             if (Boolean.TRUE.equals(customer.getIsBlacklisted())) {
                 LocalDateTime expiry = customer.getBlacklistExpiryDate();
                 if (expiry == null || expiry.isAfter(LocalDateTime.now())) {
                     throw new RuntimeException("Khách hàng đang bị cấm mua hàng. Lý do: " + customer.getBlacklistReason());
                 }
-
                 customer.setIsBlacklisted(false);
                 customer.setBlacklistReason(null);
                 customer.setBlacklistExpiryDate(null);
                 customerRepository.save(customer);
             }
 
-            // 2. Lấy địa chỉ giao hàng
+            // ===== 2) ĐỊA CHỈ =====
             AddressRequest addr = request.getCustomerInfo().getAddress();
             String addressNew = addr.getHouseName() + " - " + addr.getWardName() +  " - " + addr.getDistrictName() + " - " + addr.getProvinceName() + " - Việt Nam";
 
-            // 3. Tạo hóa đơn
+            // ===== 3) HÓA ĐƠN =====
             Invoice invoice = new Invoice();
             invoice.setInvoiceCode("INV" + System.currentTimeMillis());
             invoice.setCustomer(customer);
@@ -1265,65 +1507,140 @@ public class InvoiceServiceImpl implements InvoiceService {
             invoice.setShippingFee(Optional.ofNullable(request.getShippingFee()).orElse(BigDecimal.ZERO));
             invoice.setDeliveryAddress(addressNew);
 
-            // Gán nhân viên
             if (request.getEmployeeId() != null) {
                 employeeRepository.findById(request.getEmployeeId()).ifPresent(invoice::setEmployee);
             }
-
-            // Gán voucher
             if (request.getVoucherId() != null) {
                 voucherRepository.findById(request.getVoucherId()).ifPresent(invoice::setVoucher);
             }
 
-            // 4. Xử lý sản phẩm
+            // ===== 4) SẢN PHẨM + GIẢM GIÁ (INLINE, ƯU TIÊN % Ở SPCT) =====
+            final BigDecimal ONE_HUNDRED = new BigDecimal("100");
+            List<DiscountCampaign> activeCampaigns = discountCampaignRepository.findActiveCampaigns(LocalDateTime.now());
+
             BigDecimal total = BigDecimal.ZERO;
             List<InvoiceDetail> details = new ArrayList<>();
 
             for (CartItemRequest item : request.getItems()) {
-                ProductDetail productDetail = productDetailRepository.findById(item.getProductDetailId())
+                // --- Lấy PD & kiểm tồn ---
+                ProductDetail pd = productDetailRepository.findById(item.getProductDetailId())
                         .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm chi tiết ID: " + item.getProductDetailId()));
 
-                if (item.getQuantity() > productDetail.getQuantity()) {
+                if (item.getQuantity() > pd.getQuantity()) {
                     throw new RuntimeException("Số lượng vượt quá tồn kho chi tiết sản phẩm: " + item.getProductDetailId());
                 }
-                productDetail.setQuantity(productDetail.getQuantity() - item.getQuantity());
+                pd.setQuantity(pd.getQuantity() - item.getQuantity());
 
-                Product product = productDetail.getProduct();
+                Product product = pd.getProduct();
                 int stock = Optional.ofNullable(product.getQuantity()).orElse(0);
                 if (item.getQuantity() > stock) {
                     throw new RuntimeException("Tồn kho tổng không đủ cho sản phẩm: " + product.getId());
                 }
                 product.setQuantity(stock - item.getQuantity());
 
+                // --- Giá gốc từ DB (không tin FE) ---
+                BigDecimal sellPrice = Optional.ofNullable(pd.getSellPrice())
+                        .orElse(Optional.ofNullable(product.getSellPrice()).orElse(BigDecimal.ZERO));
+
+                // --- Tìm % giảm tốt nhất ---
+                // 1) ƯU TIÊN: % theo SPCT (DiscountCampaignProductDetail.discountPercentage). Nếu null thì fallback % campaign.
+                Optional<AbstractMap.SimpleEntry<Long, BigDecimal>> pdBest = activeCampaigns.stream()
+                        .filter(c -> c.getProductDetails() != null)
+                        .flatMap(c -> c.getProductDetails().stream()
+                                .filter(link -> link.getProductDetail() != null && link.getProductDetail().getId().equals(pd.getId()))
+                                .map(link -> new AbstractMap.SimpleEntry<>(
+                                        c.getId(),
+                                        link.getDiscountPercentage() != null ? link.getDiscountPercentage()
+                                                : Optional.ofNullable(c.getDiscountPercentage()).orElse(BigDecimal.ZERO)
+                                ))
+                        )
+                        .max(Comparator.comparing(e -> e.getValue(), Comparator.nullsFirst(BigDecimal::compareTo)));
+
+                // 2) Fallback: % theo Product (nếu có % riêng ở link Product thì dùng, không có thì dùng % campaign)
+                Optional<AbstractMap.SimpleEntry<Long, BigDecimal>> pBest = activeCampaigns.stream()
+                        .filter(c -> c.getProducts() != null)
+                        .flatMap(c -> c.getProducts().stream()
+                                .filter(link -> link.getProduct() != null && link.getProduct().getId().equals(product.getId()))
+                                // Nếu link Product có % riêng: thay Optional.ofNullable(c.getDiscountPercentage())... bằng:
+                                // Optional.ofNullable(link.getDiscountPercentage()).orElse(Optional.ofNullable(c.getDiscountPercentage()).orElse(BigDecimal.ZERO))
+                                .map(link -> new AbstractMap.SimpleEntry<>(
+                                        c.getId(),
+                                        Optional.ofNullable(c.getDiscountPercentage()).orElse(BigDecimal.ZERO)
+                                ))
+                        )
+                        .max(Comparator.comparing(e -> e.getValue(), Comparator.nullsFirst(BigDecimal::compareTo)));
+
+                Long bestCampaignId = null;
+                BigDecimal bestPercent = BigDecimal.ZERO;
+
+                if (pdBest.isPresent()) {
+                    bestCampaignId = pdBest.get().getKey();
+                    bestPercent = pdBest.get().getValue();
+                } else if (pBest.isPresent()) {
+                    bestCampaignId = pBest.get().getKey();
+                    bestPercent = pBest.get().getValue();
+                }
+
+                // 3) Nếu FE gửi discountCampaignId và campaign đó áp dụng được → ép dùng campaign đó (ưu tiên % ở SPCT)
+                if (item.getDiscountCampaignId() != null) {
+                    Optional<DiscountCampaign> chosenOpt = activeCampaigns.stream()
+                            .filter(c -> c.getId().equals(item.getDiscountCampaignId()))
+                            .findFirst();
+                    if (chosenOpt.isPresent()) {
+                        DiscountCampaign chosen = chosenOpt.get();
+
+                        boolean applicable =
+                                (chosen.getProductDetails() != null && chosen.getProductDetails().stream()
+                                        .anyMatch(link -> link.getProductDetail() != null && link.getProductDetail().getId().equals(pd.getId())))
+                                        ||
+                                        (chosen.getProducts() != null && chosen.getProducts().stream()
+                                                .anyMatch(link -> link.getProduct() != null && link.getProduct().getId().equals(product.getId())));
+
+                        if (applicable) {
+                            // ƯU TIÊN: nếu campaign có dòng chi tiết đúng SPCT thì lấy % ở đó; nếu không thì dùng % campaign (hoặc % link product nếu bạn có)
+                            Optional<BigDecimal> chosenPdPct = (chosen.getProductDetails() == null) ? Optional.empty()
+                                    : chosen.getProductDetails().stream()
+                                    .filter(link -> link.getProductDetail() != null && link.getProductDetail().getId().equals(pd.getId()))
+                                    .map(link -> link.getDiscountPercentage())
+                                    .filter(Objects::nonNull)
+                                    .findFirst();
+
+                            BigDecimal chosenPct = chosenPdPct.orElse(
+                                    Optional.ofNullable(chosen.getDiscountPercentage()).orElse(BigDecimal.ZERO)
+                            );
+
+                            bestCampaignId = chosen.getId();
+                            bestPercent = chosenPct;
+                        }
+                    }
+                }
+
+                if (bestPercent == null) bestPercent = BigDecimal.ZERO;
+
+                // --- Tính giá sau giảm ---
+                BigDecimal discountedPrice;
+                if (bestPercent.compareTo(BigDecimal.ZERO) > 0) {
+                    discountedPrice = sellPrice.multiply(ONE_HUNDRED.subtract(bestPercent))
+                            .divide(ONE_HUNDRED, 2, RoundingMode.HALF_UP);
+                } else {
+                    discountedPrice = sellPrice.setScale(2, RoundingMode.HALF_UP);
+                }
+
+                // ===== TẠO DÒNG HÓA ĐƠN =====
                 InvoiceDetail detail = new InvoiceDetail();
                 detail.setInvoice(invoice);
-                detail.setProductDetail(productDetail);
+                detail.setProductDetail(pd);
                 detail.setQuantity(item.getQuantity());
                 detail.setCreatedDate(LocalDateTime.now());
                 detail.setStatus(1);
                 detail.setInvoiceCodeDetail("INV-DTL-" + UUID.randomUUID().toString().substring(0, 8));
 
-                BigDecimal sellPrice = Optional.ofNullable(item.getSellPrice()).orElse(productDetail.getSellPrice());
-                BigDecimal discountedPrice = Optional.ofNullable(item.getDiscountedPrice()).orElse(sellPrice);
                 detail.setSellPrice(sellPrice);
                 detail.setDiscountedPrice(discountedPrice);
-                detail.setDiscountPercentage(Optional.ofNullable(item.getDiscountPercentage()).orElse(0));
+                detail.setDiscountPercentage(bestPercent.intValue());
 
-                // ✅ Gán chiến dịch giảm giá theo từng sản phẩm nếu có
-                if (item.getDiscountCampaignId() != null) {
-                    DiscountCampaign productCampaign = discountCampaignRepository
-                            .findById(item.getDiscountCampaignId())
-                            .orElse(null);
-
-                    if (productCampaign != null) {
-                        // Kiểm tra xem sản phẩm có thuộc chiến dịch không
-                        boolean isInCampaign = discountCampaignProductRepository
-                                .existsByCampaign_IdAndProduct_Id(productCampaign.getId(), product.getId());
-
-                        if (isInCampaign) {
-                            detail.setDiscountCampaign(productCampaign);
-                        }
-                    }
+                if (bestCampaignId != null) {
+                    discountCampaignRepository.findById(bestCampaignId).ifPresent(detail::setDiscountCampaign);
                 }
 
                 BigDecimal itemTotal = discountedPrice.multiply(BigDecimal.valueOf(item.getQuantity()));
@@ -1332,13 +1649,17 @@ public class InvoiceServiceImpl implements InvoiceService {
             }
 
             invoice.setTotalAmount(total);
-            invoice.setFinalAmount(total.subtract(invoice.getDiscountAmount()).add(invoice.getShippingFee()));
+            invoice.setFinalAmount(
+                    total
+                            .subtract(Optional.ofNullable(invoice.getDiscountAmount()).orElse(BigDecimal.ZERO))
+                            .add(Optional.ofNullable(invoice.getShippingFee()).orElse(BigDecimal.ZERO))
+            );
             invoice.setInvoiceDetails(details);
 
-            // 5. Lưu hóa đơn
+            // ===== 5) LƯU HÓA ĐƠN =====
             Invoice savedInvoice = invoiceRepository.save(invoice);
 
-            // 6. Giao dịch Ship COD
+            // ===== 6) GIAO DỊCH COD =====
             InvoiceTransaction transaction = new InvoiceTransaction();
             transaction.setTransactionCode("GD-" + UUID.randomUUID().toString().substring(0, 8));
             transaction.setInvoice(savedInvoice);
@@ -1350,13 +1671,13 @@ public class InvoiceServiceImpl implements InvoiceService {
             transaction.setPaymentTime(new Date());
             invoiceTransactionRepository.save(transaction);
 
-            // 7. Hậu thanh toán
+            // ===== 7) HẬU THANH TOÁN =====
             processInvoicePayment(savedInvoice.getId());
 
-            // 8. Tự động kiểm tra blacklist nếu hủy nhiều đơn
+            // ===== 8) AUTO BLACKLIST =====
             autoBlacklistIfTooManyCancellations(customer);
 
-            // 9. Trả về kết quả
+            // ===== 9) TRẢ VỀ =====
             return invoiceMapper.toInvoiceDisplayResponse(savedInvoice, savedInvoice.getInvoiceDetails());
 
         } catch (Exception e) {
@@ -1365,18 +1686,38 @@ public class InvoiceServiceImpl implements InvoiceService {
         }
     }
 
+
+
     @Override
     public void autoBlacklistIfTooManyCancellations(Customer customer) {
         LocalDateTime now = LocalDateTime.now();
-
-        LocalDateTime lastChecked = Optional.ofNullable(customer.getLastBlacklistChecked())
+        LocalDateTime lastCheckedLdt = Optional.ofNullable(customer.getLastBlacklistChecked())
                 .orElse(now.minusDays(30));
 
+        // Invoice.updatedDate là java.util.Date → convert mốc thời gian sang Date
+        Date lastCheckedDate = Date.from(lastCheckedLdt.atZone(ZoneId.systemDefault()).toInstant());
+
+        // 1) Số đơn HUỶ mới (status_detail = HUY_DON) sau mốc lastChecked
         int newCancelledOrders = invoiceRepository.countByCustomerAndStatusDetailAndUpdatedDateAfter(
                 customer,
                 TrangThaiChiTiet.HUY_DON,
-                lastChecked
+                lastCheckedDate
         );
+
+        // 2) Số đơn THÀNH CÔNG mới (status = HOAN_THANH) sau mốc lastChecked  → điều kiện ân xá
+        int newSuccessfulOrders = invoiceRepository.countByCustomerAndStatusAndUpdatedDateAfter(
+                customer,
+                TrangThaiTong.THANH_CONG, // đổi lại nếu enum trạng thái hoàn tất của bạn khác tên
+                lastCheckedDate
+        );
+
+        // ===== Luật ân xá =====
+        if (newSuccessfulOrders > 0) {
+            resetBlacklistState(customer, now);
+            customerRepository.save(customer);
+            return;
+        }
+        // ======================
 
         if (newCancelledOrders <= 0) {
             customer.setLastBlacklistChecked(now);
@@ -1392,48 +1733,74 @@ public class InvoiceServiceImpl implements InvoiceService {
         int newTrustScore = Math.max(0, currentScore - deducted);
         customer.setTrustScore(newTrustScore);
 
-        boolean warned = false;
-        boolean blacklisted = false;
-
-        // ⚠️ Cảnh báo nếu hủy 3 hoặc 4 đơn
+        // ⚠️ Cảnh báo nếu hủy 3 hoặc 4 đơn (chỉ log khi lần đầu chạm mốc)
         if ((totalCancelled == 3 || totalCancelled == 4) && previousCancelCount < totalCancelled) {
-            String warningMsg = "⚠️ Cảnh báo: Đã hủy " + totalCancelled + " đơn hàng. Nếu hủy đến 5 đơn sẽ bị cấm mua hàng 3 ngày.";
+            String warningMsg = "⚠️ Cảnh báo: Đã hủy " + totalCancelled + " đơn hàng. "
+                    + "Nếu hủy đến 5 đơn sẽ bị cấm mua hàng 3 ngày.";
 
-            // Lưu cảnh báo vào lịch sử
             CustomerBlacklistHistory warning = new CustomerBlacklistHistory();
             warning.setCustomer(customer);
             warning.setReason(warningMsg);
             warning.setStartTime(now);
-            warning.setEndTime(null); // chỉ là cảnh báo, không có thời hạn
+            warning.setEndTime(null); // cảnh báo, không có hạn
             customerBlacklistHistoryRepository.save(warning);
 
-            // Ghi cảnh báo vào bảng khách hàng
             customer.setBlacklistReason(warningMsg);
-            warned = true;
         }
 
-        // ⛔ Cấm nếu hủy từ 5 đơn trở lên
+        // ⛔ Cấm nếu hủy từ 5 đơn trở lên (vừa mới chạm ngưỡng)
         if (totalCancelled >= 5 && previousCancelCount < 5) {
             customer.setIsBlacklisted(true);
             customer.setBlacklistReason("Đã hủy ≥ 5 đơn hàng");
             customer.setBlacklistExpiryDate(now.plusDays(3));
 
-            // Lưu lịch sử blacklist
             CustomerBlacklistHistory blacklist = new CustomerBlacklistHistory();
             blacklist.setCustomer(customer);
             blacklist.setReason(customer.getBlacklistReason());
             blacklist.setStartTime(now);
             blacklist.setEndTime(customer.getBlacklistExpiryDate());
             customerBlacklistHistoryRepository.save(blacklist);
-
-            blacklisted = true;
         }
 
-        // Cập nhật thông tin sau cùng
+        // Cập nhật cuối
         customer.setLastBlacklistChecked(now);
         customer.setLastBlacklistCancelCount(totalCancelled);
         customerRepository.save(customer);
     }
+
+    /**
+     * Gỡ cấm + reset toàn bộ trạng thái cảnh báo/blacklist.
+     * Đồng thời đóng các history còn mở (endTime = null).
+     */
+    private void resetBlacklistState(Customer customer, LocalDateTime now) {
+        List<CustomerBlacklistHistory> openHistories =
+                customerBlacklistHistoryRepository.findOpenHistoriesByCustomer(customer.getId());
+        for (CustomerBlacklistHistory h : openHistories) {
+            h.setEndTime(now);
+        }
+        if (!openHistories.isEmpty()) {
+            customerBlacklistHistoryRepository.saveAll(openHistories);
+        }
+
+        customer.setIsBlacklisted(false);
+        customer.setBlacklistReason(null);
+        customer.setBlacklistExpiryDate(null);
+        customer.setLastBlacklistCancelCount(0);
+
+        // Khôi phục điểm tin cậy (tuỳ chính sách: set 100 hoặc +10,…)
+        customer.setTrustScore(100);
+
+        customer.setLastBlacklistChecked(now);
+
+        // Ghi nhận 1 bản ghi ân xá
+        CustomerBlacklistHistory pardon = new CustomerBlacklistHistory();
+        pardon.setCustomer(customer);
+        pardon.setReason("Ân xá: Có đơn giao thành công sau lần kiểm tra trước, reset trạng thái.");
+        pardon.setStartTime(now);
+        pardon.setEndTime(now);
+        customerBlacklistHistoryRepository.save(pardon);
+    }
+
 
     @Transactional
     @Override
@@ -1697,6 +2064,9 @@ public class InvoiceServiceImpl implements InvoiceService {
         voucherRepository.save(voucher);
     }
 
+    public Long getSoldQuantityByProduct(Long productId) {
+        return invoiceDetailRepository.countSoldQuantityByProductId(productId);
+    }
 
 }
 

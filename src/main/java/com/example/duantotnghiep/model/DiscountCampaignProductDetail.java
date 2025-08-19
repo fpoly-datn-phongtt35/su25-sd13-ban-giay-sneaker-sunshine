@@ -17,6 +17,7 @@ import lombok.Setter;
 import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.Nationalized;
 
+import java.math.BigDecimal;
 import java.util.Date;
 
 @Getter
@@ -38,6 +39,9 @@ public class DiscountCampaignProductDetail {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_detail_id")
     private ProductDetail productDetail;
+
+    @Column(name = "discount_percentage", precision = 5, scale = 2)
+    private BigDecimal discountPercentage;
 
     @ColumnDefault("getdate()")
     @Column(name = "created_date")

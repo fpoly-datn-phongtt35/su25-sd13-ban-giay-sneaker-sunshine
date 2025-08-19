@@ -21,6 +21,8 @@ public interface ProductService {
 
     ProductResponse getProductById(Long id);
 
+    Page<ProductDetailResponse> pageProductDetails(int page, int size);
+
     List<ProductDetailResponse> getProductDetailById(Long productId);
 
     Page<ProductResponse> getAllProducts(Pageable pageable);

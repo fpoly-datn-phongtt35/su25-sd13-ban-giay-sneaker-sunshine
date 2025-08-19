@@ -16,7 +16,7 @@ public class WebConfig { // Bạn có thể đặt tên file là WebConfig hoặ
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         // Cho phép frontend của bạn truy cập
-        configuration.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:5174","http://172.20.10.11:5174"));
+        configuration.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:5174","http://26.185.36.223:5174"));
         // Các phương thức HTTP được phép
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         // Các header được phép

@@ -3,6 +3,26 @@
     <div class="max-w-7xl mx-auto">
       <h2 class="text-3xl font-bold mb-8 text-gray-800">Tổng Quan Thống Kê</h2>
 
+<div class="filter-container">
+    <label for="typeSelect" class="form-label">Chọn loại thống kê:</label>
+    <select
+      id="typeSelect"
+      v-model="type"
+      @change="loadRevenue"
+      class="form-select"
+    >
+      <option value="day">Ngày</option>
+      <option value="week">Tuần</option>
+      <option value="quarter">Quý</option>
+      <option value="year">Năm</option>
+    </select>
+
+    <div class="result-box mt-3">
+      <h5>Kết quả API:</h5>
+      <pre>{{ revenueData }}</pre>
+    </div>
+  </div>
+
       <div v-if="isLoading">
         <el-row :gutter="24">
           <el-col :span="12" v-for="n in 4" :key="n" class="mb-6">
@@ -30,18 +50,19 @@
 
 
       <el-row :gutter="24" v-else>
+        <el-col :span="24" class="mb-6">
+          <div class="flex justify-end">
+            <el-button
+              type="primary"
+              size="medium"
+              icon="el-icon-s-data"
+              @click="goToOrderStaff"
+            >
+              Thống kê đơn hàng theo nhân viên
+            </el-button>
+          </div>
+        </el-col>
 
-<el-col :span="24" class="mb-6">
-  <div class="flex justify-end">
-    <el-button type="primary" size="medium" icon="el-icon-s-data" @click="goToOrderStaff">
-      Thống kê đơn hàng theo nhân viên
-    </el-button>
-  </div>
-</el-col>
-
-
-
-        <!-- Doanh thu theo tháng -->
         <el-col :xs="24" :sm="12" :md="12" class="mb-6">
           <div class="chart-card">
             <h3 class="chart-title">
@@ -52,9 +73,6 @@
           </div>
         </el-col>
 
-
-
-        <!-- Doanh thu theo năm -->
         <el-col :xs="24" :sm="12" :md="12" class="mb-6">
           <div class="chart-card">
             <h3 class="chart-title">
@@ -65,7 +83,6 @@
           </div>
         </el-col>
 
-        <!-- Doanh thu theo loại đơn -->
         <el-col :xs="24" :sm="12" :md="8" class="mb-6">
           <div class="chart-card">
             <h3 class="chart-title">
@@ -76,7 +93,6 @@
           </div>
         </el-col>
 
-        <!-- Trạng thái hóa đơn -->
         <el-col :xs="24" :sm="12" :md="8" class="mb-6">
           <div class="chart-card">
             <h3 class="chart-title">
@@ -87,7 +103,6 @@
           </div>
         </el-col>
 
-        <!-- KPI -->
         <el-col :xs="24" :sm="24" :md="8" class="mb-6">
           <div class="chart-card">
             <h3 class="chart-title">
@@ -103,7 +118,6 @@
                 <span class="kpi-value">{{ paidInvoicesCount }}</span>
                 <span class="kpi-label">Đơn hàng thành công</span>
               </div>
-              <!-- 👉 Thêm doanh thu hôm nay -->
               <div class="kpi-item">
                 <span class="kpi-value">{{ todayRevenue.toLocaleString() }}</span>
                 <span class="kpi-label">Doanh thu hôm nay (VND)</span>
@@ -112,7 +126,6 @@
           </div>
         </el-col>
 
-        <!-- Bộ lọc ngày -->
         <el-col :span="24" class="mb-4">
           <el-date-picker
             v-model="dateRange"
@@ -127,7 +140,6 @@
           <el-button type="primary" @click="fetchTopProducts">Tìm kiếm</el-button>
         </el-col>
 
-        <!-- Top sản phẩm -->
         <el-col :span="24" class="mb-6">
           <div class="chart-card">
             <h3 class="chart-title">
@@ -173,6 +185,7 @@ const invoiceStatusStats = ref([])
 const todayRevenue = ref(0)
 const dateRange = ref([])
 
+// 📌 lấy top sản phẩm
 const fetchTopProducts = async () => {
   try {
     const params = {}
@@ -192,11 +205,12 @@ const fetchTopProducts = async () => {
   }
 }
 
+// 📌 chuyển trang
 const goToOrderStaff = () => {
-  router.push('/nhan-vien-xu-ly') // Thay bằng path thực tế nếu cần
+  router.push('/nhan-vien-xu-ly')
 }
 
-
+// 📌 lấy doanh thu hôm nay
 const fetchTodayRevenue = async () => {
   try {
     const res = await apiClient.get('/admin/statistics/revenue/today')
@@ -209,7 +223,32 @@ const fetchTodayRevenue = async () => {
   }
 }
 
-onMounted(async () => {
+// load revenue động theo type
+const type = ref('week')
+const revenueData = ref(null)
+
+const loadRevenue = async () => {
+  isLoading.value = true
+  try {
+    const { data } = await apiClient.get('/admin/online-sales/get-revenue', {
+      params: { type: type.value }
+    })
+    revenueData.value = data
+    console.log('data: ', revenueData.value)
+  } catch (e) {
+    console.error('Lỗi khi load revenue:', e)
+    if (e.response?.status === 403) {
+      router.push('/error')
+    } else {
+      error.value = e.message
+    }
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// 📌 load thống kê tổng hợp
+const loadStatistics = async () => {
   isLoading.value = true
   error.value = null
   try {
@@ -219,6 +258,7 @@ onMounted(async () => {
       apiClient.get('/admin/statistics/order-type'),
       apiClient.get('/admin/statistics/status'),
     ])
+
     monthlyRevenue.value = m.data
     yearlyRevenue.value = y.data
     orderTypeRevenue.value = o.data
@@ -227,7 +267,7 @@ onMounted(async () => {
     await fetchTopProducts()
     await fetchTodayRevenue()
   } catch (e) {
-    console.error(e)
+    console.error('Lỗi khi load thống kê:', e)
     if (e.response?.status === 403) {
       router.push('/error')
     } else {
@@ -236,8 +276,14 @@ onMounted(async () => {
   } finally {
     isLoading.value = false
   }
+}
+
+onMounted(() => {
+  loadStatistics()
+  loadRevenue()
 })
 
+// 🎨 chart configs
 const chartColors = {
   blue: '#3b82f6',
   green: '#22c55e',
@@ -318,16 +364,13 @@ const paidInvoicesCount = computed(
 )
 </script>
 
-
 <style scoped>
 .chart-card {
   background: #fff;
   border-radius: 12px;
   padding: 24px;
   border: 1px solid #e5e7eb;
-  box-shadow:
-    0 4px 6px -1px rgb(0 0 0 / 0.05),
-    0 2px 4px -2px rgb(0 0 0 / 0.05);
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
   height: 100%;
   display: flex;
   flex-direction: column;

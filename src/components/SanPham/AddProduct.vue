@@ -206,20 +206,6 @@
         <el-table :data="productDetails" border style="width: 100%">
           <el-table-column prop="sizeName" label="Kích thước" width="140" />
           <el-table-column prop="colorName" label="Màu sắc" width="180" />
-          <el-table-column label="Giá bán">
-            <template #default="{ row, $index }">
-              <el-input-number
-                v-model="row.sellPrice"
-                :min="0"
-                :step="1000"
-                style="width: 100%"
-                :class="{ 'is-invalid': !!errors[`productDetail_${$index}_sellPrice`] }"
-              />
-              <div v-if="errors[`productDetail_${$index}_sellPrice`]" class="el-form-item__error">
-                {{ errors[`productDetail_${$index}_sellPrice`] }}
-              </div>
-            </template>
-          </el-table-column>
           <el-table-column label="Số lượng" width="200">
             <template #default="{ row, $index }">
               <el-input-number
@@ -538,7 +524,7 @@ const saveProduct = async () => {
     productDetails.value.forEach((d, i) => {
       formData.append(`productDetails[${i}].sizeId`, d.sizeId)
       formData.append(`productDetails[${i}].colorId`, d.colorId)
-      formData.append(`productDetails[${i}].sellPrice`, d.sellPrice)
+      formData.append(`productDetails[${i}].sellPrice`, newProduct.value.sellPrice || 0)
       formData.append(`productDetails[${i}].quantity`, d.quantity)
     })
 

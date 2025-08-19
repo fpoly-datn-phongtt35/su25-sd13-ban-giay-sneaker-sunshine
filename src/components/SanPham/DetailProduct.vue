@@ -11,7 +11,6 @@
     <el-empty v-else-if="error" description="Lỗi khi tải dữ liệu" />
 
     <template v-else-if="product">
-      <!-- Thông tin chung -->
       <el-descriptions title="Thông tin chung" :column="3" border>
         <el-descriptions-item label="Mã sản phẩm">{{ product.productCode || 'Không có' }}</el-descriptions-item>
         <el-descriptions-item label="Tên sản phẩm">{{ product.productName || 'Không có' }}</el-descriptions-item>
@@ -29,9 +28,11 @@
         <el-descriptions-item label="QR Code">
           <el-button type="success" size="small" @click="openQrDialog()">Xem QR</el-button>
         </el-descriptions-item>
+        <el-descriptions-item label="Đánh giá">
+          <el-button type="info" size="small" @click="openReviewsDialog(product.id)">Xem đánh giá</el-button>
+        </el-descriptions-item>
       </el-descriptions>
 
-      <!-- Chi tiết sản phẩm -->
       <el-table
         v-if="product.productDetails && product.productDetails.length"
         :data="product.productDetails"
@@ -39,18 +40,17 @@
         border
         stripe
       >
-        <el-table-column prop="sizeName" label="Size" width="80" />
-        <el-table-column prop="colorName" label="Màu sắc" width="100" />
-        <el-table-column label="Giá bán" width="120">
+        <el-table-column prop="sizeName" label="Size" width="200" align="center"/>
+        <el-table-column prop="colorName" label="Màu sắc" width="200" align="center"/>
+        <el-table-column label="Giá bán" width="200" align="center" >
           <template #default="{ row }">{{ formatCurrency(row.sellPrice) }}</template>
         </el-table-column>
-        <el-table-column prop="quantity" label="Số lượng" width="100" />
-        <el-table-column label="Trạng thái" width="120">
+        <el-table-column prop="quantity" label="Số lượng" width="200" align="center" />
+        <el-table-column label="Trạng thái" width="400" align="center">
           <template #default="{ row }">{{ row.status === 1 ? 'Hoạt động' : 'Ngừng hoạt động' }}</template>
         </el-table-column>
       </el-table>
 
-      <!-- Ảnh sản phẩm -->
       <div v-if="product.productImages && product.productImages.length" style="margin-top: 30px">
         <h3>Ảnh sản phẩm</h3>
         <el-carousel height="200px" trigger="click" arrow="always">
@@ -65,7 +65,6 @@
       </div>
     </template>
 
-    <!-- Dialog hiển thị QR Code -->
     <el-dialog v-model="qrDialogVisible" title="QR Code" width="300px">
       <div style="text-align: center;">
         <img
@@ -77,6 +76,28 @@
         <el-button type="primary" plain @click="downloadQrCode">Tải về QR</el-button>
       </div>
     </el-dialog>
+
+    <el-dialog v-model="reviewsDialogVisible" title="Đánh giá sản phẩm" width="600px">
+      <el-empty v-if="productReviews.length === 0" description="Chưa có đánh giá nào." />
+      <el-table v-else :data="productReviews" border style="width: 100%">
+        <el-table-column label="Người đánh giá" prop="reviewerName" width="180">
+          <template #default="{ row }">
+            {{ row.customerName || 'Khách hàng ẩn danh' }}
+          </template>
+        </el-table-column>
+        <el-table-column label="Số sao" width="120">
+          <template #default="{ row }">
+            <el-rate v-model="row.rate" disabled show-score text-color="#ff9900" />
+          </template>
+        </el-table-column>
+        <el-table-column label="Nội dung đánh giá" prop="comment" />
+        <el-table-column label="Ngày đánh giá" width="150">
+          <template #default="{ row }">
+            {{ formatDate(row.createdAt) }}
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-dialog>
   </el-card>
 </template>
 
@@ -84,6 +105,8 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
+import { ElNotification } from 'element-plus' // Import ElNotification
+import apiClient from '@/utils/axiosInstance'
 
 const route = useRoute()
 const router = useRouter()
@@ -95,6 +118,9 @@ const error = ref(false)
 const qrDialogVisible = ref(false)
 const qrImageUrl = ref('')
 const currentProductCode = ref('')
+
+const reviewsDialogVisible = ref(false) // Biến điều khiển dialog đánh giá
+const productReviews = ref([]) // Dữ liệu đánh giá sản phẩm
 
 function goBack() {
   router.push('/product')
@@ -114,14 +140,12 @@ function formatDate(dateString) {
   return date.toLocaleDateString('vi-VN')
 }
 
-// Mở dialog QR, dùng mã sản phẩm
 function openQrDialog() {
   currentProductCode.value = product.value?.productCode || ''
   qrImageUrl.value = `http://localhost:8080/api/admin/products/qrcode/${currentProductCode.value}`
   qrDialogVisible.value = true
 }
 
-// Tải file QR code với tên chứa mã sản phẩm
 async function downloadQrCode() {
   try {
     const response = await fetch(qrImageUrl.value)
@@ -136,6 +160,43 @@ async function downloadQrCode() {
     window.URL.revokeObjectURL(url)
   } catch (error) {
     console.error('Lỗi khi tải QR code:', error)
+    ElNotification({
+      title: 'Lỗi',
+      message: 'Không thể tải QR code. Vui lòng thử lại.',
+      type: 'error',
+    })
+  }
+}
+
+async function fetchProductReviews(productId) {
+  try {
+    const response = await apiClient.get(`/admin/products/reviews-product/${productId}`);
+    productReviews.value = response.data;
+    return true; // Trả về true nếu thành công
+  } catch (e) {
+    console.error('Lỗi khi fetch đánh giá sản phẩm:', e);
+    ElNotification({
+      title: 'Lỗi',
+      message: 'Không thể tải đánh giá sản phẩm. Vui lòng thử lại.',
+      type: 'error',
+    });
+    return false; // Trả về false nếu có lỗi
+  }
+}
+
+async function openReviewsDialog() {
+  if (product.value && product.value.id) {
+    console.log('product id: ',product.value.id)
+    const isSuccess = await fetchProductReviews(product.value.id);
+    if (isSuccess) {
+      reviewsDialogVisible.value = true;
+    }
+  } else {
+    ElNotification({
+      title: 'Thông báo',
+      message: 'Không tìm thấy ID sản phẩm để xem đánh giá.',
+      type: 'warning',
+    });
   }
 }
 
@@ -143,11 +204,16 @@ async function fetchProduct(id) {
   loading.value = true
   error.value = false
   try {
-    const response = await axios.get(`http://localhost:8080/api/admin/products/${id}`)
+    const response = await apiClient.get(`/admin/products/${id}`)
     product.value = response.data
   } catch (e) {
     console.error('Lỗi khi fetch sản phẩm:', e)
     error.value = true
+    ElNotification({
+      title: 'Lỗi',
+      message: 'Không thể tải thông tin sản phẩm. Vui lòng thử lại.',
+      type: 'error',
+    })
   } finally {
     loading.value = false
   }
@@ -159,6 +225,11 @@ onMounted(() => {
     fetchProduct(id)
   } else {
     error.value = true
+    ElNotification({
+      title: 'Lỗi',
+      message: 'Không tìm thấy ID sản phẩm trong URL.',
+      type: 'error',
+    })
   }
 })
 </script>

@@ -207,18 +207,12 @@
                 <input type="checkbox" v-model="selectAll" @change="toggleSelectAll" />
               </th>
               <th scope="col">STT</th>
-              <th scope="col">Danh mục</th>
               <th scope="col">Mã sản phẩm</th>
               <th scope="col">Tên sản phẩm</th>
               <th scope="col">Thương hiệu</th>
               <th scope="col">Cổ giày</th>
-              <th scope="col">Dành cho</th>
               <th scope="col">Giá bán</th>
               <th scope="col">Số lượng</th>
-              <th scope="col">Ghi chú</th>
-              <th scope="col">Ngày tạo</th>
-              <th scope="col">Người tạo</th>
-              <th scope="col">Trạng thái</th>
               <th scope="col">Hành động</th>
             </tr>
           </thead>
@@ -232,16 +226,10 @@
                 <input type="checkbox" v-model="selectedProducts" :value="pr.id" />
               </td>
               <td>{{ page * size + index + 1 }}</td>
-              <td>
-                <span v-for="(cat, i) in pr.categoryNames" :key="i" class="badge bg-primary me-1">
-                  {{ cat }}
-                </span>
-              </td>
               <td>{{ pr.productCode }}</td>
               <td>{{ pr.productName }}</td>
               <td>{{ pr.brandName }}</td>
               <td>{{ pr.styleName }}</td>
-              <td>{{ pr.genderName }}</td>
               <td>
                 <template v-if="pr.discountPercentage > 0 || pr.discountedPrice < pr.sellPrice">
                   <span style="text-decoration: line-through; color: gray; margin-right: 8px">
@@ -258,14 +246,6 @@
                 </template>
               </td>
               <td>{{ pr.quantity }}</td>
-              <td>{{ pr.description }}</td>
-              <td>{{ formatDate(pr.createdDate) }}</td>
-              <td>{{ pr.createdBy }}</td>
-              <td>
-                <span class="badge" :class="pr.status === 1 ? 'bg-success' : 'bg-danger'">
-                  {{ pr.status === 1 ? 'Đang hoạt động' : 'Ngừng hoạt động' }}
-                </span>
-              </td>
               <td>
                 <div class="btn-group" role="group">
                   <button class="btn btn-info btn-sm" @click="goToUpdate(pr.id)" title="Chỉnh sửa">

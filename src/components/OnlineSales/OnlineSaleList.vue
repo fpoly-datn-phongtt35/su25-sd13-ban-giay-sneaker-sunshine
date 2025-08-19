@@ -7,13 +7,33 @@
         class="form-bar flex flex-wrap items-end gap-4"
         label-position="top"
       >
-        <el-form-item label="Tìm kiếm (Mã / Khách hàng)" class="w-64">
+        <el-form-item label="Tìm kiếm (Mã hóa đơn)" class="w-64">
           <el-input
-            v-model="filters.search"
-            placeholder="Nhập mã hoặc tên khách hàng"
+            v-model="filters.code"
+            placeholder="Nhập mã hóa đơn"
             clearable
             prefix-icon="el-icon-search"
           />
+        </el-form-item>
+
+        <el-form-item label="Tìm kiếm (Số điện thoại khách hàng)" class="w-64">
+          <el-input
+            v-model="filters.phone"
+            placeholder="Nhập số điện thoại khách hàng"
+            clearable
+            prefix-icon="el-icon-search"
+          />
+        </el-form-item>
+
+        <el-form-item label="Tìm kiếm (Trạng thái hóa đơn)" class="w-64">
+          <el-select
+            v-model="filters.isPaid"
+            placeholder="Chọn trạng thái hóa đơn"
+            clearable
+          >
+            <el-option label="Đã thanh toán" :value="true" />
+            <el-option label="Chưa thanh toán" :value="false" />
+          </el-select>
         </el-form-item>
 
         <el-form-item label="Khoảng thời gian tạo" class="w-96">
@@ -94,41 +114,27 @@
         </template>
       </el-table-column>
     </el-table>
-
-    <div class="d-flex justify-end mt-4">
-      <el-pagination
-        background
-        layout="total, sizes, prev, pager, next, jumper"
-        :total="total"
-        v-model:page-size="pageSize"
-        v-model:current-page="page"
-        :page-sizes="[10, 20, 50, 100]"
-        @current-change="search"
-        @size-change="search"
-      />
-    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import dayjs from 'dayjs'
 import apiClient from '@/utils/axiosInstance'
-import { ElMessage } from 'element-plus';
+import { ElMessage } from 'element-plus'
 
 const router = useRouter()
 
 const filters = ref({
-  search: '',
+  code: '',
+  phone: '',
+  isPaid: null,
   dateRange: [],
-  sortBy: null // Thêm thuộc tính sắp xếp
 })
 
 const currentTab = ref('CHO_XU_LY')
-const page = ref(1)
-const pageSize = ref(10)
-const total = ref(0)
+
 const invoices = ref([])
 const loading = ref(false)
 
@@ -176,49 +182,37 @@ const fetchStatusCounts = async () => {
 const search = async () => {
   loading.value = true
   try {
-    const params = {
-      status: statusLabelToCode(currentTab.value),
-      phone: filters.value.search || null,
-      code: filters.value.search || null,
+    const requestBody = {
+      statusDetail: statusLabelToCode(currentTab.value),
+      phone: filters.value.phone || null,
+      code: filters.value.code || null,
       createdFrom: filters.value.dateRange[0] || null,
       createdTo: filters.value.dateRange[1] || null,
-      page: page.value - 1,
-      size: pageSize.value
+      isPaid: filters.value?.isPaid ?? null
     }
 
-    // Thêm tham số sắp xếp nếu có
-    if (filters.value.sortBy) {
-        params.sort = `${filters.value.sortBy.field},${filters.value.sortBy.direction}`
-    }
-
-    const res = await apiClient.get('/admin/online-sales/search', { params })
-    invoices.value = res.data.content
-    total.value = res.data.totalElements
+    const res = await apiClient.post('/admin/online-sales/search', requestBody)
+    invoices.value = res.data
     await fetchStatusCounts()
   } catch (err) {
     console.error('Lỗi tìm kiếm:', err)
+    ElMessage.error('Đã xảy ra lỗi khi tìm kiếm hóa đơn.')
   } finally {
     loading.value = false
   }
 }
 
 const resetFilters = () => {
-  filters.value = { search: '', dateRange: [], sortBy: null }
-  page.value = 1
+  filters.value = {
+    code: '',
+    phone: '',
+    isPaid: null,
+    dateRange: [],
+  }
   search()
 }
 
-// Cập nhật phương thức xử lý chuyển tab
 const handleTabChange = () => {
-  page.value = 1
-
-  // Sắp xếp giảm dần theo ngày tạo khi chọn tab "Đơn hàng hủy"
-  if (currentTab.value === 'HUY_DON') {
-    filters.value.sortBy = { field: 'createdDate', direction: 'desc' };
-  } else {
-    filters.value.sortBy = null;
-  }
-
   search()
 }
 
@@ -229,11 +223,6 @@ const goToStatusPage = (invoiceId) => {
 const formatDateTime = (dateStr) => {
   return dayjs(dateStr).format('DD/MM/YYYY HH:mm:ss')
 }
-
-// Giám sát thay đổi của page và pageSize để tự động gọi search
-watch([page, pageSize], () => {
-  search();
-});
 
 onMounted(() => {
   fetchStatusCounts()

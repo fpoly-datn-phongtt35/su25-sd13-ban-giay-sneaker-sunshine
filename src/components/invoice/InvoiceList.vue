@@ -28,7 +28,7 @@
       <InvoiceSearch @search="onSearch" @clear="onClear" />
     </div> -->
 
-    
+
 
     <el-table
       :data="invoices"
@@ -288,8 +288,8 @@ const fetchOrSearch = async () => {
 
   try {
     const res = await apiClient.get(endpoint, { params })
-    // Lấy dữ liệu từ invoice object bên trong mỗi phần tử
     invoices.value = res.data.content.map(item => item.invoice);
+    console.log('data: ',invoices.value)
     totalPages.value = res.data.page.totalPages
     totalItems.value = res.data.page.totalElements
     page.value = res.data.page.number

@@ -1,143 +1,233 @@
 <template>
   <div class="product-collection-container">
-    <!-- Header -->
-    <div class="collection-header">
-      <h2 class="collection-title">
-        <!-- THÊM: Ưu tiên hiển thị danh mục -->
-        <template v-if="categoryId">
-          Danh mục: {{ categoryName || ('#' + categoryId) }}
-        </template>
-        <template v-else-if="brandId">
-          Thương hiệu: {{ brandName || ('#' + brandId) }}
-        </template>
+    <el-container class="two-columns">
+      <!-- ===== ASIDE: FILTERS ===== -->
+      <el-aside class="filter-aside">
+        <!-- ===== BRAND FILTER ===== -->
+        <div class="filter-card">
+          <button class="filter-accordion" @click="brandOpen = !brandOpen">
+            <span>THƯƠNG HIỆU</span>
+            <el-icon :class="['chevron', { 'is-open': brandOpen }]">
+              <i class="el-icon-arrow-down"></i>
+            </el-icon>
+          </button>
+
+          <transition name="slide-fade">
+            <div v-show="brandOpen" class="filter-body">
+              <el-input v-model="brandSearch" placeholder="Tùy chọn tìm kiếm." clearable size="large" class="filter-search"/>
+              <div class="filter-list">
+                <label v-for="b in filteredBrands" :key="b.id" class="filter-item">
+                  <input
+                    type="checkbox"
+                    class="filter-checkbox"
+                    :checked="selectedBrandIds.includes(b.id)"
+                    @change="onBrandToggle(b.id)"
+                  />
+                  <span class="filter-name">{{ b.name }}</span>
+                </label>
+                <div v-if="!isLoadingBrands && filteredBrands.length===0" class="filter-empty">Không tìm thấy thương hiệu</div>
+                <div v-if="isLoadingBrands" class="filter-loading">Đang tải thương hiệu…</div>
+              </div>
+            </div>
+          </transition>
+        </div>
+
+        <!-- ===== COLOR FILTER ===== -->
+        <div class="filter-card space-top">
+          <button class="filter-accordion" @click="colorOpen = !colorOpen">
+            <span>MÀU SẮC</span>
+            <el-icon :class="['chevron', { 'is-open': colorOpen }]">
+              <i class="el-icon-arrow-down"></i>
+            </el-icon>
+          </button>
+
+          <transition name="slide-fade">
+            <div v-show="colorOpen" class="filter-body">
+              <el-input v-model="colorSearch" placeholder="Tùy chọn tìm kiếm." clearable size="large" class="filter-search"/>
+              <div class="filter-list">
+                <label v-for="c in filteredColors" :key="c.id" class="filter-item">
+                  <input
+                    type="checkbox"
+                    class="filter-checkbox"
+                    :checked="selectedColorIds.includes(c.id)"
+                    @change="onColorToggle(c)"
+                  />
+                  <span class="swatch" :style="{ backgroundColor: c.code }"></span>
+                  <span class="filter-name">{{ c.name }}</span>
+                </label>
+                <div v-if="!isLoadingColors && filteredColors.length===0" class="filter-empty">Không tìm thấy màu</div>
+                <div v-if="isLoadingColors" class="filter-loading">Đang tải màu sắc…</div>
+              </div>
+            </div>
+          </transition>
+        </div>
+
+        <!-- ===== GENDER FILTER (NEW) ===== -->
+        <div class="filter-card space-top">
+          <button class="filter-accordion" @click="genderOpen = !genderOpen">
+            <span>GIỚI TÍNH</span>
+            <el-icon :class="['chevron', { 'is-open': genderOpen }]">
+              <i class="el-icon-arrow-down"></i>
+            </el-icon>
+          </button>
+
+          <transition name="slide-fade">
+            <div v-show="genderOpen" class="filter-body">
+              <el-input v-model="genderSearch" placeholder="Tùy chọn tìm kiếm." clearable size="large" class="filter-search"/>
+              <div class="filter-list">
+                <label v-for="g in filteredGenders" :key="g.id" class="filter-item">
+                  <input
+                    type="checkbox"
+                    class="filter-checkbox"
+                    :checked="selectedGenderIds.includes(g.id)"
+                    @change="onGenderToggle(g)"
+                  />
+                  <span class="filter-name">{{ g.name }}</span>
+                </label>
+                <div v-if="!isLoadingGenders && filteredGenders.length===0" class="filter-empty">Không tìm thấy giới tính</div>
+                <div v-if="isLoadingGenders" class="filter-loading">Đang tải giới tính…</div>
+              </div>
+            </div>
+          </transition>
+        </div>
+
+        <!-- ===== SIZE FILTER ===== -->
+        <div class="filter-card space-top">
+          <button class="filter-accordion" @click="sizeOpen = !sizeOpen">
+            <span>KÍCH THƯỚC</span>
+            <el-icon :class="['chevron', { 'is-open': sizeOpen }]">
+              <i class="el-icon-arrow-down"></i>
+            </el-icon>
+          </button>
+
+          <transition name="slide-fade">
+            <div v-show="sizeOpen" class="filter-body">
+              <el-input v-model="sizeSearch" placeholder="Tùy chọn tìm kiếm." clearable size="large" class="filter-search"/>
+              <div class="filter-list">
+                <label v-for="s in filteredSizes" :key="s.id" class="filter-item">
+                  <input
+                    type="checkbox"
+                    class="filter-checkbox"
+                    :checked="selectedSizeIds.includes(s.id)"
+                    @change="onSizeToggle(s)"
+                  />
+                  <span class="filter-name">{{ s.name }}</span>
+                </label>
+                <div v-if="!isLoadingSizes && filteredSizes.length===0" class="filter-empty">Không tìm thấy size</div>
+                <div v-if="isLoadingSizes" class="filter-loading">Đang tải size…</div>
+              </div>
+            </div>
+          </transition>
+        </div>
+      </el-aside>
+
+      <!-- ===== MAIN: PRODUCTS ===== -->
+      <el-main class="product-list-main">
+        <div class="collection-header">
+          <h2 class="collection-title">
+            <template v-if="categoryId">Danh mục: {{ categoryName || ('#' + categoryId) }}</template>
+            <template v-else-if="effectiveGenderId">Giới tính: {{ genderName || ('#' + effectiveGenderId) }}</template>
+            <template v-else-if="effectiveSizeId">Kích thước: {{ sizeName || ('#' + effectiveSizeId) }}</template>
+            <template v-else-if="effectiveColorId">Màu sắc: {{ colorName || ('#' + effectiveColorId) }}</template>
+            <template v-else-if="effectiveBrandId">Thương hiệu: {{ brandName || ('#' + effectiveBrandId) }}</template>
+            <template v-else>Bộ sưu tập</template>
+          </h2>
+        </div>
+
+        <div v-if="isLoading" class="loading-state">Đang tải sản phẩm…</div>
+        <div v-else-if="error" class="error-state">{{ error }}</div>
+
         <template v-else>
-          Bộ sưu tập
-        </template>
-      </h2>
-    </div>
+          <el-row :gutter="30">
+            <el-col v-for="p in products" :key="p.id" :xs="24" :sm="12" :md="8" :lg="6">
+              <div class="product-card">
+                <div class="product-card__image-wrapper">
+                  <span v-if="p.discountPercentage > 0" class="product-card__discount-badge">-{{ p.discountPercentage }}%</span>
 
-    <!-- States -->
-    <div v-if="isLoading" class="loading-state">Đang tải sản phẩm…</div>
-    <div v-else-if="error" class="error-state">{{ error }}</div>
+                  <img
+                    :src="p.activeImage"
+                    class="product-card__image"
+                    :alt="`Ảnh ${p.productName}`"
+                    loading="lazy"
+                    decoding="async"
+                    @click="goToDetail(p.id)"
+                  />
 
-    <!-- Product grid -->
-    <el-main v-else class="product-list-main">
-      <el-row :gutter="30">
-        <el-col
-          v-for="p in products"
-          :key="p.id"
-          :xs="24" :sm="12" :md="8" :lg="6"
-        >
-          <div class="product-card">
-            <div class="product-card__image-wrapper">
-              <span v-if="p.discountPercentage > 0" class="product-card__discount-badge">
-                -{{ p.discountPercentage }}%
-              </span>
+                  <el-button
+                    :icon="ShoppingCart"
+                    circle
+                    size="large"
+                    class="product-card__quick-view-btn"
+                    aria-label="Xem nhanh"
+                    @click.stop="openQuickViewModal(p)"
+                  />
 
-              <img
-                :src="p.activeImage"
-                class="product-card__image"
-                :alt="`Ảnh ${p.productName}`"
-                loading="lazy"
-                decoding="async"
-                @click="goToDetail(p.id)"
-              />
+                  <div class="product-card__sold-badge">
+                    Đã bán: <strong>{{ soldCounts[p.id] ?? '...' }}</strong>
+                  </div>
+                </div>
 
-              <el-button
-                :icon="ShoppingCart"
-                circle
-                size="large"
-                class="product-card__quick-view-btn"
-                aria-label="Xem nhanh"
-                @click.stop="openQuickViewModal(p)"
-              />
+                <div class="product-card__info">
+                  <p class="product-card__name" @click="goToDetail(p.id)">{{ p.productName }}</p>
 
-              <!-- THÊM: Badge ĐÃ BÁN (góc dưới bên phải) -->
-              <div class="product-card__sold-badge">
-                Đã bán: <strong>{{ soldCounts[p.id] ?? '...' }}</strong>
+                  <div class="product-card__price-container">
+                    <template v-if="p.discountPercentage > 0 && Number(p.discountedPrice) > 0">
+                      <span class="discounted-price">{{ formatPrice(p.discountedPrice) }}</span>
+                      <del class="original-price">{{ formatPrice(p.sellPrice) }}</del>
+                    </template>
+                    <template v-else>
+                      <span class="normal-price">{{ formatPrice(p.sellPrice) }}</span>
+                    </template>
+                  </div>
+
+                  <div class="product-card__colors" v-if="p.variants?.length">
+                    <span
+                      v-for="v in p.variants"
+                      :key="v.colorId"
+                      class="product-card__color-dot"
+                      :style="{ backgroundColor: v.colorCode }"
+                      :title="v.colorName"
+                      @mouseenter="changeProductImage(p, v.image)"
+                      @mouseleave="restoreProductImage(p)"
+                    />
+                  </div>
+
+                  <div class="rating-row">
+                    <el-rate :model-value="(ratingSummaries[p.id]?.avg ?? 0)" disabled allow-half :max="5" size="small"/>
+                    <span class="rating-text">{{ (ratingSummaries[p.id]?.avg ?? 0).toFixed(1) }} ⭐ ({{ ratingSummaries[p.id]?.count ?? 0 }})</span>
+                  </div>
+
+                  <el-button
+                    v-if="p.id"
+                    size="small"
+                    :type="isFavorite(p.id) ? 'primary' : 'success'"
+                    @click="toggleFavorite(p.id, p.productName)"
+                  >
+                    {{ isFavorite(p.id) ? 'Đã yêu thích' : 'Thêm vào Yêu thích' }}
+                  </el-button>
+                </div>
               </div>
-              <!-- HẾT THÊM -->
-            </div>
+            </el-col>
+          </el-row>
 
-            <div class="product-card__info">
-              <p class="product-card__name" @click="goToDetail(p.id)">
-                {{ p.productName }}
-              </p>
-
-              <div class="product-card__price-container">
-                <template v-if="p.discountPercentage > 0 && Number(p.discountedPrice) > 0">
-                  <span class="discounted-price">{{ formatPrice(p.discountedPrice) }}</span>
-                  <del class="original-price">{{ formatPrice(p.sellPrice) }}</del>
-                </template>
-                <template v-else>
-                  <span class="normal-price">{{ formatPrice(p.sellPrice) }}</span>
-                </template>
-              </div>
-
-              <div class="product-card__colors" v-if="p.variants?.length">
-                <span
-                  v-for="v in p.variants"
-                  :key="v.colorId"
-                  class="product-card__color-dot"
-                  :style="{ backgroundColor: v.colorCode }"
-                  :title="v.colorName"
-                  @mouseenter="changeProductImage(p, v.image)"
-                  @mouseleave="restoreProductImage(p)"
-                />
-              </div>
-
-              <!-- THÊM: Rating (trung bình & tổng lượt) -->
-              <div style="margin-top:8px; display:flex; justify-content:space-between; align-items:center;">
-                <el-rate
-                  :model-value="(ratingSummaries[p.id]?.avg ?? 0)"
-                  disabled
-                  allow-half
-                  :max="5"
-                  size="small"
-                />
-                <span style="font-size:12px; color:#666; white-space:nowrap;">
-                  {{ (ratingSummaries[p.id]?.avg ?? 0).toFixed(1) }} ⭐ ({{ ratingSummaries[p.id]?.count ?? 0 }})
-                </span>
-              </div>
-              <!-- HẾT THÊM -->
-
-              <el-button
-                v-if="p.id"
-                size="small"
-                :type="isFavorite(p.id) ? 'primary' : 'success'"
-
-                @click="toggleFavorite(p.id, p.productName)"
-              >
-                {{ isFavorite(p.id) ? 'Đã yêu thích' : 'Thêm vào Yêu thích' }}
-              </el-button>
-            </div>
+          <div class="pagination-container">
+            <el-pagination
+              v-if="totalItems > 0"
+              v-model:current-page="currentPage"
+              v-model:page-size="pageSize"
+              :page-sizes="[12, 24, 36, 48]"
+              :total="totalItems"
+              layout="total, prev, pager, next, jumper, sizes"
+              @size-change="onPageUiChanged"
+              @current-change="onPageUiChanged"
+            />
           </div>
-        </el-col>
-      </el-row>
+        </template>
+      </el-main>
+    </el-container>
 
-      <!-- Pagination -->
-      <div class="pagination-container">
-        <el-pagination
-          v-if="totalItems > 0"
-          v-model:current-page="currentPage"
-          v-model:page-size="pageSize"
-          :page-sizes="[12, 24, 36, 48]"
-          :total="totalItems"
-          layout="total, prev, pager, next, jumper, sizes"
-          @size-change="onPageUiChanged"
-          @current-change="onPageUiChanged"
-        />
-      </div>
-    </el-main>
-
-    <!-- Quick View Dialog -->
-    <el-dialog
-      v-model="quickViewVisible"
-      width="850px"
-      class="quick-view-dialog"
-      :show-close="true"
-      @close="resetQuickView"
-    >
+    <!-- ===== QUICK VIEW ===== -->
+    <el-dialog v-model="quickViewVisible" width="850px" class="quick-view-dialog" :show-close="true" @close="resetQuickView">
       <div v-if="selectedProduct" class="quick-view">
         <el-row :gutter="40">
           <el-col :span="12">
@@ -181,12 +271,7 @@
             <div class="quick-view__quantity-selector">
               <p class="selector-label">Số lượng:</p>
               <template v-if="!needSize || quickViewSelectedSize">
-                <el-input-number
-                  v-model="quickViewQuantity"
-                  :min="minQty"
-                  :max="maxQty"
-                  :disabled="maxQty === 0"
-                />
+                <el-input-number v-model="quickViewQuantity" :min="minQty" :max="maxQty" :disabled="maxQty===0" />
                 <span class="stock-info">(Còn lại: {{ selectedVariantStock }})</span>
               </template>
               <template v-else>
@@ -201,18 +286,10 @@
             </div>
           </el-col>
         </el-row>
-
-        <!-- Link đặt trước -->
-        <div class="pre-order-text" style="margin-top: 12px; color:#333">
-          Trường hợp hết hàng, bạn có thể đặt trước
-          <a href="#" @click.prevent="openPreOrderDialog" style="color: inherit; font-weight: 600; text-decoration: underline;">
-            click vào đây
-          </a>
-        </div>
       </div>
     </el-dialog>
 
-    <!-- Dialog Đặt trước -->
+    <!-- ===== PRE-ORDER ===== -->
     <el-dialog v-model="preOrderDialogVisible" title="Đặt trước sản phẩm" width="500px">
       <template v-if="preOrderItem">
         <p><strong>{{ preOrderItem.productName }}</strong></p>
@@ -246,9 +323,7 @@
           >
             {{ size }}
           </el-button>
-          <div class="stock-info" v-if="preOrderSelectedSize">
-            (Tồn hiện tại: {{ preOrderStock }})
-          </div>
+          <div class="stock-info" v-if="preOrderSelectedSize">(Tồn hiện tại: {{ preOrderStock }})</div>
         </div>
 
         <div class="quick-view__quantity-selector" style="margin-top: 20px">
@@ -269,36 +344,50 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { ShoppingCart, Star } from '@element-plus/icons-vue'
-import apiClient from '@/utils/axiosInstance'   // baseURL nên là http://localhost:8080/api
+import { ShoppingCart } from '@element-plus/icons-vue'
+import apiClient from '@/utils/axiosInstance'
 import { addToCart } from '@/utils/cart.js'
 
-/* =========================
- * Router & Brand
- * ========================= */
+/* ========== Router & Params ========== */
 const router = useRouter()
 const route = useRoute()
 
-const brandId = computed(() => {
-  const id = route.query.brandId ?? route.params.brandId
-  const n = Number(id)
+// Brand
+const brandName = ref(String(route.query.brandName || '').trim())
+const brandIdFromQuery = computed(() => {
+  const n = Number(route.query.brandId ?? route.params.brandId)
   return Number.isFinite(n) ? n : null
 })
-const brandName = ref(String(route.query.brandName || '').trim())
 
-/* =========================
- * Category (THÊM MỚI)
- * ========================= */
+// Color
+const colorName = ref(String(route.query.colorName || '').trim())
+const colorIdFromQuery = computed(() => {
+  const n = Number(route.query.colorId ?? route.params.colorId)
+  return Number.isFinite(n) ? n : null
+})
+
+// Gender (NEW)
+const genderName = ref(String(route.query.genderName || '').trim())
+const genderIdFromQuery = computed(() => {
+  const n = Number(route.query.genderId ?? route.params.genderId)
+  return Number.isFinite(n) ? n : null
+})
+
+// Size
+const sizeName = ref(String(route.query.sizeName || '').trim())
+const sizeIdFromQuery = computed(() => {
+  const n = Number(route.query.sizeId ?? route.params.sizeId)
+  return Number.isFinite(n) ? n : null
+})
+
+// Category (optional)
 const categoryId = computed(() => {
-  const id = route.query.categoryId ?? route.params.categoryId
-  const n = Number(id)
+  const n = Number(route.query.categoryId ?? route.params.categoryId)
   return Number.isFinite(n) ? n : null
 })
 const categoryName = ref(String(route.query.categoryName || '').trim())
 
-/* =========================
- * Common helpers
- * ========================= */
+/* ========== Helpers ========== */
 const PLACEHOLDER_IMG = 'https://via.placeholder.com/400'
 const formatPrice = (price) => {
   const n = Number(price)
@@ -333,15 +422,12 @@ const sizeComparator = (a, b) => {
   return wa - wb || A.localeCompare(B)
 }
 
-/* =========================
- * States
- * ========================= */
+/* ========== States ========== */
 const isLoading = ref(true)
 const error = ref(null)
 const products = ref([])
 const totalItems = ref(0)
 
-/* Đồng bộ page/size với URL */
 const currentPage = computed({
   get: () => Math.max(1, Number(route.query.page ?? 1)),
   set: (val) => router.push({ query: { ...route.query, page: val } })
@@ -354,28 +440,19 @@ const pageSize = computed({
   set: (val) => router.push({ query: { ...route.query, size: val, page: 1 } })
 })
 
-/* =========================
- * Favorites (localStorage)
- * ========================= */
+/* ========== Favorites ========== */
 const customerId = localStorage.getItem('userId') || null
 const favorites = ref([])
 const loadFavorites = () => {
-  try {
-    const saved = JSON.parse(localStorage.getItem('favorites') || '[]')
-    favorites.value = Array.isArray(saved) ? saved : []
-  } catch { favorites.value = [] }
+  try { favorites.value = JSON.parse(localStorage.getItem('favorites') || '[]') || [] }
+  catch { favorites.value = [] }
 }
-const isFavorite = (productId) => {
-  const pid = Number(productId)
-  return favorites.value.some(
-    (f) => String(f.customerId) === String(customerId) && Number(f.productId) === pid
+const isFavorite = (productId) =>
+  favorites.value.some(
+    (f) => String(f.customerId) === String(customerId) && Number(f.productId) === Number(productId)
   )
-}
 const toggleFavorite = (productId, name) => {
-  if (!customerId) {
-    ElMessage.warning('Vui lòng đăng nhập để thêm vào yêu thích.')
-    return
-  }
+  if (!customerId) { ElMessage.warning('Vui lòng đăng nhập để thêm vào yêu thích.'); return }
   const pid = Number(productId)
   if (isFavorite(pid)) {
     favorites.value = favorites.value.filter(
@@ -387,16 +464,12 @@ const toggleFavorite = (productId, name) => {
     ElMessage.success('Đã thêm vào danh sách yêu thích.')
   }
 }
-watch(favorites, (val) => localStorage.setItem('favorites', JSON.stringify(val)), { deep: true })
 
-/* =========================
- * Normalize product
- * ========================= */
+/* ========== Normalize product ========== */
 const normalizeProduct = (p) => {
   const details = Array.isArray(p.productDetails) ? p.productDetails : []
   const images = Array.isArray(p.productImages) ? p.productImages : []
 
-  // Variants theo color (unique colorId)
   const seen = new Set()
   const variants = []
   for (const d of details) {
@@ -411,33 +484,204 @@ const normalizeProduct = (p) => {
       image: img?.image ? `data:image/jpeg;base64,${img.image}` : (img?.url || null),
     })
   }
-
-  // Active image ưu tiên biến thể đầu → ảnh đầu → placeholder
   const activeImage = variants[0]?.image || images[0]?.url || PLACEHOLDER_IMG
   return { ...p, variants, activeImage, __originalImage: activeImage }
 }
 
-/* =========================
- * Fetch theo DANH MỤC (THÊM MỚI)
- * ========================= */
+/* ========== BRAND filter (single-select) ========== */
+const brandOpen = ref(true)
+const brandSearch = ref('')
+const brands = ref([])
+const isLoadingBrands = ref(false)
+const selectedBrandIds = ref([])
+
+const effectiveBrandId = computed(() => {
+  const picked = Number(selectedBrandIds.value[0])
+  return Number.isFinite(picked) ? picked : brandIdFromQuery.value
+})
+
+const fetchBrands = async () => {
+  isLoadingBrands.value = true
+  const endpoints = ['online-sale/brand/hien-thi']
+  let data = null
+  for (const ep of endpoints) {
+    try {
+      const res = await apiClient.get(ep)
+      if (Array.isArray(res?.data)) { data = res.data; break }
+    } catch {}
+  }
+  brands.value = Array.isArray(data)
+    ? data.map(x => ({ id: x.id, name: x.name || x.ten || x.brandName || ('#' + x.id) }))
+    : []
+  isLoadingBrands.value = false
+}
+const filteredBrands = computed(() => {
+  const q = brandSearch.value.trim().toLowerCase()
+  return q ? brands.value.filter(b => String(b.name).toLowerCase().includes(q)) : brands.value
+})
+const onBrandToggle = (id) => {
+  const target = Number(id)
+  if (!Number.isFinite(target)) return
+  if (selectedBrandIds.value.includes(target)) {
+    selectedBrandIds.value = []
+    const q = { ...route.query, page: 1 }; delete q.brandId; delete q.brandName
+    router.push({ query: q })
+    return
+  }
+  selectedBrandIds.value = [target]
+  const b = brands.value.find(x => Number(x.id) === target)
+  router.push({ query: { ...route.query, brandId: String(target), brandName: b?.name || undefined, page: 1 } })
+}
+
+/* ========== COLOR filter (single-select) ========== */
+const colorOpen = ref(true)
+const colorSearch = ref('')
+const colors = ref([])
+const isLoadingColors = ref(false)
+const selectedColorIds = ref([])
+
+const effectiveColorId = computed(() => {
+  const picked = Number(selectedColorIds.value[0])
+  return Number.isFinite(picked) ? picked : colorIdFromQuery.value
+})
+
+const fetchColors = async () => {
+  isLoadingColors.value = true
+  const endpoints = ['online-sale/color/hien-thi']
+  let data = null
+  for (const ep of endpoints) {
+    try {
+      const res = await apiClient.get(ep)
+      if (Array.isArray(res?.data)) { data = res.data; break }
+    } catch {}
+  }
+  colors.value = Array.isArray(data)
+    ? data.map(x => ({
+        id: x.id,
+        name: x.name || x.ten || x.colorName || ('#' + x.id),
+        code: x.code || x.ma || colorCodeOf(x.name || x.ten || x.colorName),
+      }))
+    : []
+  isLoadingColors.value = false
+}
+const filteredColors = computed(() => {
+  const q = colorSearch.value.trim().toLowerCase()
+  return q ? colors.value.filter(c => String(c.name).toLowerCase().includes(q)) : colors.value
+})
+const onColorToggle = (c) => {
+  const target = Number(c.id)
+  if (!Number.isFinite(target)) return
+  if (selectedColorIds.value.includes(target)) {
+    selectedColorIds.value = []
+    const q = { ...route.query, page: 1 }; delete q.colorId; delete q.colorName
+    router.push({ query: q })
+    return
+  }
+  selectedColorIds.value = [target]
+  router.push({ query: { ...route.query, colorId: String(target), colorName: c?.name || undefined, page: 1 } })
+}
+
+/* ========== GENDER filter (single-select) – NEW ========== */
+const genderOpen = ref(true)
+const genderSearch = ref('')
+const genders = ref([])
+const isLoadingGenders = ref(false)
+const selectedGenderIds = ref([])
+
+const effectiveGenderId = computed(() => {
+  const picked = Number(selectedGenderIds.value[0])
+  return Number.isFinite(picked) ? picked : genderIdFromQuery.value
+})
+
+const fetchGenders = async () => {
+  isLoadingGenders.value = true
+  const endpoints = ['online-sale/gender/hien-thi'] // có thể thêm params { status: 1 } nếu cần
+  let data = null
+  for (const ep of endpoints) {
+    try {
+      const res = await apiClient.get(ep) // , { params: { status: 1 } }
+      if (Array.isArray(res?.data)) { data = res.data; break }
+    } catch {}
+  }
+  genders.value = Array.isArray(data)
+    ? data.map(x => ({ id: x.id, name: x.name || x.ten || x.genderName || ('#' + x.id) }))
+    : []
+  isLoadingGenders.value = false
+}
+const filteredGenders = computed(() => {
+  const q = genderSearch.value.trim().toLowerCase()
+  return q ? genders.value.filter(g => String(g.name).toLowerCase().includes(q)) : genders.value
+})
+const onGenderToggle = (g) => {
+  const target = Number(g.id)
+  if (!Number.isFinite(target)) return
+  if (selectedGenderIds.value.includes(target)) {
+    selectedGenderIds.value = []
+    const q = { ...route.query, page: 1 }; delete q.genderId; delete q.genderName
+    router.push({ query: q })
+    return
+  }
+  selectedGenderIds.value = [target]
+  router.push({ query: { ...route.query, genderId: String(target), genderName: g?.name || undefined, page: 1 } })
+}
+
+/* ========== SIZE filter (single-select) ========== */
+const sizeOpen = ref(true)
+const sizeSearch = ref('')
+const sizes = ref([])
+const isLoadingSizes = ref(false)
+const selectedSizeIds = ref([])
+
+const effectiveSizeId = computed(() => {
+  const picked = Number(selectedSizeIds.value[0])
+  return Number.isFinite(picked) ? picked : sizeIdFromQuery.value
+})
+
+const fetchSizes = async () => {
+  isLoadingSizes.value = true
+  const endpoints = ['online-sale/size/hien-thi']
+  let data = null
+  for (const ep of endpoints) {
+    try {
+      const res = await apiClient.get(ep)
+      if (Array.isArray(res?.data)) { data = res.data; break }
+    } catch {}
+  }
+  sizes.value = Array.isArray(data)
+    ? data.map(x => ({ id: x.id, name: x.name || x.ten || x.sizeName || ('#' + x.id) }))
+    : []
+  sizes.value.sort((a,b) => sizeComparator(a.name, b.name))
+  isLoadingSizes.value = false
+}
+const filteredSizes = computed(() => {
+  const q = sizeSearch.value.trim().toLowerCase()
+  return q ? sizes.value.filter(s => String(s.name).toLowerCase().includes(q)) : sizes.value
+})
+const onSizeToggle = (s) => {
+  const target = Number(s.id)
+  if (!Number.isFinite(target)) return
+  if (selectedSizeIds.value.includes(target)) {
+    selectedSizeIds.value = []
+    const q = { ...route.query, page: 1 }; delete q.sizeId; delete q.sizeName
+    router.push({ query: q })
+    return
+  }
+  selectedSizeIds.value = [target]
+  router.push({ query: { ...route.query, sizeId: String(target), sizeName: s?.name || undefined, page: 1 } })
+}
+
+/* ========== Fetch products (priority Category > Gender > Size > Color > Brand) ========== */
 const fetchProductsByCategory = async (params) => {
   const endpoints = [
     `/admin/categories/${categoryId.value}/products`,
-    `/admin/category/${categoryId.value}/products`,
     `/categories/${categoryId.value}/products`,
-    `/online-sale?categoryId=${categoryId.value}`, // fallback query
+    `/online-sale?categoryId=${categoryId.value}`,
   ]
-  let data = null, lastErr = null
+  let data = null
   for (const ep of endpoints) {
-    try {
-      const res = await apiClient.get(ep, { params })
-      data = res?.data
-      if (data) break
-    } catch (e) {
-      lastErr = e
-    }
+    try { const res = await apiClient.get(ep, { params }); data = res?.data; if (data) break } catch {}
   }
-  if (!data) throw lastErr || new Error('Không thể tải sản phẩm theo danh mục.')
+  if (!data) throw new Error('Không thể tải sản phẩm theo danh mục.')
 
   const payload = data ?? {}
   const content =
@@ -446,73 +690,116 @@ const fetchProductsByCategory = async (params) => {
     Array.isArray(payload) ? payload : []
 
   if (!Array.isArray(content)) throw new Error('Định dạng dữ liệu API không hợp lệ.')
-
   const map = new Map()
   for (const item of content) if (item && item.id != null) map.set(item.id, item)
   products.value = Array.from(map.values()).map(normalizeProduct)
 
-  totalItems.value =
-    Number(payload.totalElements) ||
-    Number(payload.data?.totalElements) ||
-    Number(payload.page?.totalElements) ||
-    content.length
-
-  // THÊM: gọi đếm đã bán cho danh sách trang hiện tại
-  await fetchSoldCountsForPage(products.value)
-  // THÊM: gọi lấy rating cho danh sách trang hiện tại
-  await fetchRatingsForPage(products.value)
+  totalItems.value = Number(payload.totalElements) || Number(payload.data?.totalElements) || Number(payload.page?.totalElements) || content.length
+  await fetchSoldCountsForPage(products.value); await fetchRatingsForPage(products.value)
 }
 
-/* =========================
- * Fetch products (brand-aware + category-aware)
- * ========================= */
+const fetchProductsByGender = async (genderId, params) => {
+  const endpoints = ['/online-sale/by-gender']
+  let data = null
+  for (const ep of endpoints) {
+    try { const res = await apiClient.get(ep, { params: { ...params, genderId } }); data = res?.data; if (data) break } catch {}
+  }
+  if (!data) throw new Error('Không thể tải sản phẩm theo giới tính.')
+
+  const payload = data ?? {}
+  const content =
+    Array.isArray(payload.content) ? payload.content :
+    Array.isArray(payload.data?.content) ? payload.data.content :
+    Array.isArray(payload) ? payload : []
+  if (!Array.isArray(content)) throw new Error('Định dạng dữ liệu API không hợp lệ.')
+  const map = new Map()
+  for (const item of content) if (item && item.id != null) map.set(item.id, item)
+  products.value = Array.from(map.values()).map(normalizeProduct)
+  totalItems.value = Number(payload.totalElements) || Number(payload.data?.totalElements) || Number(payload.page?.totalElements) || content.length
+  await fetchSoldCountsForPage(products.value); await fetchRatingsForPage(products.value)
+}
+
+const fetchProductsBySize = async (sizeId, params) => {
+  const endpoints = ['/online-sale/by-size']
+  let data = null
+  for (const ep of endpoints) {
+    try { const res = await apiClient.get(ep, { params: { ...params, sizeId } }); data = res?.data; if (data) break } catch {}
+  }
+  if (!data) throw new Error('Không thể tải sản phẩm theo size.')
+
+  const payload = data ?? {}
+  const content =
+    Array.isArray(payload.content) ? payload.content :
+    Array.isArray(payload.data?.content) ? payload.data.content :
+    Array.isArray(payload) ? payload : []
+  if (!Array.isArray(content)) throw new Error('Định dạng dữ liệu API không hợp lệ.')
+  const map = new Map()
+  for (const item of content) if (item && item.id != null) map.set(item.id, item)
+  products.value = Array.from(map.values()).map(normalizeProduct)
+  totalItems.value = Number(payload.totalElements) || Number(payload.data?.totalElements) || Number(payload.page?.totalElements) || content.length
+  await fetchSoldCountsForPage(products.value); await fetchRatingsForPage(products.value)
+}
+
+const fetchProductsByColor = async (colorId, params) => {
+  const endpoints = ['/online-sale/by-color']
+  let data = null
+  for (const ep of endpoints) {
+    try { const res = await apiClient.get(ep, { params: { ...params, colorId } }); data = res?.data; if (data) break } catch {}
+  }
+  if (!data) throw new Error('Không thể tải sản phẩm theo màu.')
+
+  const payload = data ?? {}
+  const content =
+    Array.isArray(payload.content) ? payload.content :
+    Array.isArray(payload.data?.content) ? payload.data.content :
+    Array.isArray(payload) ? payload : []
+  if (!Array.isArray(content)) throw new Error('Định dạng dữ liệu API không hợp lệ.')
+  const map = new Map()
+  for (const item of content) if (item && item.id != null) map.set(item.id, item)
+  products.value = Array.from(map.values()).map(normalizeProduct)
+  totalItems.value = Number(payload.totalElements) || Number(payload.data?.totalElements) || Number(payload.page?.totalElements) || content.length
+  await fetchSoldCountsForPage(products.value); await fetchRatingsForPage(products.value)
+}
+
+const fetchProductsByBrand = async (brandId, params) => {
+  const { data } = await apiClient.get(`/admin/brand/${brandId}/products`, { params })
+  const payload = data ?? {}
+  const content =
+    Array.isArray(payload.content) ? payload.content :
+    Array.isArray(payload.data?.content) ? payload.data.content :
+    Array.isArray(payload) ? payload : []
+  if (!Array.isArray(content)) throw new Error('Định dạng dữ liệu API không hợp lệ.')
+  const map = new Map()
+  for (const item of content) if (item && item.id != null) map.set(item.id, item)
+  products.value = Array.from(map.values()).map(normalizeProduct)
+  totalItems.value = Number(payload.totalElements) || Number(payload.data?.totalElements) || Number(payload.page?.totalElements) || content.length
+  await fetchSoldCountsForPage(products.value); await fetchRatingsForPage(products.value)
+}
+
 const fetchProducts = async () => {
   isLoading.value = true
   error.value = null
   try {
     const params = { page: currentPage.value - 1, size: pageSize.value }
 
-    // THÊM: Ưu tiên danh mục
-    if (categoryId.value) {
-      await fetchProductsByCategory(params)
-      isLoading.value = false
-      return
-    }
+    if (categoryId.value) { await fetchProductsByCategory(params); return }
+    if (Number.isFinite(effectiveGenderId.value)) { await fetchProductsByGender(effectiveGenderId.value, params); return }
+    if (Number.isFinite(effectiveSizeId.value))   { await fetchProductsBySize(effectiveSizeId.value, params);   return }
+    if (Number.isFinite(effectiveColorId.value))  { await fetchProductsByColor(effectiveColorId.value, params);  return }
+    if (Number.isFinite(effectiveBrandId.value))  { await fetchProductsByBrand(effectiveBrandId.value, params);  return }
 
-    // Giữ nguyên logic BRAND / mặc định
-    let url
-    if (brandId.value) {
-      url = `/admin/brand/${brandId.value}/products`
-    } else {
-      url = `/online-sale`
-    }
-
-    const { data } = await apiClient.get(url, { params })
-
-    // Chuẩn hóa payload & content
+    const { data } = await apiClient.get('/online-sale', { params })
     const payload = data ?? {}
     const content =
       Array.isArray(payload.content) ? payload.content :
       Array.isArray(payload.data?.content) ? payload.data.content :
       Array.isArray(payload) ? payload : []
-
     if (!Array.isArray(content)) throw new Error('Định dạng dữ liệu API không hợp lệ.')
-
-    // Unique by id và normalize
     const map = new Map()
     for (const item of content) if (item && item.id != null) map.set(item.id, item)
     products.value = Array.from(map.values()).map(normalizeProduct)
-
-    totalItems.value =
-      Number(payload.totalElements) ||
-      Number(payload.data?.totalElements) ||
-      Number(payload.page?.totalElements) ||
-      content.length
-
-    // THÊM: gọi đếm đã bán cho danh sách trang hiện tại
-    await fetchSoldCountsForPage(products.value)
-    // THÊM: gọi lấy rating cho danh sách trang hiện tại
-    await fetchRatingsForPage(products.value)
+    totalItems.value = Number(payload.totalElements) || Number(payload.data?.totalElements) || Number(payload.page?.totalElements) || content.length
+    await fetchSoldCountsForPage(products.value); await fetchRatingsForPage(products.value)
   } catch (e) {
     console.error(e)
     error.value = 'Không thể tải sản phẩm. Vui lòng thử lại sau.'
@@ -522,16 +809,10 @@ const fetchProducts = async () => {
   }
 }
 
-/* =========================
- * Pagination handlers
- * ========================= */
-const onPageUiChanged = () => {
-  window.scrollTo({ top: 0, behavior: 'smooth' })
-}
+/* ========== Pagination ========== */
+const onPageUiChanged = () => window.scrollTo({ top: 0, behavior: 'smooth' })
 
-/* =========================
- * Quick view
- * ========================= */
+/* ========== Quick view ========== */
 const quickViewVisible = ref(false)
 const selectedProduct = ref(null)
 const quickViewSelectedColorId = ref(null)
@@ -544,10 +825,8 @@ const openQuickViewModal = (p) => {
   selectedProduct.value = p
   quickViewVisible.value = true
   quickViewQuantity.value = 1
-
-  if (p.variants?.length) {
-    selectQuickViewColor(p.variants[0])
-  } else {
+  if (p.variants?.length) selectQuickViewColor(p.variants[0])
+  else {
     quickViewSelectedColorId.value = null
     quickViewSelectedColor.value = null
     quickViewActiveImage.value = p.activeImage || PLACEHOLDER_IMG
@@ -570,40 +849,28 @@ const selectQuickViewColor = (variant) => {
   quickViewActiveImage.value = variant.image || PLACEHOLDER_IMG
   quickViewSelectedSize.value = null
   quickViewQuantity.value = 1
-  if (availableSizesForQuickView.value.length > 0) {
-    quickViewSelectedSize.value = availableSizesForQuickView.value[0]
-  }
+  if (availableSizesForQuickView.value.length) quickViewSelectedSize.value = availableSizesForQuickView.value[0]
 }
-const selectSize = (s) => {
-  quickViewSelectedSize.value = s
-  quickViewQuantity.value = 1
-}
+const selectSize = (s) => { quickViewSelectedSize.value = s; quickViewQuantity.value = 1 }
 const findSelectedProductDetail = () => {
   const sp = selectedProduct.value
   if (!sp || !Array.isArray(sp.productDetails)) return null
-  if (sp.productDetails.length === 1 && !sp.productDetails[0].colorId && !sp.productDetails[0].sizeName) {
-    return sp.productDetails[0]
-  }
+  if (sp.productDetails.length===1 && !sp.productDetails[0].colorId && !sp.productDetails[0].sizeName) return sp.productDetails[0]
   if (quickViewSelectedColorId.value && quickViewSelectedSize.value) {
-    return sp.productDetails.find(
-      (d) => d.colorId === quickViewSelectedColorId.value && d.sizeName === quickViewSelectedSize.value
-    )
+    return sp.productDetails.find(d => d.colorId===quickViewSelectedColorId.value && d.sizeName===quickViewSelectedSize.value)
   }
   return null
 }
 const getStockForSize = (size) => {
   const sp = selectedProduct.value
   if (!sp) return 0
-  const d = sp.productDetails?.find((x) => x.colorId === quickViewSelectedColorId.value && x.sizeName === size)
+  const d = sp.productDetails?.find(x => x.colorId===quickViewSelectedColorId.value && x.sizeName===size)
   return Number(d?.quantity || 0)
 }
 const availableSizesForQuickView = computed(() => {
   const sp = selectedProduct.value
-  if (!sp || quickViewSelectedColorId.value == null) return []
-  const sizes = (sp.productDetails || [])
-    .filter((d) => d.colorId === quickViewSelectedColorId.value)
-    .map((d) => d.sizeName)
-    .filter(Boolean)
+  if (!sp || quickViewSelectedColorId.value==null) return []
+  const sizes = (sp.productDetails || []).filter(d => d.colorId===quickViewSelectedColorId.value).map(d => d.sizeName).filter(Boolean)
   return Array.from(new Set(sizes)).sort(sizeComparator)
 })
 const selectedVariantStock = computed(() => {
@@ -613,52 +880,28 @@ const selectedVariantStock = computed(() => {
 const needSize = computed(() => {
   const sp = selectedProduct.value
   if (!sp) return false
-  const named = new Set((sp.productDetails || []).map((d) => d.sizeName).filter(Boolean))
+  const named = new Set((sp.productDetails || []).map(d => d.sizeName).filter(Boolean))
   return named.size > 0
 })
 const minQty = computed(() => (selectedVariantStock.value > 0 ? 1 : 0))
 const maxQty = computed(() => (selectedVariantStock.value > 0 ? selectedVariantStock.value : 0))
-watch([selectedVariantStock, quickViewSelectedSize, quickViewVisible], () => {
-  if (!quickViewVisible.value) return
-  const min = minQty.value
-  const max = maxQty.value
-  if (max === 0) quickViewQuantity.value = 0
-  else {
-    if (quickViewQuantity.value < min) quickViewQuantity.value = min
-    if (quickViewQuantity.value > max) quickViewQuantity.value = max
-  }
-})
 
-/* =========================
- * Cart / Buy now
- * ========================= */
+/* ========== Cart / Buy now ========== */
 const requiresSizeSelection = (sp) => {
-  const named = new Set((sp.productDetails || []).map((d) => d.sizeName).filter(Boolean))
+  const named = new Set((sp.productDetails || []).map(d => d.sizeName).filter(Boolean))
   return named.size > 0
 }
 const handleAddToCartInModal = () => {
   const sp = selectedProduct.value
   if (!sp) return false
-
   if (requiresSizeSelection(sp) && !quickViewSelectedSize.value) {
     ElMessage.warning('Vui lòng chọn kích thước sản phẩm trước khi thêm vào giỏ hàng.')
     return false
   }
-
   const detail = findSelectedProductDetail()
-  if (!detail) {
-    ElMessage.error('Không tìm thấy chi tiết phù hợp. Vui lòng chọn lại màu và kích thước.')
-    return false
-  }
-
-  if (quickViewQuantity.value <= 0) {
-    ElMessage.warning('Số lượng phải lớn hơn 0.')
-    return false
-  }
-  if (quickViewQuantity.value > Number(detail.quantity || 0)) {
-    ElMessage.warning(`Tồn kho không đủ (còn ${detail.quantity}).`)
-    return false
-  }
+  if (!detail) { ElMessage.error('Không tìm thấy chi tiết phù hợp.'); return false }
+  if (quickViewQuantity.value <= 0) { ElMessage.warning('Số lượng phải lớn hơn 0.'); return false }
+  if (quickViewQuantity.value > Number(detail.quantity || 0)) { ElMessage.warning(`Tồn kho không đủ (còn ${detail.quantity}).`); return false }
 
   const price = Number(detail.discountedPrice) > 0 ? Number(detail.discountedPrice) : Number(detail.sellPrice)
   const item = {
@@ -673,41 +916,27 @@ const handleAddToCartInModal = () => {
     maxQuantity: Number(detail.quantity || 0),
     discountCampaignId: detail.discountCampaignId || null,
   }
-
   addToCart(item)
   ElMessage.success('Đã thêm vào giỏ hàng!')
   quickViewVisible.value = false
   return true
 }
-const handleBuyNowInModal = () => {
-  if (handleAddToCartInModal()) router.push('/cart')
-}
+const handleBuyNowInModal = () => { if (handleAddToCartInModal()) router.push('/cart') }
 
-/* =========================
- * Pre-order
- * ========================= */
+/* ========== Pre-order ========== */
 const preOrderDialogVisible = ref(false)
 const preOrderItem = ref(null)
 const preOrderSelectedColorId = ref(null)
 const preOrderSelectedSize = ref(null)
 const preOrderQuantity = ref(1)
 
-const openPreOrderDialog = () => {
-  preOrderDialogVisible.value = true
-}
+const openPreOrderDialog = () => { preOrderDialogVisible.value = true }
 
 watch(preOrderDialogVisible, (val) => {
   if (val && selectedProduct.value) {
     preOrderItem.value = JSON.parse(JSON.stringify(selectedProduct.value))
-    if (preOrderItem.value.variants?.length) {
-      preOrderSelectedColorId.value = preOrderItem.value.variants[0].colorId
-    } else {
-      preOrderSelectedColorId.value = null
-    }
-    if (
-      quickViewSelectedSize.value &&
-      preOrderAvailableSizes.value.includes(quickViewSelectedSize.value)
-    ) {
+    preOrderSelectedColorId.value = preOrderItem.value.variants?.[0]?.colorId ?? null
+    if (quickViewSelectedSize.value && preOrderAvailableSizes.value.includes(quickViewSelectedSize.value)) {
       preOrderSelectedSize.value = quickViewSelectedSize.value
     } else {
       preOrderSelectedSize.value = preOrderAvailableSizes.value[0] || null
@@ -720,260 +949,344 @@ watch(preOrderDialogVisible, (val) => {
     preOrderQuantity.value = 1
   }
 })
-watch(preOrderSelectedColorId, (n, o) => {
-  if (n !== o && preOrderDialogVisible.value) {
-    preOrderSelectedSize.value = preOrderAvailableSizes.value[0] || null
-  }
-})
-
-const preOrderAvailableColors = computed(() => {
-  if (!preOrderItem.value) return []
-  return preOrderItem.value.variants || []
-})
+watch(preOrderSelectedColorId, (n, o) => { if (n!==o && preOrderDialogVisible.value) preOrderSelectedSize.value = preOrderAvailableSizes.value[0] || null })
+const preOrderAvailableColors = computed(() => preOrderItem.value?.variants || [])
 const preOrderAvailableSizes = computed(() => {
-  if (!preOrderItem.value || preOrderSelectedColorId.value == null) return []
-  const sizes = (preOrderItem.value.productDetails || [])
-    .filter((d) => d.colorId === preOrderSelectedColorId.value)
-    .map((d) => d.sizeName)
-    .filter(Boolean)
+  if (!preOrderItem.value || preOrderSelectedColorId.value==null) return []
+  const sizes = (preOrderItem.value.productDetails || []).filter(d => d.colorId===preOrderSelectedColorId.value).map(d => d.sizeName).filter(Boolean)
   return Array.from(new Set(sizes)).sort(sizeComparator)
 })
 const preOrderStock = computed(() => {
-  if (!preOrderItem.value || preOrderSelectedColorId.value == null || !preOrderSelectedSize.value)
-    return 0
-  const d = preOrderItem.value.productDetails?.find(
-    (x) => x.colorId === preOrderSelectedColorId.value && x.sizeName === preOrderSelectedSize.value
-  )
+  if (!preOrderItem.value || preOrderSelectedColorId.value==null || !preOrderSelectedSize.value) return 0
+  const d = preOrderItem.value.productDetails?.find(x => x.colorId===preOrderSelectedColorId.value && x.sizeName===preOrderSelectedSize.value)
   return Number(d?.quantity || 0)
 })
-
 const handlePreOrderConfirm = async () => {
-  if (!preOrderSelectedColorId.value || !preOrderSelectedSize.value) {
-    ElMessage.warning('Vui lòng chọn đầy đủ màu sắc và kích thước trước khi đặt trước.')
-    return
-  }
-  if (preOrderQuantity.value <= 0) {
-    ElMessage.warning('Số lượng đặt trước phải lớn hơn 0.')
-    return
-  }
-
-  const detail = preOrderItem.value?.productDetails?.find(
-    (d) => d.colorId === preOrderSelectedColorId.value && d.sizeName === preOrderSelectedSize.value
-  )
-  if (!detail) {
-    ElMessage.error('Không tìm thấy chi tiết sản phẩm để đặt trước.')
-    return
-  }
-
+  if (!preOrderSelectedColorId.value || !preOrderSelectedSize.value) { ElMessage.warning('Vui lòng chọn đầy đủ màu sắc và kích thước.'); return }
+  if (preOrderQuantity.value <= 0) { ElMessage.warning('Số lượng đặt trước phải lớn hơn 0.'); return }
+  const detail = preOrderItem.value?.productDetails?.find(d => d.colorId===preOrderSelectedColorId.value && d.sizeName===preOrderSelectedSize.value)
+  if (!detail) { ElMessage.error('Không tìm thấy chi tiết sản phẩm để đặt trước.'); return }
   try {
-    await apiClient.post('/reservations', {
-      productDetailId: detail.id,
-      quantity: preOrderQuantity.value,
-    })
-    ElMessage.success('Yêu cầu đặt trước đã được gửi. Chúng tôi sẽ liên hệ lại sớm nhất!')
+    await apiClient.post('/reservations', { productDetailId: detail.id, quantity: preOrderQuantity.value })
+    ElMessage.success('Yêu cầu đặt trước đã được gửi.')
     preOrderDialogVisible.value = false
   } catch (err) {
     console.error('Lỗi đặt trước:', err)
-    ElMessage.error('Có lỗi xảy ra khi đặt trước. Vui lòng thử lại.')
+    ElMessage.error('Có lỗi xảy ra. Vui lòng thử lại.')
   }
 }
 
-/* =========================
- * Minor helpers
- * ========================= */
-const changeProductImage = (p, img) => {
-  if (!p || !img) return
-  p.__hoverImage = img
-  p.activeImage = img
-}
-const restoreProductImage = (p) => {
-  if (!p) return
-  p.activeImage = p.__originalImage || p.activeImage
-}
+/* ========== Minor & stats ========== */
+const changeProductImage = (p, img) => { if (p && img) { p.__hoverImage = img; p.activeImage = img } }
+const restoreProductImage = (p) => { if (p) p.activeImage = p.__originalImage || p.activeImage }
 const goToDetail = (id) => router.push(`/product/${id}`)
 
-/* =========================
- * THÊM MỚI: Sold count (giữ nguyên theo file của bạn)
- * ========================= */
 const soldCounts = ref({})
 const loadingSet = new Set()
-
 const fetchSoldCount = async (productId) => {
   const pid = Number(productId)
-  if (!Number.isFinite(pid)) return
-  if (soldCounts.value[pid] != null) return
-  if (loadingSet.has(pid)) return
+  if (!Number.isFinite(pid) || soldCounts.value[pid] != null || loadingSet.has(pid)) return
   loadingSet.add(pid)
   try {
     const { data } = await apiClient.get(`/online-sale/sold-quantity/product/${pid}`)
     const total = Number(data?.totalSoldQuantity ?? 0)
     soldCounts.value[pid] = Number.isFinite(total) ? total : 0
-  } catch (e) {
-    console.error('Fetch sold count error', pid, e)
-    soldCounts.value[pid] = 0
-  } finally {
-    loadingSet.delete(pid)
-  }
+  } catch { soldCounts.value[pid] = 0 } finally { loadingSet.delete(pid) }
 }
 const fetchSoldCountsForPage = async (items) => {
   const ids = (items || []).map(x => x?.id).filter(id => Number.isFinite(Number(id)))
-  for (const id of ids) {
-    fetchSoldCount(id)
-  }
+  for (const id of ids) fetchSoldCount(id)
 }
 
-/* =========================
- * THÊM: Ratings (avg & count)
- * ========================= */
-const ratingSummaries = ref({}) // { [productId]: { avg, count } }
+const ratingSummaries = ref({})
 const ratingLoading = new Set()
-
-// Fallback 1 sản phẩm
 const fetchRatingSingle = async (pid) => {
   const id = Number(pid)
-  if (!Number.isFinite(id)) return
-  if (ratingSummaries.value[id] || ratingLoading.has(id)) return
+  if (!Number.isFinite(id) || ratingSummaries.value[id] || ratingLoading.has(id)) return
   ratingLoading.add(id)
   try {
     const { data } = await apiClient.get(`/online-sale/ratings/product/${id}`)
-    ratingSummaries.value[id] = {
-      avg: Number(data?.avgRating ?? 0),
-      count: Number(data?.totalReviews ?? 0),
-    }
-  } catch (e) {
-    console.error('rating single error:', id, e)
-    ratingSummaries.value[id] = { avg: 0, count: 0 }
-  } finally {
-    ratingLoading.delete(id)
-  }
+    ratingSummaries.value[id] = { avg: Number(data?.avgRating ?? 0), count: Number(data?.totalReviews ?? 0) }
+  } catch { ratingSummaries.value[id] = { avg: 0, count: 0 } } finally { ratingLoading.delete(id) }
 }
-
-// Bulk theo trang
 const fetchRatingsForPage = async (items) => {
   const ids = (items || []).map(x => Number(x?.id)).filter(Number.isFinite)
   const need = ids.filter(id => !ratingSummaries.value[id])
-  if (need.length === 0) return
+  if (!need.length) return
   try {
-    const { data } = await apiClient.get('/online-sale/ratings/products', {
-      params: { ids: need.join(',') }
-    })
+    const { data } = await apiClient.get('/online-sale/ratings/products', { params: { ids: need.join(',') } })
     const map = {}
     for (const r of (Array.isArray(data) ? data : [])) {
       const pid = Number(r?.productId)
       if (!Number.isFinite(pid)) continue
-      map[pid] = {
-        avg: Number(r?.avgRating ?? 0),
-        count: Number(r?.totalReviews ?? 0),
-      }
+      map[pid] = { avg: Number(r?.avgRating ?? 0), count: Number(r?.totalReviews ?? 0) }
     }
     ratingSummaries.value = { ...ratingSummaries.value, ...map }
     const missing = need.filter(id => !map[id])
     for (const id of missing) await fetchRatingSingle(id)
-  } catch (e) {
-    console.warn('rating bulk error -> fallback singles', e)
-    for (const id of need) await fetchRatingSingle(id)
-  }
+  } catch { for (const id of need) await fetchRatingSingle(id) }
 }
 
-/* =========================
- * Lifecycle & watchers
- * ========================= */
-onMounted(() => {
+/* ========== Lifecycle ========== */
+onMounted(async () => {
   loadFavorites()
-  fetchProducts()
+  await Promise.all([fetchBrands(), fetchColors(), fetchGenders(), fetchSizes()])
+  selectedBrandIds.value  = brandIdFromQuery.value  ? [brandIdFromQuery.value]  : []
+  selectedColorIds.value  = colorIdFromQuery.value  ? [colorIdFromQuery.value]  : []
+  selectedGenderIds.value = genderIdFromQuery.value ? [genderIdFromQuery.value] : []
+  selectedSizeIds.value   = sizeIdFromQuery.value   ? [sizeIdFromQuery.value]   : []
+  await fetchProducts()
 })
-watch(() => route.fullPath, () => {
-  // GIỮ NGUYÊN: brandName
-  brandName.value = String(route.query.brandName || '').trim()
-  // THÊM: đồng bộ categoryName
+watch(() => route.fullPath, async () => {
+  brandName.value  = String(route.query.brandName  || '').trim()
+  colorName.value  = String(route.query.colorName  || '').trim()
+  genderName.value = String(route.query.genderName || '').trim()
+  sizeName.value   = String(route.query.sizeName   || '').trim()
   categoryName.value = String(route.query.categoryName || '').trim()
-  fetchProducts()
+
+  selectedBrandIds.value  = brandIdFromQuery.value  ? [brandIdFromQuery.value]  : []
+  selectedColorIds.value  = colorIdFromQuery.value  ? [colorIdFromQuery.value]  : []
+  selectedGenderIds.value = genderIdFromQuery.value ? [genderIdFromQuery.value] : []
+  selectedSizeIds.value   = sizeIdFromQuery.value   ? [sizeIdFromQuery.value]   : []
+  await fetchProducts()
 })
-watch(brandId, (n, o) => {
-  if (n !== o) {
-    router.push({ query: { ...route.query, page: 1 } })
-  }
-})
-// THÊM: reset trang khi đổi danh mục
-watch(categoryId, (n, o) => {
-  if (n !== o) {
-    router.push({ query: { ...route.query, page: 1 } })
-  }
-})
+watch([favorites], () => localStorage.setItem('favorites', JSON.stringify(favorites.value)), { deep: true })
 </script>
 
 <style scoped>
-/* Container */
-.product-collection-container { max-width: 1400px; margin: 60px auto; padding: 0 20px; }
-.collection-header { text-align: center; margin-bottom: 40px; }
-.collection-title { font-size: 32px; font-weight: 600; }
-.loading-state, .error-state { text-align: center; padding: 20px; font-size: 18px; color: #555; }
-.product-list-main { max-width: 100%; overflow-x: hidden; padding: 0; }
+/* ========= Design tokens ========= */
+:root{
+  --container-w: 1360px;
+  --aside-w: 320px;
+  --gap: 20px;
 
-/* Card */
-.product-card { margin-bottom: 20px; background-color: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); transition: transform .2s ease-in-out; }
-.product-card:hover { transform: translateY(-5px); }
-.product-card__image-wrapper { position: relative; width: 100%; padding-bottom: 100%; background-color: #f5f5f5; overflow: hidden; cursor: pointer; }
-.product-card__image { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transition: transform .3s ease; }
-.product-card:hover .product-card__image { transform: scale(1.05); }
-.product-card__discount-badge { position: absolute; top: 10px; left: 10px; background-color: #d9534f; color: #fff; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: 700; z-index: 2; }
-.product-card__quick-view-btn { position: absolute; top: 15px; right: 15px; z-index: 2; background-color: rgba(255,255,255,.9) !important; box-shadow: 0 2px 10px rgba(0,0,0,.1); opacity: 0; transition: opacity .3s ease; }
-.product-card:hover .product-card__quick-view-btn { opacity: 1; }
-.product-card__info { padding: 15px; text-align: left; }
-.product-card__name { font-size: 15px; color: #333; margin: 0 0 8px 0; line-height: 1.4; height: 42px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; cursor: pointer; transition: color .2s; }
-.product-card__name:hover { color: #007bff; }
-.product-card__price-container { display: flex; align-items: baseline; gap: 8px; margin: 0 0 10px 0; height: 24px; }
-.discounted-price { font-size: 16px; font-weight: 600; color: #d9534f; }
-.original-price { font-size: 14px; color: #999; text-decoration: line-through; }
-.normal-price { font-size: 16px; font-weight: 600; color: #000; }
-.product-card__colors { display: flex; gap: 6px; height: 14px; margin-top: 10px; }
-.product-card__color-dot { width: 14px; height: 14px; border-radius: 50%; border: 1px solid #e0e0e0; cursor: pointer; transition: transform .2s; }
-.product-card__color-dot:hover { transform: scale(1.2); }
+  --radius: 14px;
+  --radius-sm: 10px;
 
-/* THÊM: Badge ĐÃ BÁN ở góc dưới bên phải của ảnh */
-.product-card__sold-badge {
-  position: absolute;
-  right: 10px;
-  bottom: 10px;
-  background: rgba(0,0,0,.65);
-  color: #fff;
-  padding: 4px 8px;
-  border-radius: 8px;
-  font-size: 12px;
-  line-height: 1;
-  z-index: 2;
+  --shadow-1: 0 2px 10px rgba(0,0,0,.06);
+  --shadow-2: 0 8px 24px rgba(0,0,0,.08);
+
+  --border: 1px solid #e9e9ef;
+  --bg-card: #ffffff;
+  --bg-soft: #f7f8fb;
+
+  --text-1: #17181c;
+  --text-2: #4d5160;
+  --text-3: #949ab0;
+
+  --primary: #111111;
+  --accent: #0ea5e9;
+  --danger: #ff0000; /* đỏ tươi cho % giảm */
 }
 
-/* Quick view */
-:deep(.el-dialog.quick-view-dialog) { border-radius: 8px; background-color: #fff; }
-:deep(.quick-view-dialog .el-dialog__header) { padding: 0; position: absolute; top: 15px; right: 15px; z-index: 1; }
-:deep(.quick-view-dialog .el-dialog__headerbtn .el-icon) { font-size: 24px; color: #555; }
-:deep(.quick-view-dialog .el-dialog__body) { padding: 40px; }
-.quick-view__main-image { width: 100%; height: auto; aspect-ratio: 1/1; object-fit: cover; border-radius: 4px; }
-.quick-view__info { display: flex; flex-direction: column; height: 100%; }
-.quick-view__title { font-size: 28px; font-weight: 700; margin: 0 0 10px 0; line-height: 1.3; color: #333; }
-.quick-view__color-display { font-size: 16px; margin-bottom: 15px; color: #555; height: 20px; font-weight: 500; }
-.quick-view__color-selector { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
-.selector-label { font-size: 14px; font-weight: 600; margin: 0 0 10px 0; }
-.color-thumbnail { cursor: pointer; border: 2px solid #e0e0e0; padding: 2px; transition: border-color .2s, transform .2s; width: 60px; height: 60px; border-radius: 4px; }
-.color-thumbnail:hover { transform: translateY(-2px); }
-.color-thumbnail.is-selected { border-color: #000; box-shadow: 0 0 0 2px rgba(0,0,0,.2); }
-.color-thumbnail img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: 2px; }
-.quick-view__size-selector { margin-bottom: 20px; }
-.size-button { margin: 0 8px 8px 0 !important; border-radius: 5px; border: 1px solid #ccc; font-weight: 600; min-width: 50px; padding: 8px 15px; transition: background-color .2s, color .2s, border-color .2s; }
-.size-button.is-selected { background-color: #000 !important; color: #fff !important; border-color: #000 !important; }
-.quick-view__quantity-selector { margin-bottom: 25px; display: flex; align-items: center; gap: 15px; }
-.stock-info { font-size: 14px; color: #999; margin-left: 0; }
-.quick-view__actions { display: flex; gap: 10px; margin-top: 30px; }
-.quick-view__actions .el-button { flex: 1; height: 48px; font-size: 16px; font-weight: 600; border-radius: 5px; border: 1px solid #000 !important; }
-.add-to-cart-btn { background-color: #fff !important; color: #000 !important; }
-.add-to-cart-btn:hover { background-color: #f5f5f5 !important; }
-.buy-now-btn { background-color: #000 !important; color: #fff !important; }
-.buy-now-btn:hover { background-color: #333 !important; }
+/* ========= Layout ========= */
+.product-collection-container{
+  max-width: var(--container-w);
+  margin: 48px auto 60px;
+  padding: 0 16px;
+}
+.two-columns{ align-items:flex-start; gap: var(--gap); }
+.filter-aside{
+  width: var(--aside-w);
+  position: sticky; top: 84px; align-self:flex-start;
+  padding-right: 6px;
+}
+.product-list-main{ max-width:100%; padding:0; }
 
-/* Pagination */
-.pagination-container { display: flex; justify-content: center; margin-top: 40px; }
+/* ========= Header ========= */
+.collection-header{
+  display:flex; align-items:center; justify-content:center;
+  margin: 0 0 18px 0;
+}
+.collection-title{
+  font-size: 28px; line-height:1.2;
+  font-weight:600; letter-spacing:.2px; color: var(--text-1);
+}
 
-/* Pre-order link hover */
-.pre-order-text a:hover { opacity: .8; }
+/* ========= Filter cards ========= */
+.filter-card{
+  background: var(--bg-card); border: var(--border);
+  border-radius: var(--radius); overflow:hidden; box-shadow: var(--shadow-1);
+}
+.space-top{ margin-top: 14px; }
+
+.filter-accordion{
+  width:100%; display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:14px 16px;
+  font-weight:600; font-size:14px; letter-spacing:.3px;
+  background:linear-gradient(180deg,#fafbff,#f6f7fb);
+  border:0; outline:none; cursor:pointer;
+}
+.filter-accordion .chevron{ transition: transform .18s ease; }
+.filter-accordion .chevron.is-open{ transform: rotate(180deg); }
+
+.filter-body{ padding: 12px 14px 14px; }
+.filter-search :deep(.el-input__wrapper){ border-radius:999px; box-shadow:none!important; }
+.filter-list{ margin-top:10px; max-height:420px; overflow:auto; padding-right:4px; }
+
+.filter-item{
+  display:flex; align-items:center; gap:10px;
+  padding:10px 8px; border-radius:10px; cursor:pointer; user-select:none;
+  transition: background .15s ease;
+}
+.filter-item:hover{ background:#f4f6fb; }
+.filter-checkbox{ width:18px; height:18px; accent-color: var(--primary); }
+.filter-name{ font-weight:600; color:var(--text-1); flex:1; }
+.filter-loading,.filter-empty{ color:var(--text-3); font-size:13px; padding:6px 2px; }
+.swatch{ width:14px; height:14px; border-radius:50%; border:1px solid #e7e7ef; }
+
+/* ========= Product card ========= */
+.product-card{
+  margin-bottom: var(--gap);
+  background: var(--bg-card); border: var(--border);
+  border-radius: var(--radius); overflow:hidden;
+  box-shadow: var(--shadow-1);
+  transition: transform .18s ease, box-shadow .18s ease, border-color .2s ease;
+}
+.product-card:hover{ transform: translateY(-4px); box-shadow: var(--shadow-2); }
+
+.product-card__image-wrapper{
+  position:relative; width:100%; aspect-ratio:1/1;
+  background: var(--bg-soft); overflow:hidden; cursor:pointer;
+}
+.product-card__image{
+  position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
+  transition: transform .28s ease;
+}
+.product-card:hover .product-card__image{ transform: scale(1.035); }
+
+/* ========= Badges ========= */
+/* Nền đỏ đặc, chữ trắng – KHÔNG hiệu ứng mờ hay trộn */
+.product-card__discount-badge{
+  position:absolute; top:10px; left:10px; /* đổi sang right:10px; left:auto; nếu muốn góc phải */
+  background-color:#ff0000 !important;
+  color:#ffffff !important;
+  border:0 !important;
+  padding:4px 8px; border-radius:999px;
+  font-size:12px; font-weight:600;
+  z-index:2;
+  box-shadow:none !important;
+  filter:none !important;
+  mix-blend-mode:normal !important;
+  backdrop-filter:none !important;
+  -webkit-backdrop-filter:none !important;
+}
+
+.product-card__quick-view-btn{
+  position:absolute; top:12px; right:12px; z-index:2;
+  background:rgba(255,255,255,.96)!important;
+  border:1px solid #f0f0f5 !important;
+  box-shadow: var(--shadow-1);
+  opacity:0; transition: opacity .22s ease;
+}
+.product-card:hover .product-card__quick-view-btn{ opacity:1; }
+
+/* ========= Info ========= */
+.product-card__info{ padding:14px 14px 16px; text-align:left; }
+.product-card__name{
+  font-size:15px; font-weight:600; color:var(--text-1);
+  margin:0 0 6px 0; line-height:1.35; height:42px; overflow:hidden;
+  text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+  transition:color .15s ease; cursor:pointer;
+}
+.product-card__name:hover{ color: var(--accent); }
+
+.product-card__price-container{
+  display:flex; align-items:baseline; gap:10px; height:24px; margin-bottom:8px;
+}
+.discounted-price{ font-size:16px; font-weight:600; color:var(--danger); }
+.original-price{ font-size:13px; color:#9aa0b4; text-decoration:line-through; font-weight:400; }
+.normal-price{ font-size:16px; font-weight:600; color:var(--text-1); }
+
+/* ========= Color dots ========= */
+.product-card__colors{ display:flex; gap:7px; height:16px; margin-top:10px; }
+.product-card__color-dot{
+  width:16px; height:16px; border-radius:50%;
+  border:1px solid #e6e8f0; cursor:pointer;
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.product-card__color-dot:hover{ transform: translateY(-1px) scale(1.06); box-shadow:0 2px 6px rgba(0,0,0,.12); }
+
+/* ========= Sold badge ========= */
+.product-card__sold-badge{
+  position:absolute; right:10px; bottom:10px; z-index:2;
+  background: rgba(20,22,26,.75); color:#fff; font-weight:600;
+  padding:6px 10px; border-radius:10px; font-size:12px; line-height:1;
+  backdrop-filter: blur(2px);
+}
+
+/* ========= Rating ========= */
+.rating-row{ margin-top:10px; display:flex; align-items:center; justify-content:space-between; }
+.rating-text{ font-size:12px; color:var(--text-2); white-space:nowrap; }
+
+/* ========= Quick view dialog ========= */
+:deep(.el-dialog.quick-view-dialog){
+  border-radius:16px; background:#fff; box-shadow: var(--shadow-2);
+}
+:deep(.quick-view-dialog .el-dialog__header){ padding:0; position:absolute; top:14px; right:14px; z-index:1; }
+:deep(.quick-view-dialog .el-dialog__headerbtn .el-icon){ font-size:22px; color:#6b7280; }
+:deep(.quick-view-dialog .el-dialog__body){ padding:32px 34px; }
+
+.quick-view__main-image{
+  width:100%; height:auto; aspect-ratio:1/1; object-fit:cover;
+  border-radius:12px; border: var(--border);
+}
+.quick-view__info{ display:flex; flex-direction:column; height:100%; }
+.quick-view__title{ font-size:24px; font-weight:700; margin:0 0 8px; color:var(--text-1); }
+.quick-view__color-display{ font-size:14px; margin-bottom:10px; color:var(--text-2); height:20px; font-weight:600; }
+
+.quick-view__color-selector{ display:flex; flex-wrap:wrap; gap:10px; margin-bottom:16px; }
+.selector-label{ font-size:13px; font-weight:600; margin:0 0 8px; color:var(--text-2); text-transform:uppercase; letter-spacing:.4px; }
+
+.color-thumbnail{
+  cursor:pointer; border:2px solid #eceef6; padding:2px;
+  width:58px; height:58px; border-radius:10px;
+  transition: border-color .18s ease, transform .18s ease; background:#fff;
+}
+.color-thumbnail:hover{ transform: translateY(-2px); }
+.color-thumbnail.is-selected{ border-color:var(--primary); box-shadow:0 0 0 3px rgba(0,0,0,.06); }
+.color-thumbnail img{ width:100%; height:100%; object-fit:cover; display:block; border-radius:8px; }
+
+.quick-view__size-selector{ margin-bottom:16px; }
+.size-button{
+  margin:0 8px 8px 0 !important; border-radius:10px;
+  border:1px solid #dfe3ec; font-weight:600; min-width:50px; padding:9px 14px;
+  transition: background-color .18s ease, color .18s ease, border-color .18s ease;
+}
+.size-button.is-selected{ background:#000 !important; color:#fff !important; border-color:#000 !important; }
+
+.quick-view__quantity-selector{ margin-bottom:18px; display:flex; align-items:center; gap:12px; }
+.stock-info{ font-size:13px; color:#8b90a3; }
+.quick-view__actions{ display:flex; gap:10px; margin-top:18px; }
+.quick-view__actions :deep(.el-button){
+  flex:1; height:46px; font-size:15px; font-weight:600; border-radius:12px;
+  border:1px solid #111 !important;
+}
+.add-to-cart-btn{ background:#fff !important; color:#111 !important; }
+.add-to-cart-btn:hover{ background:#f6f7fb !important; }
+.buy-now-btn{ background:#111 !important; color:#fff !important; }
+.buy-now-btn:hover{ background:#222 !important; }
+
+/* ========= Pagination ========= */
+.pagination-container{ display:flex; justify-content:center; margin-top:22px; }
+:deep(.el-pagination){
+  padding:10px 14px; background:#fff; border: var(--border);
+  border-radius:12px; box-shadow: var(--shadow-1);
+}
+:deep(.el-pagination.is-background .el-pager li.is-active){ font-weight:600; }
+
+/* ========= Transitions ========= */
+.slide-fade-enter-active,.slide-fade-leave-active{ transition:all .18s ease; }
+.slide-fade-enter-from,.slide-fade-leave-to{ opacity:0; transform: translateY(-6px); }
+
+/* ========= Responsive ========= */
+@media (max-width:1400px){ :root{ --aside-w:300px; } }
+@media (max-width:1200px){ :root{ --aside-w:280px; } }
+@media (max-width:992px){
+  .filter-aside{ display:none; }
+  .product-collection-container{ padding:0 10px; }
+  .collection-title{ font-size:24px; }
+}
 </style>
+
+

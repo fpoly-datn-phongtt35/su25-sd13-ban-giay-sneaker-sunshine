@@ -40,7 +40,7 @@ public class DiscountCampaignProductDetail {
     @JoinColumn(name = "product_detail_id")
     private ProductDetail productDetail;
 
-    @Column(name = "discount_percentage", precision = 5, scale = 2)
+    @Column(name = "discount_percentage")
     private BigDecimal discountPercentage;
 
     @ColumnDefault("getdate()")

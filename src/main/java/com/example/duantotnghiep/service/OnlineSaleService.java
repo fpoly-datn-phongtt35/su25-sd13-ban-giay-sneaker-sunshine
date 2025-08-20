@@ -29,6 +29,7 @@ public interface OnlineSaleService {
     List<OrderStatusHistoryResponse> getOrderStatusHistory(Long invoiceId);
 
     void updateAddressShipping(UpdateAddress address);
+    void updateSDT(Long invoiceId,String phone);
 
     List<StatusCountDTO> getCountByStatus();
 

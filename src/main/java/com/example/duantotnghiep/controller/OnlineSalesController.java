@@ -126,6 +126,15 @@ public class OnlineSalesController {
         return ResponseEntity.ok("Cập nhật địa chỉ giao hàng thành công.");
     }
 
+    @PutMapping("/update-phone")
+    public ResponseEntity<String> capNhatDiaChi(
+            @RequestParam("invoiceId") Long invoiceId,
+            @RequestParam("phone") String phone
+    ) {
+        onlineSaleService.updateSDT(invoiceId,phone);
+        return ResponseEntity.ok("Cập nhật địa chỉ giao hàng thành công.");
+    }
+
     @GetMapping("/get-revenue")
     public ResponseEntity<?> getRevenue(@RequestParam String type) {
         BigDecimal revenue = onlineSaleService.getRevenue(type);

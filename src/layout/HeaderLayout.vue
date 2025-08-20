@@ -40,7 +40,7 @@
                 <i :class="link.icon"></i> {{ link.label }}
               </RouterLink>
 
-              <!-- Mega menu THƯƠNG HIỆU (giữ nguyên) -->
+              <!-- BRAND MEGA -->
               <Transition name="fade">
                 <div
                   v-if="showBrandMenu && link.label==='THƯƠNG HIỆU'"
@@ -82,7 +82,7 @@
                 </div>
               </Transition>
 
-              <!-- NEW: Mega menu DANH MỤC -->
+              <!-- CATEGORY MEGA -->
               <Transition name="fade">
                 <div
                   v-if="showCategoryMenu && link.label==='DANH MỤC'"
@@ -110,14 +110,65 @@
 
         <!-- Actions -->
         <div class="header-actions">
-          <div class="search-input-container">
+          <!-- SEARCH -->
+          <div class="search-input-container" ref="searchContainerRef">
             <el-input
               v-model.trim="searchQuery"
               placeholder="Tìm kiếm..."
               :prefix-icon="Search"
-              @keyup.enter="performSearch"
               class="header-search-input"
+              @input="performSearchSuggestions()"
+              @focus="handleSearchFocus"
+              @keydown.down.prevent="moveSelection(1)"
+              @keydown.up.prevent="moveSelection(-1)"
+              @keyup.enter.prevent="handleEnter"
+              @keydown.esc.prevent="hideSearchDropdown"
             />
+            <el-button
+              type="primary"
+              :icon="Search"
+              class="search-btn"
+              @click="performSearchSuggestions(true)"
+            >
+              Tìm
+            </el-button>
+
+            <Transition name="fade">
+              <div
+                v-if="showSearchResults"
+                class="search-results-dropdown"
+                role="listbox"
+                :aria-busy="searchLoading"
+              >
+                <div v-if="searchLoading" class="dropdown-state">Đang tìm kiếm...</div>
+                <div v-else-if="searchError" class="dropdown-state dropdown-state--error">{{ searchError }}</div>
+                <div v-else-if="searchResults.length === 0" class="dropdown-state">Không tìm thấy sản phẩm nào.</div>
+
+                <div v-else class="product-list">
+                  <RouterLink
+                    v-for="(product, idx) in searchResults"
+                    :key="product.id"
+                    :to="`/product/${product.id}`"
+                    class="product-item"
+                    :class="{ 'is-active': idx === selectedIndex }"
+                    role="option"
+                    @mousedown.prevent="selectProduct(product)"
+                  >
+                    <img :src="product.imageUrl" alt="" class="product-item-image" />
+                    <div class="product-item-info">
+                      <div class="product-item-name">{{ product.productName }}</div>
+                      <div class="product-item-price">{{ formatPrice(product.price) }}</div>
+                    </div>
+                  </RouterLink>
+
+                  <div v-if="totalElements > searchResults.length" class="text-center show-all-results">
+                    <RouterLink :to="{ path: '/search-results', query: { q: searchQuery } }" @click="clearSearch">
+                      Xem tất cả ({{ totalElements }})
+                    </RouterLink>
+                  </div>
+                </div>
+              </div>
+            </Transition>
           </div>
 
           <!-- User -->
@@ -198,17 +249,18 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, onBeforeRouteUpdate } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { User, Search, ShoppingCart, ArrowUp } from '@element-plus/icons-vue'
 
 import LoginModal from '@/component/LoginModal.vue'
 import RegisterCustomerModal from '@/component/RegisterCustomerModal.vue'
 import logoSrc from '@/img/logo.png'
+import apiClient from '@/utils/axiosInstance'
 
 const router = useRouter()
 
-/* --------- CORE STATE --------- */
+/* ================= CORE STATE ================= */
 const user = ref(null)
 const cartCount = ref(0)
 const searchQuery = ref('')
@@ -218,16 +270,16 @@ const showUserOptions = ref(false)
 const isScrolled = ref(false)
 const showScrollTopButton = ref(false)
 
-/* --------- NAV LINKS --------- */
+/* ================= NAV ================= */
 const navLinks = [
   { path: '/', label: 'TRANG CHỦ' },
   { path: '/collections', label: 'SẢN PHẨM' },
-  { path: '/san-pham-uu-dai', label: 'ƯU ĐÃI' },
+  { path: '/san-pham-uu-dai', label: 'ƯU ĐÃI', isSale: true },
   { path: '/', label: 'THƯƠNG HIỆU' },
-  { path: '/', label: 'DANH MỤC' } // NEW
+  { path: '/', label: 'DANH MỤC' }
 ]
 
-/* --------- BRAND MENU (giữ nguyên) --------- */
+/* ================= BRAND MENU ================= */
 const showBrandMenu = ref(false)
 const brandLoading = ref(false)
 const brandError = ref('')
@@ -237,7 +289,6 @@ let closeTimer = null
 const brandGroups = computed(() => {
   const groups = { AG: [], HR: [], SZ: [] }
   const list = Array.isArray(brandList.value) ? brandList.value : []
-
   const normalize = (s) => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
   list.forEach((raw) => {
     const id = raw.id ?? raw.brandId ?? raw.code ?? raw._id ?? String(Math.random())
@@ -253,6 +304,7 @@ const brandGroups = computed(() => {
   groups.AG.sort(byName); groups.HR.sort(byName); groups.SZ.sort(byName)
   return groups
 })
+
 async function fetchBrands() {
   try {
     brandLoading.value = true
@@ -277,7 +329,7 @@ function gotoBrand(b) {
   router.push({ path: '/collections', query: { brandId: Number.isFinite(idNum) ? idNum : b.id, brandName: b.name, page: 1, size: 12 } })
 }
 
-/* --------- NEW: CATEGORY MENU --------- */
+/* ================= CATEGORY MENU ================= */
 const showCategoryMenu = ref(false)
 const categoryLoading = ref(false)
 const categoryError = ref('')
@@ -300,7 +352,6 @@ async function fetchCategories() {
     categoryLoading.value = false
   }
 }
-
 const categoryListSorted = computed(() => {
   const src = Array.isArray(categoryList.value) ? categoryList.value : []
   const rows = src.map(x => ({
@@ -310,17 +361,15 @@ const categoryListSorted = computed(() => {
   rows.sort((a,b) => a.name.localeCompare(b.name, 'vi', { sensitivity: 'base' }))
   return rows
 })
-
 function openCategoryMenu() { cancelCloseCategoryTimer(); showCategoryMenu.value = true; fetchCategories() }
 function delayCloseCategoryMenu() { cancelCloseCategoryTimer(); catTimer = setTimeout(() => (showCategoryMenu.value = false), 150) }
 function cancelCloseCategoryTimer() { if (catTimer) { clearTimeout(catTimer); catTimer = null } }
-
 function gotoCategory(c) {
   showCategoryMenu.value = false
   router.push({ path: '/collections', query: { categoryId: c.id, categoryName: c.name, page: 1, size: 12 } })
 }
 
-/* --------- CART & USER (giữ nguyên) --------- */
+/* ================= CART & USER ================= */
 function updateCartCount() {
   try {
     const userId = user.value?.id || 'guest'
@@ -357,7 +406,133 @@ const logout = () => {
   router.push('/')
 }
 
-/* --------- UI HANDLERS --------- */
+/* ================= SEARCH DROPDOWN ================= */
+const searchResults = ref([])
+const showSearchResults = ref(false)
+const searchLoading = ref(false)
+const searchError = ref('')
+const totalElements = ref(0)
+let searchTimer = null
+const searchContainerRef = ref(null)
+const selectedIndex = ref(-1)
+
+/* Helper đọc items/total linh hoạt */
+function extractItems(payload) {
+  const items = payload?.content ?? payload?.data ?? payload?.items ?? []
+  const total = payload?.totalElements ?? payload?.total ?? (Array.isArray(items) ? items.length : 0)
+  return { items: Array.isArray(items) ? items : [], total }
+}
+
+function handleSearchFocus() {
+  if (searchResults.value.length > 0) {
+    showSearchResults.value = true
+  }
+}
+function hideSearchDropdown() {
+  showSearchResults.value = false
+  selectedIndex.value = -1
+}
+function selectProduct(product) {
+  console.log('[selectProduct]', product)
+  clearSearch()
+  router.push(`/product/${product.id}`)
+}
+async function handleEnter() {
+  // Nếu chưa có dữ liệu hiển thị -> fetch ngay (không debounce)
+  if (!showSearchResults.value || searchResults.value.length === 0) {
+    if (!searchQuery.value) return
+    await performSearchNow()
+  }
+  // Sau khi chắc chắn đã có data -> confirm
+  if (selectedIndex.value >= 0 && selectedIndex.value < searchResults.value.length) {
+    const p = searchResults.value[selectedIndex.value]
+    console.log('[confirm] selected product:', p)
+    selectProduct(p)
+  } else if (searchQuery.value) {
+    const q = searchQuery.value
+    console.log('[confirm] go to /search-results with q =', q)
+    clearSearch()
+    router.push({ path: '/search-results', query: { q } })
+  }
+}
+function moveSelection(step) {
+  if (searchResults.value.length === 0) return
+  showSearchResults.value = true
+  const len = searchResults.value.length
+  if (selectedIndex.value === -1) selectedIndex.value = step > 0 ? 0 : len - 1
+  else selectedIndex.value = (selectedIndex.value + step + len) % len
+}
+
+/* Debounce khi gõ hoặc bấm nút Tìm */
+async function performSearchSuggestions(force = false) {
+  if (!searchQuery.value && !force) {
+    searchResults.value = []
+    showSearchResults.value = false
+    selectedIndex.value = -1
+    return
+  }
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(async () => {
+    searchLoading.value = true
+    searchError.value = ''
+    showSearchResults.value = true
+    try {
+      const requestBody = { keyword: searchQuery.value, page: 0, size: 5 }
+      const response = await apiClient.post('/online-sale/search', requestBody)
+      const { items, total } = extractItems(response?.data ?? {})
+      console.log('[search] raw response:', response)
+      console.log('[search] normalized items:', items)
+      searchResults.value = items
+      totalElements.value = total
+      selectedIndex.value = items.length > 0 ? 0 : -1
+    } catch (e) {
+      console.error('Lỗi tìm kiếm:', e)
+      searchError.value = 'Không thể tìm kiếm sản phẩm.'
+      searchResults.value = []
+      selectedIndex.value = -1
+    } finally {
+      searchLoading.value = false
+    }
+  }, 300)
+}
+
+/* Gọi ngay (không debounce) — dùng cho Enter */
+async function performSearchNow() {
+  console.log('1111')
+  searchLoading.value = true
+  searchError.value = ''
+  showSearchResults.value = true
+  try {
+    const requestBody = { keyword: searchQuery.value, page: 0, size: 5 }
+    const response = await apiClient.post('/online-sale/search', requestBody)
+    const { items, total } = extractItems(response?.data ?? {})
+    console.log('[search NOW] raw response:', response)
+    console.log('[search NOW] normalized items:', items)
+    searchResults.value = items
+    totalElements.value = total
+    selectedIndex.value = items.length > 0 ? 0 : -1
+  } catch (e) {
+    console.error('Lỗi tìm kiếm (NOW):', e)
+    searchError.value = 'Không thể tìm kiếm sản phẩm.'
+    searchResults.value = []
+    selectedIndex.value = -1
+  } finally {
+    searchLoading.value = false
+  }
+}
+
+function clearSearch() {
+  searchQuery.value = ''
+  showSearchResults.value = false
+  searchResults.value = []
+  selectedIndex.value = -1
+}
+function handleClickOutsideSearch(event) {
+  const el = searchContainerRef.value
+  if (el && !el.contains(event.target)) hideSearchDropdown()
+}
+
+/* ================= UI HANDLERS ================= */
 function handleScroll() {
   const y = window.scrollY
   isScrolled.value = y > 50
@@ -366,14 +541,17 @@ function handleScroll() {
   if (showCategoryMenu.value) showCategoryMenu.value = false
 }
 function scrollToTop() { window.scrollTo({ top: 0, behavior: 'smooth' }) }
-function performSearch() { if (!searchQuery.value) return; router.push({ path: '/search-results', query: { q: searchQuery.value } }) }
 function toggleUserDropdown(e) { e.stopPropagation(); showUserOptions.value = !showUserOptions.value }
 function closeDropdown() { showUserOptions.value = false }
 function openLoginModal() { closeDropdown(); showLogin.value = true }
 function openRegisterModal() { closeDropdown(); showRegister.value = true }
-function handleClickOutsideUserMenu(event) { if (showUserOptions.value && !event.target.closest('.user-menu-container')) { showUserOptions.value = false } }
+function handleClickOutsideUserMenu(event) {
+  if (showUserOptions.value && !event.target.closest('.user-menu-container')) {
+    showUserOptions.value = false
+  }
+}
 
-/* --------- LIFECYCLE --------- */
+/* ================= LIFECYCLE ================= */
 onMounted(() => {
   const storedUser = localStorage.getItem('user')
   if (storedUser) user.value = JSON.parse(storedUser)
@@ -381,13 +559,22 @@ onMounted(() => {
   window.addEventListener('scroll', handleScroll)
   window.addEventListener('cart-updated', updateCartCount)
   document.addEventListener('click', handleClickOutsideUserMenu)
+  document.addEventListener('click', handleClickOutsideSearch)
 })
 onUnmounted(() => {
   window.removeEventListener('scroll', handleScroll)
   window.removeEventListener('cart-updated', updateCartCount)
   document.removeEventListener('click', handleClickOutsideUserMenu)
+  document.removeEventListener('click', handleClickOutsideSearch)
 })
 watch(user, updateCartCount)
+onBeforeRouteUpdate(() => hideSearchDropdown())
+
+/* ================= UTIL ================= */
+function formatPrice(v) {
+  if (v == null) return ''
+  try { return Number(v).toLocaleString('vi-VN') + ' ₫' } catch { return v }
+}
 </script>
 
 <style scoped>
@@ -475,7 +662,7 @@ watch(user, updateCartCount)
 .brand-state { grid-column: 1 / -1; text-align: center; padding: 24px 0; color: var(--text-light); }
 .brand-state--error { color: var(--danger-color); }
 
-/* NEW: CATEGORY mega */
+/* CATEGORY mega */
 .category-mega {
   position: absolute; left: 0; top: calc(100% + 10px);
   width: 900px; background: #fff; border: 1px solid var(--border-color); border-radius: 10px;
@@ -486,6 +673,48 @@ watch(user, updateCartCount)
 .category-grid li { break-inside: avoid; }
 .category-grid li a { display: block; padding: 6px 2px; color: var(--text-dark); text-decoration: none; border-radius: 6px; }
 .category-grid li a:hover { background: #f6f7f9; color: var(--primary-color); }
+
+/* SEARCH dropdown */
+.search-input-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.search-results-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  width: 420px;
+  max-height: 420px;
+  overflow: auto;
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(0,0,0,.12);
+  padding: 10px;
+  z-index: 1500;
+}
+.dropdown-state { text-align: center; padding: 16px 8px; color: var(--text-light); }
+.dropdown-state--error { color: var(--danger-color); }
+.product-list { display: flex; flex-direction: column; gap: 6px; }
+.product-item {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  text-decoration: none;
+  color: var(--text-dark);
+  border-radius: 8px;
+  padding: 8px;
+  transition: background-color .15s ease;
+}
+.product-item:hover, .product-item.is-active { background-color: #f6f7f9; }
+.product-item-image { width: 48px; height: 48px; border-radius: 6px; object-fit: cover; flex: 0 0 48px; }
+.product-item-info { display: flex; flex-direction: column; gap: 4px; }
+.product-item-name { font-weight: 600; line-height: 1.2; }
+.product-item-price { font-size: 13px; color: var(--text-light); }
+.show-all-results { padding-top: 8px; }
+.show-all-results a { text-decoration: none; font-weight: 600; }
 
 /* Scroll to top */
 .scroll-to-top-btn { position: fixed; bottom: 30px; right: 30px; z-index: 1050; box-shadow: 0 2px 10px rgba(0,0,0,.2); }
@@ -499,4 +728,9 @@ watch(user, updateCartCount)
 
 .heart-icon { font-size: 24px; color: black; transition: color .2s ease; }
 .cart-icon-container:hover .heart-icon { color: red; }
+
+/* Nâng cấp fade (từ trên xuống) */
+.fade-enter-active, .fade-leave-active { transition: opacity 0.5s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; transform: translateY(20px); }
+.fade-leave-active { position: absolute; }
 </style>

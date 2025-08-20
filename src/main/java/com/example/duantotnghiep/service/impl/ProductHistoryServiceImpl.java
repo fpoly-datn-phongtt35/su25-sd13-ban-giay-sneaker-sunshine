@@ -6,15 +6,17 @@ import com.example.duantotnghiep.mapper.ProductHistoryMapper;
 import com.example.duantotnghiep.model.ProductHistory;
 import com.example.duantotnghiep.repository.ProductHistoryRepository;
 import com.example.duantotnghiep.service.ProductHistoryService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class ProductHistoryServiceImpl implements ProductHistoryService {
-    private ProductHistoryRepository productHistoryRepository;
-    private ProductHistoryMapper mapper;
+    private final ProductHistoryRepository productHistoryRepository;
+    private final ProductHistoryMapper mapper;
     @Override
     public void create(ProductHistoryRequest request) {
         ProductHistory entity = mapper.toEntity(request);

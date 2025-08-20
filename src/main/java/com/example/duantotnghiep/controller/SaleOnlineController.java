@@ -2,11 +2,9 @@ package com.example.duantotnghiep.controller;
 
 import com.example.duantotnghiep.dto.request.FavoriteRequest;
 import com.example.duantotnghiep.dto.request.InvoiceRequest;
+import com.example.duantotnghiep.dto.request.ProductSearchRequest;
 import com.example.duantotnghiep.dto.request.UpdateAddress;
-import com.example.duantotnghiep.dto.response.InvoiceDisplayResponse;
-import com.example.duantotnghiep.dto.response.InvoiceResponse;
-import com.example.duantotnghiep.dto.response.ProductResponse;
-import com.example.duantotnghiep.dto.response.StatusCountDTO;
+import com.example.duantotnghiep.dto.response.*;
 import com.example.duantotnghiep.mapper.InvoiceMapper;
 import com.example.duantotnghiep.model.Invoice;
 import com.example.duantotnghiep.model.Product;
@@ -161,5 +159,17 @@ public class SaleOnlineController {
         return ResponseEntity.ok(resp);
     }
 
+    @PostMapping("/search")
+    public ResponseEntity<PaginationDTO<ProductSearchResponse>> searchProducts(
+            @RequestBody ProductSearchRequest request) {
+
+        int page = (request.getPage() != null && request.getPage() >= 0) ? request.getPage() : 0;
+        int size = (request.getSize() != null && request.getSize() > 0) ? request.getSize() : 5;
+
+        Pageable pageable = PageRequest.of(page, size);
+        PaginationDTO<ProductSearchResponse> result = productService.phanTrang(request, pageable);
+
+        return ResponseEntity.ok(result);
+    }
 
 }

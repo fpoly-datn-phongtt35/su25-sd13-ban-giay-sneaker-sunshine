@@ -262,6 +262,7 @@ import Multiselect from 'vue-multiselect';
 import 'vue-multiselect/dist/vue-multiselect.css';
 import { ElNotification } from 'element-plus';
 import axios from 'axios';
+import apiClient from '@/utils/axiosInstance';
 
 // Router and Route
 const router = useRouter();
@@ -447,7 +448,7 @@ const closeModal = () => {
 
 const fetchCategories = async () => {
   try {
-    const response = await axios.get('http://localhost:8080/api/admin/categories/hien-thi');
+    const response = await apiClient.get('/admin/categories/hien-thi');
     categoryList.value = response.data;
   } catch (error) {
     console.error('Error fetching categories:', error);
@@ -457,7 +458,7 @@ const fetchCategories = async () => {
 
 const fetchMaterial = async () => {
   try {
-    const response = await axios.get('http://localhost:8080/api/admin/material/hien-thi');
+    const response = await apiClient.get('/admin/material/hien-thi');
     materialList.value = response.data;
   } catch (error) {
     console.error('Error fetching materials:', error);
@@ -467,7 +468,7 @@ const fetchMaterial = async () => {
 
 const fetchSupplier = async () => {
   try {
-    const response = await axios.get('http://localhost:8080/api/admin/supplier/hien-thi');
+    const response = await apiClient.get('/admin/supplier/hien-thi');
     supplierList.value = response.data;
   } catch (error) {
     console.error('Error fetching suppliers:', error);
@@ -477,7 +478,7 @@ const fetchSupplier = async () => {
 
 const fetchBrand = async () => {
   try {
-    const response = await axios.get('http://localhost:8080/api/admin/brand/hien-thi');
+    const response = await apiClient.get('/admin/brand/hien-thi');
     brandList.value = response.data;
   } catch (error) {
     console.error('Error fetching brands:', error);
@@ -487,7 +488,7 @@ const fetchBrand = async () => {
 
 const fetchSole = async () => {
   try {
-    const response = await axios.get('http://localhost:8080/api/admin/sole/hien-thi');
+    const response = await apiClient.get('/admin/sole/hien-thi');
     soleList.value = response.data;
   } catch (error) {
     console.error('Error fetching soles:', error);
@@ -497,7 +498,7 @@ const fetchSole = async () => {
 
 const fetchStyle = async () => {
   try {
-    const response = await axios.get('http://localhost:8080/api/admin/style/hien-thi');
+    const response = await apiClient.get('/admin/style/hien-thi');
     styleList.value = response.data;
   } catch (error) {
     console.error('Error fetching styles:', error);
@@ -508,8 +509,8 @@ const fetchStyle = async () => {
 const fetchSizesAndColors = async () => {
   try {
     const [sizesResponse, colorsResponse] = await Promise.all([
-      axios.get('http://localhost:8080/api/admin/size/hien-thi'),
-      axios.get('http://localhost:8080/api/admin/color/hien-thi'),
+      apiClient.get('/admin/size/hien-thi'),
+      apiClient.get('/admin/color/hien-thi'),
     ]);
     sizeList.value = sizesResponse.data;
     colorList.value = colorsResponse.data;
@@ -527,7 +528,7 @@ const getColorName = (colorId) => {
 const fetchProduct = async () => {
   const id = route.params.id;
   try {
-    const response = await axios.get(`http://localhost:8080/api/admin/products/${id}`);
+    const response = await apiClient.get(`/admin/products/${id}`);
     const product = response.data;
 
     updateProduct.value = {
@@ -799,7 +800,7 @@ const saveProduct = async () => {
     });
 
     const id = route.params.id;
-    const response = await axios.put(`http://localhost:8080/api/admin/products/${id}`, formData, {
+    const response = await apiClient.put(`/admin/products/${id}`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
 

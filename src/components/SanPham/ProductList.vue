@@ -285,6 +285,7 @@
 </template>
 
 <script setup>
+import apiClient from '@/utils/axiosInstance'
 import axios from 'axios'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { onMounted, ref, watch } from 'vue'
@@ -423,7 +424,7 @@ watch(
  */
 const fetchCategories = async () => {
   try {
-    const response = await axios.get('http://localhost:8080/api/admin/categories/hien-thi')
+    const response = await apiClient.get('/admin/categories/hien-thi')
     categoryList.value = response.data
   } catch (error) {
     console.error('Lỗi lấy danh mục:', error)
@@ -436,7 +437,7 @@ const fetchCategories = async () => {
  */
 const fetchMaterial = async () => {
   try {
-    const response = await axios.get('http://localhost:8080/api/admin/material/hien-thi')
+    const response = await apiClient.get('/admin/material/hien-thi')
     materialList.value = response.data
   } catch (error) {
     console.error('Lỗi lấy chất liệu:', error)
@@ -449,7 +450,7 @@ const fetchMaterial = async () => {
  */
 const fetchBrand = async () => {
   try {
-    const response = await axios.get('http://localhost:8080/api/admin/brand/hien-thi')
+    const response = await apiClient.get('/admin/brand/hien-thi')
     brandList.value = response.data
   } catch (error) {
     console.error('Lỗi lấy thương hiệu:', error)
@@ -462,7 +463,7 @@ const fetchBrand = async () => {
  */
 const fetchSole = async () => {
   try {
-    const response = await axios.get('http://localhost:8080/api/admin/sole/hien-thi')
+    const response = await apiClient.get('/admin/sole/hien-thi')
     soleList.value = response.data
   } catch (error) {
     console.error('Lỗi lấy đế giày:', error)
@@ -475,7 +476,7 @@ const fetchSole = async () => {
  */
 const fetchStyle = async () => {
   try {
-    const response = await axios.get('http://localhost:8080/api/admin/style/hien-thi')
+    const response = await apiClient.get('/admin/style/hien-thi')
     styleList.value = response.data
   } catch (error) {
     console.error('Lỗi lấy phong cách:', error)
@@ -483,9 +484,7 @@ const fetchStyle = async () => {
   }
 }
 
-/**
- * Lấy danh sách sản phẩm dựa trên các tham số tìm kiếm và phân trang.
- */
+
 const fetchProduct = async () => {
   const searchParams = {
     keyword: searchProduct.value.keyWord || null,
@@ -505,15 +504,15 @@ const fetchProduct = async () => {
   }
 
   try {
-    const response = await axios.post(
-      'http://localhost:8080/api/admin/products/search',
+    const response = await apiClient.post(
+      '/admin/products/search',
       searchParams,
     )
     productList.value = response.data.data
     console.log('data: ', productList.value)
     totalElements.value = response.data.pagination?.totalElements || 0
     totalPages.value = response.data.pagination?.totalPages || 0
-    syncSelectedProducts() // Đồng bộ hóa các checkbox trên trang hiện tại
+    syncSelectedProducts()
   } catch (error) {
     console.error('Lỗi tải danh sách sản phẩm:', error)
     ElMessage.error('Tải danh sách sản phẩm thất bại!')
@@ -584,7 +583,7 @@ const downloadExcel = async () => {
 
     let url, data, filename
     if (allSelectedProducts.value.length > 0) {
-      url = 'http://localhost:8080/api/admin/products/export-excel/by-ids'
+      url = '/admin/products/export-excel/by-ids'
       data = allSelectedProducts.value
       filename = 'products-by-ids.xlsx'
     } else {
@@ -602,12 +601,12 @@ const downloadExcel = async () => {
         priceMax: searchProduct.value.priceMax === '' ? null : searchProduct.value.priceMax,
         status: 1, // Chỉ xuất các sản phẩm đang hoạt động
       }
-      url = 'http://localhost:8080/api/admin/products/export-excel/by-filter'
+      url = '/admin/products/export-excel/by-filter'
       data = searchParamsForExport
       filename = 'products-by-filter.xlsx'
     }
 
-    const response = await axios.post(url, data, { responseType: 'blob' })
+    const response = await apiClient.post(url, data, { responseType: 'blob' })
     const responseUrl = window.URL.createObjectURL(new Blob([response.data]))
     const link = document.createElement('a')
     link.href = responseUrl
@@ -637,7 +636,7 @@ const deleteProduct = async (id) => {
         type: 'warning',
       },
     )
-    await axios.delete(`http://localhost:8080/api/admin/products/${id}`)
+    await apiClient.delete(`/admin/products/${id}`)
     ElMessage.success('Xóa sản phẩm thành công!')
     // Cập nhật lại danh sách sau khi xóa
     await fetchProduct()

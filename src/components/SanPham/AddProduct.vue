@@ -247,6 +247,7 @@ import { ref, onMounted, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElNotification } from 'element-plus'
 import { ArrowLeft, Plus } from '@element-plus/icons-vue'
+import apiClient from '@/utils/axiosInstance'
 
 const router = useRouter()
 
@@ -362,45 +363,45 @@ const closeModal = () => { isModalVisible.value = false }
 // fetchers
 const fetchCategories = async () => {
   try {
-    const { data } = await axios.get('http://localhost:8080/api/admin/categories/hien-thi')
+    const { data } = await apiClient.get('/admin/categories/hien-thi')
     categoryList.value = data
   } catch (e) { notify('Lỗi lấy danh mục!', 'error') }
 }
 const fetchMaterial = async () => {
   try {
-    const { data } = await axios.get('http://localhost:8080/api/admin/material/hien-thi')
+    const { data } = await apiClient.get('/admin/material/hien-thi')
     materialList.value = data
   } catch (e) { notify('Lỗi lấy chất liệu!', 'error') }
 }
 const fetchSupplier = async () => {
   try {
-    const { data } = await axios.get('http://localhost:8080/api/admin/supplier/hien-thi')
+    const { data } = await apiClient.get('/admin/supplier/hien-thi')
     supplierList.value = data
   } catch (e) { notify('Lỗi lấy nhà cung cấp!', 'error') }
 }
 const fetchBrand = async () => {
   try {
-    const { data } = await axios.get('http://localhost:8080/api/admin/brand/hien-thi')
+    const { data } = await apiClient.get('/admin/brand/hien-thi')
     brandList.value = data
   } catch (e) { notify('Lỗi lấy thương hiệu!', 'error') }
 }
 const fetchSole = async () => {
   try {
-    const { data } = await axios.get('http://localhost:8080/api/admin/sole/hien-thi')
+    const { data } = await apiClient.get('/admin/sole/hien-thi')
     soleList.value = data
   } catch (e) { notify('Lỗi lấy đế giày!', 'error') }
 }
 const fetchStyle = async () => {
   try {
-    const { data } = await axios.get('http://localhost:8080/api/admin/style/hien-thi')
+    const { data } = await apiClient.get('/admin/style/hien-thi')
     styleList.value = data
   } catch (e) { notify('Lỗi lấy cổ giày!', 'error') }
 }
 const fetchSizesAndColors = async () => {
   try {
     const [sRes, cRes] = await Promise.all([
-      axios.get('http://localhost:8080/api/admin/size/hien-thi'),
-      axios.get('http://localhost:8080/api/admin/color/hien-thi'),
+      apiClient.get('/admin/size/hien-thi'),
+      apiClient.get('/admin/color/hien-thi'),
     ])
     sizeList.value = sRes.data
     colorList.value = cRes.data
@@ -541,7 +542,7 @@ const saveProduct = async () => {
     // debug (tuỳ ý bật)
     // for (const [k, v] of formData.entries()) console.log(k, v instanceof File ? v.name : v)
 
-    const res = await axios.post('http://localhost:8080/api/admin/products', formData, {
+    const res = await apiClient.post('/admin/products', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
 

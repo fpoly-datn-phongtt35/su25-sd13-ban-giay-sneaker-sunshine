@@ -533,7 +533,7 @@ const saveChange = async () => {
       return
     }
     try {
-      await apiClient.put('/online-sale/cap-nhat-sdt', null, {
+      await apiClient.put('/admin/online-sales/update-phone', null, {
         params: {
           invoiceId,
           newPhone: dialogValue.value

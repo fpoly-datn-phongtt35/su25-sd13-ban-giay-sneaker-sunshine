@@ -1,8 +1,12 @@
 package com.example.duantotnghiep.controller;
 
+import com.example.duantotnghiep.dto.response.ProductResponse;
 import com.example.duantotnghiep.model.Size;
+import com.example.duantotnghiep.service.ProductService;
 import com.example.duantotnghiep.service.SizeService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -21,6 +25,8 @@ import java.util.List;
 public class SizeController {
     @Autowired
     private SizeService service;
+    @Autowired
+    private ProductService productService;
 
     @GetMapping("/hien-thi")
     public ResponseEntity<List<Size>> getAll(){
@@ -51,4 +57,13 @@ public class SizeController {
         service.xoa(id);
         return ResponseEntity.noContent().build();
     }
+
+    @GetMapping("/by-size")
+    public Page<ProductResponse> getProductsBySizeId(
+            @RequestParam("sizeId") Long sizeId,
+            Pageable pageable
+    ) {
+        return productService.getProductsBySizeId(sizeId, pageable);
+    }
+
 }

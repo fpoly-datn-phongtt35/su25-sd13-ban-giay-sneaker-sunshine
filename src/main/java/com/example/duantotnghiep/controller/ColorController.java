@@ -1,8 +1,12 @@
 package com.example.duantotnghiep.controller;
 
+import com.example.duantotnghiep.dto.response.ProductResponse;
 import com.example.duantotnghiep.model.Color;
 import com.example.duantotnghiep.service.ColorService;
+import com.example.duantotnghiep.service.ProductService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -22,6 +26,8 @@ public class ColorController {
 
     @Autowired
     private ColorService service;
+    @Autowired
+    private ProductService productService;
 
     @GetMapping("/hien-thi")
     public ResponseEntity<List<Color>> getAll(){
@@ -50,5 +56,14 @@ public class ColorController {
         service.xoa(id);
         return ResponseEntity.noContent().build();
     }
+
+    @GetMapping("/by-color")
+    public Page<ProductResponse> getProductsByColorId(
+            @RequestParam("colorId") Long colorId,
+            Pageable pageable
+    ) {
+        return productService.getProductsByColorId(colorId, pageable);
+    }
+
 
 }

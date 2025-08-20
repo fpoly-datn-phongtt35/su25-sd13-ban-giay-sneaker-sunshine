@@ -10,6 +10,7 @@ import java.util.List;
 @Repository
 public interface GenderRepository extends JpaRepository<Gender,Long> {
     @Query("SELECT p FROM Gender p where p.status = 1 order by p.createdDate desc ")
-    List<Gender> findByStatus();
+    List<Gender> findByStatus(Integer status);
+
 
 }

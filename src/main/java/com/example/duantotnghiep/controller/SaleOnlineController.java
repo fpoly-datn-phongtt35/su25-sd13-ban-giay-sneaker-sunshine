@@ -2,18 +2,27 @@ package com.example.duantotnghiep.controller;
 
 import com.example.duantotnghiep.dto.request.FavoriteRequest;
 import com.example.duantotnghiep.dto.request.InvoiceRequest;
+import com.example.duantotnghiep.dto.request.ProductFilterRequest;
 import com.example.duantotnghiep.dto.request.UpdateAddress;
+import com.example.duantotnghiep.dto.response.GenderDTO;
 import com.example.duantotnghiep.dto.response.InvoiceDisplayResponse;
 import com.example.duantotnghiep.dto.response.InvoiceResponse;
 import com.example.duantotnghiep.dto.response.ProductResponse;
 import com.example.duantotnghiep.dto.response.StatusCountDTO;
 import com.example.duantotnghiep.mapper.InvoiceMapper;
+import com.example.duantotnghiep.model.Brand;
+import com.example.duantotnghiep.model.Color;
 import com.example.duantotnghiep.model.Invoice;
 import com.example.duantotnghiep.model.Product;
 import com.example.duantotnghiep.model.PromotionSuggestion;
+import com.example.duantotnghiep.model.Size;
 import com.example.duantotnghiep.repository.InvoiceRepository;
+import com.example.duantotnghiep.service.BrandService;
+import com.example.duantotnghiep.service.ColorService;
+import com.example.duantotnghiep.service.GenderService;
 import com.example.duantotnghiep.service.InvoiceService;
 import com.example.duantotnghiep.service.ProductService;
+import com.example.duantotnghiep.service.SizeService;
 import com.example.duantotnghiep.service.impl.InvoiceEmailService;
 import com.example.duantotnghiep.service.impl.InvoiceServiceImpl;
 import com.example.duantotnghiep.service.impl.OnlineSaleServiceImpl;
@@ -21,6 +30,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -43,6 +54,10 @@ public class SaleOnlineController {
     private final InvoiceRepository invoiceRepository;
     private final OnlineSaleServiceImpl onlineSaleService;
     private final InvoiceServiceImpl invoiceServiceImpl;
+    private final GenderService genderService;
+    private final SizeService sizeService;
+    private final ColorService colorService;
+    private final BrandService brandService;
 
     @GetMapping("/online-home")
     public ResponseEntity<List<ProductResponse>> hienThi(){
@@ -161,5 +176,57 @@ public class SaleOnlineController {
         return ResponseEntity.ok(resp);
     }
 
+    @GetMapping("/by-gender")
+    public Page<ProductResponse> getProductsByGenderId(
+            @RequestParam("genderId") Long genderId,
+            Pageable pageable
+    ) {
+        return productService.getProductsByGenderId(genderId, pageable);
+    }
 
+    @GetMapping("/gender/hien-thi")
+    public ResponseEntity<List<GenderDTO>> hienThi(
+            @RequestParam(value = "status", required = false) Integer status
+    ) {
+        return ResponseEntity.ok(genderService.getAll(status));
+    }
+
+    @GetMapping("/size/hien-thi")
+    public ResponseEntity<List<Size>> getAll(){
+        List<Size> list = sizeService.getAll();
+        return ResponseEntity.ok(list);
+    }
+
+    @GetMapping("/by-size")
+    public Page<ProductResponse> getProductsBySizeId(
+            @RequestParam("sizeId") Long sizeId,
+            Pageable pageable
+    ) {
+        return productService.getProductsBySizeId(sizeId, pageable);
+    }
+
+    @GetMapping("/color/hien-thi")
+    public ResponseEntity<List<Color>> getAllColors() {
+        List<Color> list = colorService.getAll();
+        return ResponseEntity.ok(list);
+    }
+
+    @GetMapping("/by-color")
+    public Page<ProductResponse> getProductsByColorId(
+            @RequestParam("colorId") Long colorId,
+            Pageable pageable
+    ) {
+        return productService.getProductsByColorId(colorId, pageable);
+    }
+
+    @GetMapping("/brand/hien-thi")
+    public ResponseEntity<List<Brand>> getAllBrands() {
+        List<Brand> list = brandService.getAll();
+        return ResponseEntity.ok(list);
+    }
+
+    @GetMapping("/{brandId}/products")
+    public Page<ProductResponse> getProductsOfBrand(@PathVariable Long brandId, Pageable pageable) {
+        return productService.getProductsByBrand(brandId, pageable);
+    }
 }

@@ -183,4 +183,6 @@ public class ProductController {
     public ResponseEntity<List<FavoriteProductResponse>> favouriteProduct(@PathVariable("productId") Long productId) {
         return ResponseEntity.ok(productService.getFavoritesByProductId(productId));
     }
+
+
 }

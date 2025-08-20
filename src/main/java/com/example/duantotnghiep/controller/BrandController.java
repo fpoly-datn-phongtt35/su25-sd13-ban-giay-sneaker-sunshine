@@ -67,11 +67,5 @@ public class BrandController {
         return productServiceImpl.getProductsByBrand(brandId, pageable);
     }
 
-    // (tuỳ chọn) nếu dùng tên brand
-    @GetMapping("/by-name/{brandName}/products")
-    public Page<ProductResponse> getProductsOfBrandName(@PathVariable String brandName, Pageable pageable) {
-        return productServiceImpl.getProductsByBrandName(brandName, pageable);
-    }
-
 }
 

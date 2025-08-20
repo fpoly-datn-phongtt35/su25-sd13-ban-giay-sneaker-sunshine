@@ -1,6 +1,7 @@
 package com.example.duantotnghiep.service.impl;
 
 import com.example.duantotnghiep.dto.request.ProductDetailRequest;
+import com.example.duantotnghiep.dto.request.ProductFilterRequest;
 import com.example.duantotnghiep.dto.request.ProductImageRequest;
 import com.example.duantotnghiep.dto.request.ProductRequest;
 import com.example.duantotnghiep.dto.request.ProductSearchRequest;
@@ -25,10 +26,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -850,15 +849,12 @@ public class ProductServiceImpl implements ProductService {
         return prefix + datePart + "-" + randomPart;
     }
 
+    @Override
     public Page<ProductResponse> getProductsByBrand(Long brandId, Pageable pageable) {
         Page<Product> products = productRepository.findAllByBrand(brandId, pageable);
         return getProductsFiltered(products, pageable);
     }
 
-    public Page<ProductResponse> getProductsByBrandName(String brandName, Pageable pageable) {
-        Page<Product> products = productRepository.findAllByBrandName(brandName, pageable);
-        return getProductsFiltered(products, pageable);
-    }
 
     private Page<ProductResponse> getProductsFiltered(Page<Product> products, Pageable pageable) {
         List<DiscountCampaign> activeCampaigns = discountCampaignRepository.findActiveCampaigns(LocalDateTime.now());
@@ -938,17 +934,22 @@ public class ProductServiceImpl implements ProductService {
         return mapWithDiscounts(products, pageable);
     }
 
-    // ======== (tuỳ chọn) theo categoryName, ví dụ "Sneaker" ========
-    public Page<ProductResponse> getProductsByCategoryName(String categoryName, Pageable pageable) {
-        // Cách 1: gọi repo theo tên trực tiếp
-//        Page<Product> products = productRepository.findAllByCategoryName(categoryName, pageable);
-//        return mapWithDiscounts(products, pageable);
+    @Override
+    public Page<ProductResponse> getProductsByGenderId(Long genderId, Pageable pageable) {
+        Page<Product> products = productRepository.findAllByGenderId(genderId, pageable);
+        return mapWithDiscounts(products, pageable);
+    }
 
-        // Cách 2 (khuyến nghị hiệu năng): resolve sang ID rồi gọi theo ID
-         Long id = categoryRepository.findByCategoryNameIgnoreCase(categoryName)
-                 .map(Category::getId)
-                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy danh mục: " + categoryName));
-         return getProductsByCategoryId(id, pageable);
+    @Override
+    public Page<ProductResponse> getProductsByColorId(Long colorId, Pageable pageable) {
+        Page<Product> products = productRepository.findAllByColorId(colorId, pageable);
+        return mapWithDiscounts(products, pageable);
+    }
+
+    @Override
+    public Page<ProductResponse> getProductsBySizeId(Long sizeId, Pageable pageable) {
+        Page<Product> products = productRepository.findAllBySizeId(sizeId, pageable);
+        return mapWithDiscounts(products, pageable);
     }
 
 }

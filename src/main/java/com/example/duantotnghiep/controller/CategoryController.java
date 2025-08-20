@@ -66,13 +66,6 @@ public class CategoryController {
         return productServiceImpl.getProductsByCategoryId(categoryId, pageable);
     }
 
-    // /api/categories/by-name/{categoryName}/products?page=0&size=12
-    @GetMapping("/by-name/{categoryName}/products")
-    public Page<ProductResponse> getByCategoryName(
-            @PathVariable String categoryName,
-            @PageableDefault(size = 12, sort = "id", direction = Sort.Direction.DESC) Pageable pageable
-    ) {
-        return productServiceImpl.getProductsByCategoryName(categoryName, pageable);
-    }
+
 
 }

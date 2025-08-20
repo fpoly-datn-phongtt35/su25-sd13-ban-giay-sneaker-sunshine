@@ -68,7 +68,7 @@ const routes = [
       {
         path: 'home',
         name: 'Home',
-        component: TrangChu,
+        component: StatisticsView,
         meta: {
           breadcrumb: 'Trang chủ',
           parent: 'Dashboard',

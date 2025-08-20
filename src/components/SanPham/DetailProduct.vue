@@ -105,13 +105,16 @@
     <el-dialog v-model="historyDialogVisible" title="Lịch sử tác động sản phẩm" width="800px">
       <el-empty v-if="productHistory.length === 0" description="Không có lịch sử tác động." />
       <el-table v-else :data="productHistory" border style="width: 100%">
-        <el-table-column label="Người tạo" prop="createdBy" width="180"/>
+        <el-table-column label="Người tạo" prop="employeeName" width="180"/>
         <el-table-column label="Loại tác động" width="150">
           <template #default="{ row }">{{ getActionType(row.actionType) }}</template>
         </el-table-column>
-        <el-table-column label="Mô tả" prop="description"/>
+        <el-table-column label="Trường" prop="note"/>
+        <el-table-column label="Giá trị cũ" prop="oldValue"/>
+        <el-table-column label="Giá trị mới" prop="newValue"/>
+        <el-table-column label="Mô tả" prop="note"/>
         <el-table-column label="Thời gian" width="200">
-          <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
+          <template #default="{ row }">{{ formatDateTime(row.createdDate) }}</template>
         </el-table-column>
       </el-table>
     </el-dialog>

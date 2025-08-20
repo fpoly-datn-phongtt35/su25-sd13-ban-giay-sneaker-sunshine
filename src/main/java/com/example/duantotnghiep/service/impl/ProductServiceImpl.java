@@ -10,24 +10,21 @@ import com.example.duantotnghiep.mapper.CategoryMapper;
 import com.example.duantotnghiep.mapper.ProductDetailMapper;
 import com.example.duantotnghiep.mapper.ProductImageMapper;
 import com.example.duantotnghiep.mapper.ProductMapper;
-import com.example.duantotnghiep.model.Category;
-import com.example.duantotnghiep.model.Color;
-import com.example.duantotnghiep.model.DiscountCampaign;
-import com.example.duantotnghiep.model.Product;
-import com.example.duantotnghiep.model.ProductCategory;
-import com.example.duantotnghiep.model.ProductCategoryId;
-import com.example.duantotnghiep.model.ProductDetail;
-import com.example.duantotnghiep.model.ProductImage;
+import com.example.duantotnghiep.model.*;
 import com.example.duantotnghiep.repository.*;
 import com.example.duantotnghiep.service.ProductService;
 import com.example.duantotnghiep.xuatExcel.ProductExcelExporter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.BeanUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -62,11 +59,12 @@ public class ProductServiceImpl implements ProductService {
     private final CategoryRepository categoryRepository;
     private final ProductDetailMapper productDetailMapper;
     private final CategoryMapper categoryMapper;
-
+    private final ProductHistoryRepository productHistoryRepository;
     private final ProductSearchRepository productSearchRepository;
     private final ColorRepository colorRepository;
     private final DiscountCampaignRepository discountCampaignRepository;
     private final FavoriteProductRepository favoriteProductRepository;
+    private final UserRepository userRepository;
 
     @Transactional(rollbackFor = Throwable.class)
     @Override
@@ -161,12 +159,17 @@ public class ProductServiceImpl implements ProductService {
         Product existingProduct = productRepository.findByStatus(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm với id: " + id));
 
+        // Clone sản phẩm cũ để so sánh
+        Product clonedOld = new Product();
+        BeanUtils.copyProperties(existingProduct, clonedOld);
+
+        // Cập nhật thông tin chung
         productMapper.updateEntityFromRequest(request, existingProduct);
         existingProduct.setUpdatedBy("admin");
         existingProduct.setUpdatedDate(new Date());
         Product updatedProduct = productRepository.save(existingProduct);
 
-        // 4. Xử lý ProductDetails
+        // ---------------- ProductDetail ----------------
         List<ProductDetail> oldDetails = productDetailRepository.findByProductIdAndStatus(existingProduct.getId(), 1);
         List<ProductDetailRequest> newDetailRequests = request.getProductDetails() != null ? request.getProductDetails() : new ArrayList<>();
         List<ProductDetail> updatedDetails = new ArrayList<>();
@@ -183,14 +186,22 @@ public class ProductServiceImpl implements ProductService {
 
             if (matching.isPresent()) {
                 ProductDetailRequest req = matching.get();
+                boolean changed = false;
+
+                // Chỉ update quantity nếu thay đổi
                 if (!Objects.equals(oldDetail.getQuantity(), req.getQuantity())) {
                     oldDetail.setQuantity(req.getQuantity());
+                    changed = true;
+                }
+
+                if (changed) {
                     oldDetail.setUpdatedBy("admin");
                     oldDetail.setUpdatedDate(new Date());
                     productDetailRepository.save(oldDetail);
                 }
                 updatedDetails.add(oldDetail);
             } else {
+                // Xóa mềm nếu không có trong request
                 oldDetail.setStatus(0);
                 oldDetail.setUpdatedBy("admin");
                 oldDetail.setUpdatedDate(new Date());
@@ -198,6 +209,7 @@ public class ProductServiceImpl implements ProductService {
             }
         }
 
+        // Tạo mới ProductDetail nếu chưa có
         for (ProductDetailRequest detailRequest : newDetailRequests) {
             boolean exists = oldDetails.stream().anyMatch(old ->
                     Objects.equals(old.getColor(), detailRequest.getColorId()) &&
@@ -210,6 +222,12 @@ public class ProductServiceImpl implements ProductService {
                 newDetail.setCreatedDate(new Date());
                 newDetail.setUpdatedBy("admin");
                 newDetail.setUpdatedDate(new Date());
+
+                // Generate code nếu chưa có
+                if (newDetail.getProductDetailCode() == null) {
+                    newDetail.setProductDetailCode(generateProductDetailCode());
+                }
+
                 productDetailRepository.save(newDetail);
                 updatedDetails.add(newDetail);
             }
@@ -217,10 +235,10 @@ public class ProductServiceImpl implements ProductService {
 
         existingProduct.setProductDetails(updatedDetails);
 
-        // 4.3. Xử lý ảnh theo oldColorIds vs newColorIds
+        // ---------------- Xử lý ProductImage ----------------
+        // Xử lý ảnh cũ theo oldColorIds và newColorIds
         if (request.getOldColorIds() != null && !request.getOldColorIds().isEmpty()) {
             Set<Long> oldColorIds = new HashSet<>(request.getOldColorIds());
-
             List<ProductImage> existingImages = productImageRepository.findByProductIdAndStatus(existingProduct.getId(), 1);
 
             for (ProductImage image : existingImages) {
@@ -234,26 +252,15 @@ public class ProductServiceImpl implements ProductService {
             }
         }
 
+        // Xử lý ảnh theo oldImageIds
         if (request.getOldImageIds() != null && !request.getOldImageIds().isEmpty()) {
             List<ProductImage> allImages = productImageRepository.findAllByIdAndStatus(request.getOldImageIds(), 1);
-
             List<Long> missingImageIds = request.getOldImageIds().stream()
                     .filter(idImage -> allImages.stream().noneMatch(img -> img.getId().equals(idImage)))
                     .collect(Collectors.toList());
-
             if (!missingImageIds.isEmpty()) {
                 throw new RuntimeException("Ảnh không tồn tại: " + missingImageIds);
             }
-
-            List<Long> deletedImageIds = allImages.stream()
-                    .filter(img -> img.getStatus() == 0)
-                    .map(ProductImage::getId)
-                    .toList();
-
-            if (!deletedImageIds.isEmpty()) {
-                throw new RuntimeException("Ảnh đã bị xóa mềm: " + deletedImageIds);
-            }
-
             for (ProductImage image : allImages) {
                 image.setStatus(0);
                 image.setUpdatedBy("admin");
@@ -262,7 +269,7 @@ public class ProductServiceImpl implements ProductService {
             }
         }
 
-        // 6. Xử lý ảnh mới (upload thêm ảnh)
+        // Upload ảnh mới
         if (request.getProductImages() != null && !request.getProductImages().isEmpty()) {
             List<ProductImage> productImages = new ArrayList<>();
             for (ProductImageRequest imageRequest : request.getProductImages()) {
@@ -272,6 +279,7 @@ public class ProductServiceImpl implements ProductService {
 
                 Color color = colorRepository.findById(imageRequest.getColorId())
                         .orElseThrow(() -> new IllegalArgumentException("Color not found: " + imageRequest.getColorId()));
+
                 try {
                     ProductImage image = new ProductImage();
                     image.setImage(imageRequest.getProductImages().getBytes());
@@ -292,7 +300,7 @@ public class ProductServiceImpl implements ProductService {
             }
         }
 
-        // 7. Xử lý ProductCategory
+        // ---------------- Xử lý ProductCategory ----------------
         List<Long> newCategoryIds = request.getCategoryIds();
         if (newCategoryIds != null && !newCategoryIds.isEmpty()) {
             List<ProductCategory> existingPCs = productCategoryRepository.getAllByProductAndStatus(id);
@@ -344,6 +352,10 @@ public class ProductServiceImpl implements ProductService {
 
         updatedProduct = productRepository.save(existingProduct);
 
+        // ---------------- Lưu lịch sử thay đổi ----------------
+        compareAndLogProductChanges(clonedOld, updatedProduct);
+
+        // ---------------- Build Response ----------------
         ProductResponse response = productMapper.toResponse(updatedProduct);
         List<ProductCategory> activeProductCategories = productCategoryRepository.getAllByProductAndStatus(updatedProduct.getId());
         List<String> categoryNames = activeProductCategories.stream()
@@ -353,6 +365,57 @@ public class ProductServiceImpl implements ProductService {
 
         return response;
     }
+
+    private void compareAndLogProductChanges(Product oldProduct, Product newProduct) {
+        saveHistoryIfChanged(newProduct.getId(), "Tên sản phẩm", oldProduct.getProductName(), newProduct.getProductName());
+        saveHistoryIfChanged(newProduct.getId(), "Mô tả sản phẩm", oldProduct.getDescription(), newProduct.getDescription());
+        saveHistoryIfChanged(newProduct.getId(), "Giá nhập", oldProduct.getOriginPrice(), newProduct.getOriginPrice());
+        saveHistoryIfChanged(newProduct.getId(), "Giá bán", oldProduct.getSellPrice(), newProduct.getSellPrice());
+        saveHistoryIfChanged(newProduct.getId(), "Trọng lượng", oldProduct.getWeight(), newProduct.getWeight());
+        saveHistoryIfChanged(newProduct.getId(), "Tổng số lượng", oldProduct.getQuantity(), newProduct.getQuantity());
+
+        Long oldBrandId = oldProduct.getBrand() != null ? oldProduct.getBrand().getId() : null;
+        Long newBrandId = newProduct.getBrand() != null ? newProduct.getBrand().getId() : null;
+        if (!Objects.equals(oldBrandId, newBrandId)) {
+            String oldBrandName = oldProduct.getBrand() != null ? oldProduct.getBrand().getBrandName() : "null";
+            String newBrandName = newProduct.getBrand() != null ? newProduct.getBrand().getBrandName() : "null";
+            saveHistoryIfChanged(newProduct.getId(), "Thương hiệu", oldBrandName, newBrandName);
+        }
+
+        // So sánh trạng thái (Status)
+        if (!Objects.equals(oldProduct.getStatus(), newProduct.getStatus())) {
+            String oldStatus = oldProduct.getStatus() == 1 ? "Hoạt động" : "Không hoạt động";
+            String newStatus = newProduct.getStatus() == 1 ? "Hoạt động" : "Không hoạt động";
+            saveHistoryIfChanged(newProduct.getId(), "Trạng thái", oldStatus, newStatus);
+        }
+    }
+
+    private <T> void saveHistoryIfChanged(Long productId, String fieldName, T oldValue, T newValue) {
+        // Sử dụng Objects.equals() để so sánh an toàn, bao gồm cả trường hợp null
+        if (!Objects.equals(oldValue, newValue)) {
+            String username = SecurityContextHolder.getContext().getAuthentication().getName();
+            User user = userRepository.findByUsername(username)
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng với username: " + username));
+
+            Employee employee = Optional.ofNullable(user.getEmployee())
+                    .orElseThrow(() -> new RuntimeException("Người dùng không phải là nhân viên."));
+
+            ProductHistory history = new ProductHistory();
+            history.setProductId(productId);
+            history.setActionType("UPDATE");
+            history.setFieldName(fieldName);
+
+            // Chuyển đổi thành chuỗi chỉ khi lưu vào database
+            history.setOldValue(oldValue != null ? String.valueOf(oldValue) : "null");
+            history.setNewValue(newValue != null ? String.valueOf(newValue) : "null");
+
+            history.setEmployeeId(employee.getId());
+            history.setCreatedDate(new Date());
+            history.setNote("Cập nhật sản phẩm");
+            productHistoryRepository.save(history);
+        }
+    }
+
 
     @Transactional(rollbackFor = Throwable.class)
     @Override
@@ -849,7 +912,6 @@ public class ProductServiceImpl implements ProductService {
         return prefix + datePart + "-" + randomPart;
     }
 
-    @Override
     public Page<ProductResponse> getProductsByBrand(Long brandId, Pageable pageable) {
         Page<Product> products = productRepository.findAllByBrand(brandId, pageable);
         return getProductsFiltered(products, pageable);

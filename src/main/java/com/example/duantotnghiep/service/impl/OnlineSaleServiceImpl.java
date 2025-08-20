@@ -86,14 +86,12 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
                 invoice.setStatus(TrangThaiTong.DANG_XU_LY);
             }
             invoiceRepository.save(invoice);
-
             OrderStatusHistory history = new OrderStatusHistory();
             history.setInvoice(invoice);
             history.setEmployee(employee);
             history.setOldStatus(currentStatus.getMa());
             history.setNewStatus(nextStatus.getMa());
             history.setChangedAt(new Date());
-
             historyRepository.save(history);
         }
     }
@@ -369,6 +367,14 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
         invoice.setDeliveryAddress(address.getNewAddress());
         invoice.setShippingFee(address.getShippingFee());
         invoice.setFinalAmount(address.getFinalAmount());
+        invoiceRepository.save(invoice);
+    }
+
+    @Override
+    public void updateSDT(Long invoiceId, String phone) {
+        Invoice invoice = invoiceRepository.findById(invoiceId)
+                .orElseThrow(() -> new RuntimeException("Ko thấy hóa đơn với id: " + invoiceId));
+        invoice.setPhone(phone);
         invoiceRepository.save(invoice);
     }
 

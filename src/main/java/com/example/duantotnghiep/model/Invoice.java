@@ -53,13 +53,16 @@ public class Invoice {
     @JoinColumn(name = "employee_id")
     private Employee employee;
 
-    @Column(name = "total_amount", precision = 18, scale = 3)
+    @Column(name = "total_amount")
     private BigDecimal totalAmount;
 
-    @Column(name = "discount_amount", precision = 18, scale = 3)
+    @Column(name = "discount_amount")
     private BigDecimal discountAmount;
 
-    @Column(name = "final_amount", precision = 18, scale = 3)
+    @Column(name = "phone")
+    private String phone;
+
+    @Column(name = "final_amount")
     private BigDecimal finalAmount;
 
     @Size(max = 250)

@@ -1,5 +1,6 @@
 package com.example.duantotnghiep.service;
 
+import com.example.duantotnghiep.dto.request.ProductFilterRequest;
 import com.example.duantotnghiep.dto.request.ProductRequest;
 import com.example.duantotnghiep.dto.request.ProductSearchRequest;
 import com.example.duantotnghiep.dto.response.*;
@@ -41,4 +42,13 @@ public interface ProductService {
 
     List<ProductResponse> findProducts(List<Long> productIds);
     List<FavoriteProductResponse> getFavoritesByProductId(Long productId);
+
+    Page<ProductResponse> getProductsByBrand(Long brandId, Pageable pageable);
+
+    Page<ProductResponse> getProductsByGenderId(Long genderId, Pageable pageable);
+
+    Page<ProductResponse> getProductsByColorId(Long colorId, Pageable pageable);
+
+    Page<ProductResponse> getProductsBySizeId(Long sizeId, Pageable pageable);
+
 }

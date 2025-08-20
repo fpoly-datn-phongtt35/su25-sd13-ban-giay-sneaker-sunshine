@@ -1,6 +1,7 @@
 package com.example.duantotnghiep.service.impl;
 
 import com.example.duantotnghiep.dto.request.ProductDetailRequest;
+import com.example.duantotnghiep.dto.request.ProductFilterRequest;
 import com.example.duantotnghiep.dto.request.ProductImageRequest;
 import com.example.duantotnghiep.dto.request.ProductRequest;
 import com.example.duantotnghiep.dto.request.ProductSearchRequest;
@@ -124,6 +125,7 @@ public class ProductServiceImpl implements ProductService {
             savedProduct.setProductDetails(details);
         }
 
+        // Handle categories
         List<Category> categories = categoryRepository.findAllByIdInAndStatus(request.getCategoryIds(), 1);
         if (categories.size() != request.getCategoryIds().size()) {
             throw new IllegalArgumentException("Invalid or inactive categories provided");
@@ -915,10 +917,6 @@ public class ProductServiceImpl implements ProductService {
         return getProductsFiltered(products, pageable);
     }
 
-    public Page<ProductResponse> getProductsByBrandName(String brandName, Pageable pageable) {
-        Page<Product> products = productRepository.findAllByBrandName(brandName, pageable);
-        return getProductsFiltered(products, pageable);
-    }
 
     private Page<ProductResponse> getProductsFiltered(Page<Product> products, Pageable pageable) {
         List<DiscountCampaign> activeCampaigns = discountCampaignRepository.findActiveCampaigns(LocalDateTime.now());
@@ -998,17 +996,22 @@ public class ProductServiceImpl implements ProductService {
         return mapWithDiscounts(products, pageable);
     }
 
-    // ======== (tuỳ chọn) theo categoryName, ví dụ "Sneaker" ========
-    public Page<ProductResponse> getProductsByCategoryName(String categoryName, Pageable pageable) {
-        // Cách 1: gọi repo theo tên trực tiếp
-//        Page<Product> products = productRepository.findAllByCategoryName(categoryName, pageable);
-//        return mapWithDiscounts(products, pageable);
+    @Override
+    public Page<ProductResponse> getProductsByGenderId(Long genderId, Pageable pageable) {
+        Page<Product> products = productRepository.findAllByGenderId(genderId, pageable);
+        return mapWithDiscounts(products, pageable);
+    }
 
-        // Cách 2 (khuyến nghị hiệu năng): resolve sang ID rồi gọi theo ID
-         Long id = categoryRepository.findByCategoryNameIgnoreCase(categoryName)
-                 .map(Category::getId)
-                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy danh mục: " + categoryName));
-         return getProductsByCategoryId(id, pageable);
+    @Override
+    public Page<ProductResponse> getProductsByColorId(Long colorId, Pageable pageable) {
+        Page<Product> products = productRepository.findAllByColorId(colorId, pageable);
+        return mapWithDiscounts(products, pageable);
+    }
+
+    @Override
+    public Page<ProductResponse> getProductsBySizeId(Long sizeId, Pageable pageable) {
+        Page<Product> products = productRepository.findAllBySizeId(sizeId, pageable);
+        return mapWithDiscounts(products, pageable);
     }
 
 }

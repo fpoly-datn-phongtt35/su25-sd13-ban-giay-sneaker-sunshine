@@ -49,5 +49,15 @@ public interface ProductDetailRepository extends JpaRepository<ProductDetail,Lon
 """)
     Page<ProductDetail> pageAllActive(Pageable pageable);
 
+    @Query("""
+        select pd from ProductDetail pd
+        left join fetch pd.product p
+        left join fetch p.brand pb
+        left join fetch pd.size s
+        left join fetch pd.color c
+        where pd.productDetailCode = :code
+          and pd.status = 1
+    """)
+    Optional<ProductDetail> findActiveByDetailCodeFetchAll(@Param("code") String code);
 
 }

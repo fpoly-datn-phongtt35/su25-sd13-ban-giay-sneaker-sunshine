@@ -1,7 +1,6 @@
 package com.example.duantotnghiep.service.impl;
 
 import com.example.duantotnghiep.dto.request.ProductDetailRequest;
-import com.example.duantotnghiep.dto.request.ProductFilterRequest;
 import com.example.duantotnghiep.dto.request.ProductImageRequest;
 import com.example.duantotnghiep.dto.request.ProductRequest;
 import com.example.duantotnghiep.dto.request.ProductSearchRequest;
@@ -20,11 +19,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -40,7 +37,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -650,55 +646,36 @@ public class ProductServiceImpl implements ProductService {
     }
 
 
-    @Transactional(readOnly = true)
     @Override
-    public ProductSearchResponse scanProductToSearchResponse(String rawCode) {
+    public ProductDetailResponse scanProductDetail(String rawCode) {
         String code = rawCode == null ? "" : rawCode.trim();
         if (code.isEmpty()) throw new IllegalArgumentException("Mã QR trống.");
 
-        // 1) Ưu tiên QR = productDetailCode; fallback = productCode
-        Long scannedDetailId = null;
-        Product product;
+        // Ưu tiên dùng fetch-join để tránh lazy/null khi map
+        ProductDetail pd = productDetailRepository.findActiveByDetailCodeFetchAll(code)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy SPCT hoặc SPCT không hoạt động."));
 
-        Optional<ProductDetail> opd = productDetailRepository.findActiveByDetailCode(code);
-        if (opd.isPresent()) {
-            ProductDetail pd = opd.get();
-            scannedDetailId = pd.getId();
-            product = pd.getProduct();
-        } else {
-            product = productRepository.findTop1ByProductCodeAndStatus(code, 1)
-                    .orElseThrow(() -> new NoSuchElementException("Không tìm thấy sản phẩm từ mã quét."));
-        }
+        // Map sang DTO theo mapper bạn đã có
+        ProductDetailResponse resp = productDetailMapper.toResponse(pd);
 
-        // 2) Nạp dữ liệu phục vụ mapper
-        Long productId = product.getId();
-        product.setProductCategories(
-                productCategoryRepository.findActiveByProductIdFetchCategory(productId)
-        );
-        product.setProductDetails(
-                productDetailRepository.findActiveByProductIdFetchAttrs(productId)
-        );
-
-        // 3) Tính giảm giá theo các hàm sẵn có của bạn
+        // Tính giảm giá
         List<DiscountCampaign> active = discountCampaignRepository.findActiveCampaigns(LocalDateTime.now());
 
-        double pctDetail  = (scannedDetailId != null)
-                ? getBestDiscountPercentageForProductDetail(scannedDetailId, active) : 0.0;
-        double pctProduct = getBestDiscountPercentageForProduct(product, active);
+        double pctDetail  = getBestDiscountPercentageForProductDetail(pd.getId(), active);
+        double pctProduct = (pd.getProduct() != null)
+                ? getBestDiscountPercentageForProduct(pd.getProduct(), active) : 0.0;
         double bestPct    = Math.max(pctDetail, pctProduct);
 
         Long bestCampaignId = (pctDetail >= pctProduct)
-                ? getBestDiscountCampaignIdForProductDetail(scannedDetailId, active)
-                : getBestDiscountCampaignIdForProduct(product, active);
+                ? getBestDiscountCampaignIdForProductDetail(pd.getId(), active)
+                : (pd.getProduct() != null ? getBestDiscountCampaignIdForProduct(pd.getProduct(), active) : null);
 
-        // 4) Map -> ProductSearchResponse & set discount/campaign
-        ProductSearchResponse resp = productMapper.toResponseSearch(product);
+        // Fill vào DTO (các field này bạn không map trong mapper)
         resp.setDiscountPercentage((int) Math.round(bestPct));
         resp.setDiscountedPrice(calculateDiscountPrice(resp.getSellPrice(), bestPct));
         resp.setDiscountCampaignId(bestCampaignId);
 
-        // (Nếu muốn, có thể lan toả % giảm xuống từng ProductDetailResponse ở đây)
-
+        // Barcode đã được map = productDetailCode theo mapper của bạn
         return resp;
     }
 

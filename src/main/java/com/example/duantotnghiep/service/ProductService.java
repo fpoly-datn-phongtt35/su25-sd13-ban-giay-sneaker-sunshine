@@ -28,8 +28,7 @@ public interface ProductService {
 
     Page<ProductResponse> getAllProducts(Pageable pageable);
 
-    @Transactional(readOnly = true)
-    ProductSearchResponse scanProductToSearchResponse(String rawCode);
+    ProductDetailResponse scanProductDetail(String rawCode);
 
     PaginationDTO<ProductSearchResponse> phanTrang(ProductSearchRequest request, Pageable pageable);
 

@@ -52,5 +52,6 @@ public class ProductSearchResponse {
     // Danh sách liên quan
     private List<String> categoryNames;
     private List<ProductDetailResponse> productDetails;
+    private List<ProductImageResponse> productImages;
 }
 

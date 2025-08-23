@@ -750,16 +750,25 @@ public class InvoiceServiceImpl implements InvoiceService {
         final ProductDetail pd = productDetailRepository.findById(productDetailId)
                 .orElseThrow(() -> new RuntimeException("Biến thể sản phẩm không tồn tại"));
         final int available = pd.getQuantity() == null ? 0 : pd.getQuantity();
-        if (available < quantity) {
+
+        // ===== Lấy (nếu có) dòng hiện tại của SPCT trong HĐ để kiểm tra tổng =====
+        InvoiceDetail line = invoiceDetailRepository.findByInvoiceAndProductDetail(invoice, pd).orElse(null);
+        final int existingQty = (line != null && !Objects.equals(line.getStatus(), 2))
+                ? (line.getQuantity() == null ? 0 : line.getQuantity())
+                : 0;
+
+        // Vì KHÔNG trừ kho ở đây nữa → phải đảm bảo tổng yêu cầu không vượt quá tồn hiện tại
+        final int requestedTotal = existingQty + quantity;
+        if (available < requestedTotal) {
             throw new RuntimeException("Số lượng trong kho không đủ");
         }
 
-        // ===== Constants / context (final cho lambda) =====
+        // ===== Constants / context =====
         final int SCALE = 2;
         final RoundingMode RM = RoundingMode.HALF_UP;
         final BigDecimal ONE_HUNDRED = new BigDecimal("100");
         final LocalDateTime now = LocalDateTime.now();
-        final String username = currentUsername(); // lấy user hiện tại theo hệ thống của bạn
+        final String username = currentUsername();
         final Long pdIdFinal = productDetailId;
         final Long productIdFinal = pd.getProduct().getId();
 
@@ -768,19 +777,19 @@ public class InvoiceServiceImpl implements InvoiceService {
                 .orElse(BigDecimal.ZERO)
                 .setScale(SCALE, RM);
 
-        // ===== Active campaigns (đã join-fetch) =====
+        // ===== Active campaigns =====
         final List<DiscountCampaign> active = discountCampaignRepository.findActiveCampaigns(now);
         final java.util.function.Predicate<DiscountCampaign> isActive = c ->
                 (c.getStartDate() == null || !now.isBefore(c.getStartDate())) &&
                         (c.getEndDate() == null || !now.isAfter(c.getEndDate()));
 
-        // ===== Chọn % giảm tốt nhất (ƯU TIÊN SPCT → Product → % chung) =====
+        // ===== Chọn % giảm tốt nhất =====
         BigDecimal bestPercent = BigDecimal.ZERO;
         Long bestCampaignId = null;
 
-        // 1) Nếu FE gửi sẵn campaignId: dùng khi campaign hợp lệ & áp dụng cho SPCT/Product
+        // 1) FE gửi sẵn campaignId
         if (discountCampaignId != null) {
-            final Long dcIdFinal = discountCampaignId; // alias final
+            final Long dcIdFinal = discountCampaignId;
             final DiscountCampaign tmp = discountCampaignRepository.findById(dcIdFinal)
                     .orElseThrow(() -> new RuntimeException("Chiến dịch giảm giá không tồn tại"));
             if (isActive.test(tmp)) {
@@ -793,7 +802,6 @@ public class InvoiceServiceImpl implements InvoiceService {
                                 link.getProduct() != null &&
                                         Objects.equals(link.getProduct().getId(), productIdFinal));
                 if (appliesPd || appliesP) {
-                    // Ưu tiên % trên link SPCT nếu có; nếu không, dùng % chung của campaign
                     final Optional<BigDecimal> pctOnPdLink = Optional.ofNullable(tmp.getProductDetails())
                             .orElseGet(java.util.Collections::emptyList).stream()
                             .filter(link -> link.getProductDetail() != null &&
@@ -809,9 +817,8 @@ public class InvoiceServiceImpl implements InvoiceService {
             }
         }
 
-        // 2) Nếu chưa “chốt”, tự tìm best trong các campaign đang active
+        // 2) Tự tìm best nếu chưa chốt
         if (bestCampaignId == null) {
-            // a) Best theo SPCT: lấy % ở link DCPD; nếu null thì fallback % chung campaign
             final Optional<AbstractMap.SimpleEntry<Long, BigDecimal>> pdBest = active.stream()
                     .filter(isActive)
                     .filter(c -> c.getProductDetails() != null)
@@ -829,7 +836,6 @@ public class InvoiceServiceImpl implements InvoiceService {
                 bestCampaignId = pdBest.get().getKey();
                 bestPercent    = pdBest.get().getValue();
             } else {
-                // b) Fallback: Best theo Product (nếu link Product có % riêng thì thay vào đây)
                 final Optional<AbstractMap.SimpleEntry<Long, BigDecimal>> pBest = active.stream()
                         .filter(isActive)
                         .filter(c -> c.getProducts() != null)
@@ -858,16 +864,15 @@ public class InvoiceServiceImpl implements InvoiceService {
         final BigDecimal discountedPrice = sellPrice.subtract(discountAmount)
                 .max(BigDecimal.ZERO).setScale(SCALE, RM);
 
-        // ===== Gộp/Cập nhật dòng HĐ =====
-        InvoiceDetail line = invoiceDetailRepository.findByInvoiceAndProductDetail(invoice, pd).orElse(null);
-        final Long finalBestCampaignId = bestCampaignId; // alias final cho lambda
+        // ===== Cập nhật / gộp dòng HĐ (không trừ kho ở đây) =====
+        final Long finalBestCampaignId = bestCampaignId;
 
         if (line != null) {
             if (Objects.equals(line.getStatus(), 2)) {
                 line.setStatus(1);
                 line.setQuantity(quantity);
             } else {
-                line.setQuantity(line.getQuantity() + quantity);
+                line.setQuantity(requestedTotal); // dùng tổng đã kiểm tra ở trên
             }
             line.setSellPrice(sellPrice);
             line.setDiscountPercentage(percentInt);
@@ -908,16 +913,18 @@ public class InvoiceServiceImpl implements InvoiceService {
             line.setInvoiceCodeDetail("INV-D-" + invoice.getId() + "-" + (System.nanoTime() % 100000));
         }
 
-        // ===== Trừ kho & lưu =====
-        pd.setQuantity(available - quantity);
+        // ===== KHÔNG trừ kho ở đây nữa =====
+        // pd.setQuantity(available - quantity);  // <-- ĐÃ BỎ
+
         invoiceDetailRepository.saveAndFlush(line);
 
-        // Không gọi “recalc toàn giỏ” để tránh bị đè discount dòng
+        // Không recalc toàn giỏ để tránh đè discount dòng
         updateInvoiceTotal(invoice);
 
         final List<InvoiceDetail> all = invoiceDetailRepository.findByInvoiceAndStatus(invoice, 1);
         return invoiceMapper.toInvoiceDisplayResponse(invoice, all);
     }
+
 
 
 

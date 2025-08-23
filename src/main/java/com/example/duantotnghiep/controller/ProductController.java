@@ -175,8 +175,8 @@ public class ProductController {
     }
 
     @GetMapping("/scan")
-    public ResponseEntity<ProductSearchResponse> scan(@RequestParam String code) {
-        return ResponseEntity.ok(productService.scanProductToSearchResponse(code));
+    public ResponseEntity<ProductDetailResponse> scan(@RequestParam String code) {
+        return ResponseEntity.ok(productService.scanProductDetail(code));
     }
 
     @GetMapping("/reviews-product/{productId}")

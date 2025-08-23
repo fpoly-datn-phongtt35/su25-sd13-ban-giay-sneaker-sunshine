@@ -261,6 +261,49 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
                                  @Param("toDate") Date toDate);
 
 
+
+    // Doanh thu theo loại đơn (có thể kèm phạm vi thời gian)
+    @Query("""
+        select i.orderType as type, sum(i.totalAmount) as total
+        from Invoice i
+        where i.status = :status
+          and (:start is null or i.createdDate >= :start)
+          and (:end   is null or i.createdDate <  :end)
+        group by i.orderType
+        order by total desc
+    """)
+    List<Object[]> getRevenueByOrderType(
+            @Param("status") TrangThaiTong status,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
+    );
+
+
+    // Đếm số hóa đơn theo trạng thái trong phạm vi thời gian (nếu cần)
+    @Query("""
+        select i.status as st, count(i.id) as total
+        from Invoice i
+        where (:start is null or i.createdDate >= :start)
+          and (:end   is null or i.createdDate <  :end)
+        group by i.status
+    """)
+    List<Object[]> countInvoicesByStatus(
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
+    );
+
+    @Query("""
+    select coalesce(sum(i.totalAmount), 0)
+    from Invoice i
+    where i.status = :status
+      and i.createdDate >= :start
+      and i.createdDate <  :end
+""")
+    Long sumRevenueBetween(@Param("start") LocalDateTime start,
+                           @Param("end")   LocalDateTime end,
+                           @Param("status") TrangThaiTong status);
+
+
 }
 
 

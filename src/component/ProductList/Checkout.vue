@@ -9,7 +9,7 @@
             <el-row :gutter="20">
               <el-col :span="12">
                 <el-form-item label="HỌ VÀ TÊN" prop="customerName">
-                  <el-input v-model="form.customerName" placeholder="phan tuan anh"></el-input>
+                  <el-input v-model="form.customerName" placeholder="Nhập họ tên"></el-input>
                 </el-form-item>
               </el-col>
               <el-col :span="12">
@@ -23,15 +23,15 @@
             <el-row :gutter="20">
               <el-col :span="24">
                 <el-form-item label="ĐỊA CHỈ" prop="address.houseName">
-                  <el-input v-model="form.address.houseName" placeholder="Địa chỉ"></el-input>
+                  <el-input v-model="form.address.houseName" placeholder="Nhập địa chỉ cụ thể"></el-input>
                 </el-form-item>
               </el-col>
             </el-row>
 
               <el-row :gutter="20">
               <el-col :span="24">
-                <el-form-item label="Gmail" prop="address.houseName">
-                  <el-input v-model="form.email" placeholder="Địa chỉ"></el-input>
+                <el-form-item label="Gmail" prop="email">
+                  <el-input v-model="form.email" placeholder="Email"></el-input>
                 </el-form-item>
               </el-col>
             </el-row>
@@ -295,7 +295,7 @@ const form = ref({
   customerId: null,
   customerName: '', // Pre-fill from image
   phone: '',
-  email: '', // Pre-fill from image
+  email: '',
   description: '', // Not shown in image, but kept for backend
   address: {
     country: 'Việt Nam',
@@ -312,6 +312,7 @@ const form = ref({
 
 // Validation Rules - Adjusted based on image's visible fields and hints
 const rules = {
+  email: [{ required: true, message: 'Vui lòng nhập email ', trigger: 'blur' }],
   customerName: [{ required: true, message: 'Vui lòng nhập họ và tên', trigger: 'blur' }],
   phone: [
     { required: true, message: 'Vui lòng nhập số điện thoại', trigger: 'blur' },

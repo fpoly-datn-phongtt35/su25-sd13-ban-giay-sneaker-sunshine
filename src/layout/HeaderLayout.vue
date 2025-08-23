@@ -3,9 +3,10 @@
     <!-- Top marquee -->
     <div class="top-announcement-bar">
       <p class="scrolling-text">
-        <span>Chào mừng đến với cửa hàng giày Sunshine! Mua sắm ngay hôm nay để nhận ưu đãi đặc biệt!</span>
-        <span>Miễn phí vận chuyển cho đơn hàng trên 500.000đ!</span>
-        <span>Giảm giá 20% cho đơn hàng đầu tiên khi đăng ký tài khoản!</span>
+        <span
+          >Chào mừng đến với cửa hàng giày Sunshine! Mua sắm ngay hôm nay để nhận ưu đãi đặc
+          biệt!</span
+        >
       </p>
     </div>
 
@@ -27,15 +28,21 @@
               :key="link.path + link.label"
               class="nav-item"
               :class="{ 'brand-item': link.label === 'THƯƠNG HIỆU' || link.label === 'DANH MỤC' }"
-              @mouseenter="(link.label==='THƯƠNG HIỆU' && openBrandMenu()) || (link.label==='DANH MỤC' && openCategoryMenu())"
-              @mouseleave="(link.label==='THƯƠNG HIỆU' && delayCloseBrandMenu()) || (link.label==='DANH MỤC' && delayCloseCategoryMenu())"
+              @mouseenter="
+                (link.label === 'THƯƠNG HIỆU' && openBrandMenu()) ||
+                (link.label === 'DANH MỤC' && openCategoryMenu())
+              "
+              @mouseleave="
+                (link.label === 'THƯƠNG HIỆU' && delayCloseBrandMenu()) ||
+                (link.label === 'DANH MỤC' && delayCloseCategoryMenu())
+              "
             >
               <RouterLink
-                :to="link.label==='THƯƠNG HIỆU' || link.label==='DANH MỤC' ? '' : link.path"
+                :to="link.label === 'THƯƠNG HIỆU' || link.label === 'DANH MỤC' ? '' : link.path"
                 class="nav-link"
                 active-class="is-active"
                 :class="{ 'text-red-sale': link.isSale }"
-                @click.prevent="link.label==='THƯƠNG HIỆU' || link.label==='DANH MỤC'"
+                @click.prevent="link.label === 'THƯƠNG HIỆU' || link.label === 'DANH MỤC'"
               >
                 <i :class="link.icon"></i> {{ link.label }}
               </RouterLink>
@@ -43,14 +50,16 @@
               <!-- Mega menu THƯƠNG HIỆU (giữ nguyên) -->
               <Transition name="fade">
                 <div
-                  v-if="showBrandMenu && link.label==='THƯƠNG HIỆU'"
+                  v-if="showBrandMenu && link.label === 'THƯƠNG HIỆU'"
                   class="brand-mega"
                   @mouseenter="cancelCloseTimer()"
                   @mouseleave="delayCloseBrandMenu"
                 >
                   <div class="brand-mega__content">
                     <div v-if="brandLoading" class="brand-state">Đang tải thương hiệu…</div>
-                    <div v-else-if="brandError" class="brand-state brand-state--error">{{ brandError }}</div>
+                    <div v-else-if="brandError" class="brand-state brand-state--error">
+                      {{ brandError }}
+                    </div>
 
                     <template v-else>
                       <div class="brand-col">
@@ -85,14 +94,16 @@
               <!-- NEW: Mega menu DANH MỤC -->
               <Transition name="fade">
                 <div
-                  v-if="showCategoryMenu && link.label==='DANH MỤC'"
+                  v-if="showCategoryMenu && link.label === 'DANH MỤC'"
                   class="category-mega"
                   @mouseenter="cancelCloseCategoryTimer"
                   @mouseleave="delayCloseCategoryMenu"
                 >
                   <div class="category-mega__content">
                     <div v-if="categoryLoading" class="brand-state">Đang tải danh mục…</div>
-                    <div v-else-if="categoryError" class="brand-state brand-state--error">{{ categoryError }}</div>
+                    <div v-else-if="categoryError" class="brand-state brand-state--error">
+                      {{ categoryError }}
+                    </div>
 
                     <template v-else>
                       <ul class="category-grid">
@@ -122,29 +133,43 @@
 
           <!-- User -->
           <div class="user-menu-container">
-            <button class="header-icon-btn" @click="toggleUserDropdown" type="button" aria-label="Tài khoản">
+            <button
+              class="header-icon-btn"
+              @click="toggleUserDropdown"
+              type="button"
+              aria-label="Tài khoản"
+            >
               <el-icon :size="24"><User /></el-icon>
             </button>
+
             <Transition name="fade">
               <div v-if="showUserOptions" class="user-dropdown-menu">
                 <template v-if="user">
-                  <span class="dropdown-greeting">👋 {{ user.customerName || user.employeeName }}</span>
+                  <span class="dropdown-greeting"
+                    >Welcome: {{ user.customerName || user.employeeName }}</span
+                  >
+
                   <RouterLink to="/don-hang" class="dropdown-item" @click="closeDropdown">
-                    <i class="fas fa-receipt"></i> Đơn hàng
+                    <el-icon><Document /></el-icon> Đơn hàng
                   </RouterLink>
+
                   <RouterLink to="/san-pham-da-mua" class="dropdown-item" @click="closeDropdown">
-                    <i class="fas fa-box-open"></i> Sản phẩm đã mua
+                    <el-icon><Box /></el-icon> Sản phẩm đã mua
                   </RouterLink>
+
                   <RouterLink to="/thong-tin-ca-nhan" class="dropdown-item" @click="closeDropdown">
-                    <i class="fas fa-user-circle"></i> Thông tin cá nhân
+                    <el-icon><User /></el-icon> Thông tin cá nhân
                   </RouterLink>
+
                   <RouterLink to="/ma-giam-gia" class="dropdown-item" @click="closeDropdown">
-                    <i class="fas fa-tags"></i> Mã giảm giá
+                    <el-icon><Tickets /></el-icon> Mã giảm giá
                   </RouterLink>
+
                   <button class="btn-logout" @click="logout">
-                    <i class="fas fa-sign-out-alt"></i> Đăng xuất
+                    <el-icon><SwitchButton /></el-icon> Đăng xuất
                   </button>
                 </template>
+
                 <template v-else>
                   <button class="btn-register" @click="openRegisterModal">Đăng ký</button>
                   <button class="btn-login" @click="openLoginModal">Đăng nhập</button>
@@ -160,7 +185,11 @@
           </RouterLink>
 
           <!-- Favorite -->
-          <RouterLink to="/san-pham-yeu-thich" class="header-icon-btn cart-icon-container" aria-label="Yêu thích">
+          <RouterLink
+            to="/san-pham-yeu-thich"
+            class="header-icon-btn cart-icon-container"
+            aria-label="Yêu thích"
+          >
             <i class="bi bi-heart heart-icon"></i>
           </RouterLink>
         </div>
@@ -200,7 +229,17 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { User, Search, ShoppingCart, ArrowUp } from '@element-plus/icons-vue'
+import {
+  User,
+  Search,
+  ShoppingCart,
+  ArrowUp,
+  Tickets,
+  Box,
+  Document,
+  Discount,
+  SwitchButton,
+} from '@element-plus/icons-vue'
 
 import LoginModal from '@/component/LoginModal.vue'
 import RegisterCustomerModal from '@/component/RegisterCustomerModal.vue'
@@ -221,10 +260,11 @@ const showScrollTopButton = ref(false)
 /* --------- NAV LINKS --------- */
 const navLinks = [
   { path: '/', label: 'TRANG CHỦ' },
+  { path: '/', label: 'GIỚI THIỆU' },
   { path: '/collections', label: 'SẢN PHẨM' },
   { path: '/san-pham-uu-dai', label: 'ƯU ĐÃI' },
   { path: '/', label: 'THƯƠNG HIỆU' },
-  { path: '/', label: 'DANH MỤC' } // NEW
+  { path: '/', label: 'DANH MỤC' },
 ]
 
 /* --------- BRAND MENU (giữ nguyên) --------- */
@@ -238,11 +278,16 @@ const brandGroups = computed(() => {
   const groups = { AG: [], HR: [], SZ: [] }
   const list = Array.isArray(brandList.value) ? brandList.value : []
 
-  const normalize = (s) => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+  const normalize = (s) =>
+    (s || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
   list.forEach((raw) => {
     const id = raw.id ?? raw.brandId ?? raw.code ?? raw._id ?? String(Math.random())
     const name = raw.brandName ?? raw.name ?? raw.brand_name ?? ''
-    const clean = normalize(name); if (!clean) return
+    const clean = normalize(name)
+    if (!clean) return
     const first = (clean[0] || 'Z').toUpperCase()
     const push = (bucket) => bucket.push({ id, name: name.trim() })
     if ('ABCDEFG'.includes(first)) push(groups.AG)
@@ -250,7 +295,9 @@ const brandGroups = computed(() => {
     else push(groups.SZ)
   })
   const byName = (a, b) => a.name.localeCompare(b.name, 'vi', { sensitivity: 'base' })
-  groups.AG.sort(byName); groups.HR.sort(byName); groups.SZ.sort(byName)
+  groups.AG.sort(byName)
+  groups.HR.sort(byName)
+  groups.SZ.sort(byName)
   return groups
 })
 async function fetchBrands() {
@@ -260,7 +307,7 @@ async function fetchBrands() {
     const res = await fetch('http://localhost:8080/api/admin/brand/hien-thi')
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const data = await res.json()
-    brandList.value = Array.isArray(data) ? data : (data?.data || data?.content || [])
+    brandList.value = Array.isArray(data) ? data : data?.data || data?.content || []
   } catch (e) {
     console.error(e)
     brandError.value = 'Không tải được danh sách thương hiệu.'
@@ -268,13 +315,28 @@ async function fetchBrands() {
     brandLoading.value = false
   }
 }
-function openBrandMenu() { cancelCloseTimer(); showBrandMenu.value = true; if (!brandList.value.length && !brandLoading.value) fetchBrands() }
-function delayCloseBrandMenu() { cancelCloseTimer(); closeTimer = setTimeout(() => (showBrandMenu.value = false), 150) }
-function cancelCloseTimer() { if (closeTimer) { clearTimeout(closeTimer); closeTimer = null } }
+function openBrandMenu() {
+  cancelCloseTimer()
+  showBrandMenu.value = true
+  if (!brandList.value.length && !brandLoading.value) fetchBrands()
+}
+function delayCloseBrandMenu() {
+  cancelCloseTimer()
+  closeTimer = setTimeout(() => (showBrandMenu.value = false), 150)
+}
+function cancelCloseTimer() {
+  if (closeTimer) {
+    clearTimeout(closeTimer)
+    closeTimer = null
+  }
+}
 function gotoBrand(b) {
   showBrandMenu.value = false
   const idNum = Number(b.id ?? b.brandId ?? b.code ?? b._id)
-  router.push({ path: '/collections', query: { brandId: Number.isFinite(idNum) ? idNum : b.id, brandName: b.name, page: 1, size: 12 } })
+  router.push({
+    path: '/collections',
+    query: { brandId: Number.isFinite(idNum) ? idNum : b.id, brandName: b.name, page: 1, size: 12 },
+  })
 }
 
 /* --------- NEW: CATEGORY MENU --------- */
@@ -292,7 +354,7 @@ async function fetchCategories() {
     const res = await fetch('http://localhost:8080/api/admin/categories/hien-thi')
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const data = await res.json()
-    categoryList.value = Array.isArray(data) ? data : (data?.data || data?.content || [])
+    categoryList.value = Array.isArray(data) ? data : data?.data || data?.content || []
   } catch (e) {
     console.error(e)
     categoryError.value = 'Không tải được danh mục.'
@@ -303,21 +365,38 @@ async function fetchCategories() {
 
 const categoryListSorted = computed(() => {
   const src = Array.isArray(categoryList.value) ? categoryList.value : []
-  const rows = src.map(x => ({
-    id: x.id ?? x.categoryId ?? x._id ?? x.code ?? String(Math.random()),
-    name: x.categoryName ?? x.name ?? x.title ?? 'Danh mục'
-  })).filter(x => x.id && x.name)
-  rows.sort((a,b) => a.name.localeCompare(b.name, 'vi', { sensitivity: 'base' }))
+  const rows = src
+    .map((x) => ({
+      id: x.id ?? x.categoryId ?? x._id ?? x.code ?? String(Math.random()),
+      name: x.categoryName ?? x.name ?? x.title ?? 'Danh mục',
+    }))
+    .filter((x) => x.id && x.name)
+  rows.sort((a, b) => a.name.localeCompare(b.name, 'vi', { sensitivity: 'base' }))
   return rows
 })
 
-function openCategoryMenu() { cancelCloseCategoryTimer(); showCategoryMenu.value = true; fetchCategories() }
-function delayCloseCategoryMenu() { cancelCloseCategoryTimer(); catTimer = setTimeout(() => (showCategoryMenu.value = false), 150) }
-function cancelCloseCategoryTimer() { if (catTimer) { clearTimeout(catTimer); catTimer = null } }
+function openCategoryMenu() {
+  cancelCloseCategoryTimer()
+  showCategoryMenu.value = true
+  fetchCategories()
+}
+function delayCloseCategoryMenu() {
+  cancelCloseCategoryTimer()
+  catTimer = setTimeout(() => (showCategoryMenu.value = false), 150)
+}
+function cancelCloseCategoryTimer() {
+  if (catTimer) {
+    clearTimeout(catTimer)
+    catTimer = null
+  }
+}
 
 function gotoCategory(c) {
   showCategoryMenu.value = false
-  router.push({ path: '/collections', query: { categoryId: c.id, categoryName: c.name, page: 1, size: 12 } })
+  router.push({
+    path: '/collections',
+    query: { categoryId: c.id, categoryName: c.name, page: 1, size: 12 },
+  })
 }
 
 /* --------- CART & USER (giữ nguyên) --------- */
@@ -326,8 +405,12 @@ function updateCartCount() {
     const userId = user.value?.id || 'guest'
     const cartKey = `cart_${userId}`
     const cart = JSON.parse(localStorage.getItem(cartKey) || '[]')
-    cartCount.value = Array.isArray(cart) ? cart.reduce((acc, item) => acc + (item.quantity || 0), 0) : 0
-  } catch { cartCount.value = 0 }
+    cartCount.value = Array.isArray(cart)
+      ? cart.reduce((acc, item) => acc + (item.quantity || 0), 0)
+      : 0
+  } catch {
+    cartCount.value = 0
+  }
 }
 const handleLoggedIn = (userData) => {
   localStorage.setItem('user', JSON.stringify(userData))
@@ -365,13 +448,33 @@ function handleScroll() {
   if (showBrandMenu.value) showBrandMenu.value = false
   if (showCategoryMenu.value) showCategoryMenu.value = false
 }
-function scrollToTop() { window.scrollTo({ top: 0, behavior: 'smooth' }) }
-function performSearch() { if (!searchQuery.value) return; router.push({ path: '/search-results', query: { q: searchQuery.value } }) }
-function toggleUserDropdown(e) { e.stopPropagation(); showUserOptions.value = !showUserOptions.value }
-function closeDropdown() { showUserOptions.value = false }
-function openLoginModal() { closeDropdown(); showLogin.value = true }
-function openRegisterModal() { closeDropdown(); showRegister.value = true }
-function handleClickOutsideUserMenu(event) { if (showUserOptions.value && !event.target.closest('.user-menu-container')) { showUserOptions.value = false } }
+function scrollToTop() {
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+function performSearch() {
+  if (!searchQuery.value) return
+  router.push({ path: '/search-results', query: { q: searchQuery.value } })
+}
+function toggleUserDropdown(e) {
+  e.stopPropagation()
+  showUserOptions.value = !showUserOptions.value
+}
+function closeDropdown() {
+  showUserOptions.value = false
+}
+function openLoginModal() {
+  closeDropdown()
+  showLogin.value = true
+}
+function openRegisterModal() {
+  closeDropdown()
+  showRegister.value = true
+}
+function handleClickOutsideUserMenu(event) {
+  if (showUserOptions.value && !event.target.closest('.user-menu-container')) {
+    showUserOptions.value = false
+  }
+}
 
 /* --------- LIFECYCLE --------- */
 onMounted(() => {
@@ -399,104 +502,330 @@ watch(user, updateCartCount)
   --border-color: #dee2e6;
 }
 
-.header-wrapper { position: sticky; top: 0; z-index: 1000; background-color: #fff; }
+.header-wrapper {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  background-color: #fff;
+}
 
 /* Marquee */
-@keyframes scroll-text { 0% { transform: translateX(0%);} 100% { transform: translateX(-50%);} }
-.top-announcement-bar { background-color: #000; color: #fff; padding: 10px 0; font-size: 14px; overflow: hidden; white-space: nowrap; }
-.scrolling-text { margin: 0; animation: scroll-text 30s linear infinite; display: inline-block; }
-.scrolling-text span { padding: 0 2rem; }
+@keyframes scroll-text {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+.top-announcement-bar {
+  background-color: #000;
+  color: #fff;
+  padding: 10px 0;
+  font-size: 14px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.scrolling-text {
+  margin: 0;
+  animation: scroll-text 30s linear infinite;
+  display: inline-block;
+}
+.scrolling-text span {
+  padding: 0 2rem;
+}
 
 /* Header */
-.main-header { border-bottom: 1px solid var(--border-color); transition: all .3s ease-in-out; padding: 10px 0; }
-.container { max-width: 1400px; margin: 0 auto; padding: 0 20px; }
-.main-header.is-scrolled { padding: 5px 0; box-shadow: 0 4px 12px rgba(0,0,0,.08); }
+.main-header {
+  border-bottom: 1px solid var(--border-color);
+  transition: all 0.3s ease-in-out;
+  padding: 10px 0;
+}
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+.main-header.is-scrolled {
+  padding: 5px 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
 
 /* Logo */
-.site-logo { height: 80px; transition: height .3s ease-in-out; }
-.main-header.is-scrolled .site-logo { height: 60px; }
+.site-logo {
+  height: 80px;
+  transition: height 0.3s ease-in-out;
+}
+.main-header.is-scrolled .site-logo {
+  height: 60px;
+}
 
 /* Nav */
-.header-nav { flex-grow: 1; display: flex; justify-content: center; }
-.nav-list { display: flex; gap: 1rem; list-style: none; margin: 0; padding: 0; }
-.nav-link {
-  font-family: 'Product Sans', sans-serif; font-size: 16px; padding: 10px 15px;
-  color: var(--text-dark); font-weight: 700; text-decoration: none; white-space: nowrap; transition: color .2s ease; border-radius: 5px;
+.header-nav {
+  flex-grow: 1;
+  display: flex;
+  justify-content: center;
 }
-.nav-link:hover, .nav-link.is-active { color: var(--primary-color); }
-.nav-link.text-red-sale { color: var(--danger-color) !important; }
+.nav-list {
+  display: flex;
+  gap: 1rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.nav-link {
+  font-family: 'Product Sans', sans-serif;
+  font-size: 16px;
+  padding: 10px 15px;
+  color: var(--text-dark);
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color 0.2s ease;
+  border-radius: 5px;
+}
+.nav-link:hover,
+.nav-link.is-active {
+  color: var(--primary-color);
+}
+.nav-link.text-red-sale {
+  color: var(--danger-color) !important;
+}
 
 /* Actions */
-.header-actions { display: flex; align-items: center; gap: 1.5rem; }
-.header-search-input { width: 220px; }
-.header-icon-btn { background: none; border: none; padding: 0; cursor: pointer; color: var(--text-dark); position: relative; }
-.header-icon-btn:hover { color: var(--primary-color); }
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+.header-search-input {
+  width: 220px;
+}
+.header-icon-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--text-dark);
+  position: relative;
+}
+.header-icon-btn:hover {
+  color: var(--primary-color);
+}
 
 /* Cart badge */
-.cart-icon-container { position: relative; }
+.cart-icon-container {
+  position: relative;
+}
 .cart-badge {
-  position: absolute; top: -5px; right: -10px;
-  background-color: var(--danger-color); color: #fff; border-radius: 50%; width: 20px; height: 20px;
-  display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold;
+  position: absolute;
+  top: -5px;
+  right: -10px;
+  background-color: var(--danger-color);
+  color: #fff;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
 }
 
 /* User dropdown */
-.user-menu-container { position: relative; }
+.user-menu-container {
+  position: relative;
+}
 .user-dropdown-menu {
-  position: absolute; top: calc(100% + 10px); right: 0; background: #fff; border: 1px solid var(--border-color);
-  border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.1); padding: 10px; width: 200px; z-index: 1010;
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+  padding: 10px;
+  width: 200px;
+  z-index: 1010;
 }
 .dropdown-greeting {
-  display: block; text-align: center; font-size: 14px; font-weight: 600; color: var(--text-dark);
-  margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color);
+  display: block;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-dark);
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-color);
 }
-.dropdown-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; text-decoration: none; color: var(--text-dark); font-size: 15px; border-radius: 5px; transition: background-color .2s; }
-.dropdown-item:hover { background-color: #f8f9fa; }
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  text-decoration: none;
+  color: var(--text-dark);
+  font-size: 15px;
+  border-radius: 5px;
+  transition: background-color 0.2s;
+}
+.dropdown-item:hover {
+  background-color: #f8f9fa;
+}
 .user-dropdown-menu .btn-logout,
 .user-dropdown-menu .btn-login,
 .user-dropdown-menu .btn-register {
-  width: 100%; padding: 8px; border-radius: 5px; cursor: pointer; font-weight: 600; margin-top: 5px; border: 1px solid var(--border-color);
+  width: 100%;
+  padding: 8px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: 600;
+  margin-top: 5px;
+  border: 1px solid var(--border-color);
 }
-.user-dropdown-menu .btn-login { background-color: var(--primary-color); color: black; border-color: var(--primary-color); }
-.user-dropdown-menu .btn-logout { background-color: #f8f9fa; color: var(--danger-color); border-color: var(--danger-color); }
+.user-dropdown-menu .btn-login {
+  background-color: var(--primary-color);
+  color: black;
+  border-color: var(--primary-color);
+}
+.user-dropdown-menu .btn-logout {
+  background-color: #f8f9fa;
+  color: var(--danger-color);
+  border-color: var(--danger-color);
+}
 
 /* BRAND mega */
-.brand-item { position: relative; }
-.brand-mega {
-  position: absolute; left: 0; top: calc(100% + 10px);
-  width: 960px; background: #fff; border: 1px solid var(--border-color); border-radius: 10px;
-  box-shadow: 0 12px 30px rgba(0,0,0,.12); padding: 18px 22px; z-index: 1200;
+.brand-item {
+  position: relative;
 }
-.brand-mega__content { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 28px; }
-.brand-col__title { font-weight: 700; color: var(--text-dark); margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color); }
-.brand-list { list-style: none; margin: 0; padding: 0; max-height: 420px; overflow: auto; }
-.brand-list li a { display: block; padding: 6px 2px; text-decoration: none; color: var(--text-dark); border-radius: 6px; line-height: 1.2; }
-.brand-list li a:hover { background: #f6f7f9; color: var(--primary-color); }
-.brand-state { grid-column: 1 / -1; text-align: center; padding: 24px 0; color: var(--text-light); }
-.brand-state--error { color: var(--danger-color); }
+.brand-mega {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 10px);
+  width: 960px;
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+  padding: 18px 22px;
+  z-index: 1200;
+}
+.brand-mega__content {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 28px;
+}
+.brand-col__title {
+  font-weight: 700;
+  color: var(--text-dark);
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color);
+}
+.brand-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 420px;
+  overflow: auto;
+}
+.brand-list li a {
+  display: block;
+  padding: 6px 2px;
+  text-decoration: none;
+  color: var(--text-dark);
+  border-radius: 6px;
+  line-height: 1.2;
+}
+.brand-list li a:hover {
+  background: #f6f7f9;
+  color: var(--primary-color);
+}
+.brand-state {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 24px 0;
+  color: var(--text-light);
+}
+.brand-state--error {
+  color: var(--danger-color);
+}
 
 /* NEW: CATEGORY mega */
 .category-mega {
-  position: absolute; left: 0; top: calc(100% + 10px);
-  width: 900px; background: #fff; border: 1px solid var(--border-color); border-radius: 10px;
-  box-shadow: 0 12px 30px rgba(0,0,0,.12); padding: 18px 22px; z-index: 1200;
+  position: absolute;
+  left: 0;
+  top: calc(100% + 10px);
+  width: 900px;
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+  padding: 18px 22px;
+  z-index: 1200;
 }
-.category-mega__content { max-height: 420px; overflow: auto; }
-.category-grid { list-style: none; margin: 0; padding: 0; columns: 4; column-gap: 24px; }
-.category-grid li { break-inside: avoid; }
-.category-grid li a { display: block; padding: 6px 2px; color: var(--text-dark); text-decoration: none; border-radius: 6px; }
-.category-grid li a:hover { background: #f6f7f9; color: var(--primary-color); }
+.category-mega__content {
+  max-height: 420px;
+  overflow: auto;
+}
+.category-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  columns: 4;
+  column-gap: 24px;
+}
+.category-grid li {
+  break-inside: avoid;
+}
+.category-grid li a {
+  display: block;
+  padding: 6px 2px;
+  color: var(--text-dark);
+  text-decoration: none;
+  border-radius: 6px;
+}
+.category-grid li a:hover {
+  background: #f6f7f9;
+  color: var(--primary-color);
+}
 
 /* Scroll to top */
-.scroll-to-top-btn { position: fixed; bottom: 30px; right: 30px; z-index: 1050; box-shadow: 0 2px 10px rgba(0,0,0,.2); }
+.scroll-to-top-btn {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  z-index: 1050;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
 
 /* Fade */
-.fade-enter-active, .fade-leave-active { transition: opacity .2s ease; }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
 
 /* Responsive */
-@media (max-width: 992px) { .header-nav, .search-input-container, .brand-mega, .category-mega { display: none; } }
+@media (max-width: 992px) {
+  .header-nav,
+  .search-input-container,
+  .brand-mega,
+  .category-mega {
+    display: none;
+  }
+}
 
-.heart-icon { font-size: 24px; color: black; transition: color .2s ease; }
-.cart-icon-container:hover .heart-icon { color: red; }
+.heart-icon {
+  font-size: 24px;
+  color: black;
+  transition: color 0.2s ease;
+}
+.cart-icon-container:hover .heart-icon {
+  color: red;
+}
 </style>

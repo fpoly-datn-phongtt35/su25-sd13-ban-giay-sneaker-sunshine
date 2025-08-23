@@ -53,6 +53,9 @@ public class Invoice {
     @JoinColumn(name = "employee_id")
     private Employee employee;
 
+    @Column(name = "email")
+    private String email;
+
     @Column(name = "total_amount")
     private BigDecimal totalAmount;
 

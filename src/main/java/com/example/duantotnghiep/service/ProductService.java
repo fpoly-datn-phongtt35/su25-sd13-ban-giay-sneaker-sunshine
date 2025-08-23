@@ -50,4 +50,5 @@ public interface ProductService {
 
     Page<ProductResponse> getProductsBySizeId(Long sizeId, Pageable pageable);
 
+    List<ProductResponse> getProductSearch(String name);
 }

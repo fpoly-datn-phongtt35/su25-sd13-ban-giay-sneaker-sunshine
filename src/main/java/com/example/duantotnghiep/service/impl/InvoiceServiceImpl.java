@@ -1368,7 +1368,11 @@ public class InvoiceServiceImpl implements InvoiceService {
         address.setDefaultAddress(true);
         addressRepository.save(address);
 
-        // 3. Tạo hóa đơn
+        String addressInvoice = addr.getHouseName() + " - "
+                + addr.getWardName() + " - "
+                + addr.getDistrictName() + " - "
+                + addr.getProvinceName();
+
         Invoice invoice = new Invoice();
         invoice.setInvoiceCode("INV" + System.currentTimeMillis());
         invoice.setCustomer(customer);
@@ -1377,6 +1381,9 @@ public class InvoiceServiceImpl implements InvoiceService {
         invoice.setDescription(request.getDescription());
         invoice.setOrderType(request.getOrderType());
         invoice.setIsPaid(false);
+        invoice.setDeliveryAddress(addressInvoice);
+        invoice.setEmail(request.getCustomerInfo().getEmail());
+        invoice.setPhone(request.getCustomerInfo().getPhone());
         invoice.setStatus(TrangThaiTong.DANG_XU_LY);
         invoice.setStatusDetail(TrangThaiChiTiet.CHO_XU_LY);
         invoice.setDiscountAmount(Optional.ofNullable(request.getDiscountAmount()).orElse(BigDecimal.ZERO));

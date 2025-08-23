@@ -54,4 +54,12 @@ public class ProductResponse {
     private List<ProductDetailResponse> productDetails;
     private List<ProductImageResponse> productImages;
     private List<CategoryResponse> categories;
+
+    public ProductResponse(Long id, String productName, BigDecimal sellPrice, List<ProductImageResponse> productImages) {
+        this.id = id;
+        this.productName = productName;
+        this.sellPrice = sellPrice;
+        this.productImages = productImages;
+    }
+
 }

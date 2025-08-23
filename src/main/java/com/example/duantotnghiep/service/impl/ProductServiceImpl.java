@@ -991,4 +991,22 @@ public class ProductServiceImpl implements ProductService {
         return mapWithDiscounts(products, pageable);
     }
 
+    @Override
+    public List<ProductResponse> getProductSearch(String name) {
+        List<ProductResponse> products = productRepository.findProductWithImageV2(name)
+                .stream()
+                .limit(5)
+                .map(p -> new ProductResponse(
+                        p.getId(),
+                        p.getProductName(),
+                        p.getSellPrice(),
+                        p.getProductImages().stream()
+                                .map(img -> new ProductImageResponse(img.getId(), img.getImageName(), img.getImage(), img.getColor().getColorName()))
+                                .toList()
+                ))
+                .toList();
+        return products;
+    }
+
 }
+

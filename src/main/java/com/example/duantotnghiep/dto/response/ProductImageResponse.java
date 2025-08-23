@@ -27,4 +27,12 @@ public class ProductImageResponse {
     private Date modifiedDate;
     private String createdBy;
     private String modifiedBy;
+
+    public ProductImageResponse(Long id, String imageName, byte[] image,String colorName) {
+        this.id = id;
+        this.imageName = imageName;
+        this.image = image;
+        this.colorName = colorName;
+    }
+
 }

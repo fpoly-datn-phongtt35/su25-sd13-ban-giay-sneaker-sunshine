@@ -33,7 +33,7 @@ public class ProductExcelExporter {
             CellStyle dateStyle = createDateStyle(workbook);
 
             // Create header row
-            String[] headers = {"ID","Danh mục" ,"Tên Sản Phẩm", "Mã Sản Phẩm", "Chất Liệu", "Thương Hiệu", "Cổ Giày", "Giới Tính", "Đế Giày","Cân nặng","Giá Gốc","Giá Bán","Số lượng","Mô tả","Ngày Tạo","Ngày Sửa","Người Tạo","Người Sửa"};
+            String[] headers = {"ID","Danh mục" ,"Tên Sản Phẩm", "Mã Sản Phẩm", "Chất Liệu", "Thương Hiệu", "Cổ Giày", "Giới Tính", "Đế Giày","Cân nặng","Giá Bán","Số lượng","Mô tả","Ngày Tạo","Ngày Sửa","Người Tạo","Người Sửa"};
             Row headerRow = sheet.createRow(0);
             for (int i = 0; i < headers.length; i++) {
                 Cell cell = headerRow.createCell(i);
@@ -55,13 +55,13 @@ public class ProductExcelExporter {
                 createCell(row, 7, product.getGenderName(), dataStyle);
                 createCell(row, 8, product.getSoleName(), dataStyle);
                 createCell(row, 9, product.getWeight(), dataStyle);
-                createCell(row, 11, product.getSellPrice(), dataStyle);
-                createCell(row, 12, product.getQuantity(), dataStyle);
-                createCell(row, 13, product.getDescription(), dataStyle);
-                createCell(row, 14, product.getCreatedDate() != null ? new SimpleDateFormat("dd/MM/yyyy HH:mm:ss").format(product.getCreatedDate()) : "", dateStyle);
-                createCell(row, 15, product.getUpdatedDate() != null ? new SimpleDateFormat("dd/MM/yyyy HH:mm:ss").format(product.getUpdatedDate()) : "", dateStyle);
-                createCell(row, 16, product.getCreatedBy(), dataStyle);
-                createCell(row, 17, product.getUpdatedBy(), dataStyle);
+                createCell(row, 10, product.getSellPrice(), dataStyle);
+                createCell(row, 11, product.getQuantity(), dataStyle);
+                createCell(row, 12, product.getDescription(), dataStyle);
+                createCell(row, 13, product.getCreatedDate() != null ? new SimpleDateFormat("dd/MM/yyyy HH:mm:ss").format(product.getCreatedDate()) : "", dateStyle);
+                createCell(row, 14, product.getUpdatedDate() != null ? new SimpleDateFormat("dd/MM/yyyy HH:mm:ss").format(product.getUpdatedDate()) : "", dateStyle);
+                createCell(row, 15, product.getCreatedBy(), dataStyle);
+                createCell(row, 16, product.getUpdatedBy(), dataStyle);
 
 
             }

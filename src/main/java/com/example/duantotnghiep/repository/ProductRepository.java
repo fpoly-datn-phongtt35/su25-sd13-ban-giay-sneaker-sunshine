@@ -38,6 +38,21 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             "LEFT JOIN FETCH p.productImages pi  where p.status = 1 and pi.status = 1 order by p.createdDate desc ")
     List<Product> findProductWithImage(Pageable pageable);
 
+    @Query("""
+  SELECT DISTINCT p
+  FROM Product p
+  LEFT JOIN FETCH p.productImages pi
+  WHERE p.status = 1
+    AND (pi.status = 1 OR pi.id IS NULL)
+    AND (
+      :kw IS NULL OR :kw = '' OR
+      LOWER(p.productName) LIKE LOWER(CONCAT('%', :kw, '%'))
+    )
+  ORDER BY p.createdDate DESC
+""")
+    List<Product> findProductWithImageV2(@Param("kw") String kw);
+
+
     @Query("SELECT p FROM Product p where p.status = 1 order by p.createdDate desc ")
     List<Product> findAllWithJPQL();
 

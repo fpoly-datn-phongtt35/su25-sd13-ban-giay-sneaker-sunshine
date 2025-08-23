@@ -190,6 +190,14 @@ public class SaleOnlineController {
 
         return ResponseEntity.ok(result);
     }
+
+    @GetMapping("/quick-search")
+    public ResponseEntity<List<ProductResponse>> quickSearch(
+            @RequestParam("productName") String productName) {
+        List<ProductResponse> result = productService.getProductSearch(productName);
+        return ResponseEntity.ok(result);
+    }
+
     @GetMapping("/by-gender")
     public Page<ProductResponse> getProductsByGenderId(
             @RequestParam("genderId") Long genderId,

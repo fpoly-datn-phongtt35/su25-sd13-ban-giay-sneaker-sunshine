@@ -7,7 +7,7 @@
     </div>
 
     <el-menu :default-active="route.path" class="el-menu-vertical" router>
-      <el-menu-item index="/statistics">
+      <el-menu-item index="/dashboard">
         <i class="menu-icon bi bi-house-door" aria-hidden="true"></i>
         <span class="menu-label">Trang chủ</span>
       </el-menu-item>

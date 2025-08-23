@@ -42,34 +42,34 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="trustScore" label="Điểm tin cậy" width="130" sortable>
+        <!-- <el-table-column prop="trustScore" label="Điểm tin cậy" width="130" sortable>
           <template #default="scope">
             <el-tag :type="getTrustScoreTagType(scope.row.trustScore)" effect="light">
               {{ scope.row.trustScore }}
             </el-tag>
           </template>
-        </el-table-column>
+        </el-table-column> -->
 
- <el-table-column label="Trạng thái / Lý do cấm" min-width="300">
-  <template #default="scope">
-    <div class="flex items-center space-x-2">
-      <el-tag :type="scope.row.isBlacklisted ? 'danger' : 'success'" effect="dark" size="small">
+        <el-table-column label="Cảnh báo khách hàng" min-width="200">
+          <template #default="scope">
+            <div class="flex items-center space-x-2">
+              <!-- <el-tag :type="scope.row.isBlacklisted ? 'danger' : 'success'" effect="dark" size="small">
         {{ scope.row.isBlacklisted ? 'Đang bị cấm' : 'Hoạt động' }}
-      </el-tag>
+      </el-tag> -->
 
-      <template v-if="scope.row.blacklistReason && scope.row.blacklistReason.trim()">
-        <span class="text-reason">Lý do: {{ scope.row.blacklistReason }}</span>
-        <el-tag v-if="scope.row.blacklistEndDate" type="danger" size="small" effect="plain">
-          Đến {{ formatDate(scope.row.blacklistEndDate) }}
-        </el-tag>
-      </template>
+              <template v-if="scope.row.blacklistReason && scope.row.blacklistReason.trim()">
+                <span class="text-reason">Lý do: {{ scope.row.blacklistReason }}</span>
+                <el-tag v-if="scope.row.blacklistEndDate" type="danger" size="small" effect="plain">
+                  Đến {{ formatDate(scope.row.blacklistEndDate) }}
+                </el-tag>
+              </template>
 
-      <template v-else>
-        <div class="text-muted-reason"></div>
-      </template>
-    </div>
-  </template>
-</el-table-column>
+              <template v-else>
+                <div class="text-muted-reason"></div>
+              </template>
+            </div>
+          </template>
+        </el-table-column>
 
         <el-table-column label="Hành động" width="200" fixed="right">
           <template #default="scope">
@@ -128,25 +128,33 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
-import apiClient from '@/utils/axiosInstance'; // Đảm bảo đường dẫn này đúng trong dự án của bạn
-import { useRouter } from 'vue-router';
-import { ElMessage, ElMessageBox } from 'element-plus';
-import { Plus, Edit, Delete, Search, Refresh, CircleClose, CircleCheck } from '@element-plus/icons-vue';
+import { ref, onMounted } from 'vue'
+import apiClient from '@/utils/axiosInstance' // Đảm bảo đường dẫn này đúng trong dự án của bạn
+import { useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import {
+  Plus,
+  Edit,
+  Delete,
+  Search,
+  Refresh,
+  CircleClose,
+  CircleCheck,
+} from '@element-plus/icons-vue'
 
-const router = useRouter();
+const router = useRouter()
 
 // --- State Variables ---
-const customers = ref([]);
-const currentPage = ref(1);
-const size = ref(10);
-const totalElements = ref(0);
-const loading = ref(false);
-const searchKeyword = ref('');
+const customers = ref([])
+const currentPage = ref(1)
+const size = ref(10)
+const totalElements = ref(0)
+const loading = ref(false)
+const searchKeyword = ref('')
 
 // --- Data Fetching ---
 const fetchCustomers = async () => {
-  loading.value = true;
+  loading.value = true
   try {
     const res = await apiClient.get(`/admin/customers/phan-trang`, {
       params: {
@@ -154,101 +162,100 @@ const fetchCustomers = async () => {
         size: size.value,
         keyword: searchKeyword.value.trim() !== '' ? searchKeyword.value.trim() : null,
       },
-    });
+    })
 
-    console.log('API Response:', res.data);
+    console.log('API Response:', res.data)
 
-    customers.value = res.data?.content || [];
-    totalElements.value = res.data?.page?.totalElements ?? 0;
+    customers.value = res.data?.content || []
+    totalElements.value = res.data?.page?.totalElements ?? 0
 
     // Điều chỉnh trang hiện tại nếu không có dữ liệu trên trang đó sau khi thao tác (ví dụ: xóa item cuối cùng)
     if (customers.value.length === 0 && currentPage.value > 1 && totalElements.value > 0) {
-      currentPage.value = Math.max(1, Math.ceil(totalElements.value / size.value));
-      await fetchCustomers(); // Tải lại dữ liệu cho trang đã điều chỉnh
+      currentPage.value = Math.max(1, Math.ceil(totalElements.value / size.value))
+      await fetchCustomers() // Tải lại dữ liệu cho trang đã điều chỉnh
     } else if (totalElements.value === 0) {
-      currentPage.value = 1; // Đặt lại về trang 1 nếu không có dữ liệu nào
+      currentPage.value = 1 // Đặt lại về trang 1 nếu không có dữ liệu nào
     }
-
   } catch (err) {
-    console.error('Lỗi tải danh sách khách hàng:', err);
+    console.error('Lỗi tải danh sách khách hàng:', err)
 
     if (err.response && err.response.status === 403) {
-      router.push('/error'); // Chuyển hướng đến trang lỗi nếu không có quyền truy cập
-      return;
+      router.push('/error') // Chuyển hướng đến trang lỗi nếu không có quyền truy cập
+      return
     }
 
-    ElMessage.error('Không thể tải dữ liệu khách hàng. Vui lòng thử lại sau.');
-    customers.value = [];
-    totalElements.value = 0;
-    currentPage.value = 1;
+    ElMessage.error('Không thể tải dữ liệu khách hàng. Vui lòng thử lại sau.')
+    customers.value = []
+    totalElements.value = 0
+    currentPage.value = 1
   } finally {
-    loading.value = false;
+    loading.value = false
   }
-};
+}
 
 // --- Pagination Handlers ---
 const handleSizeChange = (newSize) => {
-  size.value = newSize;
-  currentPage.value = 1; // Reset về trang đầu tiên khi thay đổi kích thước trang
-  fetchCustomers();
-};
+  size.value = newSize
+  currentPage.value = 1 // Reset về trang đầu tiên khi thay đổi kích thước trang
+  fetchCustomers()
+}
 
 const handleCurrentChange = (newPage) => {
-  currentPage.value = newPage;
-  fetchCustomers();
-};
+  currentPage.value = newPage
+  fetchCustomers()
+}
 
 // --- Table Utilities ---
 const indexMethod = (index) => {
-  return (currentPage.value - 1) * size.value + index + 1;
-};
+  return (currentPage.value - 1) * size.value + index + 1
+}
 
 const formatDate = (dateStr) => {
-  if (!dateStr) return '';
-  const date = new Date(dateStr);
+  if (!dateStr) return ''
+  const date = new Date(dateStr)
   if (isNaN(date.getTime())) {
-    return dateStr; // Trả về chuỗi gốc nếu không phải định dạng ngày hợp lệ
+    return dateStr // Trả về chuỗi gốc nếu không phải định dạng ngày hợp lệ
   }
   // Định dạng ngày theo chuẩn Việt Nam (DD/MM/YYYY)
-  return date.toLocaleDateString('vi-VN');
-};
+  return date.toLocaleDateString('vi-VN')
+}
 
 const getTrustScoreTagType = (score) => {
-  if (score >= 80) return 'success'; // Điểm cao
-  if (score >= 50) return 'warning'; // Điểm trung bình
-  return 'danger'; // Điểm thấp (nguy hiểm)
-};
+  if (score >= 80) return 'success' // Điểm cao
+  if (score >= 50) return 'warning' // Điểm trung bình
+  return 'danger' // Điểm thấp (nguy hiểm)
+}
 
 // Hàm này quyết định lớp CSS cho mỗi hàng trong bảng
 const tableRowClassName = ({ row }) => {
   // Tô đỏ hàng nếu khách hàng bị đánh dấu là "isBlacklisted: true"
   // Điều này yêu cầu backend phải cung cấp trường 'isBlacklisted'
   if (row.isBlacklisted) {
-    return 'danger-row'; // Áp dụng lớp CSS 'danger-row' để tô đỏ
+    return 'danger-row' // Áp dụng lớp CSS 'danger-row' để tô đỏ
   }
-  return ''; // Không áp dụng lớp nào khác
-};
+  return '' // Không áp dụng lớp nào khác
+}
 
 // --- Navigation ---
 const goToAddCustomer = () => {
-  router.push({ name: 'AddCustomer' });
-};
+  router.push({ name: 'AddCustomer' })
+}
 
 const goToEditCustomer = (id) => {
-  router.push({ name: 'UpdateCustomer', params: { id: id } });
-};
+  router.push({ name: 'UpdateCustomer', params: { id: id } })
+}
 
 // --- Search Functionality ---
 const handleSearch = () => {
-  currentPage.value = 1; // Luôn tìm kiếm từ trang đầu tiên
-  fetchCustomers();
-};
+  currentPage.value = 1 // Luôn tìm kiếm từ trang đầu tiên
+  fetchCustomers()
+}
 
 const resetSearch = () => {
-  searchKeyword.value = '';
-  currentPage.value = 1;
-  fetchCustomers();
-};
+  searchKeyword.value = ''
+  currentPage.value = 1
+  fetchCustomers()
+}
 
 // --- Customer Actions (Delete, Blacklist, Unblacklist) ---
 
@@ -259,54 +266,59 @@ const confirmDeleteCustomer = async (id) => {
       confirmButtonText: 'Xóa',
       cancelButtonText: 'Hủy',
       type: 'warning',
-    });
-    await deleteCustomer(id);
+    })
+    await deleteCustomer(id)
   } catch (error) {
     if (error === 'cancel' || error === 'close') {
-      ElMessage.info('Đã hủy thao tác xóa.');
+      ElMessage.info('Đã hủy thao tác xóa.')
     } else {
-      console.error('Lỗi xác nhận xóa:', error);
-      ElMessage.error('Có lỗi xảy ra khi xác nhận xóa.');
+      console.error('Lỗi xác nhận xóa:', error)
+      ElMessage.error('Có lỗi xảy ra khi xác nhận xóa.')
     }
   }
-};
+}
 
 // Gửi yêu cầu xóa khách hàng đến API
 const deleteCustomer = async (id) => {
   try {
-    await apiClient.delete(`/admin/customers/${id}`);
-    ElMessage.success('Xóa khách hàng thành công!');
+    await apiClient.delete(`/admin/customers/${id}`)
+    ElMessage.success('Xóa khách hàng thành công!')
     // Điều chỉnh trang nếu item cuối cùng của trang bị xóa
     if (customers.value.length === 1 && currentPage.value > 1) {
-      currentPage.value--;
+      currentPage.value--
     }
-    await fetchCustomers(); // Tải lại danh sách để cập nhật
+    await fetchCustomers() // Tải lại danh sách để cập nhật
   } catch (err) {
-    console.error('Lỗi khi xóa khách hàng:', err);
-    ElMessage.error('Không thể xóa khách hàng. Vui lòng thử lại.');
+    console.error('Lỗi khi xóa khách hàng:', err)
+    ElMessage.error('Không thể xóa khách hàng. Vui lòng thử lại.')
   }
-};
+}
 
 // Xác nhận cấm khách hàng (hiển thị 2 hộp thoại: lý do và thời gian)
 const confirmBlacklistCustomer = async (id) => {
   try {
     // Bước 1: Nhập lý do cấm
-    const { value: reason } = await ElMessageBox.prompt('Vui lòng nhập lý do cấm khách hàng:', 'Cấm khách hàng', {
-      confirmButtonText: 'Cấm',
-      cancelButtonText: 'Hủy',
-      inputType: 'textarea', // Cho phép nhập nhiều dòng
-      inputPlaceholder: 'Lý do cấm (ví dụ: Vi phạm chính sách, hành vi không phù hợp)',
-      inputValidator: (value) => {
-        if (!value || value.trim() === '') {
-          return 'Lý do cấm không được để trống.';
-        }
-        return true;
+    const { value: reason } = await ElMessageBox.prompt(
+      'Vui lòng nhập lý do cấm khách hàng:',
+      'Cấm khách hàng',
+      {
+        confirmButtonText: 'Cấm',
+        cancelButtonText: 'Hủy',
+        inputType: 'textarea', // Cho phép nhập nhiều dòng
+        inputPlaceholder: 'Lý do cấm (ví dụ: Vi phạm chính sách, hành vi không phù hợp)',
+        inputValidator: (value) => {
+          if (!value || value.trim() === '') {
+            return 'Lý do cấm không được để trống.'
+          }
+          return true
+        },
+        inputErrorMessage: 'Lý do không hợp lệ.',
+        showClose: false, // Không cho phép đóng bằng nút X
       },
-      inputErrorMessage: 'Lý do không hợp lệ.',
-      showClose: false, // Không cho phép đóng bằng nút X
-    });
+    )
 
-    if (reason) { // Nếu người dùng đã nhập lý do
+    if (reason) {
+      // Nếu người dùng đã nhập lý do
       // Bước 2: Nhập số ngày cấm
       const { value: duration } = await ElMessageBox.prompt(
         'Nhập **số ngày cấm** khách hàng (để trống hoặc 0 nếu cấm vĩnh viễn):',
@@ -319,48 +331,52 @@ const confirmBlacklistCustomer = async (id) => {
           inputValidator: (value) => {
             // Cho phép để trống (null) hoặc chuỗi rỗng để cấm vĩnh viễn
             if (value === null || value.trim() === '') {
-              return true;
+              return true
             }
-            const num = parseInt(value, 10);
+            const num = parseInt(value, 10)
             // Kiểm tra phải là số và không âm
             if (isNaN(num) || num < 0) {
-              return 'Số ngày không hợp lệ. Vui lòng nhập số dương hoặc để trống.';
+              return 'Số ngày không hợp lệ. Vui lòng nhập số dương hoặc để trống.'
             }
-            return true;
+            return true
           },
           inputErrorMessage: 'Số ngày không hợp lệ.',
           showClose: false,
-        }
-      );
+        },
+      )
 
       // Chuyển đổi duration sang số nguyên. Nếu là null/rỗng, giữ nguyên null để backend xử lý là vĩnh viễn.
-      const durationInDays = duration === null || duration.trim() === '' ? null : parseInt(duration, 10);
+      const durationInDays =
+        duration === null || duration.trim() === '' ? null : parseInt(duration, 10)
 
-      await blacklistCustomer(id, reason, durationInDays);
+      await blacklistCustomer(id, reason, durationInDays)
     }
   } catch (error) {
     if (error === 'cancel' || error === 'close') {
-      ElMessage.info('Đã hủy thao tác cấm khách hàng.');
+      ElMessage.info('Đã hủy thao tác cấm khách hàng.')
     } else {
-      console.error('Lỗi xác nhận cấm khách hàng:', error);
-      ElMessage.error('Có lỗi xảy ra khi xác nhận cấm khách hàng.');
+      console.error('Lỗi xác nhận cấm khách hàng:', error)
+      ElMessage.error('Có lỗi xảy ra khi xác nhận cấm khách hàng.')
     }
   }
-};
+}
 
 // Gửi yêu cầu cấm khách hàng đến API
 const blacklistCustomer = async (id, reason, durationInDays) => {
   try {
     // API call với lý do và số ngày cấm (durationInDays có thể là null)
-    await apiClient.put(`/admin/customers/${id}/blacklist`, { reason: reason, durationInDays: durationInDays });
+    await apiClient.put(`/admin/customers/${id}/blacklist`, {
+      reason: reason,
+      durationInDays: durationInDays,
+    })
 
-    ElMessage.success('Đã cấm khách hàng thành công!');
-    await fetchCustomers(); // Tải lại danh sách để cập nhật trạng thái
+    ElMessage.success('Đã cấm khách hàng thành công!')
+    await fetchCustomers() // Tải lại danh sách để cập nhật trạng thái
   } catch (err) {
-    console.error('Lỗi khi cấm khách hàng:', err);
-    ElMessage.error('Không thể cấm khách hàng. Vui lòng thử lại.');
+    console.error('Lỗi khi cấm khách hàng:', err)
+    ElMessage.error('Không thể cấm khách hàng. Vui lòng thử lại.')
   }
-};
+}
 
 // Xác nhận bỏ cấm khách hàng
 const confirmUnblacklistCustomer = async (id) => {
@@ -369,35 +385,34 @@ const confirmUnblacklistCustomer = async (id) => {
       confirmButtonText: 'Bỏ cấm',
       cancelButtonText: 'Hủy',
       type: 'info',
-    });
-    await unblacklistCustomer(id);
+    })
+    await unblacklistCustomer(id)
   } catch (error) {
     if (error === 'cancel' || error === 'close') {
-      ElMessage.info('Đã hủy thao tác bỏ cấm khách hàng.');
+      ElMessage.info('Đã hủy thao tác bỏ cấm khách hàng.')
     } else {
-      console.error('Lỗi xác nhận bỏ cấm:', error);
-      ElMessage.error('Có lỗi xảy ra khi xác nhận bỏ cấm.');
+      console.error('Lỗi xác nhận bỏ cấm:', error)
+      ElMessage.error('Có lỗi xảy ra khi xác nhận bỏ cấm.')
     }
   }
-};
+}
 
 // Gửi yêu cầu bỏ cấm khách hàng đến API
 const unblacklistCustomer = async (id) => {
   try {
-    await apiClient.put(`/admin/customers/${id}/unblacklist`);
-    ElMessage.success('Đã bỏ cấm khách hàng thành công!');
-    await fetchCustomers(); // Tải lại danh sách để cập nhật trạng thái
+    await apiClient.put(`/admin/customers/${id}/unblacklist`)
+    ElMessage.success('Đã bỏ cấm khách hàng thành công!')
+    await fetchCustomers() // Tải lại danh sách để cập nhật trạng thái
   } catch (err) {
-    console.error('Lỗi khi bỏ cấm khách hàng:', err);
-    ElMessage.error('Không thể bỏ cấm khách hàng. Vui lòng thử lại.');
+    console.error('Lỗi khi bỏ cấm khách hàng:', err)
+    ElMessage.error('Không thể bỏ cấm khách hàng. Vui lòng thử lại.')
   }
-};
-
+}
 
 // --- Lifecycle Hook ---
 onMounted(() => {
-  fetchCustomers(); // Tải dữ liệu khi component được mount
-});
+  fetchCustomers() // Tải dữ liệu khi component được mount
+})
 </script>
 
 <style scoped>
@@ -471,8 +486,8 @@ onMounted(() => {
 
 /* Đảm bảo tất cả các văn bản và phần tử trong ô của hàng này có màu đỏ đậm và in đậm */
 .el-table .danger-row .el-table__cell {
-    color: #a30000 !important; /* Màu chữ đỏ đậm cho toàn bộ nội dung ô */
-    font-weight: bold !important; /* In đậm chữ trong toàn bộ nội dung ô */
+  color: #a30000 !important; /* Màu chữ đỏ đậm cho toàn bộ nội dung ô */
+  font-weight: bold !important; /* In đậm chữ trong toàn bộ nội dung ô */
 }
 
 .el-table .danger-row:hover > td {
@@ -487,42 +502,42 @@ onMounted(() => {
 
 /* Định nghĩa màu sắc cho các loại tag (nếu cần tùy chỉnh so với default của Element Plus) */
 /* Cập nhật màu tag cho trạng thái Blacklisted/Active */
-.el-tag.el-tag--success[effect="dark"] {
+.el-tag.el-tag--success[effect='dark'] {
   background-color: #67c23a;
   border-color: #67c23a;
   color: #fff;
 }
 
-.el-tag.el-tag--danger[effect="dark"] {
+.el-tag.el-tag--danger[effect='dark'] {
   background-color: #f56c6c;
   border-color: #f56c6c;
   color: #fff;
 }
 
 /* Màu tag cho lý do cấm (plain effect) */
-.el-tag.el-tag--danger[effect="plain"] {
+.el-tag.el-tag--danger[effect='plain'] {
   background-color: #fef0f0; /* Màu nền nhẹ nhàng hơn */
   color: #f56c6c; /* Màu chữ đỏ */
   border-color: #fde2e2;
 }
 
 /* Styles cho tag 'light' effect (cho điểm tin cậy) */
-.el-tag.el-tag--success[effect="light"] {
-    background-color: #f0f9eb; /* Light green */
-    color: #67c23a;
-    border-color: #e1f3d8;
+.el-tag.el-tag--success[effect='light'] {
+  background-color: #f0f9eb; /* Light green */
+  color: #67c23a;
+  border-color: #e1f3d8;
 }
 
-.el-tag.el-tag--warning[effect="light"] {
-    background-color: #fdf6ec; /* Light orange */
-    color: #e6a23c;
-    border-color: #faecd8;
+.el-tag.el-tag--warning[effect='light'] {
+  background-color: #fdf6ec; /* Light orange */
+  color: #e6a23c;
+  border-color: #faecd8;
 }
 
-.el-tag.el-tag--danger[effect="light"] {
-    background-color: #fef0f0; /* Light red */
-    color: #f56c6c;
-    border-color: #fde2e2;
+.el-tag.el-tag--danger[effect='light'] {
+  background-color: #fef0f0; /* Light red */
+  color: #f56c6c;
+  border-color: #fde2e2;
 }
 
 /* --- STYLE CỦA CÁC NÚT HÀNH ĐỘNG --- */
@@ -534,12 +549,12 @@ onMounted(() => {
 
 /* Tùy chỉnh màu nút warning (ví dụ cho nút "Cấm khách hàng") */
 .el-button--warning {
-    --el-button-bg-color: var(--el-color-warning);
-    --el-button-border-color: var(--el-color-warning);
-    --el-button-hover-bg-color: var(--el-color-warning-light-3);
-    --el-button-hover-border-color: var(--el-color-warning-light-3);
-    --el-button-active-bg-color: var(--el-color-warning-dark-2);
-    --el-button-active-border-color: var(--el-color-warning-dark-2);
+  --el-button-bg-color: var(--el-color-warning);
+  --el-button-border-color: var(--el-color-warning);
+  --el-button-hover-bg-color: var(--el-color-warning-light-3);
+  --el-button-hover-border-color: var(--el-color-warning-light-3);
+  --el-button-active-bg-color: var(--el-color-warning-dark-2);
+  --el-button-active-border-color: var(--el-color-warning-dark-2);
 }
 
 /* --- PHÂN TRANG --- */
@@ -583,10 +598,10 @@ onMounted(() => {
 
 /* --- UTILITIES --- */
 .mt-1 {
-    margin-top: 4px;
+  margin-top: 4px;
 }
 .ml-1 {
-    margin-left: 4px;
+  margin-left: 4px;
 }
 .ml-2 {
   margin-left: 8px;
@@ -594,13 +609,12 @@ onMounted(() => {
 
 /* Để đảm bảo màu chữ trong phần lý do cấm cũng là màu đỏ đã chọn */
 .text-reason {
-    color: #a30000; /* Màu chữ cho "Lý do:" */
+  color: #a30000; /* Màu chữ cho "Lý do:" */
 }
 
 .text-muted-reason {
-    color: #a30000; /* Màu chữ cho "Không có lý do cụ thể" */
+  color: #a30000; /* Màu chữ cho "Không có lý do cụ thể" */
 }
-
 
 /* --- RESPONSIVE DESIGN --- */
 @media (max-width: 768px) {

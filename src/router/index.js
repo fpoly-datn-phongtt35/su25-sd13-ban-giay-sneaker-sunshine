@@ -29,7 +29,6 @@ import UpdateEmployee from '@/components/NhanVien/UpdateEmployee.vue'
 import CustomerList from '@/components/KhachHang/CustomerList.vue'
 import AddCustomer from '@/components/KhachHang/AddCustomer.vue'
 import UpdateCustomer from '@/components/KhachHang/UpdateCustomer.vue'
-import StatisticsView from '@/components/ThongKe/StatisticsView.vue'
 import Error403 from '@/components/404-error-main/Error403.vue'
 import OnlineSaleList from "@/components/OnlineSales/OnlineSaleList.vue";
 import OrderStatus from "@/components/OnlineSales/OrderStatus.vue";
@@ -41,6 +40,7 @@ import CustomerBlacklistHistory from '@/components/KhachHang/CustomerBlacklistHi
 import CustomerBlacklistHistoryDetail from '@/components/KhachHang/CustomerBlacklistHistoryDetail.vue'
 import DiscountCampaignDetails from '@/components/DotGiamGia/DiscountCampaignDetails.vue'
 import DiscountCampaignUpdate from '@/components/DotGiamGia/DiscountCampaignUpdate.vue'
+import DashboardStats from '@/components/ThongKe/DashboardStats.vue'
 
 const routes = [
   {
@@ -68,7 +68,7 @@ const routes = [
       {
         path: 'home',
         name: 'Home',
-        component: TrangChu,
+        component: DashboardStats,
         meta: {
           breadcrumb: 'Trang chủ',
           parent: 'Dashboard',
@@ -121,7 +121,7 @@ const routes = [
       { path: 'customer', name: 'CustomerList', component: CustomerList },
       { path: 'customer/update/:id', name: 'UpdateCustomer', component: UpdateCustomer },
 
-      { path: 'statistics', name: 'Statistics', component: StatisticsView },
+      { path: 'dashboard', name: 'Dashboard', component: DashboardStats },
 
       { path: 'sales-online', name: 'SaleOnlines', component: OnlineSaleList },
       { path: 'sales-online/:invoiceId', name: 'InvoiceStatus', component: OrderStatus },

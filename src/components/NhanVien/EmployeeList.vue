@@ -37,12 +37,12 @@
         <el-table-column label="Ngày sinh">
           <template #default="{ row }">{{ formatDate(row.dateOfBirth) }}</template>
         </el-table-column>
-        <el-table-column prop="country" label="Quốc gia" />
+        <!-- <el-table-column prop="country" label="Quốc gia" />
         <el-table-column prop="province" label="Tỉnh/TP" />
         <el-table-column prop="district" label="Quận/Huyện" />
         <el-table-column prop="ward" label="Phường/Xã" />
         <el-table-column prop="houseName" label="Số nhà" />
-        <el-table-column prop="createdBy" label="Người tạo" />
+        <el-table-column prop="createdBy" label="Người tạo" /> -->
         <el-table-column label="Ngày tạo">
           <template #default="{ row }">{{ formatDate(row.createdDate) }}</template>
         </el-table-column>
@@ -207,7 +207,7 @@ onMounted(fetchEmployees)
 
 <style scoped>
 .employee-list {
-  max-width: 100%;
+  max-width: 1400px;
 }
 
 .el-card {

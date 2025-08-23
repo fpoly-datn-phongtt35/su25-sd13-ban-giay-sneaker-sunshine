@@ -7,12 +7,9 @@
           <ul class="list-unstyled footer-links">
             <li><a href="#">Hệ thống cửa hàng</a></li>
             <li><a href="#">Liên hệ</a></li>
-            <li><a href="#">Chính sách Loyalty</a></li>
-            <li><a href="#">Chính sách bảo mật</a></li>
             <li><a href="#">Điều khoản sử dụng</a></li>
             <li><a href="#">Chính sách vận chuyển, giao hàng</a></li>
             <li><a href="#">Chính sách thanh toán</a></li>
-            <li><a href="#">Chính sách đổi trả</a></li>
             <li><a href="#">Câu hỏi thường gặp</a></li>
           </ul>
         </div>
@@ -23,7 +20,6 @@
             <li><a href="#">Visa / Mastercard / JCB</a></li>
             <li><a href="#">ATM / Internet Banking</a></li>
             <li><a href="#">Quét mã QR</a></li>
-            <li><a href="#">Mua trước trả sau</a></li>
             <li><a href="#">Ví điện tử</a></li>
             <li><a href="#">Thanh toán khi nhận hàng (COD)</a></li>
           </ul>
@@ -33,22 +29,23 @@
           <h5 class="footer-heading mb-3">GIAO HÀNG</h5>
           <ul class="list-unstyled footer-links">
             <li><a href="#">Giao hàng tiêu chuẩn</a></li>
-            <li><a href="#">Maison NOW</a></li>
-            <li>
-            </li>
+            <li></li>
           </ul>
         </div>
       </div>
 
-      <hr class="footer-divider my-5">
+      <hr class="footer-divider my-5" />
 
       <div class="footer-bottom text-center">
-        <p class="mb-1">Bản quyền thuộc về MLB Korea được phân phối độc quyền tại Việt Nam bởi CÔNG TY CỔ PHẦN MAISON RETAIL MANAGEMENT INTERNATIONAL</p>
-        <p class="mb-1">Địa chỉ: 189 - 197, Đường Ba Trại, Phường Rạch Ông, Quận 8, TP. Hồ Chí Minh | MST: 031375103</p>
-        <p class="mb-0">Hotline: 1900 299268 | Email: <a href="mailto:customercare@maisonrmi.com" class="footer-email-address">customercare@maisonrmi.com</a></p>
-        <p class="text-xs mt-3">
-          <a href="https://online.gov.vn/Home/WebDetails/105121" target="_blank" class="bocongthuong-gov-link">online.gov.vn/Home/WebDetails/105121</a>
+        <p class="mb-1">Địa chỉ: 25/106/15 Phú Minh Bắc Từ Liêm Hà Nội</p>
+        <p class="mb-0">
+          Hotline: 0346771322 | Email:
+          <a href="mailto:customercare@maisonrmi.com" class="footer-email-address"
+            >phantuananh181205@gmail.com</a
+          >
         </p>
+        <p class="mb-1">Bản quyền thuộc về SSN được phân phối độc quyền tại Việt Nam</p>
+        <p class="text-xs mt-3"></p>
       </div>
     </div>
   </footer>

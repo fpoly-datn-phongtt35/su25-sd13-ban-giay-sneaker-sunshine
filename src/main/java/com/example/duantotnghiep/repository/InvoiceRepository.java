@@ -55,21 +55,56 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
 
     List<Invoice> findByStatus(int status);
 
-    @Query("SELECT i FROM Invoice i LEFT JOIN i.customer c " +
-            "WHERE (:keyword IS NULL OR " +
-            "LOWER(i.invoiceCode) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
-            "LOWER(c.customerName) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
-            "LOWER(c.phone) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
-            "AND (:status IS NULL OR i.status = :status) " +
-            "AND (:startOfDay IS NULL OR i.createdDate >= :startOfDay) " +
-            "AND (:startOfNextDay IS NULL OR i.createdDate < :startOfNextDay) " +
-            "ORDER BY i.createdDate DESC")
-    Page<Invoice> searchByKeywordStatusAndCreatedDate(
+    @Query(
+            "SELECT i FROM Invoice i LEFT JOIN i.customer c " +
+                    "WHERE (" +
+                    "  :keyword IS NULL OR :keyword = '' OR " +
+                    "  LOWER(i.invoiceCode) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+                    "  LOWER(COALESCE(c.customerName, '')) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+                    "  LOWER(COALESCE(c.phone, ''))       LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+                    "  LOWER(COALESCE(i.phone, ''))       LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+                    ") " +
+                    "AND (:startOfDay IS NULL OR i.createdDate >= :startOfDay) " +
+                    "AND (:startOfNextDay IS NULL OR i.createdDate < :startOfNextDay) " +
+                    "AND (" +
+                    // 1) Nếu CHỌN trạng thái TẠI QUẦY -> chỉ lấy orderType=0 và map 3 trạng thái
+                    "  ( :counterStatusKey IS NOT NULL AND :counterStatusKey <> '' AND " +
+                    "    i.orderType = 0 AND (" +
+                    "      (:counterStatusKey = 'DANG_XU_LY' AND i.status = com.example.duantotnghiep.state.TrangThaiTong.DANG_XU_LY) OR " +
+                    "      (:counterStatusKey = 'THANH_CONG' AND i.status = com.example.duantotnghiep.state.TrangThaiTong.THANH_CONG) OR " +
+                    "      (:counterStatusKey = 'DA_HUY'     AND i.status = com.example.duantotnghiep.state.TrangThaiTong.DA_HUY) " +
+                    "    ) " +
+                    "  ) " +
+
+                    // 2) Nếu KHÔNG chọn tại quầy và KHÔNG chọn online -> không lọc theo trạng thái (trả cả 0/1)
+                    "  OR ( ( :counterStatusKey IS NULL OR :counterStatusKey = '' ) " +
+                    "       AND ( :onlineStatusKey  IS NULL OR :onlineStatusKey  = '' ) ) " +
+
+                    // 3) Nếu KHÔNG chọn tại quầy nhưng CHỌN online -> chỉ lấy orderType=1 và map trạng thái chi tiết
+                    "  OR ( ( :counterStatusKey IS NULL OR :counterStatusKey = '' ) AND " +
+                    "       :onlineStatusKey IS NOT NULL AND :onlineStatusKey <> '' AND " +
+                    "       i.orderType = 1 AND (" +
+                    "         (:onlineStatusKey = 'CHO_XU_LY'       AND i.statusDetail = com.example.duantotnghiep.state.TrangThaiChiTiet.CHO_XU_LY) OR " +
+                    "         (:onlineStatusKey = 'DA_XU_LY'        AND i.statusDetail = com.example.duantotnghiep.state.TrangThaiChiTiet.DA_XU_LY) OR " +
+                    "         (:onlineStatusKey = 'CHO_GIAO_HANG'   AND i.statusDetail = com.example.duantotnghiep.state.TrangThaiChiTiet.CHO_GIAO_HANG) OR " +
+                    "         (:onlineStatusKey = 'DANG_GIAO_HANG'  AND i.statusDetail = com.example.duantotnghiep.state.TrangThaiChiTiet.DANG_GIAO_HANG) OR " +
+                    "         (:onlineStatusKey = 'GIAO_THANH_CONG' AND i.statusDetail = com.example.duantotnghiep.state.TrangThaiChiTiet.GIAO_THANH_CONG) OR " +
+                    "         (:onlineStatusKey = 'GIAO_THAT_BAI'   AND i.statusDetail = com.example.duantotnghiep.state.TrangThaiChiTiet.GIAO_THAT_BAI) OR " +
+                    "         (:onlineStatusKey = 'HUY_DON'         AND i.statusDetail = com.example.duantotnghiep.state.TrangThaiChiTiet.HUY_DON) " +
+                    "       ) " +
+                    "  ) " +
+                    ") " +
+                    "ORDER BY i.createdDate DESC"
+    )
+    Page<Invoice> searchByKeywordStatusSeparatedAndCreatedDate(
             @Param("keyword") String keyword,
-            @Param("status") TrangThaiTong status,
-            @Param("startOfDay") LocalDateTime startOfDay,
-            @Param("startOfNextDay") LocalDateTime startOfNextDay,
-            Pageable pageable);
+            @Param("counterStatusKey") String counterStatusKey,
+            @Param("onlineStatusKey") String onlineStatusKey,
+            @Param("startOfDay") java.util.Date startOfDay,
+            @Param("startOfNextDay") java.util.Date startOfNextDay,
+            Pageable pageable
+    );
+
 
     Invoice findByInvoiceCode(String invoiceCode);
 

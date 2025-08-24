@@ -60,26 +60,30 @@ public class InvoiceController {
     }
 
     @GetMapping("/search")
-    public ResponseEntity<Page<InvoiceResponse>> searchInvoices(
+    public ResponseEntity<Page<InvoiceResponse>> search(
             @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) Integer status,
-            @RequestParam(required = false) String createdDate, // nhận String
+            @RequestParam(required = false) String counterStatusKey,  // trạng thái TẠI QUẦY
+            @RequestParam(required = false) String onlineStatusKey,   // trạng thái ONLINE
+            @RequestParam(required = false) String createdDate,       // yyyy-MM-dd hoặc ISO
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
         Pageable pageable = PageRequest.of(page, size);
-        LocalDate parsedDate = null;
 
-        try {
-            if (createdDate != null && !createdDate.trim().isEmpty()) {
-                parsedDate = LocalDate.parse(createdDate);
+        LocalDate parsedDate = null;
+        if (createdDate != null) {
+            String cd = createdDate.trim();
+            if (!cd.isEmpty() && !"null".equalsIgnoreCase(cd) && !"undefined".equalsIgnoreCase(cd)) {
+                if (cd.matches("^\\d{4}-\\d{2}-\\d{2}.*$")) cd = cd.substring(0, 10); // hỗ trợ ISO
+                parsedDate = LocalDate.parse(cd);
             }
-        } catch (DateTimeParseException e) {
-            return ResponseEntity.badRequest().body(null);
         }
 
-        Page<InvoiceResponse> invoices = invoiceService.searchInvoices(keyword, status, parsedDate, pageable);
-        return ResponseEntity.ok(invoices);
+        return ResponseEntity.ok(
+                invoiceService.searchSeparatedStatus(
+                        keyword, counterStatusKey, onlineStatusKey, parsedDate, pageable
+                )
+        );
     }
 
     @GetMapping("/{invoiceCode}/export")

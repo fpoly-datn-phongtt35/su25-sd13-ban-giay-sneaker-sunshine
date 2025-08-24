@@ -39,9 +39,12 @@ public interface InvoiceService {
 
     Page<InvoiceDisplayResponse> getInvoiceDisplays(Pageable pageable);
 
-    Page<InvoiceResponse> searchInvoices(String keyword, Integer status,
-                                         LocalDate createdDate,
-                                         Pageable pageable);
+
+    Page<InvoiceResponse> searchSeparatedStatus(String keyword,
+                                                String counterStatusKey,
+                                                String onlineStatusKey,
+                                                LocalDate createdDate,
+                                                Pageable pageable);
 
     Invoice findByInvoiceCode(String code);
 

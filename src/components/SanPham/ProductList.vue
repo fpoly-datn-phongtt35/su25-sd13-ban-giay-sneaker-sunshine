@@ -1,813 +1,507 @@
 <template>
-  <div class="container-fluid mt-4">
-    <div class="mb-2">
-      <button @click="goToAdd" class="btn btn-primary btn-sm">
-        <i class="bi bi-bag-plus-fill me-1"></i> Thêm sản phẩm
-      </button>
+  <div class="page">
+    <!-- Header actions -->
+    <div class="toolbar">
+      <el-button type="primary" :icon="Plus" @click="goToAdd">Thêm sản phẩm</el-button>
+
+      <div class="toolbar__right">
+        <el-button type="success" :icon="Document" @click="downloadExcel">Xuất Excel</el-button>
+        <el-button
+          v-if="selectedIds.size"
+          type="danger"
+          plain
+          :icon="CircleClose"
+          @click="clearAllSelections"
+        >
+          Bỏ chọn ({{ selectedIds.size }})
+        </el-button>
+        <el-button :icon="Clock" @click="goToHistory">Lịch sử sản phẩm</el-button>
+      </div>
     </div>
 
-    <div class="card shadow-sm mb-2">
-      <div class="card-body p-2">
-        <h5 class="text-center mb-2">Tìm kiếm nâng cao</h5>
-        <form @submit.prevent="search">
-          <div class="row g-2">
-            <div class="col-md-6">
-              <label class="form-label fw-bold text-primary small">Tên/Mã</label>
-              <div class="input-group input-group-sm">
-                <span class="input-group-text"><i class="bi bi-search"></i></span>
-                <input
-                  type="text"
-                  v-model="searchProduct.keyWord"
-                  placeholder="Tên/Mã sản phẩm"
-                  class="form-control"
-                />
-              </div>
-            </div>
+    <!-- Compact filter (sticky) -->
+    <el-card shadow="never" class="filter-card" body-class="filter-card__body">
+      <template #header>
+        <div class="filter-card__head">
+          <div class="filter-title">Tìm kiếm</div>
+          <el-link type="primary" :underline="false" @click="showAdvanced = !showAdvanced">
+            {{ showAdvanced ? 'Thu gọn' : 'Mở rộng' }}
+          </el-link>
+        </div>
+      </template>
 
-            <div class="col-md-6">
-              <label class="form-label fw-bold text-primary small">Danh mục</label>
-              <Multiselect
-                v-model="searchProduct.categoryIds"
-                :options="categoryList"
-                :multiple="true"
-                :close-on-select="false"
-                placeholder="Chọn danh mục"
-                label="categoryName"
-                track-by="id"
-                class="form-select form-select-sm"
-              />
-              <small class="text-muted">
-                Đã chọn:
-                <span v-if="searchProduct.categoryIds.length === 0">Chưa chọn</span>
-                <span v-else>{{
-                  searchProduct.categoryIds.map((c) => c.categoryName).join(', ')
-                }}</span>
-              </small>
-            </div>
+      <!-- Hàng filter chính (inline, nhỏ gọn) -->
+      <el-form :model="filters" :inline="true" size="small" class="filter-inline" @submit.prevent>
+        <el-form-item label="Tên/Mã" class="w-64">
+          <el-input
+            v-model="filters.keyword"
+            clearable
+            :prefix-icon="Search"
+            placeholder="Nhập tên hoặc mã"
+            @keyup.enter="onSearch"
+          />
+        </el-form-item>
 
-            <div class="col-md-6">
-              <label class="form-label fw-bold text-primary small">Chất liệu</label>
-              <select v-model="searchProduct.materialId" class="form-select form-select-sm">
-                <option value="" disabled selected>Chọn</option>
-                <option v-for="mt in materialList" :key="mt.id" :value="mt.id">
-                  {{ mt.materialName }}
-                </option>
-              </select>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label fw-bold text-primary small">Dành cho</label>
-              <div class="d-flex gap-1">
-                <div class="form-check">
-                  <input
-                    class="form-check-input"
-                    type="radio"
-                    id="genderMale"
-                    :value="1"
-                    v-model="searchProduct.genderId"
-                  />
-                  <label class="form-check-label small" for="genderMale">Nam</label>
-                </div>
-                <div class="form-check">
-                  <input
-                    class="form-check-input"
-                    type="radio"
-                    id="genderFemale"
-                    :value="2"
-                    v-model="searchProduct.genderId"
-                  />
-                  <label class="form-check-label small" for="genderFemale">Nữ</label>
-                </div>
-                <div class="form-check">
-                  <input
-                    class="form-check-input"
-                    type="radio"
-                    id="genderBoth"
-                    :value="3"
-                    v-model="searchProduct.genderId"
-                  />
-                  <label class="form-check-label small" for="genderBoth">Cả hai</label>
-                </div>
-              </div>
-            </div>
+        <el-form-item label="Danh mục" class="w-60">
+          <el-select
+            v-model="filters.categoryIds"
+            multiple
+            collapse-tags
+            collapse-tags-tooltip
+            filterable
+            clearable
+            placeholder="Chọn"
+          >
+            <el-option v-for="c in categoryList" :key="c.id" :label="c.categoryName" :value="c.id" />
+          </el-select>
+        </el-form-item>
 
-            <div class="col-md-6">
-              <label class="form-label fw-bold text-primary small">Loại đế</label>
-              <select v-model="searchProduct.soleId" class="form-select form-select-sm">
-                <option value="" disabled selected>Chọn</option>
-                <option v-for="sp in soleList" :key="sp.id" :value="sp.id">
-                  {{ sp.soleName }}
-                </option>
-              </select>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label fw-bold text-primary small">Cổ giày</label>
-              <select v-model="searchProduct.styleId" class="form-select form-select-sm">
-                <option value="" disabled selected>Chọn</option>
-                <option v-for="sp in styleList" :key="sp.id" :value="sp.id">
-                  {{ sp.styleName }}
-                </option>
-              </select>
-            </div>
+        <el-form-item label="Thương hiệu" class="w-56">
+          <el-select v-model="filters.brandId" filterable clearable placeholder="Chọn">
+            <el-option v-for="b in brandList" :key="b.id" :label="b.brandName" :value="b.id" />
+          </el-select>
+        </el-form-item>
 
-            <div class="col-md-6">
-              <label class="form-label fw-bold text-primary small">Thương hiệu</label>
-              <select v-model="searchProduct.brandId" class="form-select form-select-sm">
-                <option value="" disabled selected>Chọn</option>
-                <option v-for="br in brandList" :key="br.id" :value="br.id">
-                  {{ br.brandName }}
-                </option>
-              </select>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label fw-bold text-primary small">Giá</label>
-              <div class="input-group input-group-sm">
-                <input
-                  type="number"
-                  v-model="searchProduct.priceMin"
-                  placeholder="Min"
-                  class="form-control"
-                />
-                <span class="input-group-text"><i class="bi bi-currency-dollar"></i></span>
-                <input
-                  type="number"
-                  v-model="searchProduct.priceMax"
-                  placeholder="Max"
-                  class="form-control"
-                />
-              </div>
-            </div>
+        <el-form-item label="Giá" class="w-64">
+          <div class="price-range">
+            <el-input-number v-model="filters.priceMin" :min="0" :step="1000" :precision="0" placeholder="Min" />
+            <span class="sep">—</span>
+            <el-input-number v-model="filters.priceMax" :min="0" :step="1000" :precision="0" placeholder="Max" />
+          </div>
+        </el-form-item>
 
-            <div class="demo-datetime-picker row">
-              <label class="form-label fw-bold text-primary small">Ngày tạo (Từ - Đến)</label>
-              <div class="col-md-6">
+        <el-form-item>
+          <el-button type="primary" :icon="Search" @click="onSearch">Tìm kiếm</el-button>
+          <el-button :icon="Refresh" @click="onReset">Đặt lại</el-button>
+        </el-form-item>
+      </el-form>
+
+      <!-- Nâng cao -->
+      <el-collapse-transition>
+        <div v-show="showAdvanced" class="advanced">
+          <el-form :model="filters" label-position="top" size="small" class="advanced-grid">
+            <el-form-item label="Chất liệu">
+              <el-select v-model="filters.materialId" clearable filterable placeholder="Chọn">
+                <el-option v-for="m in materialList" :key="m.id" :label="m.materialName" :value="m.id" />
+              </el-select>
+            </el-form-item>
+
+            <el-form-item label="Loại đế">
+              <el-select v-model="filters.soleId" clearable filterable placeholder="Chọn">
+                <el-option v-for="s in soleList" :key="s.id" :label="s.soleName" :value="s.id" />
+              </el-select>
+            </el-form-item>
+
+            <el-form-item label="Cổ giày">
+              <el-select v-model="filters.styleId" clearable filterable placeholder="Chọn">
+                <el-option v-for="s in styleList" :key="s.id" :label="s.styleName" :value="s.id" />
+              </el-select>
+            </el-form-item>
+
+            <el-form-item label="Dành cho" class="col-span-3">
+              <el-radio-group v-model="filters.genderId">
+                <el-radio-button :label="1">Nam</el-radio-button>
+                <el-radio-button :label="2">Nữ</el-radio-button>
+                <el-radio-button :label="3">Cả hai</el-radio-button>
+              </el-radio-group>
+            </el-form-item>
+
+            <el-form-item label="Ngày tạo (Từ - Đến)" class="col-span-3">
+              <div class="date-range">
                 <el-date-picker
-                  v-model="searchProduct.createdFrom"
+                  v-model="filters.createdFrom"
                   type="datetime"
                   placeholder="Từ ngày"
                   format="YYYY-MM-DD HH:mm:ss"
                   value-format="YYYY-MM-DDTHH:mm:ss"
-                  style="width: 100%"
+                  clearable
                 />
-              </div>
-              <div class="col-md-6">
                 <el-date-picker
-                  v-model="searchProduct.createdTo"
+                  v-model="filters.createdTo"
                   type="datetime"
                   placeholder="Đến ngày"
                   format="YYYY-MM-DD HH:mm:ss"
                   value-format="YYYY-MM-DDTHH:mm:ss"
-                  style="width: 100%"
+                  clearable
                 />
               </div>
-            </div>
-          </div>
+            </el-form-item>
+          </el-form>
+        </div>
+      </el-collapse-transition>
+    </el-card>
 
-          <div class="text-center mt-3 d-flex justify-content-center gap-2">
-            <button type="submit" class="btn btn-primary btn-sm">
-              <i class="bi bi-search me-1"></i> Tìm kiếm
-            </button>
-            <button type="button" @click="resetForm" class="btn btn-outline-secondary btn-sm">
-              <i class="bi bi-arrow-counterclockwise me-1"></i> Đặt lại
-            </button>
-          </div>
-        </form>
-      </div>
+    <!-- Summary -->
+    <div class="summary">
+      Đã chọn: <b>{{ selectedIds.size }}</b> / Tổng: <b>{{ totalElements }}</b> sản phẩm
     </div>
 
-    <div class="text-muted small mb-2">Đã chọn: {{ allSelectedProducts.length }} sản phẩm</div>
+    <!-- Table -->
+    <el-card shadow="never">
+      <el-table
+        v-loading="tableLoading"
+        :data="productList"
+        :row-key="rowKey"
+        border
+        stripe
+        height="540"
+        @selection-change="onSelectionChange"
+        :default-sort="{ prop: 'productCode', order: 'ascending' }"
+      >
+        <el-table-column type="selection" width="50" :reserve-selection="true" />
 
-    <div class="mb-2 d-flex justify-content-between align-items-center">
-      <div>
-        <button type="button" class="btn btn-success btn-sm" @click="downloadExcel">
-          <i class="bi bi-file-earmark-excel me-1"></i> Xuất Excel
-        </button>
-        <button
-          v-if="allSelectedProducts.length > 0"
-          type="button"
-          class="btn btn-outline-danger btn-sm ms-2"
-          @click="clearAllSelections"
-        >
-          <i class="bi bi-x-circle me-1"></i> Bỏ chọn tất cả
-        </button>
-      </div>
+        <el-table-column label="STT" width="80">
+          <template #default="{ $index }">
+            {{ page * size + $index + 1 }}
+          </template>
+        </el-table-column>
 
-      <div>
-        <button @click="goToHistory" class="btn btn-outline-secondary btn-sm">
-          <i class="bi bi-clock-history me-1"></i> Lịch sử sản phẩm
-        </button>
-      </div>
-    </div>
+        <el-table-column prop="productCode" label="Mã" min-width="120" show-overflow-tooltip />
+        <el-table-column prop="productName" label="Tên sản phẩm" min-width="220" show-overflow-tooltip />
+        <el-table-column prop="brandName" label="Thương hiệu" min-width="140" />
+        <el-table-column prop="styleName" label="Cổ giày" min-width="120" />
 
-    <div class="card shadow-sm">
-      <div class="card-body table-responsive p-2">
-        <table class="table table-striped table-hover table-bordered">
-          <thead class="table-primary">
-            <tr>
-              <th scope="col">
-                <input type="checkbox" v-model="selectAll" @change="toggleSelectAll" />
-              </th>
-              <th scope="col">STT</th>
-              <th scope="col">Mã sản phẩm</th>
-              <th scope="col">Tên sản phẩm</th>
-              <th scope="col">Thương hiệu</th>
-              <th scope="col">Cổ giày</th>
-              <th scope="col">Giá bán</th>
-              <th scope="col">Số lượng</th>
-              <th scope="col">Hành động</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="(pr, index) in productList"
-              :key="pr.id"
-              :class="{ 'low-quantity': pr.quantity < 10 }"
+        <el-table-column label="Giá bán" min-width="180">
+          <template #default="{ row }">
+            <template v-if="row.discountPercentage > 0 || row.discountedPrice < row.sellPrice">
+              <span class="line-through mr-2 text-muted">{{ formatCurrency(row.sellPrice) }}</span>
+              <span class="price-sale">{{ formatCurrency(row.discountedPrice) }}</span>
+            </template>
+            <template v-else>
+              <span class="price">{{ formatCurrency(row.sellPrice) }}</span>
+            </template>
+          </template>
+        </el-table-column>
+
+        <el-table-column prop="quantity" label="Số lượng" width="110">
+          <template #default="{ row }">
+            <el-tag :type="row.quantity < 10 ? 'danger' : 'success'" effect="light">
+              {{ row.quantity }}
+            </el-tag>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="Hành động" fixed="right" width="170">
+          <template #default="{ row }">
+            <el-button size="small" :icon="Edit" @click="goToUpdate(row.id)" />
+            <el-button size="small" :icon="InfoFilled" @click="goToDetail(row.id)" />
+            <el-popconfirm
+              title="Chuyển sản phẩm vào thùng rác?"
+              confirm-button-text="Xóa"
+              cancel-button-text="Hủy"
+              confirm-button-type="danger"
+              @confirm="deleteProduct(row.id)"
             >
-              <td>
-                <input type="checkbox" v-model="selectedProducts" :value="pr.id" />
-              </td>
-              <td>{{ page * size + index + 1 }}</td>
-              <td>{{ pr.productCode }}</td>
-              <td>{{ pr.productName }}</td>
-              <td>{{ pr.brandName }}</td>
-              <td>{{ pr.styleName }}</td>
-              <td>
-                <template v-if="pr.discountPercentage > 0 || pr.discountedPrice < pr.sellPrice">
-                  <span style="text-decoration: line-through; color: gray; margin-right: 8px">
-                    {{ formatCurrency(pr.sellPrice) }}
-                  </span>
-                  <span style="color: red; font-weight: bold">
-                    {{ formatCurrency(pr.discountedPrice) }}
-                  </span>
-                </template>
-                <template v-else>
-                  <span style="color: black; font-weight: bold">
-                    {{ formatCurrency(pr.sellPrice) }}
-                  </span>
-                </template>
-              </td>
-              <td>{{ pr.quantity }}</td>
-              <td>
-                <div class="btn-group" role="group">
-                  <button class="btn btn-info btn-sm" @click="goToUpdate(pr.id)" title="Chỉnh sửa">
-                    <i class="bi bi-pencil-square"></i>
-                  </button>
-                  <button
-                    class="btn btn-secondary btn-sm"
-                    @click="goToDetail(pr.id)"
-                    title="Chi tiết"
-                  >
-                    <i class="bi bi-info-circle"></i>
-                  </button>
-                  <button class="btn btn-sm btn-danger" @click="deleteProduct(pr.id)" title="Xóa">
-                    <i class="bi bi-trash"></i>
-                  </button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+              <template #reference>
+                <el-button size="small" type="danger" :icon="Delete" />
+              </template>
+            </el-popconfirm>
+          </template>
+        </el-table-column>
+      </el-table>
 
-    <div class="d-flex justify-content-end mt-4">
-      <el-pagination
-        @size-change="handleSizeChange"
-        @current-change="handleCurrentChange"
-        :current-page="page + 1"
-        :page-sizes="[5, 8, 10, 20, 50]"
-        :page-size="size"
-        layout="total, sizes, prev, pager, next, jumper"
-        :total="totalElements"
-        background
-      />
-    </div>
+      <div class="pager">
+        <el-pagination
+          background
+          layout="total, sizes, prev, pager, next, jumper"
+          :total="totalElements"
+          :current-page="page + 1"
+          :page-size="size"
+          :page-sizes="[5, 8, 10, 20, 50]"
+          @size-change="handleSizeChange"
+          @current-change="handleCurrentChange"
+        />
+      </div>
+    </el-card>
   </div>
 </template>
 
-<script setup>
-import apiClient from '@/utils/axiosInstance'
-import axios from 'axios'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { onMounted, ref, watch } from 'vue'
-import Multiselect from 'vue-multiselect'
-import 'vue-multiselect/dist/vue-multiselect.css'
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import {
+  Search,
+  Refresh,
+  Plus,
+  Document,
+  Clock,
+  CircleClose,
+  Edit,
+  InfoFilled,
+  Delete,
+} from '@element-plus/icons-vue'
+import apiClient from '@/utils/axiosInstance'
 
-const router = useRouter()
-const productList = ref([])
-const totalPages = ref(0)
-const totalElements = ref(0)
-const page = ref(0)
-const size = ref(8)
-const selectedProducts = ref([]) // ID sản phẩm trên trang hiện tại
-const allSelectedProducts = ref([]) // Tất cả ID sản phẩm đã chọn qua các trang
-const selectAll = ref(false)
-
-const searchProduct = ref({
-  keyWord: '',
-  brandId: null,
-  genderId: null,
-  styleId: null,
-  soleId: null,
-  materialId: null,
-  createdFrom: null,
-  createdTo: null,
-  categoryIds: [],
-  priceMin: null,
-  priceMax: null,
-})
-
-const brandList = ref([])
-const materialList = ref([])
-const categoryList = ref([])
-const soleList = ref([])
-const styleList = ref([])
-
-// --- Các hàm xử lý trạng thái và dữ liệu ---
-
-/**
- * Đặt lại form tìm kiếm và xóa tất cả lựa chọn.
- */
-const resetForm = async () => {
-  searchProduct.value = {
-    keyWord: '',
-    categoryIds: [],
-    materialId: null,
-    genderId: null,
-    soleId: null,
-    styleId: null,
-    brandId: null,
-    priceMin: null,
-    priceMax: null,
-    createdFrom: null,
-    createdTo: null,
-  }
-  page.value = 0 // Reset trang về 0
-  size.value = 8 // Reset kích thước trang về mặc định
-  allSelectedProducts.value = [] // Xóa tất cả lựa chọn
-  selectedProducts.value = [] // Xóa lựa chọn trên trang hiện tại
-  selectAll.value = false // Bỏ chọn "Chọn tất cả"
-  await fetchProduct()
+type ProductRow = {
+  id: number
+  productCode: string
+  productName: string
+  brandName: string
+  styleName: string
+  sellPrice: number
+  discountedPrice: number
+  discountPercentage: number
+  quantity: number
 }
 
-/**
- * Xóa tất cả các sản phẩm đã chọn trên tất cả các trang.
- */
+const router = useRouter()
+
+/* ===== UI State ===== */
+const showAdvanced = ref(false)
+const tableLoading = ref(false)
+
+/* ===== Filters ===== */
+const filters = ref({
+  keyword: '',
+  brandId: null as number | null,
+  genderId: null as number | null,
+  styleId: null as number | null,
+  soleId: null as number | null,
+  materialId: null as number | null,
+  createdFrom: null as string | null,
+  createdTo: null as string | null,
+  categoryIds: [] as number[],
+  priceMin: null as number | null,
+  priceMax: null as number | null,
+  status: 1,
+})
+
+/* ===== Reference Data ===== */
+const brandList = ref<any[]>([])
+const materialList = ref<any[]>([])
+const categoryList = ref<any[]>([])
+const soleList = ref<any[]>([])
+const styleList = ref<any[]>([])
+
+/* ===== Table & Pagination ===== */
+const productList = ref<ProductRow[]>([])
+const totalElements = ref(0)
+const totalPages = ref(0)
+const page = ref(0)
+const size = ref(8)
+
+/* ===== Selection (reserve across pages) ===== */
+const selectedIds = ref<Set<number>>(new Set<number>())
+const rowKey = (row: ProductRow) => row.id
+const onSelectionChange = (rows: ProductRow[]) => {
+  const currentPageIds = productList.value.map(r => r.id)
+  currentPageIds.forEach(id => selectedIds.value.delete(id))
+  rows.forEach(r => selectedIds.value.add(r.id))
+}
 const clearAllSelections = () => {
-  allSelectedProducts.value = []
-  selectedProducts.value = [] // Đảm bảo checkbox trên trang hiện tại cũng bỏ chọn
-  selectAll.value = false
+  selectedIds.value.clear()
   ElMessage.info('Đã bỏ chọn tất cả sản phẩm.')
 }
 
-/**
- * Xử lý sự kiện khi checkbox "Chọn tất cả" thay đổi.
- * Thêm hoặc loại bỏ ID sản phẩm của trang hiện tại khỏi danh sách đã chọn.
- */
-const toggleSelectAll = () => {
-  if (selectAll.value) {
-    const newIds = productList.value
-      .map((p) => p.id)
-      .filter((id) => !allSelectedProducts.value.includes(id))
-    allSelectedProducts.value.push(...newIds)
-    selectedProducts.value = [...productList.value.map((p) => p.id)]
-  } else {
-    // Chỉ loại bỏ các sản phẩm của trang hiện tại khỏi allSelectedProducts
-    allSelectedProducts.value = allSelectedProducts.value.filter(
-      (id) => !productList.value.some((p) => p.id === id),
-    )
-    selectedProducts.value = []
-  }
-}
-
-const syncSelectedProducts = () => {
-  selectedProducts.value = productList.value
-    .filter((p) => allSelectedProducts.value.includes(p.id))
-    .map((p) => p.id)
-  selectAll.value =
-    productList.value.length > 0 && selectedProducts.value.length === productList.value.length
-}
-
-watch(
-  selectedProducts,
-  (newSelectedIds, oldSelectedIds) => {
-    const currentPageIds = productList.value.map((p) => p.id)
-
-    // Loại bỏ các ID cũ của trang hiện tại khỏi allSelectedProducts
-    oldSelectedIds.forEach((id) => {
-      if (currentPageIds.includes(id) && !newSelectedIds.includes(id)) {
-        const index = allSelectedProducts.value.indexOf(id)
-        if (index > -1) {
-          allSelectedProducts.value.splice(index, 1)
-        }
-      }
-    })
-
-    // Thêm các ID mới của trang hiện tại vào allSelectedProducts
-    newSelectedIds.forEach((id) => {
-      if (!allSelectedProducts.value.includes(id)) {
-        allSelectedProducts.value.push(id)
-      }
-    })
-
-    // Cập nhật trạng thái của checkbox "Chọn tất cả" trên trang hiện tại
-    selectAll.value =
-      productList.value.length > 0 && selectedProducts.value.length === productList.value.length
-  },
-  { deep: true },
-)
-
-// --- Lấy dữ liệu danh mục, chất liệu, thương hiệu, đế giày, kiểu giày ---
-
-/**
- * Lấy danh sách danh mục sản phẩm từ API.
- */
+/* ===== Fetch reference data ===== */
 const fetchCategories = async () => {
   try {
-    const response = await apiClient.get('/admin/categories/hien-thi')
-    categoryList.value = response.data
-  } catch (error) {
-    console.error('Lỗi lấy danh mục:', error)
-    ElMessage.error('Lấy danh mục thất bại!')
-  }
+    const res = await apiClient.get('/admin/categories/hien-thi')
+    categoryList.value = res.data
+  } catch { ElMessage.error('Lấy danh mục thất bại!') }
 }
-
-/**
- * Lấy danh sách chất liệu sản phẩm từ API.
- */
 const fetchMaterial = async () => {
   try {
-    const response = await apiClient.get('/admin/material/hien-thi')
-    materialList.value = response.data
-  } catch (error) {
-    console.error('Lỗi lấy chất liệu:', error)
-    ElMessage.error('Lấy chất liệu thất bại!')
-  }
+    const res = await apiClient.get('/admin/material/hien-thi')
+    materialList.value = res.data
+  } catch { ElMessage.error('Lấy chất liệu thất bại!') }
 }
-
-/**
- * Lấy danh sách thương hiệu sản phẩm từ API.
- */
 const fetchBrand = async () => {
   try {
-    const response = await apiClient.get('/admin/brand/hien-thi')
-    brandList.value = response.data
-  } catch (error) {
-    console.error('Lỗi lấy thương hiệu:', error)
-    ElMessage.error('Lấy thương hiệu thất bại!')
-  }
+    const res = await apiClient.get('/admin/brand/hien-thi')
+    brandList.value = res.data
+  } catch { ElMessage.error('Lấy thương hiệu thất bại!') }
 }
-
-/**
- * Lấy danh sách loại đế giày từ API.
- */
 const fetchSole = async () => {
   try {
-    const response = await apiClient.get('/admin/sole/hien-thi')
-    soleList.value = response.data
-  } catch (error) {
-    console.error('Lỗi lấy đế giày:', error)
-    ElMessage.error('Lấy đế giày thất bại!')
-  }
+    const res = await apiClient.get('/admin/sole/hien-thi')
+    soleList.value = res.data
+  } catch { ElMessage.error('Lấy đế giày thất bại!') }
 }
-
-/**
- * Lấy danh sách kiểu giày từ API.
- */
 const fetchStyle = async () => {
   try {
-    const response = await apiClient.get('/admin/style/hien-thi')
-    styleList.value = response.data
-  } catch (error) {
-    console.error('Lỗi lấy phong cách:', error)
-    ElMessage.error('Lấy phong cách thất bại!')
-  }
+    const res = await apiClient.get('/admin/style/hien-thi')
+    styleList.value = res.data
+  } catch { ElMessage.error('Lấy phong cách thất bại!') }
 }
 
+/* ===== Validation ===== */
+const validateRanges = (): boolean => {
+  const { priceMin, priceMax, createdFrom, createdTo } = filters.value
+  if (priceMin != null && priceMax != null && priceMin > priceMax) {
+    ElMessage.warning('Giá Min không được lớn hơn Giá Max.')
+    return false
+  }
+  if (createdFrom && createdTo && createdFrom > createdTo) {
+    ElMessage.warning('Ngày bắt đầu không được lớn hơn ngày kết thúc.')
+    return false
+  }
+  return true
+}
 
+/* ===== Fetch products ===== */
 const fetchProduct = async () => {
-  const searchParams = {
-    keyword: searchProduct.value.keyWord || null,
-    brandId: searchProduct.value.brandId || null,
-    genderId: searchProduct.value.genderId || null,
-    styleId: searchProduct.value.styleId || null,
-    soleId: searchProduct.value.soleId || null,
-    materialId: searchProduct.value.materialId || null,
-    createdFrom: searchProduct.value.createdFrom || null,
-    createdTo: searchProduct.value.createdTo || null,
-    categoryIds: searchProduct.value.categoryIds.map((c) => c.id) || [],
-    priceMin: searchProduct.value.priceMin || null,
-    priceMax: searchProduct.value.priceMax || null,
-    page: page.value,
-    size: size.value,
-    status: 1, // Chỉ lấy sản phẩm đang hoạt động
-  }
-
+  if (!validateRanges()) return
+  tableLoading.value = true
   try {
-    const response = await apiClient.post(
-      '/admin/products/search',
-      searchParams,
-    )
-    productList.value = response.data.data
-    console.log('data: ', productList.value)
-    totalElements.value = response.data.pagination?.totalElements || 0
-    totalPages.value = response.data.pagination?.totalPages || 0
-    syncSelectedProducts()
-  } catch (error) {
-    console.error('Lỗi tải danh sách sản phẩm:', error)
+    const payload = {
+      keyword: filters.value.keyword || null,
+      brandId: filters.value.brandId || null,
+      genderId: filters.value.genderId || null,
+      styleId: filters.value.styleId || null,
+      soleId: filters.value.soleId || null,
+      materialId: filters.value.materialId || null,
+      createdFrom: filters.value.createdFrom || null,
+      createdTo: filters.value.createdTo || null,
+      categoryIds: filters.value.categoryIds || [],
+      priceMin: filters.value.priceMin ?? null,
+      priceMax: filters.value.priceMax ?? null,
+      page: page.value,
+      size: size.value,
+      status: 1,
+    }
+    const res = await apiClient.post('/admin/products/search', payload)
+    productList.value = res.data.data || []
+    totalElements.value = res.data.pagination?.totalElements || 0
+    totalPages.value = res.data.pagination?.totalPages || 0
+  } catch {
     ElMessage.error('Tải danh sách sản phẩm thất bại!')
+  } finally {
+    tableLoading.value = false
   }
 }
 
-function formatCurrency(value) {
-  if (!value) return '0₫'
-  return new Intl.NumberFormat('vi-VN', {
-    style: 'currency',
-    currency: 'VND',
-    minimumFractionDigits: 0,
-  }).format(value)
-}
-
-// --- Điều hướng trang ---
-
-/**
- * Chuyển hướng đến trang thêm sản phẩm mới.
- */
-const goToAdd = () => {
-  router.push('/product/add')
-}
-
-/**
- * Chuyển hướng đến trang lịch sử sản phẩm.
- */
-const goToHistory = () => {
-  router.push('/product/history')
-}
-
-const goToUpdate = (id) => {
-  router.push({ name: 'UpdateProduct', params: { id } })
-}
-
-const goToDetail = (id) => {
-  router.push({ name: 'DetailProduct', params: { id } })
-}
-
-const formatDate = (dateString) => {
-  if (!dateString) return ''
-  return new Date(dateString).toLocaleString('vi-VN', { hour12: false })
-}
-
-const handleSizeChange = (newSize) => {
-  size.value = newSize
-  page.value = 0 // Reset về trang đầu tiên khi thay đổi số lượng mục trên trang
+/* ===== Actions ===== */
+const onSearch = () => { page.value = 0; fetchProduct() }
+const onReset = () => {
+  filters.value = {
+    keyword: '',
+    brandId: null, genderId: null, styleId: null, soleId: null, materialId: null,
+    createdFrom: null, createdTo: null,
+    categoryIds: [],
+    priceMin: null, priceMax: null,
+    status: 1,
+  }
+  page.value = 0
+  size.value = 8
+  selectedIds.value.clear()
   fetchProduct()
 }
 
-const handleCurrentChange = (newPage) => {
-  page.value = newPage - 1 // el-pagination là 1-indexed, API là 0-indexed
-  fetchProduct()
-}
+const handleSizeChange = (newSize: number) => { size.value = newSize; page.value = 0; fetchProduct() }
+const handleCurrentChange = (newPage: number) => { page.value = newPage - 1; fetchProduct() }
 
 const downloadExcel = async () => {
   try {
-    const message =
-      allSelectedProducts.value.length > 0
-        ? `Xuất Excel cho ${allSelectedProducts.value.length} sản phẩm đã chọn?`
-        : 'Xuất Excel toàn bộ sản phẩm theo bộ lọc hiện tại?'
-
-    await ElMessageBox.confirm(message, 'Xác nhận', {
-      type: 'warning',
-      confirmButtonText: 'Xuất',
-      cancelButtonText: 'Hủy',
+    const hasIds = selectedIds.value.size > 0
+    const msg = hasIds
+      ? `Xuất Excel cho ${selectedIds.value.size} sản phẩm đã chọn?`
+      : 'Xuất Excel toàn bộ sản phẩm theo bộ lọc hiện tại?'
+    await ElMessageBox.confirm(msg, 'Xác nhận', {
+      type: 'warning', confirmButtonText: 'Xuất', cancelButtonText: 'Hủy',
     })
 
-    let url, data, filename
-    if (allSelectedProducts.value.length > 0) {
+    let url = '', data: any, filename = ''
+    if (hasIds) {
       url = '/admin/products/export-excel/by-ids'
-      data = allSelectedProducts.value
+      data = Array.from(selectedIds.value)
       filename = 'products-by-ids.xlsx'
     } else {
-      const searchParamsForExport = {
-        keyword: searchProduct.value.keyWord || null,
-        brandId: searchProduct.value.brandId || null,
-        genderId: searchProduct.value.genderId || null,
-        styleId: searchProduct.value.styleId || null,
-        soleId: searchProduct.value.soleId || null,
-        materialId: searchProduct.value.materialId || null,
-        createdFrom: searchProduct.value.createdFrom || null,
-        createdTo: searchProduct.value.createdTo || null,
-        categoryIds: searchProduct.value.categoryIds.map((c) => c.id) || [],
-        priceMin: searchProduct.value.priceMin === '' ? null : searchProduct.value.priceMin,
-        priceMax: searchProduct.value.priceMax === '' ? null : searchProduct.value.priceMax,
-        status: 1, // Chỉ xuất các sản phẩm đang hoạt động
-      }
+      const { keyword, brandId, genderId, styleId, soleId, materialId, createdFrom, createdTo, categoryIds, priceMin, priceMax } =
+        filters.value
       url = '/admin/products/export-excel/by-filter'
-      data = searchParamsForExport
+      data = {
+        keyword: keyword || null, brandId: brandId || null, genderId: genderId || null,
+        styleId: styleId || null, soleId: soleId || null, materialId: materialId || null,
+        createdFrom: createdFrom || null, createdTo: createdTo || null,
+        categoryIds: categoryIds || [], priceMin: priceMin ?? null, priceMax: priceMax ?? null,
+        status: 1,
+      }
       filename = 'products-by-filter.xlsx'
     }
 
-    const response = await apiClient.post(url, data, { responseType: 'blob' })
-    const responseUrl = window.URL.createObjectURL(new Blob([response.data]))
-    const link = document.createElement('a')
-    link.href = responseUrl
-    link.setAttribute('download', filename)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    window.URL.revokeObjectURL(responseUrl) // Giải phóng bộ nhớ
-
+    const res = await apiClient.post(url, data, { responseType: 'blob' })
+    const blobUrl = window.URL.createObjectURL(new Blob([res.data]))
+    const a = document.createElement('a'); a.href = blobUrl; a.download = filename
+    document.body.appendChild(a); a.click(); document.body.removeChild(a)
+    window.URL.revokeObjectURL(blobUrl)
     ElMessage.success('Xuất Excel thành công!')
-  } catch (error) {
-    if (error !== 'cancel' && error !== 'close') {
-      console.error('Lỗi khi xuất Excel:', error)
-      ElMessage.error('Xuất Excel thất bại!')
-    }
+  } catch (e: any) {
+    if (e === 'cancel' || e === 'close') return
+    ElMessage.error('Xuất Excel thất bại!')
   }
 }
 
-const deleteProduct = async (id) => {
+const deleteProduct = async (id: number) => {
   try {
-    await ElMessageBox.confirm(
-      'Bạn có chắc chắn muốn xóa sản phẩm này? Sản phẩm sẽ được chuyển vào thùng rác.',
-      'Xác nhận',
-      {
-        confirmButtonText: 'Xóa',
-        cancelButtonText: 'Hủy',
-        type: 'warning',
-      },
-    )
     await apiClient.delete(`/admin/products/${id}`)
     ElMessage.success('Xóa sản phẩm thành công!')
-    // Cập nhật lại danh sách sau khi xóa
-    await fetchProduct()
-    // Xóa ID khỏi allSelectedProducts nếu nó bị xóa
-    allSelectedProducts.value = allSelectedProducts.value.filter((pId) => pId !== id)
-    // Xóa ID khỏi selectedProducts nếu nó nằm trên trang hiện tại
-    selectedProducts.value = selectedProducts.value.filter((pId) => pId !== id)
-    syncSelectedProducts() // Đồng bộ lại checkbox "Chọn tất cả"
-  } catch (error) {
-    if (error === 'cancel' || error === 'close') return
-    console.error('Lỗi khi xóa:', error)
+    selectedIds.value.delete(id)
+    fetchProduct()
+  } catch {
     ElMessage.error('Xóa sản phẩm thất bại!')
   }
 }
 
-const search = async () => {
-  page.value = 0 // Reset về trang đầu tiên khi tìm kiếm mới
-  allSelectedProducts.value = [] // Xóa tất cả các lựa chọn khi tìm kiếm mới
-  await fetchProduct()
+/* ===== Navigation ===== */
+const goToAdd = () => router.push('/product/add')
+const goToHistory = () => router.push('/product/history')
+const goToUpdate = (id: number) => router.push({ name: 'UpdateProduct', params: { id } })
+const goToDetail = (id: number) => router.push({ name: 'DetailProduct', params: { id } })
+
+/* ===== Helpers ===== */
+const formatCurrency = (val: number) => {
+  if (!val) return '0 ₫'
+  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', minimumFractionDigits: 0 }).format(val)
 }
 
-// --- Khởi tạo dữ liệu khi component được mount ---
+/* ===== Init ===== */
 onMounted(() => {
-  fetchBrand()
-  fetchCategories()
-  fetchMaterial()
-  fetchSole()
-  fetchStyle()
-  fetchProduct()
+  fetchBrand(); fetchCategories(); fetchMaterial(); fetchSole(); fetchStyle(); fetchProduct()
 })
 </script>
 
 <style scoped>
-/* --- General Layout and Card Styles --- */
-.container-fluid {
-  padding: 15px;
-}
+/* Layout tổng thể */
+.page { padding: 16px; }
 
-.card {
-  border-radius: 6px;
-  border: none;
-}
+/* Toolbar */
+.toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.toolbar__right { display: flex; gap: 8px; }
 
-.card-body {
-  padding: 1rem;
-}
+/* Filter card (sticky để luôn thấy bảng) */
+.filter-card { position: sticky; top: 0; z-index: 12; background: #fff; margin-bottom: 10px; }
+.filter-card__head { display: flex; align-items: center; justify-content: space-between; }
+.filter-title { font-weight: 600; }
+.filter-card__body { padding-top: 10px; padding-bottom: 8px; }
 
-/* --- Table Styles --- */
-.table {
-  border-radius: 6px;
-  overflow: hidden;
-  margin-bottom: 0; /* Remove default table margin */
-}
+/* Inline form gọn */
+.filter-inline :deep(.el-form-item) { margin-right: 10px; margin-bottom: 8px; }
+.w-56 { width: 224px; }
+.w-60 { width: 240px; }
+.w-64 { width: 256px; }
+.price-range { display: flex; align-items: center; gap: 4px; }
+.sep { color: #c0c4cc; padding: 0 2px; }
 
-.table-primary {
-  background-color: #007bff;
-  color: white;
-}
+/* Advanced area */
+.advanced { margin-top: 8px; }
+.advanced-grid { display: grid; grid-template-columns: repeat(1, minmax(0,1fr)); gap: 10px; }
+@media (min-width: 768px) { .advanced-grid { grid-template-columns: repeat(3, minmax(0,1fr)); } }
+.col-span-3 { grid-column: span 3 / span 3; }
+.date-range { display: grid; grid-template-columns: 1fr; gap: 8px; }
+@media (min-width: 768px) { .date-range { grid-template-columns: 1fr 1fr; } }
 
-.table-hover tbody tr:hover {
-  background-color: #f8f9fa;
-}
+/* Summary */
+.summary { color: #6b7280; margin: 6px 0 10px; }
 
-/* --- Button Group Styles --- */
-.btn-group .btn {
-  margin-right: 3px;
-}
+/* Prices */
+.text-muted { color: #9ca3af; }
+.line-through { text-decoration: line-through; }
+.mr-2 { margin-right: .5rem; }
+.price { font-weight: 600; }
+.price-sale { color: #d03050; font-weight: 600; }
 
-.btn-sm {
-  padding: 0.15rem 0.3rem;
-}
-
-/* --- Form Element Styles (Labels, Inputs, Selects) --- */
-.form-label {
-  font-size: 0.85rem;
-  margin-bottom: 0.2rem;
-}
-
-.form-control,
-.form-select {
-  border-radius: 4px;
-  font-size: 0.85rem;
-  padding: 0.2rem 0.5rem;
-}
-
-.input-group-text {
-  background-color: #f8f9fa;
-  border-radius: 4px 0 0 4px;
-  font-size: 0.85rem;
-  padding: 0.2rem 0.5rem;
-}
-
-.btn {
-  font-size: 0.875rem;
-  padding: 0.3rem 0.6rem;
-}
-
-/* --- Vue-Multiselect Specific Styles --- */
-.multiselect {
-  min-height: auto;
-  font-size: 0.85rem;
-  min-height: 32px; /* Match Bootstrap form-control-sm height */
-}
-.multiselect__select {
-  height: 32px;
-  padding: 0 8px;
-}
-.multiselect__tags {
-  min-height: 32px;
-  padding: 4px 40px 0 8px; /* Adjust padding to leave space for the arrow */
-}
-.multiselect__tag {
-  margin-bottom: 4px;
-}
-.multiselect__input,
-.multiselect__single {
-  height: 24px;
-  line-height: 24px;
-  font-size: 0.85rem;
-  margin-bottom: 4px;
-}
-
-/* --- Element Plus Date Picker Styles --- */
-.demo-datetime-picker .el-date-editor {
-  height: 32px; /* Match Bootstrap form-control-sm height */
-  --el-date-editor-font-size: 0.85rem; /* Adjust font size */
-}
-.demo-datetime-picker .el-input__wrapper {
-  padding: 0.2rem 0.5rem; /* Match Bootstrap form-control-sm padding */
-}
-
-/* --- Element Plus Pagination Styles --- */
-.el-pagination {
-  --el-pagination-font-size: 0.875rem; /* Slightly smaller font */
-  --el-pagination-button-width: 28px; /* Smaller buttons */
-  --el-pagination-button-height: 28px; /* Smaller buttons */
-  padding: 8px 0;
-}
-.el-pagination.is-background .el-pager li,
-.el-pagination.is-background .btn-prev,
-.el-pagination.is-background .btn-next {
-  background-color: #f0f2f5; /* Light grey background for pages */
-  border-radius: 4px;
-}
-
-.el-pagination.is-background .el-pager li:not(.is-disabled).is-active {
-  background-color: #007bff; /* Primary color for active page */
-  color: #fff;
-}
-
-.el-pagination__total,
-.el-pagination__sizes,
-.el-pagination__jump {
-  font-size: 0.875rem; /* Match other pagination elements */
-  margin-right: 8px;
-}
-
-/* --- Text Utility Classes --- */
-.text-muted {
-  font-size: 0.875rem;
-}
-
-.small {
-  font-size: 0.8rem;
-}
-
-/* --- Specific Style for Low Quantity Products --- */
-.low-quantity {
-  background-color: #ffcccc; /* Nền màu đỏ nổi bật hơn */
-  color: #cc0000; /* Màu chữ đỏ sẫm, nổi bật */
-  font-weight: bold;
-  font-style: italic;
-}
+/* Pager */
+.pager { display: flex; justify-content: end; margin-top: 12px; }
 </style>

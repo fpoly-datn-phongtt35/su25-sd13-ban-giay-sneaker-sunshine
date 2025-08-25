@@ -33,6 +33,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -101,19 +102,18 @@ public class DiscountCampaignServiceImpl implements DiscountCampaignService {
         campaign.setDescription(request.getDescription());
         campaign.setStartDate(request.getStartDate());
         campaign.setEndDate(request.getEndDate());
-
-        // status mặc định 1 nếu null
         campaign.setStatus(request.getStatus() != null ? request.getStatus() : 1);
-
-        // % giảm giá mặc định ở campaign (BigDecimal 0..100, scale 2)
         campaign.setDiscountPercentage(normalizePercentageOrNull(request.getDiscountPercentage()));
 
         LocalDateTime now = LocalDateTime.now();
         campaign.setCreatedDate(now);
         campaign.setUpdatedDate(now);
-        // createdBy/updatedBy nếu bạn có context user thì set thêm
 
-        // 2) Mức PRODUCT (tuỳ bạn còn dùng không)
+        // =========================
+        // 2) MỨC PRODUCT
+        // =========================
+        // Thu thập danh sách productId hợp lệ từ request.products để kiểm tra SPCT ở bước 3
+        final Set<Long> allowedProductIds = new HashSet<>();
         if (request.getProducts() != null && !request.getProducts().isEmpty()) {
             List<DiscountCampaignProduct> productLinks = new ArrayList<>();
             for (DiscountCampaignProductRequest pReq : request.getProducts()) {
@@ -128,12 +128,24 @@ public class DiscountCampaignServiceImpl implements DiscountCampaignService {
                 link.setCreatedDate(now);
                 link.setUpdatedDate(now);
                 productLinks.add(link);
+
+                allowedProductIds.add(product.getId());
             }
             campaign.setProducts(productLinks);
         }
 
-        // 3) Mức PRODUCT DETAIL (SPCT) – chỉ insert những SPCT được gửi lên
+        // =========================
+        // 3) MỨC PRODUCT DETAIL (SPCT)
+        //    BẮT BUỘC PHẢI THUỘC CÁC PRODUCT ĐÃ CHỌN Ở BƯỚC 2
+        // =========================
         if (request.getProductDetails() != null && !request.getProductDetails().isEmpty()) {
+
+            // Nếu có SPCT mà chưa chọn product nào -> không cho phép
+            if (allowedProductIds.isEmpty()) {
+                throw new IllegalArgumentException(
+                        "Bạn phải thêm Sản phẩm vào chiến dịch trước khi chọn Sản phẩm chi tiết (SPCT).");
+            }
+
             // Lọc ID hợp lệ + distinct
             List<Long> pdIds = request.getProductDetails().stream()
                     .filter(Objects::nonNull)
@@ -147,29 +159,44 @@ public class DiscountCampaignServiceImpl implements DiscountCampaignService {
                 Map<Long, ProductDetail> pdMap = productDetailRepository.findAllById(pdIds)
                         .stream().collect(Collectors.toMap(ProductDetail::getId, it -> it));
 
+                // Kiểm tra tồn tại
                 for (Long id : pdIds) {
                     if (!pdMap.containsKey(id)) {
                         throw new IllegalArgumentException("Không tìm thấy SPCT ID: " + id);
                     }
                 }
 
+                // Kiểm tra mỗi SPCT có thuộc về 1 Product đã nằm trong allowedProductIds
+                List<Long> violatedPdIds = new ArrayList<>();
+                for (Long pdId : pdIds) {
+                    ProductDetail pd = pdMap.get(pdId);
+                    Long productIdOfPd = (pd.getProduct() != null ? pd.getProduct().getId() : null);
+                    if (productIdOfPd == null || !allowedProductIds.contains(productIdOfPd)) {
+                        violatedPdIds.add(pdId);
+                    }
+                }
+                if (!violatedPdIds.isEmpty()) {
+                    // Ghép danh sách lỗi để người dùng biết cần thêm product nào trước
+                    throw new IllegalArgumentException(
+                            "Các SPCT sau không thuộc các Sản phẩm đã chọn trong chiến dịch: " + violatedPdIds
+                                    + ". Vui lòng thêm Sản phẩm tương ứng vào chiến dịch trước.");
+                }
+
+                // Hợp lệ => tạo liên kết
                 List<DiscountCampaignProductDetail> items = new ArrayList<>();
                 for (DiscountCampaignProductDetailRequest dReq : request.getProductDetails()) {
                     if (dReq == null || dReq.getProductDetailId() == null) continue;
 
                     ProductDetail pd = pdMap.get(dReq.getProductDetailId());
-                    if (pd == null) {
-                        throw new IllegalArgumentException("Không tìm thấy SPCT ID: " + dReq.getProductDetailId());
-                    }
 
                     DiscountCampaignProductDetail item = new DiscountCampaignProductDetail();
                     item.setCampaign(campaign);
                     item.setProductDetail(pd);
 
-                    // % riêng trên SPCT (nullable => dùng % campaign khi tính)
                     BigDecimal perItem = normalizePercentageOrNull(dReq.getDiscountPercentage());
                     item.setDiscountPercentage(perItem);
 
+                    // tuỳ entity của bạn dùng kiểu gì; ở trên campaign dùng LocalDateTime
                     item.setCreatedDate(java.sql.Timestamp.valueOf(now));
                     item.setUpdatedDate(java.sql.Timestamp.valueOf(now));
 
@@ -183,9 +210,9 @@ public class DiscountCampaignServiceImpl implements DiscountCampaignService {
         DiscountCampaign saved = discountCampaignRepository.save(campaign);
 
         // 5) Trả response
-        // Nếu bạn đã có mapper:
         return discountCampaignMapper.toResponse(saved);
     }
+
 
     /**
      * Chuẩn hoá % BigDecimal về scale(2), kiểm tra 0..100. Null => null

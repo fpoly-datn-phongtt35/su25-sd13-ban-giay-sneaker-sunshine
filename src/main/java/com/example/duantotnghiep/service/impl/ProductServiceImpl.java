@@ -439,10 +439,12 @@ public class ProductServiceImpl implements ProductService {
         Product product = productRepository.findByStatus(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm: " + id));
 
+        // set status cho product
         product.setStatus(0);
         product.setUpdatedDate(new Date());
         product.setUpdatedBy("admin");
 
+        // set status cho toàn bộ productDetail của product
         if (product.getProductDetails() != null && !product.getProductDetails().isEmpty()) {
             product.getProductDetails().forEach(detail -> {
                 detail.setStatus(2);
@@ -451,7 +453,7 @@ public class ProductServiceImpl implements ProductService {
             });
         }
 
-        productRepository.save(product);
+        productRepository.save(product); // cascade sẽ update luôn productDetail nếu đã map cascade
     }
 
     @Override

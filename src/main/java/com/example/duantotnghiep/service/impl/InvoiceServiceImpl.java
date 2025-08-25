@@ -51,7 +51,6 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -64,6 +63,7 @@ import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -1241,27 +1241,26 @@ public class InvoiceServiceImpl implements InvoiceService {
     }
 
     @Override
-    public Page<InvoiceResponse> searchInvoices(String keyword, Integer status,
-                                                LocalDate createdDate,
-                                                Pageable pageable) {
-        if (keyword != null && keyword.trim().isEmpty()) {
-            keyword = null;
-        }
+    public Page<InvoiceResponse> searchSeparatedStatus(String keyword,
+                                                       String counterStatusKey,
+                                                       String onlineStatusKey,
+                                                       LocalDate createdDate,
+                                                       Pageable pageable) {
+        String cleanKeyword = (keyword != null && !keyword.trim().isEmpty()) ? keyword.trim() : null;
+        String counterKey = (counterStatusKey != null && !counterStatusKey.isBlank()) ? counterStatusKey.trim() : null;
+        String onlineKey  = (onlineStatusKey  != null && !onlineStatusKey.isBlank())  ? onlineStatusKey.trim()  : null;
 
-        LocalDateTime startOfDay = null;
-        LocalDateTime startOfNextDay = null;
-        TrangThaiTong statusEnum = TrangThaiTong.tuMa(status);
+        Date startOfDay = null, startOfNextDay = null;
         if (createdDate != null) {
-            startOfDay = createdDate.atStartOfDay();
-            startOfNextDay = createdDate.plusDays(1).atStartOfDay();
+            ZonedDateTime zStart = createdDate.atStartOfDay(ZoneId.systemDefault());
+            startOfDay = Date.from(zStart.toInstant());
+            startOfNextDay = Date.from(zStart.plusDays(1).toInstant());
         }
 
-        // Gọi repository để tìm kiếm
-        Page<Invoice> page = invoiceRepository.searchByKeywordStatusAndCreatedDate(
-                keyword, statusEnum, startOfDay, startOfNextDay, pageable
+        Page<Invoice> page = invoiceRepository.searchByKeywordStatusSeparatedAndCreatedDate(
+                cleanKeyword, counterKey, onlineKey, startOfDay, startOfNextDay, pageable
         );
 
-        // Chuyển sang DTO
         List<InvoiceResponse> dtos = invoiceMapper.toInvoiceResponseList(page.getContent());
         return new PageImpl<>(dtos, pageable, page.getTotalElements());
     }

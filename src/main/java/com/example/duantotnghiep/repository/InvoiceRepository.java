@@ -22,28 +22,28 @@ import java.util.Optional;
 public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
 
     @Query("""
-    SELECT new com.example.duantotnghiep.dto.response.InvoiceResponse(
-        i.id,
-        i.invoiceCode,
-        i.statusDetail,
-        i.orderType,
-        i.createdDate,
-        i.customer.customerName,
-        i.customer.phone,
-        i.totalAmount
-    )
-    FROM Invoice i
-    WHERE (:status IS NULL OR i.statusDetail = :status)
-      AND  (:isPaid IS NULL OR i.isPaid = :isPaid)
-      AND (:orderType IS NULL OR i.orderType = :orderType)
-      AND (:createdFrom IS NULL OR i.createdDate >= :createdFrom)
-      AND (:createdTo IS NULL OR i.createdDate <= :createdTo)
-      AND (:phone IS NULL OR i.customer.phone LIKE %:phone%)
-      AND (:code IS NULL OR i.invoiceCode LIKE %:code%)
-    ORDER BY i.createdDate ASC
-""")
+                SELECT new com.example.duantotnghiep.dto.response.InvoiceResponse(
+                    i.id,
+                    i.invoiceCode,
+                    i.statusDetail,
+                    i.orderType,
+                    i.createdDate,
+                    i.customer.customerName,
+                    i.customer.phone,
+                    i.totalAmount
+                )
+                FROM Invoice i
+                WHERE (:status IS NULL OR i.statusDetail = :status)
+                  AND  (:isPaid IS NULL OR i.isPaid = :isPaid)
+                  AND (:orderType IS NULL OR i.orderType = :orderType)
+                  AND (:createdFrom IS NULL OR i.createdDate >= :createdFrom)
+                  AND (:createdTo IS NULL OR i.createdDate <= :createdTo)
+                  AND (:phone IS NULL OR i.customer.phone LIKE %:phone%)
+                  AND (:code IS NULL OR i.invoiceCode LIKE %:code%)
+                ORDER BY i.createdDate ASC
+            """)
     List<InvoiceResponse> searchInvoices(
-            @Param("status")  TrangThaiChiTiet status,
+            @Param("status") TrangThaiChiTiet status,
             @Param("isPaid") Boolean isPaid,
             @Param("orderType") Integer orderType,
             @Param("createdFrom") Date createdFrom,
@@ -55,21 +55,56 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
 
     List<Invoice> findByStatus(int status);
 
-    @Query("SELECT i FROM Invoice i LEFT JOIN i.customer c " +
-            "WHERE (:keyword IS NULL OR " +
-            "LOWER(i.invoiceCode) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
-            "LOWER(c.customerName) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
-            "LOWER(c.phone) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
-            "AND (:status IS NULL OR i.status = :status) " +
-            "AND (:startOfDay IS NULL OR i.createdDate >= :startOfDay) " +
-            "AND (:startOfNextDay IS NULL OR i.createdDate < :startOfNextDay) " +
-            "ORDER BY i.createdDate DESC")
-    Page<Invoice> searchByKeywordStatusAndCreatedDate(
+    @Query(
+            "SELECT i FROM Invoice i LEFT JOIN i.customer c " +
+                    "WHERE (" +
+                    "  :keyword IS NULL OR :keyword = '' OR " +
+                    "  LOWER(i.invoiceCode) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+                    "  LOWER(COALESCE(c.customerName, '')) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+                    "  LOWER(COALESCE(c.phone, ''))       LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+                    "  LOWER(COALESCE(i.phone, ''))       LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+                    ") " +
+                    "AND (:startOfDay IS NULL OR i.createdDate >= :startOfDay) " +
+                    "AND (:startOfNextDay IS NULL OR i.createdDate < :startOfNextDay) " +
+                    "AND (" +
+                    // 1) Nếu CHỌN trạng thái TẠI QUẦY -> chỉ lấy orderType=0 và map 3 trạng thái
+                    "  ( :counterStatusKey IS NOT NULL AND :counterStatusKey <> '' AND " +
+                    "    i.orderType = 0 AND (" +
+                    "      (:counterStatusKey = 'DANG_XU_LY' AND i.status = com.example.duantotnghiep.state.TrangThaiTong.DANG_XU_LY) OR " +
+                    "      (:counterStatusKey = 'THANH_CONG' AND i.status = com.example.duantotnghiep.state.TrangThaiTong.THANH_CONG) OR " +
+                    "      (:counterStatusKey = 'DA_HUY'     AND i.status = com.example.duantotnghiep.state.TrangThaiTong.DA_HUY) " +
+                    "    ) " +
+                    "  ) " +
+
+                    // 2) Nếu KHÔNG chọn tại quầy và KHÔNG chọn online -> không lọc theo trạng thái (trả cả 0/1)
+                    "  OR ( ( :counterStatusKey IS NULL OR :counterStatusKey = '' ) " +
+                    "       AND ( :onlineStatusKey  IS NULL OR :onlineStatusKey  = '' ) ) " +
+
+                    // 3) Nếu KHÔNG chọn tại quầy nhưng CHỌN online -> chỉ lấy orderType=1 và map trạng thái chi tiết
+                    "  OR ( ( :counterStatusKey IS NULL OR :counterStatusKey = '' ) AND " +
+                    "       :onlineStatusKey IS NOT NULL AND :onlineStatusKey <> '' AND " +
+                    "       i.orderType = 1 AND (" +
+                    "         (:onlineStatusKey = 'CHO_XU_LY'       AND i.statusDetail = com.example.duantotnghiep.state.TrangThaiChiTiet.CHO_XU_LY) OR " +
+                    "         (:onlineStatusKey = 'DA_XU_LY'        AND i.statusDetail = com.example.duantotnghiep.state.TrangThaiChiTiet.DA_XU_LY) OR " +
+                    "         (:onlineStatusKey = 'CHO_GIAO_HANG'   AND i.statusDetail = com.example.duantotnghiep.state.TrangThaiChiTiet.CHO_GIAO_HANG) OR " +
+                    "         (:onlineStatusKey = 'DANG_GIAO_HANG'  AND i.statusDetail = com.example.duantotnghiep.state.TrangThaiChiTiet.DANG_GIAO_HANG) OR " +
+                    "         (:onlineStatusKey = 'GIAO_THANH_CONG' AND i.statusDetail = com.example.duantotnghiep.state.TrangThaiChiTiet.GIAO_THANH_CONG) OR " +
+                    "         (:onlineStatusKey = 'GIAO_THAT_BAI'   AND i.statusDetail = com.example.duantotnghiep.state.TrangThaiChiTiet.GIAO_THAT_BAI) OR " +
+                    "         (:onlineStatusKey = 'HUY_DON'         AND i.statusDetail = com.example.duantotnghiep.state.TrangThaiChiTiet.HUY_DON) " +
+                    "       ) " +
+                    "  ) " +
+                    ") " +
+                    "ORDER BY i.createdDate DESC"
+    )
+    Page<Invoice> searchByKeywordStatusSeparatedAndCreatedDate(
             @Param("keyword") String keyword,
-            @Param("status") TrangThaiTong status,
-            @Param("startOfDay") LocalDateTime startOfDay,
-            @Param("startOfNextDay") LocalDateTime startOfNextDay,
-            Pageable pageable);
+            @Param("counterStatusKey") String counterStatusKey,
+            @Param("onlineStatusKey") String onlineStatusKey,
+            @Param("startOfDay") java.util.Date startOfDay,
+            @Param("startOfNextDay") java.util.Date startOfNextDay,
+            Pageable pageable
+    );
+
 
     Invoice findByInvoiceCode(String invoiceCode);
 
@@ -169,71 +204,71 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
     );
 
     @Query("""
-    SELECT new com.example.duantotnghiep.dto.response.DiscountCampaignStatisticsResponse(
-        COUNT(DISTINCT i.id),
-        SUM(COALESCE(id.sellPrice, 0) * COALESCE(id.quantity, 0)),
-        SUM(COALESCE(id.discountedPrice, 0) * COALESCE(id.quantity, 0)),
-        SUM(COALESCE(id.quantity, 0)),
-        CASE 
-            WHEN SUM(COALESCE(id.sellPrice, 0) * COALESCE(id.quantity, 0)) = 0 THEN 0
-            ELSE 
-                (100.0 * 
-                    (SUM(COALESCE(id.sellPrice, 0) * COALESCE(id.quantity, 0)) 
-                     - SUM(COALESCE(id.discountedPrice, 0) * COALESCE(id.quantity, 0)))
-                / SUM(COALESCE(id.sellPrice, 0) * COALESCE(id.quantity, 0))
+                SELECT new com.example.duantotnghiep.dto.response.DiscountCampaignStatisticsResponse(
+                    COUNT(DISTINCT i.id),
+                    SUM(COALESCE(id.sellPrice, 0) * COALESCE(id.quantity, 0)),
+                    SUM(COALESCE(id.discountedPrice, 0) * COALESCE(id.quantity, 0)),
+                    SUM(COALESCE(id.quantity, 0)),
+                    CASE 
+                        WHEN SUM(COALESCE(id.sellPrice, 0) * COALESCE(id.quantity, 0)) = 0 THEN 0
+                        ELSE 
+                            (100.0 * 
+                                (SUM(COALESCE(id.sellPrice, 0) * COALESCE(id.quantity, 0)) 
+                                 - SUM(COALESCE(id.discountedPrice, 0) * COALESCE(id.quantity, 0)))
+                            / SUM(COALESCE(id.sellPrice, 0) * COALESCE(id.quantity, 0))
+                            )
+                    END
                 )
-        END
-    )
-    FROM InvoiceDetail id
-    JOIN id.invoice i
-    WHERE id.discountCampaign.id = :campaignId 
-      AND id.status = 1
-""")
+                FROM InvoiceDetail id
+                JOIN id.invoice i
+                WHERE id.discountCampaign.id = :campaignId 
+                  AND id.status = 1
+            """)
     DiscountCampaignStatisticsResponse getStatisticsByCampaignId(@Param("campaignId") Long campaignId);
 
     @Query(value = """
-        SELECT
-            e.id,
-            e.employee_name AS employeeName,
-            COUNT(DISTINCT i.id) AS totalInvoices,
-            SUM(idt.quantity) AS totalProducts,
-            SUM(i.final_amount) AS totalRevenue,
-            COUNT(DISTINCT CASE WHEN i.status = 1 THEN i.id END) AS successInvoices,
-            SUM(CASE WHEN i.status = 1 THEN idt.quantity ELSE 0 END) AS successProducts,
-            SUM(CASE WHEN i.status = 1 THEN i.final_amount ELSE 0 END) AS successRevenue,
-            COUNT(DISTINCT CASE WHEN i.status = 2 THEN i.id END) AS cancelledInvoices,
-            SUM(CASE WHEN i.status = 2 THEN idt.quantity ELSE 0 END) AS cancelledProducts,
-            SUM(CASE WHEN i.status = 2 THEN i.final_amount ELSE 0 END) AS cancelledRevenue
-        FROM invoice i
-        JOIN employee e ON i.employee_id = e.id
-        JOIN invoice_details idt ON i.id = idt.invoice_id
-        WHERE (:employeeId IS NULL OR e.id = :employeeId)
-          AND (:startDate IS NULL OR i.created_date >= :startDate)
-          AND (:endDate IS NULL OR i.created_date <= :endDate)
-        GROUP BY e.id, e.employee_name
-        ORDER BY e.employee_name
-        """, nativeQuery = true)
+            SELECT
+                e.id,
+                e.employee_name AS employeeName,
+                COUNT(DISTINCT i.id) AS totalInvoices,
+                SUM(idt.quantity) AS totalProducts,
+                SUM(i.final_amount) AS totalRevenue,
+                COUNT(DISTINCT CASE WHEN i.status = 1 THEN i.id END) AS successInvoices,
+                SUM(CASE WHEN i.status = 1 THEN idt.quantity ELSE 0 END) AS successProducts,
+                SUM(CASE WHEN i.status = 1 THEN i.final_amount ELSE 0 END) AS successRevenue,
+                COUNT(DISTINCT CASE WHEN i.status = 2 THEN i.id END) AS cancelledInvoices,
+                SUM(CASE WHEN i.status = 2 THEN idt.quantity ELSE 0 END) AS cancelledProducts,
+                SUM(CASE WHEN i.status = 2 THEN i.final_amount ELSE 0 END) AS cancelledRevenue
+            FROM invoice i
+            JOIN employee e ON i.employee_id = e.id
+            JOIN invoice_details idt ON i.id = idt.invoice_id
+            WHERE (:employeeId IS NULL OR e.id = :employeeId)
+              AND (:startDate IS NULL OR i.created_date >= :startDate)
+              AND (:endDate IS NULL OR i.created_date <= :endDate)
+            GROUP BY e.id, e.employee_name
+            ORDER BY e.employee_name
+            """, nativeQuery = true)
     List<Object[]> getEmployeeSalesReportNative(
             @Param("employeeId") Long employeeId,
             @Param("startDate") Date startDate,
             @Param("endDate") Date endDate);
 
     @Query(value = """
-    SELECT
-        CASE status_detail
-            WHEN 0 THEN 'CHO_XU_LY'
-            WHEN 1 THEN 'DA_XU_LY'
-            WHEN 2 THEN 'CHO_GIAO_HANG'
-            WHEN 3 THEN 'DANG_GIAO_HANG'
-            WHEN 4 THEN 'GIAO_THANH_CONG'
-            WHEN 5 THEN 'GIAO_THAT_BAI'
-            WHEN -2 THEN 'HUY_DON'
-        END AS statusDetail,
-        COUNT(*) AS countInvoice
-    FROM invoice
-    WHERE order_type = 1
-    GROUP BY status_detail
-    """, nativeQuery = true)
+            SELECT
+                CASE status_detail
+                    WHEN 0 THEN 'CHO_XU_LY'
+                    WHEN 1 THEN 'DA_XU_LY'
+                    WHEN 2 THEN 'CHO_GIAO_HANG'
+                    WHEN 3 THEN 'DANG_GIAO_HANG'
+                    WHEN 4 THEN 'GIAO_THANH_CONG'
+                    WHEN 5 THEN 'GIAO_THAT_BAI'
+                    WHEN -2 THEN 'HUY_DON'
+                END AS statusDetail,
+                COUNT(*) AS countInvoice
+            FROM invoice
+            WHERE order_type = 1
+            GROUP BY status_detail
+            """, nativeQuery = true)
     List<Object[]> countInvoicesByStatusNative();
 
     int countByCustomerAndStatusDetailAndUpdatedDateAfter(
@@ -247,31 +282,31 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
             TrangThaiTong status,
             Date updatedAfter
     );
+
     @Query(
             value = """
-    SELECT SUM(i.final_amount) 
-    FROM invoice i 
-    WHERE i.created_date >= :fromDate 
-      AND i.created_date < :toDate 
-      AND i.status = 1
-  """,
+                      SELECT SUM(i.final_amount) 
+                      FROM invoice i 
+                      WHERE i.created_date >= :fromDate 
+                        AND i.created_date < :toDate 
+                        AND i.status = 1
+                    """,
             nativeQuery = true
     )
     BigDecimal sumRevenueBetween(@Param("fromDate") Date fromDate,
                                  @Param("toDate") Date toDate);
 
 
-
     // Doanh thu theo loại đơn (có thể kèm phạm vi thời gian)
     @Query("""
-        select i.orderType as type, sum(i.totalAmount) as total
-        from Invoice i
-        where i.status = :status
-          and (:start is null or i.createdDate >= :start)
-          and (:end   is null or i.createdDate <  :end)
-        group by i.orderType
-        order by total desc
-    """)
+                select i.orderType as type, sum(i.totalAmount) as total
+                from Invoice i
+                where i.status = :status
+                  and (:start is null or i.createdDate >= :start)
+                  and (:end   is null or i.createdDate <  :end)
+                group by i.orderType
+                order by total desc
+            """)
     List<Object[]> getRevenueByOrderType(
             @Param("status") TrangThaiTong status,
             @Param("start") LocalDateTime start,
@@ -281,29 +316,39 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
 
     // Đếm số hóa đơn theo trạng thái trong phạm vi thời gian (nếu cần)
     @Query("""
-        select i.status as st, count(i.id) as total
-        from Invoice i
-        where (:start is null or i.createdDate >= :start)
-          and (:end   is null or i.createdDate <  :end)
-        group by i.status
-    """)
+                select i.status as st, count(i.id) as total
+                from Invoice i
+                where (:start is null or i.createdDate >= :start)
+                  and (:end   is null or i.createdDate <  :end)
+                group by i.status
+            """)
     List<Object[]> countInvoicesByStatus(
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end
     );
 
     @Query("""
-    select coalesce(sum(i.totalAmount), 0)
-    from Invoice i
-    where i.status = :status
-      and i.createdDate >= :start
-      and i.createdDate <  :end
-""")
+                select coalesce(sum(i.totalAmount), 0)
+                from Invoice i
+                where i.status = :status
+                  and i.createdDate >= :start
+                  and i.createdDate <  :end
+            """)
     Long sumRevenueBetween(@Param("start") LocalDateTime start,
-                           @Param("end")   LocalDateTime end,
+                           @Param("end") LocalDateTime end,
                            @Param("status") TrangThaiTong status);
 
-
+    @Query("""
+                select coalesce(sum(d.quantity), 0)
+                from Invoice i
+                join i.invoiceDetails d
+                where i.status = :status
+                  and i.createdDate >= :start
+                  and i.createdDate <  :end
+            """)
+    Long sumItemsBetween(@Param("start") LocalDateTime start,
+                         @Param("end") LocalDateTime end,
+                         @Param("status") TrangThaiTong status);
 }
 
 

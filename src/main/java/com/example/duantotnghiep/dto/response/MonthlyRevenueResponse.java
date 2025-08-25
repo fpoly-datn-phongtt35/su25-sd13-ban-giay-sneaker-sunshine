@@ -15,4 +15,5 @@ public class MonthlyRevenueResponse {
     private Integer month;
     private Integer year;
     private Long totalRevenue;
+    private Long totalQuantity; // <-- THÊM
 }

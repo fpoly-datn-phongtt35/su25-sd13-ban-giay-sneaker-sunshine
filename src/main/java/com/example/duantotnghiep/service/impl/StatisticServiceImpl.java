@@ -48,7 +48,7 @@ public class StatisticServiceImpl implements StatisticService {
         // ===== 2) Trạng thái thống kê =====
         TrangThaiTong success = TrangThaiTong.THANH_CONG;
 
-        // ===== 3) MONTHLY (ĐÃ SỬA: tính bằng sumRevenueBetween để khớp MTD/YTD) =====
+        // ===== 3) MONTHLY: Doanh thu + SỐ LƯỢNG =====
         List<MonthlyRevenueResponse> monthly = null;
         if (isTrue(req.getIncludeMonthly())) {
             final int y = (req.getYear() != null)
@@ -59,15 +59,20 @@ public class StatisticServiceImpl implements StatisticService {
                     .mapToObj(m -> {
                         LocalDateTime ms = LocalDate.of(y, m, 1).atStartOfDay();
                         LocalDateTime me = ms.plusMonths(1); // end-exclusive
+
                         Long rev = invoiceRepository.sumRevenueBetween(ms, me, success);
+                        Long qty = invoiceRepository.sumItemsBetween(ms, me, success); // <-- thêm
+
                         return MonthlyRevenueResponse.builder()
-                                .month(m).year(y).totalRevenue(rev == null ? 0L : rev)
+                                .month(m).year(y)
+                                .totalRevenue(nz(rev))
+                                .totalQuantity(nz(qty)) // <-- thêm
                                 .build();
                     })
                     .collect(Collectors.toList());
         }
 
-        // ===== 4) YEARLY (ĐÃ SỬA: tính bằng sumRevenueBetween để khớp YTD) =====
+// ===== 4) YEARLY: Doanh thu + SỐ LƯỢNG =====
         List<YearlyRevenueResponse> yearly = null;
         if (isTrue(req.getIncludeYearly())) {
             final int y = (req.getPeriodYear() != null) ? req.getPeriodYear()
@@ -75,11 +80,17 @@ public class StatisticServiceImpl implements StatisticService {
 
             LocalDateTime ys = LocalDate.of(y, 1, 1).atStartOfDay();
             LocalDateTime ye = ys.plusYears(1); // end-exclusive
-            Long total = invoiceRepository.sumRevenueBetween(ys, ye, success);
+
+            Long totalRev = invoiceRepository.sumRevenueBetween(ys, ye, success);
+            Long totalQty = invoiceRepository.sumItemsBetween(ys, ye, success); // <-- thêm
+
             yearly = List.of(YearlyRevenueResponse.builder()
-                    .year(y).totalRevenue(total == null ? 0L : total)
+                    .year(y)
+                    .totalRevenue(nz(totalRev))
+                    .totalQuantity(nz(totalQty)) // <-- thêm
                     .build());
         }
+
 
         // ===== 5) DOANH THU THEO LOẠI ĐƠN (áp dụng start/end nếu có) =====
         List<OrderTypeRevenueResponse> byOrderType = null;

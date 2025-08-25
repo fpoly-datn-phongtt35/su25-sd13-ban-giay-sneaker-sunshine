@@ -14,4 +14,6 @@ import lombok.Setter;
 public class YearlyRevenueResponse {
     private Integer year;
     private Long totalRevenue;
+    private Long totalQuantity; // <-- THÊM
+
 }

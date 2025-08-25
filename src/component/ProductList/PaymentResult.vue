@@ -12,14 +12,16 @@ const message = ref('⏳ Đang kiểm tra trạng thái thanh toán...')
 const STATUS = {
   DANG_XU_LY: 'DANG_XU_LY',
   HUY_DON: 'HUY_DON',
-  THAT_BAI: 'THAT_BAI'
+  THAT_BAI: 'THAT_BAI',
+  HUY_GIAO_DICH: 'HUY_GIAO_DICH'
 }
 
 // Thông báo tương ứng theo trạng thái
 const STATUS_MESSAGES = {
   [STATUS.THAT_BAI]: '❌ Thanh toán thất bại!',
-  [STATUS.HUY_DON]: '🚫 Giao dịch đã bị hủy!',
+  [STATUS.HUY_DON]: '🚫 Đơn hàng đã bị hủy!',
   [STATUS.DANG_XU_LY]: '✅ Thanh toán thành công!',
+  [STATUS.HUY_GIAO_DICH]: '⛔ Giao dịch đã bị hủy!'
 }
 
 onMounted(async () => {
@@ -45,21 +47,19 @@ onMounted(async () => {
     status.value = res.data?.status
     console.log('🧾 Trạng thái hóa đơn từ server:', status.value)
 
-    // Nếu có trạng thái hợp lệ
     if (status.value && STATUS_MESSAGES[status.value]) {
       message.value = STATUS_MESSAGES[status.value]
 
       // Phân loại hiển thị
       if ([STATUS.DANG_XU_LY].includes(status.value)) {
         ElMessage.success(message.value)
-      } else if ([STATUS.THAT_BAI, STATUS.HUY_DON].includes(status.value)) {
+      } else if ([STATUS.THAT_BAI, STATUS.HUY_DON, STATUS.HUY_GIAO_DICH].includes(status.value)) {
         ElMessage.error(message.value)
       } else {
         ElMessage.warning(message.value)
       }
 
     } else {
-      // Trạng thái không xác định
       message.value = `❓ Không xác định trạng thái đơn hàng: ${status.value || 'null'}`
       console.warn('⚠️ Trạng thái không xác định:', res.data)
       ElMessage.warning(message.value)

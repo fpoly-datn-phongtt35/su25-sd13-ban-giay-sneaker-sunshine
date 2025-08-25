@@ -59,7 +59,7 @@ const soles = ref([])
 const form = ref({ id: null, name: '' }) // 'name' for the form input
 const isEditing = ref(false)
 const formRef = ref(null)
-
+const loading = ref(false)
 const rules = {
   name: [
     { required: true, message: 'Tên không được để trống', trigger: 'blur' },
@@ -104,7 +104,7 @@ const fetchSoles = async () => {
 const handleSubmit = async () => {
   formRef.value.validate(async (valid) => {
     if (!valid) return
-  
+
 
   // Optional: Check for duplicate names (case-insensitive, exclude current item if editing)
   const nameTrimmed = form.value.name.trim().toLowerCase();
@@ -125,7 +125,7 @@ const handleSubmit = async () => {
           cancelButtonText: 'Hủy',
           type: 'warning',
         })
-     
+
       // Trường hợp cập nhật, không cần confirm
       await axios.put(`http://localhost:8080/api/admin/sole/${form.value.id}`, null, {
         params: { name: form.value.name },

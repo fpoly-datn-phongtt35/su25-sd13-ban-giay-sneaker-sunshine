@@ -43,10 +43,10 @@
             <div class="kpi-title">Doanh số hôm nay</div>
             <div class="kpi-value">{{ vnd(kpis.today) }}</div>
             <div class="kpi-sub">
-              So với {{ kpis.todayCompareLabel }}
+              <!-- So với {{ kpis.todayCompareLabel }}
               <span class="kpi-chip" :class="{'up': kpis.todayPct >= 0, 'down': kpis.todayPct < 0}">
                 {{ formatPct(kpis.todayPct) }}
-              </span>
+              </span> -->
             </div>
           </div>
         </el-col>
@@ -55,10 +55,10 @@
             <div class="kpi-title">Doanh số tuần này</div>
             <div class="kpi-value">{{ vnd(kpis.week) }}</div>
             <div class="kpi-sub">
-              So với tuần trước
+              <!-- So với tuần trước
               <span class="kpi-chip" :class="{'up': kpis.weekPct >= 0, 'down': kpis.weekPct < 0}">
                 {{ formatPct(kpis.weekPct) }}
-              </span>
+              </span> -->
             </div>
           </div>
         </el-col>
@@ -67,10 +67,10 @@
             <div class="kpi-title">Doanh số tháng này</div>
             <div class="kpi-value">{{ vnd(kpis.month) }}</div>
             <div class="kpi-sub">
-              So với tháng trước
+              <!-- So với tháng trước
               <span class="kpi-chip" :class="{'up': kpis.monthPct >= 0, 'down': kpis.monthPct < 0}">
                 {{ formatPct(kpis.monthPct) }}
-              </span>
+              </span> -->
             </div>
           </div>
         </el-col>
@@ -129,15 +129,14 @@
           <div class="panel-title">Top thịnh hành</div>
         </div>
         <el-table :data="topRows" size="small" class="rounded-xl" :empty-text="loading ? 'Loading...' : 'Không có dữ liệu'">
-          <el-table-column label="PRODUCT" min-width="260">
+          <el-table-column label="Sản phẩm" min-width="260">
             <template #default="{ row }">
               <div class="prod">
-                <div class="prod-ico">📦</div>
                 <div class="prod-name">{{ row.productName }}</div>
               </div>
             </template>
           </el-table-column>
-          <el-table-column prop="totalQuantitySold" label="SOLD" width="110" align="right" />
+          <el-table-column prop="totalQuantitySold" label="Số lượng" width="110" align="right" />
         </el-table>
       </div>
 

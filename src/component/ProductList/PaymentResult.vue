@@ -28,8 +28,6 @@ onMounted(async () => {
   const appTransId = route.query.app_trans_id
 
   if (!appTransId) {
-    message.value = '❌ Không tìm thấy mã giao dịch trong URL'
-    ElMessage.error(message.value)
     return
   }
 

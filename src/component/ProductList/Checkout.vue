@@ -616,7 +616,7 @@ const payload = {
         clearCart()
         cartItems.value = []
         ElMessage.success('Đặt hàng thành công! Đơn hàng của bạn sẽ sớm được giao.')
-        router.push('/don-hang')
+        router.push('/payment-result')
       }
 
     } catch (err) {

@@ -10,6 +10,7 @@ import Collections from '@/component/ProductList/Collections.vue'
 import PaymentResult from '@/component/ProductList/PaymentResult.vue'
 import PreferentialProducts from '@/component/ProductList/PreferentialProducts.vue'
 import ProductDetail from '@/component/ProductList/ProductDetail.vue'
+import DonHangDaMua from '@/component/SanPhamDaMua/DonHangDaMua.vue'
 import SanPhamDaMua from '@/component/SanPhamDaMua/SanPhamDaMua.vue'
 import SanPhamYeuThich from '@/component/SanPhamYeuThich/SanPhamYeuThich.vue'
 import MaGiamGia from '@/component/Voucher/MaGiamGia.vue'
@@ -31,6 +32,7 @@ const routes = [
   { path: '/san-pham-da-mua', name: 'SanPhamDaMua', component: SanPhamDaMua },
   { path: '/san-pham-yeu-thich', name: 'SanPhamYeuThich', component: SanPhamYeuThich },
   { path: '/san-pham-uu-dai', name: 'PreferentialProducts', component: PreferentialProducts },
+  { path: '/don-hang-da-mua', name: 'DonHangDaMua', component: DonHangDaMua },
 
 ]
 

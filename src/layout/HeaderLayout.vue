@@ -196,6 +196,11 @@
                     <el-icon><Box /></el-icon> Sản phẩm đã mua
                   </RouterLink>
 
+                   <RouterLink to="/don-hang-da-mua" class="dropdown-item" @click="closeDropdown">
+                    <el-icon><Box /></el-icon> Đơn hàng đã mua
+                  </RouterLink>
+
+
                   <RouterLink to="/thong-tin-ca-nhan" class="dropdown-item" @click="closeDropdown">
                     <el-icon><User /></el-icon> Thông tin cá nhân
                   </RouterLink>

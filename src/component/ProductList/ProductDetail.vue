@@ -27,6 +27,7 @@
             class="thumbnail"
             :class="{ active: index === currentImageIndex }"
             @click="setMainImageByIndex(index)"
+            alt="Ảnh nhỏ"
             loading="lazy"
             decoding="async"
           />
@@ -36,7 +37,7 @@
       <!-- Ảnh chính -->
       <el-col :span="9">
         <div class="main-image-container">
-          <img :src="mainImage" alt="Ảnh chính" />
+          <img :src="mainImage" alt="Ảnh chính" class="main-image" />
           <el-button
             v-if="colorSpecificImages.length > 1"
             class="nav-button prev"
@@ -71,25 +72,24 @@
 
         <p class="product-code">Style Code: {{ product.productCode }}</p>
 
-        <!-- GIÁ THEO BIẾN THỂ (ưu tiên) -->
-        <div class="product-price variant" v-if="selectedDetail">
-          <template v-if="Number(displayPrice.original) > 0">
+        <!-- Giá -->
+        <div v-if="selectedDetail" class="product-price variant">
+          <template v-if="Number(displayPrice.discounted) > 0 && Number(displayPrice.discounted) < Number(displayPrice.original)">
             <span class="original-price">{{ money(displayPrice.original) }}</span>
             <span class="discounted-price">{{ money(displayPrice.discounted) }}</span>
           </template>
           <template v-else>
-            <span class="discounted-price">{{ money(displayPrice.discounted) }}</span>
+            <span class="only-price">{{ money(displayPrice.original || displayPrice.discounted) }}</span>
           </template>
         </div>
 
-        <!-- GIÁ MẶC ĐỊNH (fallback) -->
-        <div class="product-price">
-          <template v-if="Number(product.discountedPrice) > 0 && product.discountedPrice < product.sellPrice">
+        <div v-else class="product-price">
+          <template v-if="Number(product.discountedPrice) > 0 && Number(product.discountedPrice) < Number(product.sellPrice)">
             <span class="original-price">{{ money(product.sellPrice) }}</span>
             <span class="discounted-price">{{ money(product.discountedPrice) }}</span>
           </template>
           <template v-else>
-            <span class="discounted-price">{{ money(product.sellPrice) }}</span>
+            <span class="only-price">{{ money(product.sellPrice) }}</span>
           </template>
         </div>
 
@@ -101,8 +101,11 @@
               v-for="c in uniqueColors"
               :key="c.id"
               class="color-swatch"
-              :style="{ backgroundColor: (c.name || '').toLowerCase() }"
-              :class="{ selected: selectedColor === c.name }"
+              :class="{
+                selected: selectedColor === c.name,
+                'is-light': isLightColor(getColorHex(c.name))
+              }"
+              :style="{ backgroundColor: getColorHex(c.name) }"
               @click="selectColor(c)"
               :title="c.name"
             />
@@ -157,19 +160,17 @@
         </div>
 
         <!-- Khuyến mãi -->
-        <div class="promotions-section">
-          <div class="promotion-item">
-            <p class="promotion-title"><span class="dot">●</span> SunShine Chào bạn mới</p>
-            <p class="promotion-text">Ưu đãi 10% cho đơn nguyên giá đầu tiên*</p>
-            <p class="promotion-text">Nhập mã: MLBWELCOME</p>
-            <p class="promotion-text">Không áp dụng cùng CTKM khác</p>
-          </div>
-          <div class="promotion-item">
-            <p class="promotion-title"><span class="dot">●</span> BLACK TUESDAY REWARDS</p>
-            <p class="promotion-text">Hoàn 10% điểm Loyalty mỗi Thứ 3</p>
-            <p class="promotion-text">Áp dụng từ: 01/04/2025</p>
-          </div>
-        </div>
+<div class="promotions-section">
+  <div class="promotion-item">
+    <p class="promotion-title">
+      <span class="dot">●</span> Ghi chú sản phẩm
+    </p>
+    <p class="promotion-text">
+      {{ product.description || 'Không có ghi chú' }}
+    </p>
+  </div>
+</div>
+
       </el-col>
     </el-row>
 
@@ -197,13 +198,15 @@
         >
           <div class="related-card" @click="goToDetail(rp.id)">
             <div class="related-image">
-              <img :src="rp.activeImage" :alt="rp.productName" loading="lazy" decoding="async" />
-              <span v-if="rp.discountPercentage>0" class="badge">-{{ rp.discountPercentage }}%</span>
+              <img :src="rp.activeImage" :alt="rp.productName" class="related-img" loading="lazy" decoding="async" />
+              <span v-if="Number(rp.discountedPrice) > 0 && Number(rp.discountedPrice) < Number(rp.sellPrice)" class="badge">
+                -{{ rp.discountPercentage }}%
+              </span>
             </div>
             <div class="related-info">
               <p class="name" :title="rp.productName">{{ rp.productName }}</p>
               <div class="price">
-                <template v-if="Number(rp.discountedPrice)>0">
+                <template v-if="Number(rp.discountedPrice) > 0 && Number(rp.discountedPrice) < Number(rp.sellPrice)">
                   <span class="new">{{ money(rp.discountedPrice) }}</span>
                   <del class="old">{{ money(rp.sellPrice) }}</del>
                 </template>
@@ -232,6 +235,50 @@ const API = axios.create({ baseURL: 'http://localhost:8080/api' })
 /* Router */
 const route = useRoute()
 const router = useRouter()
+
+/* ====== Color map (VN + EN) ====== */
+const colorMap = {
+  'đen':'#000000','trắng':'#FFFFFF','đỏ':'#FF0000','xanh dương':'#0000FF','xanh lá':'#008000','xám':'#808080',
+  'bạc':'#C0C0C0','hồng':'#FFC0CB','vàng':'#FFFF00','tím':'#800080','cam':'#FFA500','nâu':'#A52A2A',
+  'xanh navy':'#000080','be':'#F5F5DC','vàng gold':'#FFD700',
+  'black':'#000000','white':'#FFFFFF','red':'#FF0000','blue':'#0000FF','green':'#008000','grey':'#808080','gray':'#808080',
+  'silver':'#C0C0C0','pink':'#FFC0CB','yellow':'#FFFF00','purple':'#800080','orange':'#FFA500','brown':'#A52A2A',
+  'navy':'#000080','beige':'#F5F5DC','gold':'#FFD700'
+}
+const getColorHex = (name) => {
+  if (!name) return '#ccc'
+  const key = String(name).trim().toLowerCase()
+  // nếu key không có trong map nhưng là tên màu CSS hợp lệ (vd: cyan), trả về chính key
+  return colorMap[key] || key
+}
+const isLightColor = (hexOrName) => {
+  // nhận HEX (#RRGGBB) hoặc tên màu css — cố gắng parse
+  let hex = hexOrName
+  if (!hex) return false
+  if (!hex.startsWith('#')) {
+    // tên màu -> tạo canvas để lấy computed color (fallback false nếu không có DOM/canvas)
+    try {
+      const ctx = document.createElement('canvas').getContext('2d')
+      ctx.fillStyle = hexOrName
+      hex = ctx.fillStyle  // trình duyệt chuyển tên sang rgb(...)
+      // convert rgb(...) -> hex
+      const m = /^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/.exec(hex)
+      if (m) {
+        const r = (+m[1]).toString(16).padStart(2,'0')
+        const g = (+m[2]).toString(16).padStart(2,'0')
+        const b = (+m[3]).toString(16).padStart(2,'0')
+        hex = `#${r}${g}${b}`
+      }
+    } catch (_) { return false }
+  }
+  // #RRGGBB
+  const r = parseInt(hex.slice(1,3),16)
+  const g = parseInt(hex.slice(3,5),16)
+  const b = parseInt(hex.slice(5,7),16)
+  // perceived luminance
+  const L = 0.2126*r + 0.7152*g + 0.0722*b
+  return L > 200 // khá sáng
+}
 
 /* State */
 const product = ref({
@@ -311,7 +358,6 @@ const displayPrice = computed(() => {
     }
     return { original: null, discounted: d.sellPrice }
   }
-  // fallback khi chưa chọn biến thể
   if (Number(product.value.discountedPrice) > 0 && product.value.discountedPrice < product.value.sellPrice) {
     return { original: product.value.sellPrice, discounted: product.value.discountedPrice }
   }
@@ -397,15 +443,9 @@ const handleAddToCart = () => {
     discountCampaignId: d.discountCampaignId || null,
   }
 
-  // Thêm giỏ
   addToCart(cartItem)
-
-  // Log ra console để kiểm tra
   console.log('✅ Đã thêm vào giỏ:', cartItem)
-
-  // Hoặc log chi tiết từng field
   console.table(cartItem)
-
   ElMessage.success('Đã thêm vào giỏ hàng!')
 }
 
@@ -469,114 +509,161 @@ watch(brandId, fetchRelated)
 </script>
 
 <style scoped>
-/* Wrapper & breadcrumb */
-.pd-wrapper { max-width: 1400px; margin: 20px auto 60px; padding: 0 20px; }
-.pd-breadcrumb { display:flex; align-items:center; gap:8px; font-size:13px; color:#666; margin-bottom: 12px; }
-.pd-breadcrumb a { color:#666; text-decoration: none; }
-.pd-breadcrumb a:hover { color:#000; text-decoration: underline; }
-.pd-breadcrumb .sep { opacity:.6; }
-.pd-breadcrumb .current { color:#222; }
+/* ==== Wrapper & breadcrumb ==== */
+.pd-wrapper {
+  max-width: 1400px;
+  margin: 20px auto 60px;
+  padding: 0 20px;
+}
+.pd-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 12px;
+}
+.pd-breadcrumb a { color: #666; text-decoration: none; }
+.pd-breadcrumb a:hover { color: #000; text-decoration: underline; }
+.pd-breadcrumb .sep { opacity: .6; }
+.pd-breadcrumb .current { color: #222; }
 
-/* Layout */
-.product-detail { font-family: 'Helvetica Neue', Arial, sans-serif; color: #333; line-height: 1.45; }
+/* ==== Layout & font ==== */
+.product-detail {
+  color: #333;
+  line-height: 1.5;
+  font-size: 15px;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
 
-/* Thumbnails */
+/* ==== Thumbnails ==== */
 .pd-thumbs-col { padding-right: 6px; }
 .thumbnail-list { display: flex; flex-direction: column; gap: 8px; }
 .thumbnail {
-  width: 100%; aspect-ratio: 1/1; object-fit: cover; display: block;
-  border: 1px solid #e6e6e6; border-radius: 6px; cursor: pointer; transition: .2s;
+  width: 100%;
+  aspect-ratio: 1/1;
+  object-fit: cover;
+  display: block;
+  border: none;         /* bỏ viền */
+  border-radius: 0;     /* vuông */
+  cursor: pointer;
+}
+.thumbnail.active {
+  outline: 2px solid #000; /* chỉ hiển thị khung đen cho ảnh active */
+  outline-offset: -2px;
+}
+.thumbnail:hover { opacity: 0.9; }
+
+/* ==== Ảnh chính ==== */
+.main-image-container {
+  position: relative;
+  border: none;
+  border-radius: 0;
+  background: #fafafa;
+  overflow: hidden;
+}
+.main-image {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.nav-button {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
   background: #fff;
+  border: 1px solid #ccc;
+  width: 36px;
+  height: 36px;
+  font-size: 18px;
+  color: #444;
 }
-.thumbnail:hover { border-color: #bbb; transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,.06); }
-.thumbnail.active { border: 2px solid #111; box-shadow: 0 6px 16px rgba(0,0,0,.08); }
+.nav-button.prev { left: 10px; }
+.nav-button.next { right: 10px; }
+.nav-button:hover { background: #111; color: #fff; }
 
-/* Ảnh chính */
-.main-image-container { position: relative; border-radius: 10px; overflow: hidden; background:#fafafa; box-shadow: 0 4px 14px rgba(0,0,0,.06); }
-.main-image-container img { width: 100%; height: auto; display: block; }
-.nav-button { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(255,255,255,.95); border: 1px solid rgba(0,0,0,.08); box-shadow: 0 2px 10px rgba(0,0,0,.08); width: 38px; height: 38px; font-size: 18px; color: #555; }
-.nav-button.prev { left: 10px; } .nav-button.next { right: 10px; }
-.nav-button:hover { background:#111; color:#fff; }
-
-/* Head + Brand badge */
-.pd-head { display:flex; align-items:center; gap: 10px; flex-wrap: wrap; }
-.product-name { font-size: 28px; font-weight: 800; margin: 0; color:#222; letter-spacing:.2px; }
+/* ==== Head + brand badge ==== */
+.pd-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.product-name { font-size: 28px; font-weight: 700; margin: 0; color: #222; }
 .brand-badge {
-  background:#111; color:#fff; border-radius: 999px; padding: 6px 12px;
-  font-size: 12px; text-transform: uppercase; letter-spacing: .6px;
-  border: 1px solid #111; transition: .2s;
+  background: #111; color: #fff;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+  text-transform: uppercase;
+  border: 1px solid #111;
 }
-.brand-badge:hover { background:#fff; color:#111; }
+.brand-badge:hover { background: #fff; color: #111; }
 
-/* Code & giá */
-.product-code { color:#777; font-size:14px; margin: 6px 0 16px; }
-.product-price { font-size:26px; font-weight:700; margin-bottom: 18px; display:flex; gap:12px; align-items:baseline; }
-.original-price { text-decoration: line-through; color:#9e9e9e; font-size:20px; }
-.discounted-price { color:#d32f2f; font-size:28px; }
+/* ==== Code & giá ==== */
+.product-code { color: #777; font-size: 14px; margin: 6px 0 16px; }
+.product-price { font-size: 26px; font-weight: 700; margin-bottom: 18px; display: flex; gap: 12px; }
+.original-price { text-decoration: line-through; color: #9e9e9e; font-size: 20px; }
+.discounted-price { color: #d32f2f; font-size: 28px; }
+.only-price { font-size: 28px; }
 
-/* Ẩn giá mặc định khi đã chọn biến thể */
-.has-variant-selected .product-price:not(.variant) { display: none; }
-
-/* Màu/Size */
+/* ==== Màu & size ==== */
 .selector-title { font-weight: 600; margin-bottom: 8px; }
 .color-selector { margin: 14px 0; }
-.color-swatches { display: flex; gap: 8px; flex-wrap: wrap; }
+.color-swatches { display: flex; gap: 10px; flex-wrap: wrap; }
 .color-swatch {
-  width: 30px; height: 30px; border-radius: 50%; border: 1px solid #dedede; cursor: pointer; transition: .15s;
-  box-shadow: 0 1px 2px rgba(0,0,0,.06);
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  border: 1px solid #ccc;
+  cursor: pointer;
 }
-.color-swatch:hover { transform: scale(1.05); border-color:#bbb; }
-.color-swatch.selected { border: 2px solid #000; box-shadow: 0 0 0 2px #fff, 0 0 0 4px #000; }
+.color-swatch.selected { border: 2px solid #000; }
+/* màu sáng auto viền đậm để không bị chìm */
+.color-swatch.is-light { border-color: #333; }
 
 .size-selector { margin: 14px 0; }
 .size-header { display: flex; justify-content: space-between; align-items: center; }
 .size-guide-link { color: #409eff; font-size: 13px; }
 .size-buttons { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
-.size-buttons .el-button { min-width: 52px; height: 38px; padding: 0 14px; font-size: 14px; border-radius: 8px; }
-
-/* Size đang chọn -> nền đen, chữ trắng */
-.size-buttons .el-button.selected,
-.size-buttons .el-button.selected:hover,
-.size-buttons .el-button.selected:focus {
-  background: #111 !important;
-  color: #fff !important;
-  border-color: #111 !important;
+.size-buttons .el-button { min-width: 52px; height: 38px; font-size: 14px; border-radius: 4px; }
+.size-buttons .el-button.selected {
+  background: #111 !important; color: #fff !important; border-color: #111 !important;
 }
 
-/* Số lượng */
+/* ==== Số lượng ==== */
 .qty-row { display: flex; justify-content: space-between; align-items: center; margin: 12px 0 4px; }
 .stock { font-size: 13px; color: #16a34a; }
 .stock.low { color: #d97706; }
 
-/* Actions */
-.action-buttons { display:flex; gap:12px; margin:18px 0 22px; width:100%; }
-.action-buttons .el-button { flex:1; height:52px; font-size:16px; font-weight:800; border-radius:10px; text-transform:uppercase; letter-spacing:.5px; }
-.add-to-cart-btn { background:#fff; color:#111; border:2px solid #111; }
-.add-to-cart-btn:hover { background:#111; color:#fff; }
-.buy-now-btn { background:#b81c23; color:#fff; border:2px solid #b81c23; }
-.buy-now-btn:hover { background:#d02a31; }
-
-/* Liên quan */
-.related-wrapper { margin-top: 28px; }
-.related-header { display:flex; justify-content:space-between; align-items:end; margin-bottom: 14px; }
-.related-title { display:flex; align-items:baseline; gap:10px; }
-.related-header h3 { font-size:22px; margin:0; }
-.related-brand { font-size:14px; color:#666; }
-.see-all-link {
-  font-size:13px; padding:8px 14px; border:1px solid #ddd; border-radius:999px; text-decoration:none; color:#111; background:#fff;
+/* ==== Actions ==== */
+.action-buttons { display: flex; gap: 12px; margin: 18px 0 22px; }
+.action-buttons .el-button {
+  flex: 1; height: 48px; font-size: 15px; font-weight: 700; border-radius: 6px;
 }
-.related-card { background:#fff; border-radius:10px; overflow:hidden; box-shadow:0 2px 10px rgba(0,0,0,.06); cursor:pointer; transition: .18s; }
-.related-card:hover { transform: translateY(-4px); box-shadow:0 8px 24px rgba(0,0,0,.1); }
-.related-image { position:relative; width:100%; padding-bottom:100%; background:#f5f5f5; overflow:hidden; }
-.related-image img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
-.related-image .badge { position:absolute; top:8px; left:8px; background:#d9534f; color:#fff; font-size:12px; padding:3px 6px; border-radius:4px; }
-.related-info { padding:12px; }
-.related-info .name { font-size:14px; line-height:1.4; height:40px; overflow:hidden; margin:0 0 6px; }
-.related-info .price { display:flex; gap:8px; align-items: baseline; }
-.related-info .price .new { font-weight:800; }
-.related-info .price .old { color:#999; }
+.add-to-cart-btn { background: #fff; color: #111; border: 2px solid #111; }
+.add-to-cart-btn:hover { background: #111; color: #fff; }
+.buy-now-btn { background: #b81c23; color: #fff; border: 2px solid #b81c23; }
+.buy-now-btn:hover { background: #d02a31; }
 
-/* Responsive */
+/* ==== Liên quan ==== */
+.related-wrapper { margin-top: 28px; }
+.related-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 14px; }
+.related-title { display: flex; align-items: baseline; gap: 10px; }
+.related-header h3 { font-size: 20px; margin: 0; }
+.related-card {
+  background: #fff;
+  border: none;
+  border-radius: 0;
+  cursor: pointer;
+}
+.related-image { position: relative; width: 100%; padding-bottom: 100%; background: #f5f5f5; }
+.related-image img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.related-image .badge {
+  position: absolute; top: 8px; left: 8px;
+  background: #d32f2f; color: #fff; font-size: 12px; padding: 2px 6px; border-radius: 4px;
+}
+.related-info { padding: 10px; }
+.related-info .name { font-size: 14px; height: 40px; overflow: hidden; margin: 0 0 6px; }
+.related-info .price { display: flex; gap: 8px; align-items: baseline; }
+.related-info .price .new { font-weight: 700; }
+.related-info .price .old { color: #999; text-decoration: line-through; }
+
+/* ==== Responsive ==== */
 @media (max-width: 992px) { .product-name { font-size: 24px; } }
-@media (max-width: 768px) { .pd-thumbs-col { display:none; } }
+@media (max-width: 768px) { .pd-thumbs-col { display: none; } }
 </style>

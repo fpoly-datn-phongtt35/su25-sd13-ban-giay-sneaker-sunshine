@@ -48,7 +48,6 @@ onMounted(async () => {
     if (status.value && STATUS_MESSAGES[status.value]) {
       message.value = STATUS_MESSAGES[status.value]
 
-      // Phân loại hiển thị
       if ([STATUS.DANG_XU_LY].includes(status.value)) {
         ElMessage.success(message.value)
       } else if ([STATUS.THAT_BAI, STATUS.HUY_DON, STATUS.HUY_GIAO_DICH].includes(status.value)) {
@@ -56,13 +55,11 @@ onMounted(async () => {
       } else {
         ElMessage.warning(message.value)
       }
-
     } else {
       message.value = `❓ Không xác định trạng thái đơn hàng: ${status.value || 'null'}`
       console.warn('⚠️ Trạng thái không xác định:', res.data)
       ElMessage.warning(message.value)
     }
-
   } catch (err) {
     console.error('❌ Lỗi khi kiểm tra trạng thái:', err)
     message.value = '❌ Không thể kiểm tra trạng thái đơn hàng'
@@ -72,14 +69,41 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="p-6 text-center">
-    <h2 class="text-2xl font-bold mb-4">Kết quả thanh toán</h2>
-    <p class="text-lg">{{ message }}</p>
+  <div class="result-wrap">
+    <h2 class="title">Kết quả thanh toán</h2>
+    <p class="msg">{{ message }}</p>
+
+    <div class="actions">
+      <!-- Nút quay về trang chủ -->
+      <RouterLink to="/">
+        <el-button type="primary">Quay về trang chủ</el-button>
+      </RouterLink>
+    </div>
   </div>
 </template>
 
 <style scoped>
-p {
+.result-wrap {
+  padding: 24px;
+  text-align: center;
+  max-width: 560px;
+  margin: 40px auto;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.06);
+}
+.title {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+.msg {
   font-size: 18px;
+  margin-bottom: 16px;
+}
+.actions {
+  margin-top: 8px;
+  display: flex;
+  justify-content: center;
 }
 </style>

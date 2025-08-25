@@ -22,28 +22,28 @@ import java.util.Optional;
 public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
 
     @Query("""
-    SELECT new com.example.duantotnghiep.dto.response.InvoiceResponse(
-        i.id,
-        i.invoiceCode,
-        i.statusDetail,
-        i.orderType,
-        i.createdDate,
-        i.customer.customerName,
-        i.customer.phone,
-        i.totalAmount
-    )
-    FROM Invoice i
-    WHERE (:status IS NULL OR i.statusDetail = :status)
-      AND  (:isPaid IS NULL OR i.isPaid = :isPaid)
-      AND (:orderType IS NULL OR i.orderType = :orderType)
-      AND (:createdFrom IS NULL OR i.createdDate >= :createdFrom)
-      AND (:createdTo IS NULL OR i.createdDate <= :createdTo)
-      AND (:phone IS NULL OR i.customer.phone LIKE %:phone%)
-      AND (:code IS NULL OR i.invoiceCode LIKE %:code%)
-    ORDER BY i.createdDate ASC
-""")
+                SELECT new com.example.duantotnghiep.dto.response.InvoiceResponse(
+                    i.id,
+                    i.invoiceCode,
+                    i.statusDetail,
+                    i.orderType,
+                    i.createdDate,
+                    i.customer.customerName,
+                    i.customer.phone,
+                    i.totalAmount
+                )
+                FROM Invoice i
+                WHERE (:status IS NULL OR i.statusDetail = :status)
+                  AND  (:isPaid IS NULL OR i.isPaid = :isPaid)
+                  AND (:orderType IS NULL OR i.orderType = :orderType)
+                  AND (:createdFrom IS NULL OR i.createdDate >= :createdFrom)
+                  AND (:createdTo IS NULL OR i.createdDate <= :createdTo)
+                  AND (:phone IS NULL OR i.customer.phone LIKE %:phone%)
+                  AND (:code IS NULL OR i.invoiceCode LIKE %:code%)
+                ORDER BY i.createdDate ASC
+            """)
     List<InvoiceResponse> searchInvoices(
-            @Param("status")  TrangThaiChiTiet status,
+            @Param("status") TrangThaiChiTiet status,
             @Param("isPaid") Boolean isPaid,
             @Param("orderType") Integer orderType,
             @Param("createdFrom") Date createdFrom,
@@ -204,71 +204,71 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
     );
 
     @Query("""
-    SELECT new com.example.duantotnghiep.dto.response.DiscountCampaignStatisticsResponse(
-        COUNT(DISTINCT i.id),
-        SUM(COALESCE(id.sellPrice, 0) * COALESCE(id.quantity, 0)),
-        SUM(COALESCE(id.discountedPrice, 0) * COALESCE(id.quantity, 0)),
-        SUM(COALESCE(id.quantity, 0)),
-        CASE 
-            WHEN SUM(COALESCE(id.sellPrice, 0) * COALESCE(id.quantity, 0)) = 0 THEN 0
-            ELSE 
-                (100.0 * 
-                    (SUM(COALESCE(id.sellPrice, 0) * COALESCE(id.quantity, 0)) 
-                     - SUM(COALESCE(id.discountedPrice, 0) * COALESCE(id.quantity, 0)))
-                / SUM(COALESCE(id.sellPrice, 0) * COALESCE(id.quantity, 0))
+                SELECT new com.example.duantotnghiep.dto.response.DiscountCampaignStatisticsResponse(
+                    COUNT(DISTINCT i.id),
+                    SUM(COALESCE(id.sellPrice, 0) * COALESCE(id.quantity, 0)),
+                    SUM(COALESCE(id.discountedPrice, 0) * COALESCE(id.quantity, 0)),
+                    SUM(COALESCE(id.quantity, 0)),
+                    CASE 
+                        WHEN SUM(COALESCE(id.sellPrice, 0) * COALESCE(id.quantity, 0)) = 0 THEN 0
+                        ELSE 
+                            (100.0 * 
+                                (SUM(COALESCE(id.sellPrice, 0) * COALESCE(id.quantity, 0)) 
+                                 - SUM(COALESCE(id.discountedPrice, 0) * COALESCE(id.quantity, 0)))
+                            / SUM(COALESCE(id.sellPrice, 0) * COALESCE(id.quantity, 0))
+                            )
+                    END
                 )
-        END
-    )
-    FROM InvoiceDetail id
-    JOIN id.invoice i
-    WHERE id.discountCampaign.id = :campaignId 
-      AND id.status = 1
-""")
+                FROM InvoiceDetail id
+                JOIN id.invoice i
+                WHERE id.discountCampaign.id = :campaignId 
+                  AND id.status = 1
+            """)
     DiscountCampaignStatisticsResponse getStatisticsByCampaignId(@Param("campaignId") Long campaignId);
 
     @Query(value = """
-        SELECT
-            e.id,
-            e.employee_name AS employeeName,
-            COUNT(DISTINCT i.id) AS totalInvoices,
-            SUM(idt.quantity) AS totalProducts,
-            SUM(i.final_amount) AS totalRevenue,
-            COUNT(DISTINCT CASE WHEN i.status = 1 THEN i.id END) AS successInvoices,
-            SUM(CASE WHEN i.status = 1 THEN idt.quantity ELSE 0 END) AS successProducts,
-            SUM(CASE WHEN i.status = 1 THEN i.final_amount ELSE 0 END) AS successRevenue,
-            COUNT(DISTINCT CASE WHEN i.status = 2 THEN i.id END) AS cancelledInvoices,
-            SUM(CASE WHEN i.status = 2 THEN idt.quantity ELSE 0 END) AS cancelledProducts,
-            SUM(CASE WHEN i.status = 2 THEN i.final_amount ELSE 0 END) AS cancelledRevenue
-        FROM invoice i
-        JOIN employee e ON i.employee_id = e.id
-        JOIN invoice_details idt ON i.id = idt.invoice_id
-        WHERE (:employeeId IS NULL OR e.id = :employeeId)
-          AND (:startDate IS NULL OR i.created_date >= :startDate)
-          AND (:endDate IS NULL OR i.created_date <= :endDate)
-        GROUP BY e.id, e.employee_name
-        ORDER BY e.employee_name
-        """, nativeQuery = true)
+            SELECT
+                e.id,
+                e.employee_name AS employeeName,
+                COUNT(DISTINCT i.id) AS totalInvoices,
+                SUM(idt.quantity) AS totalProducts,
+                SUM(i.final_amount) AS totalRevenue,
+                COUNT(DISTINCT CASE WHEN i.status = 1 THEN i.id END) AS successInvoices,
+                SUM(CASE WHEN i.status = 1 THEN idt.quantity ELSE 0 END) AS successProducts,
+                SUM(CASE WHEN i.status = 1 THEN i.final_amount ELSE 0 END) AS successRevenue,
+                COUNT(DISTINCT CASE WHEN i.status = 2 THEN i.id END) AS cancelledInvoices,
+                SUM(CASE WHEN i.status = 2 THEN idt.quantity ELSE 0 END) AS cancelledProducts,
+                SUM(CASE WHEN i.status = 2 THEN i.final_amount ELSE 0 END) AS cancelledRevenue
+            FROM invoice i
+            JOIN employee e ON i.employee_id = e.id
+            JOIN invoice_details idt ON i.id = idt.invoice_id
+            WHERE (:employeeId IS NULL OR e.id = :employeeId)
+              AND (:startDate IS NULL OR i.created_date >= :startDate)
+              AND (:endDate IS NULL OR i.created_date <= :endDate)
+            GROUP BY e.id, e.employee_name
+            ORDER BY e.employee_name
+            """, nativeQuery = true)
     List<Object[]> getEmployeeSalesReportNative(
             @Param("employeeId") Long employeeId,
             @Param("startDate") Date startDate,
             @Param("endDate") Date endDate);
 
     @Query(value = """
-    SELECT
-        CASE status_detail
-            WHEN 0 THEN 'CHO_XU_LY'
-            WHEN 1 THEN 'DA_XU_LY'
-            WHEN 2 THEN 'CHO_GIAO_HANG'
-            WHEN 3 THEN 'DANG_GIAO_HANG'
-            WHEN 4 THEN 'GIAO_THANH_CONG'
-            WHEN 5 THEN 'GIAO_THAT_BAI'
-            WHEN -2 THEN 'HUY_DON'
-        END AS statusDetail,
-        COUNT(*) AS countInvoice
-    FROM invoice
-    WHERE order_type = 1
-    GROUP BY status_detail
-    """, nativeQuery = true)
+            SELECT
+                CASE status_detail
+                    WHEN 0 THEN 'CHO_XU_LY'
+                    WHEN 1 THEN 'DA_XU_LY'
+                    WHEN 2 THEN 'CHO_GIAO_HANG'
+                    WHEN 3 THEN 'DANG_GIAO_HANG'
+                    WHEN 4 THEN 'GIAO_THANH_CONG'
+                    WHEN 5 THEN 'GIAO_THAT_BAI'
+                    WHEN -2 THEN 'HUY_DON'
+                END AS statusDetail,
+                COUNT(*) AS countInvoice
+            FROM invoice
+            WHERE order_type = 1
+            GROUP BY status_detail
+            """, nativeQuery = true)
     List<Object[]> countInvoicesByStatusNative();
 
     int countByCustomerAndStatusDetailAndUpdatedDateAfter(
@@ -282,31 +282,31 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
             TrangThaiTong status,
             Date updatedAfter
     );
+
     @Query(
             value = """
-    SELECT SUM(i.final_amount) 
-    FROM invoice i 
-    WHERE i.created_date >= :fromDate 
-      AND i.created_date < :toDate 
-      AND i.status = 1
-  """,
+                      SELECT SUM(i.final_amount) 
+                      FROM invoice i 
+                      WHERE i.created_date >= :fromDate 
+                        AND i.created_date < :toDate 
+                        AND i.status = 1
+                    """,
             nativeQuery = true
     )
     BigDecimal sumRevenueBetween(@Param("fromDate") Date fromDate,
                                  @Param("toDate") Date toDate);
 
 
-
     // Doanh thu theo loại đơn (có thể kèm phạm vi thời gian)
     @Query("""
-        select i.orderType as type, sum(i.totalAmount) as total
-        from Invoice i
-        where i.status = :status
-          and (:start is null or i.createdDate >= :start)
-          and (:end   is null or i.createdDate <  :end)
-        group by i.orderType
-        order by total desc
-    """)
+                select i.orderType as type, sum(i.totalAmount) as total
+                from Invoice i
+                where i.status = :status
+                  and (:start is null or i.createdDate >= :start)
+                  and (:end   is null or i.createdDate <  :end)
+                group by i.orderType
+                order by total desc
+            """)
     List<Object[]> getRevenueByOrderType(
             @Param("status") TrangThaiTong status,
             @Param("start") LocalDateTime start,
@@ -316,29 +316,39 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
 
     // Đếm số hóa đơn theo trạng thái trong phạm vi thời gian (nếu cần)
     @Query("""
-        select i.status as st, count(i.id) as total
-        from Invoice i
-        where (:start is null or i.createdDate >= :start)
-          and (:end   is null or i.createdDate <  :end)
-        group by i.status
-    """)
+                select i.status as st, count(i.id) as total
+                from Invoice i
+                where (:start is null or i.createdDate >= :start)
+                  and (:end   is null or i.createdDate <  :end)
+                group by i.status
+            """)
     List<Object[]> countInvoicesByStatus(
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end
     );
 
     @Query("""
-    select coalesce(sum(i.totalAmount), 0)
-    from Invoice i
-    where i.status = :status
-      and i.createdDate >= :start
-      and i.createdDate <  :end
-""")
+                select coalesce(sum(i.totalAmount), 0)
+                from Invoice i
+                where i.status = :status
+                  and i.createdDate >= :start
+                  and i.createdDate <  :end
+            """)
     Long sumRevenueBetween(@Param("start") LocalDateTime start,
-                           @Param("end")   LocalDateTime end,
+                           @Param("end") LocalDateTime end,
                            @Param("status") TrangThaiTong status);
 
-
+    @Query("""
+                select coalesce(sum(d.quantity), 0)
+                from Invoice i
+                join i.invoiceDetails d
+                where i.status = :status
+                  and i.createdDate >= :start
+                  and i.createdDate <  :end
+            """)
+    Long sumItemsBetween(@Param("start") LocalDateTime start,
+                         @Param("end") LocalDateTime end,
+                         @Param("status") TrangThaiTong status);
 }
 
 

@@ -9,6 +9,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.io.IOException;
+import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -32,7 +34,6 @@ public interface VoucherService {
 
     List<VoucherResponse> getVouchersByCustomerId(String customerId);
 
-
-
+    void exportVoucherToExcelByIds(List<Long> voucherIds, OutputStream outputStream) throws IOException;
 
 }

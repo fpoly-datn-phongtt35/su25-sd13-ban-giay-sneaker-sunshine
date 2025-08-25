@@ -8,6 +8,7 @@ import com.example.duantotnghiep.mapper.VoucherMapper;
 import com.example.duantotnghiep.model.Voucher;
 import com.example.duantotnghiep.service.VoucherService;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
@@ -132,6 +134,20 @@ public class VoucherController {
         List<VoucherResponse> response = voucherService.getVouchersByCustomerId(customerId);
         return ResponseEntity.ok(response);
     }
+
+    @PostMapping("/export-excel/by-ids")
+    public void exportExcelByIds(@RequestBody List<Long> voucherIds, HttpServletResponse response) {
+        try {
+            response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            response.setHeader("Content-Disposition", "attachment; filename=vouchers-by-ids.xlsx");
+            voucherService.exportVoucherToExcelByIds(voucherIds, response.getOutputStream());
+            response.flushBuffer(); // OK: không close, container sẽ quản lý
+        } catch (IOException e) {
+            System.err.println("Xuất Excel theo IDs thất bại: " + e.getMessage());
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        }
+    }
+
 
 }
 

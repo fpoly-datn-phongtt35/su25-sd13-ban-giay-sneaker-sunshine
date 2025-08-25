@@ -420,6 +420,13 @@ public class ProductServiceImpl implements ProductService {
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm với id: " + id));
 
         existingProduct.setStatus(1);
+        if (existingProduct.getProductDetails() != null) {
+            existingProduct.getProductDetails().forEach(detail -> {
+                if (detail.getStatus() == 2) {
+                    detail.setStatus(1);
+                }
+            });
+        }
         productRepository.save(existingProduct);
 
         return productMapper.toResponse(existingProduct);
@@ -435,6 +442,14 @@ public class ProductServiceImpl implements ProductService {
         product.setStatus(0);
         product.setUpdatedDate(new Date());
         product.setUpdatedBy("admin");
+
+        if (product.getProductDetails() != null && !product.getProductDetails().isEmpty()) {
+            product.getProductDetails().forEach(detail -> {
+                detail.setStatus(2);
+                detail.setUpdatedDate(new Date());
+                detail.setUpdatedBy("admin");
+            });
+        }
 
         productRepository.save(product);
     }
@@ -534,7 +549,6 @@ public class ProductServiceImpl implements ProductService {
                     // Ưu tiên SPCT (nếu có % riêng sẽ dùng % riêng; nếu null thì dùng % campaign)
                     double detailDiscount = getBestDiscountPercentageForProductDetail(detailId, activeCampaigns);
 
-                    // Fallback: nếu SPCT không có giảm => dùng % của Product
                     boolean usedProductFallback = false;
                     if (detailDiscount <= 0) {
                         detailDiscount = productDiscount;
@@ -544,9 +558,6 @@ public class ProductServiceImpl implements ProductService {
                     detailResponse.setDiscountPercentage((int) Math.round(detailDiscount));
                     detailResponse.setDiscountedPrice(calculateDiscountPrice(detailResponse.getSellPrice(), detailDiscount));
 
-                    // Nếu bạn có field discountCampaignId ở detail:
-                    // - Khi dùng SPCT: để null (hoặc tự viết hàm lấy campaignId theo SPCT nếu cần).
-                    // - Khi fallback Product: set theo bestCampaignId của Product.
                     if (usedProductFallback) {
                         detailResponse.setDiscountCampaignId(bestCampaignId);
                     } else {
@@ -562,7 +573,6 @@ public class ProductServiceImpl implements ProductService {
     }
 
 
-    // ID campaign tốt nhất cho Product (mức Product) - giữ nguyên ý tưởng của bạn
     private Long getBestDiscountCampaignIdForProduct(Product product, List<DiscountCampaign> campaigns) {
         Long productId = product.getId();
         return campaigns.stream()
@@ -751,15 +761,12 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public void exportProductToExcelByIds(List<Long> productIds, OutputStream outputStream) throws IOException {
-        // Kiểm tra danh sách productIds
         if (productIds == null || productIds.isEmpty()) {
             throw new IllegalArgumentException("Danh sách ID sản phẩm không được rỗng");
         }
 
-        // Lấy sản phẩm với productCategories
         List<Product> productsWithCategories = productRepository.findByIdsWithCategories(productIds);
 
-        // Lấy sản phẩm với productDetails
         List<Product> productsWithDetails = productRepository.findByIdsWithDetails(productIds);
 
         // Hợp nhất dữ liệu

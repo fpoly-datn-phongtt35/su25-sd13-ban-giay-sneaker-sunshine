@@ -152,7 +152,6 @@ public class ProductController {
         }
     }
 
-    // Xuất Excel theo filter tìm kiếm
     @PostMapping("/export-excel/by-filter")
     public void exportExcelByFilter(@RequestBody ProductSearchRequest filter, HttpServletResponse response) {
         try {

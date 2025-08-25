@@ -224,31 +224,57 @@ const handlePageSizeChange = (newSize) => {
 
 // Xuất Excel
 const exportExcel = async () => {
-  if (selectedVouchers.value.length === 0) {
+  // 1) Lấy list ID sạch (phòng trường hợp bạn bind object thay vì id)
+  let ids = (selectedVouchers.value || []).map(v => {
+    const val = (v && typeof v === 'object') ? (v.id ?? v.value ?? v) : v
+    const n = typeof val === 'string' ? Number(val) : val
+    return n
+  }).filter(n => Number.isFinite(n))
+
+  if (ids.length === 0) {
     ElMessage.warning('Vui lòng chọn ít nhất một voucher để xuất!')
     return
   }
 
   try {
-    const response = await apiClient.post('/admin/vouchers/vcollect', {
-      voucherIds: selectedVouchers.value
-    }, {
-      responseType: 'blob' // Expect binary data (Excel file)
-    })
+    // 2) Gửi MẢNG JSON THUẦN cho backend
+    const res = await apiClient.post(
+      '/admin/vouchers/export-excel/by-ids',
+      ids,
+      { responseType: 'blob' }
+    )
 
-    const url = window.URL.createObjectURL(new Blob([response.data]))
-    const link = document.createElement('a')
-    link.href = url
-    link.setAttribute('download', 'vouchers.xlsx') // File name from backend or default
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    window.URL.revokeObjectURL(url)
+    // 3) Lấy tên file từ header (nếu backend set)
+    const disposition = res.headers?.['content-disposition'] || ''
+    const match = /filename\*?=(?:UTF-8'')?["']?([^;"']+)/i.exec(disposition)
+    const filename = match?.[1] ? decodeURIComponent(match[1]) : 'vouchers-by-ids.xlsx'
+
+    // 4) Tạo blob & tải xuống
+    const blob = new Blob(
+      [res.data],
+      { type: res.headers?.['content-type'] || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }
+    )
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
 
     ElMessage.success('Xuất Excel thành công!')
   } catch (error) {
+    // Thử đọc lỗi text từ blob (nếu server trả JSON lỗi dưới dạng blob)
+    let msg = error?.message || 'Không rõ nguyên nhân'
+    try {
+      if (error?.response?.data instanceof Blob) {
+        const text = await error.response.data.text()
+        if (text) msg = text
+      }
+    } catch (_) {}
     console.error('Lỗi khi xuất Excel:', error)
-    ElMessage.error(`Xuất Excel thất bại: ${error.message}`)
+    ElMessage.error(`Xuất Excel thất bại: ${msg}`)
   }
 }
 

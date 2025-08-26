@@ -21,11 +21,16 @@ import com.example.duantotnghiep.repository.VoucherHistoryRepository;
 import com.example.duantotnghiep.repository.VoucherRepository;
 import com.example.duantotnghiep.repository.VoucherSearchRepository;
 import com.example.duantotnghiep.service.VoucherService;
+import com.example.duantotnghiep.xuatExcel.ProductExcelExporter;
+import com.example.duantotnghiep.xuatExcel.VoucherExportExcel;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.SimpleDateFormat;
@@ -288,5 +293,21 @@ public class VoucherServiceIpml implements VoucherService {
                 .map(voucherMapper::toDto)
                 .collect(Collectors.toList());
     }
+
+    @Override
+    public void exportVoucherToExcelByIds(List<Long> voucherIds, OutputStream outputStream) throws IOException {
+        List<Voucher> vouchers = voucherRepository.getVoucherByIds(voucherIds);
+        try (ByteArrayInputStream excelStream = VoucherExportExcel.exportProductToExcel(vouchers)) {
+            byte[] buffer = new byte[8192];
+            int bytesRead;
+            while ((bytesRead = excelStream.read(buffer)) != -1) {
+                outputStream.write(buffer, 0, bytesRead);
+            }
+            outputStream.flush(); // đảm bảo đẩy hết dữ liệu
+        } catch (IOException e) {
+            throw new IOException("Không thể xuất Excel theo ID: " + e.getMessage(), e);
+        }
+    }
+
 
 }

@@ -50,6 +50,7 @@ public class FavoriteProductServiceImpl implements FavoriteProductService {
         FavoriteProduct favorite = new FavoriteProduct();
         favorite.setCustomer(customer);
         favorite.setProduct(product);
+        favorite.setInvoiceId(request.getInvoiceId());
         favorite.setCreatedAt(new Date());
         favorite.setComment(request.getComment());
         favorite.setRate(request.getRate());

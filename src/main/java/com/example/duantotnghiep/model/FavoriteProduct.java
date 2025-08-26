@@ -27,6 +27,9 @@ public class FavoriteProduct {
     @JoinColumn(name = "customer_id", nullable = false)
     private Customer customer;
 
+    @Column(name = "invoice_id")
+    private Long invoiceId;
+
     @Column(name = "status")
     private Integer status;
 

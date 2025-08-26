@@ -19,12 +19,7 @@ import com.example.duantotnghiep.model.Product;
 import com.example.duantotnghiep.model.PromotionSuggestion;
 import com.example.duantotnghiep.model.Size;
 import com.example.duantotnghiep.repository.InvoiceRepository;
-import com.example.duantotnghiep.service.BrandService;
-import com.example.duantotnghiep.service.ColorService;
-import com.example.duantotnghiep.service.GenderService;
-import com.example.duantotnghiep.service.InvoiceService;
-import com.example.duantotnghiep.service.ProductService;
-import com.example.duantotnghiep.service.SizeService;
+import com.example.duantotnghiep.service.*;
 import com.example.duantotnghiep.service.impl.InvoiceEmailService;
 import com.example.duantotnghiep.service.impl.InvoiceServiceImpl;
 import com.example.duantotnghiep.service.impl.OnlineSaleServiceImpl;
@@ -34,6 +29,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -41,6 +37,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -60,6 +57,7 @@ public class SaleOnlineController {
     private final SizeService sizeService;
     private final ColorService colorService;
     private final BrandService brandService;
+    private final RatingService  ratingService;
 
     @GetMapping("/online-home")
     public ResponseEntity<List<ProductResponse>> hienThi(){
@@ -251,4 +249,15 @@ public class SaleOnlineController {
     public Page<ProductResponse> getProductsOfBrand(@PathVariable Long brandId, Pageable pageable) {
         return productService.getProductsByBrand(brandId, pageable);
     }
+
+    @GetMapping("/delivered")
+    public List<FavouriteResponse> getDelivered(
+            @RequestParam(required = false, defaultValue = "0") Integer onlyUnrated,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) Date dateFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) Date dateTo
+    ) {
+        return ratingService.getDeliveredInvoicesForReview(onlyUnrated, keyword, dateFrom, dateTo);
+    }
+
 }

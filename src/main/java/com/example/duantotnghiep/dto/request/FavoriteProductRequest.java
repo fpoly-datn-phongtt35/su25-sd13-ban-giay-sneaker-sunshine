@@ -11,6 +11,7 @@ import lombok.Setter;
 @Setter
 public class FavoriteProductRequest {
     private Long productId;
+    private Long invoiceId;
     private Integer rate;
     private String comment;
 }

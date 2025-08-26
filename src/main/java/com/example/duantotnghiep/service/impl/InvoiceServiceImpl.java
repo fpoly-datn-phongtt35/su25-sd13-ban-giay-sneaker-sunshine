@@ -133,12 +133,6 @@ public class InvoiceServiceImpl implements InvoiceService {
         return String.format("INV-%04d", count);
     }
 
-    /**
-     * Cập nhật tổng tiền hóa đơn:
-     * - totalAmount: tổng tiền gốc (sellPrice × quantity)
-     * - discountAmount: tổng tiền giảm giá
-     * - finalAmount: tổng tiền sau giảm giá
-     */
     @Transactional
     public void applyDiscountToInvoiceDetails(Invoice invoice) {
         final LocalDateTime now = LocalDateTime.now();

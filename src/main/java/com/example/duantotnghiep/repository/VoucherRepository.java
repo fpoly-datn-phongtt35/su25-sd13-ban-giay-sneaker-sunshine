@@ -76,4 +76,9 @@ public interface VoucherRepository extends JpaRepository<Voucher, Long> {
     """)
     List<Voucher> findActiveOwnedByCustomer(@Param("customerId") Long customerId,
                                             @Param("now") LocalDateTime now);
+
+    @Query("""
+        select v from Voucher v where v.id in :ids and v.status = 1
+                """)
+    List<Voucher> getVoucherByIds(@Param("ids") List<Long> ids);
 }

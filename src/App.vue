@@ -7,28 +7,28 @@
     <div class="floating-social-buttons">
       <div class="icon-wrapper">
         <span class="ping"></span>
-        <a href="https://zalo.me/1234567890" target="_blank">
+        <a href="https://zalo.me/0346771322" target="_blank">
           <img src="/zalo.svg" alt="Zalo" class="shake-strong" />
         </a>
       </div>
 
       <div class="icon-wrapper">
         <span class="ping"></span>
-        <a href="https://m.me/yourpage" target="_blank">
+        <a href="https://www.facebook.com/phantuananh181205/" target="_blank">
           <img src="/messenger.svg" alt="Messenger" class="shake-strong" />
         </a>
       </div>
 
       <div class="icon-wrapper">
         <span class="ping"></span>
-        <a href="tel:0987654321">
+        <a href="tel:0346771322">
           <img src="/phone.svg" alt="Phone" class="shake-strong" />
         </a>
       </div>
 
       <div class="icon-wrapper">
         <span class="ping"></span>
-        <a href="https://instagram.com/yourpage" target="_blank">
+        <a href="https://www.instagram.com/t.anhhhh05/" target="_blank">
           <img src="/instagram.svg" alt="Instagram" class="shake-strong" />
         </a>
       </div>

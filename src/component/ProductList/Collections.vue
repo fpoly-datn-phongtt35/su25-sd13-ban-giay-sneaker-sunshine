@@ -62,7 +62,7 @@
           </transition>
         </div>
 
-        <!-- ===== GENDER FILTER (NEW) ===== -->
+        <!-- ===== GENDER FILTER ===== -->
         <div class="filter-card space-top">
           <button class="filter-accordion" @click="genderOpen = !genderOpen">
             <span>GIỚI TÍNH</span>
@@ -227,7 +227,13 @@
     </el-container>
 
     <!-- ===== QUICK VIEW ===== -->
-    <el-dialog v-model="quickViewVisible" width="850px" class="quick-view-dialog" :show-close="true" @close="resetQuickView">
+    <el-dialog
+      v-model="quickViewVisible"
+      width="850px"
+      class="quick-view-dialog"
+      :show-close="true"
+      @close="resetQuickView"
+    >
       <div v-if="selectedProduct" class="quick-view">
         <el-row :gutter="40">
           <el-col :span="12">
@@ -337,6 +343,28 @@
         <el-button type="primary" @click="handlePreOrderConfirm">Đặt trước</el-button>
       </template>
     </el-dialog>
+
+    <!-- ===== CONTACT STAFF (SL ≥ NGAY_MAX_QTY) ===== -->
+    <el-dialog
+      v-model="contactDialogVisible"
+      title="Liên hệ nhân viên để đặt số lượng lớn"
+      width="520px"
+    >
+      <div class="contact-block">
+        <p>Đơn online không hỗ trợ <strong>Mua ngay/Thêm giỏ</strong> khi số lượng từ <strong>{{ NGAY_MAX_QTY }}</strong> đôi trở lên.</p>
+        <p>Vui lòng liên hệ nhân viên để được hỗ trợ:</p>
+        <ul class="contact-list">
+          <li>Hotline: <a :href="`tel:${hotline}`">{{ hotline }}</a></li>
+          <li>Zalo/WhatsApp: <a :href="zaloLink" target="_blank" rel="noopener">Chat ngay</a></li>
+          <li>Facebook: <a :href="facebookLink" target="_blank" rel="noopener">Fanpage</a></li>
+        </ul>
+      </div>
+
+      <template #footer>
+        <el-button @click="contactDialogVisible = false">Đóng</el-button>
+        <el-button type="primary" @click="contactDialogVisible = false">Đã hiểu</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -347,6 +375,12 @@ import { ElMessage } from 'element-plus'
 import { ShoppingCart } from '@element-plus/icons-vue'
 import apiClient from '@/utils/axiosInstance'
 import { addToCart } from '@/utils/cart.js'
+
+/* ========== Config (có thể bind từ .env hoặc API) ========== */
+const NGAY_MAX_QTY = 10 // ngưỡng chặn Mua ngay/Thêm giỏ
+const hotline = '0346771322' // TODO: thay bằng số thật
+const zaloLink = 'https://zalo.me/0346771322' // TODO
+const facebookLink = 'https://www.facebook.com/phantuananh181205/' // TODO
 
 /* ========== Router & Params ========== */
 const router = useRouter()
@@ -366,7 +400,7 @@ const colorIdFromQuery = computed(() => {
   return Number.isFinite(n) ? n : null
 })
 
-// Gender (NEW)
+// Gender
 const genderName = ref(String(route.query.genderName || '').trim())
 const genderIdFromQuery = computed(() => {
   const n = Number(route.query.genderId ?? route.params.genderId)
@@ -581,7 +615,7 @@ const onColorToggle = (c) => {
   router.push({ query: { ...route.query, colorId: String(target), colorName: c?.name || undefined, page: 1 } })
 }
 
-/* ========== GENDER filter (single-select) – NEW ========== */
+/* ========== GENDER filter (single-select) ========== */
 const genderOpen = ref(true)
 const genderSearch = ref('')
 const genders = ref([])
@@ -595,11 +629,11 @@ const effectiveGenderId = computed(() => {
 
 const fetchGenders = async () => {
   isLoadingGenders.value = true
-  const endpoints = ['online-sale/gender/hien-thi'] // có thể thêm params { status: 1 } nếu cần
+  const endpoints = ['online-sale/gender/hien-thi']
   let data = null
   for (const ep of endpoints) {
     try {
-      const res = await apiClient.get(ep) // , { params: { status: 1 } }
+      const res = await apiClient.get(ep)
       if (Array.isArray(res?.data)) { data = res.data; break }
     } catch {}
   }
@@ -673,7 +707,7 @@ const onSizeToggle = (s) => {
 /* ========== Fetch products (priority Category > Gender > Size > Color > Brand) ========== */
 const fetchProductsByCategory = async (params) => {
   const endpoints = [
-    `/admin/categories/${categoryId.value}/products`,
+    `/online-sale/categories/${categoryId.value}/products`,
     `/categories/${categoryId.value}/products`,
     `/online-sale?categoryId=${categoryId.value}`,
   ]
@@ -762,7 +796,7 @@ const fetchProductsByColor = async (colorId, params) => {
 }
 
 const fetchProductsByBrand = async (brandId, params) => {
-  const { data } = await apiClient.get(`/admin/brand/${brandId}/products`, { params })
+  const { data } = await apiClient.get(`/online-sale/brands/${brandId}/products`, { params })
   const payload = data ?? {}
   const content =
     Array.isArray(payload.content) ? payload.content :
@@ -821,6 +855,10 @@ const quickViewSelectedSize = ref(null)
 const quickViewQuantity = ref(1)
 const quickViewActiveImage = ref(PLACEHOLDER_IMG)
 
+/* Dialog liên hệ khi số lượng lớn */
+const contactDialogVisible = ref(false)
+
+/* Helpers Quick View */
 const openQuickViewModal = (p) => {
   selectedProduct.value = p
   quickViewVisible.value = true
@@ -886,18 +924,31 @@ const needSize = computed(() => {
 const minQty = computed(() => (selectedVariantStock.value > 0 ? 1 : 0))
 const maxQty = computed(() => (selectedVariantStock.value > 0 ? selectedVariantStock.value : 0))
 
-/* ========== Cart / Buy now ========== */
+/* ========== Cart / Buy now (đã chặn SL lớn cho cả hai nút) ========== */
 const requiresSizeSelection = (sp) => {
   const named = new Set((sp.productDetails || []).map(d => d.sizeName).filter(Boolean))
   return named.size > 0
 }
+const showBulkDialog = () => {
+  contactDialogVisible.value = true
+  ElMessage.warning(`Số lượng lớn (≥ ${NGAY_MAX_QTY} đôi). Vui lòng liên hệ nhân viên để đặt hàng.`)
+}
 const handleAddToCartInModal = () => {
   const sp = selectedProduct.value
   if (!sp) return false
+
+  // Chặn nếu số lượng lớn
+  if (Number(quickViewQuantity.value) >= NGAY_MAX_QTY) {
+    showBulkDialog()
+    return false
+  }
+
+  // Bắt buộc chọn size nếu cần
   if (requiresSizeSelection(sp) && !quickViewSelectedSize.value) {
     ElMessage.warning('Vui lòng chọn kích thước sản phẩm trước khi thêm vào giỏ hàng.')
     return false
   }
+
   const detail = findSelectedProductDetail()
   if (!detail) { ElMessage.error('Không tìm thấy chi tiết phù hợp.'); return false }
   if (quickViewQuantity.value <= 0) { ElMessage.warning('Số lượng phải lớn hơn 0.'); return false }
@@ -921,59 +972,13 @@ const handleAddToCartInModal = () => {
   quickViewVisible.value = false
   return true
 }
-const handleBuyNowInModal = () => { if (handleAddToCartInModal()) router.push('/cart') }
-
-/* ========== Pre-order ========== */
-const preOrderDialogVisible = ref(false)
-const preOrderItem = ref(null)
-const preOrderSelectedColorId = ref(null)
-const preOrderSelectedSize = ref(null)
-const preOrderQuantity = ref(1)
-
-const openPreOrderDialog = () => { preOrderDialogVisible.value = true }
-
-watch(preOrderDialogVisible, (val) => {
-  if (val && selectedProduct.value) {
-    preOrderItem.value = JSON.parse(JSON.stringify(selectedProduct.value))
-    preOrderSelectedColorId.value = preOrderItem.value.variants?.[0]?.colorId ?? null
-    if (quickViewSelectedSize.value && preOrderAvailableSizes.value.includes(quickViewSelectedSize.value)) {
-      preOrderSelectedSize.value = quickViewSelectedSize.value
-    } else {
-      preOrderSelectedSize.value = preOrderAvailableSizes.value[0] || null
-    }
-    preOrderQuantity.value = 1
-  } else if (!val) {
-    preOrderItem.value = null
-    preOrderSelectedColorId.value = null
-    preOrderSelectedSize.value = null
-    preOrderQuantity.value = 1
+const handleBuyNowInModal = () => {
+  // Chặn nếu số lượng lớn
+  if (Number(quickViewQuantity.value) >= NGAY_MAX_QTY) {
+    showBulkDialog()
+    return
   }
-})
-watch(preOrderSelectedColorId, (n, o) => { if (n!==o && preOrderDialogVisible.value) preOrderSelectedSize.value = preOrderAvailableSizes.value[0] || null })
-const preOrderAvailableColors = computed(() => preOrderItem.value?.variants || [])
-const preOrderAvailableSizes = computed(() => {
-  if (!preOrderItem.value || preOrderSelectedColorId.value==null) return []
-  const sizes = (preOrderItem.value.productDetails || []).filter(d => d.colorId===preOrderSelectedColorId.value).map(d => d.sizeName).filter(Boolean)
-  return Array.from(new Set(sizes)).sort(sizeComparator)
-})
-const preOrderStock = computed(() => {
-  if (!preOrderItem.value || preOrderSelectedColorId.value==null || !preOrderSelectedSize.value) return 0
-  const d = preOrderItem.value.productDetails?.find(x => x.colorId===preOrderSelectedColorId.value && x.sizeName===preOrderSelectedSize.value)
-  return Number(d?.quantity || 0)
-})
-const handlePreOrderConfirm = async () => {
-  if (!preOrderSelectedColorId.value || !preOrderSelectedSize.value) { ElMessage.warning('Vui lòng chọn đầy đủ màu sắc và kích thước.'); return }
-  if (preOrderQuantity.value <= 0) { ElMessage.warning('Số lượng đặt trước phải lớn hơn 0.'); return }
-  const detail = preOrderItem.value?.productDetails?.find(d => d.colorId===preOrderSelectedColorId.value && d.sizeName===preOrderSelectedSize.value)
-  if (!detail) { ElMessage.error('Không tìm thấy chi tiết sản phẩm để đặt trước.'); return }
-  try {
-    await apiClient.post('/reservations', { productDetailId: detail.id, quantity: preOrderQuantity.value })
-    ElMessage.success('Yêu cầu đặt trước đã được gửi.')
-    preOrderDialogVisible.value = false
-  } catch (err) {
-    console.error('Lỗi đặt trước:', err)
-    ElMessage.error('Có lỗi xảy ra. Vui lòng thử lại.')
-  }
+  if (handleAddToCartInModal()) router.push('/cart')
 }
 
 /* ========== Minor & stats ========== */
@@ -1030,7 +1035,7 @@ const fetchRatingsForPage = async (items) => {
 /* ========== Lifecycle ========== */
 onMounted(async () => {
   loadFavorites()
-  await Promise.all([fetchBrands(), fetchColors(), fetchGenders(), fetchSizes()])
+  await Promise.all([fetchBrands(), fetchColors(), fetchGenders(), fetchSizes() ])
   selectedBrandIds.value  = brandIdFromQuery.value  ? [brandIdFromQuery.value]  : []
   selectedColorIds.value  = colorIdFromQuery.value  ? [colorIdFromQuery.value]  : []
   selectedGenderIds.value = genderIdFromQuery.value ? [genderIdFromQuery.value] : []
@@ -1156,9 +1161,8 @@ watch([favorites], () => localStorage.setItem('favorites', JSON.stringify(favori
 .product-card:hover .product-card__image{ transform: scale(1.035); }
 
 /* ========= Badges ========= */
-/* Nền đỏ đặc, chữ trắng – KHÔNG hiệu ứng mờ hay trộn */
 .product-card__discount-badge{
-  position:absolute; top:10px; left:10px; /* đổi sang right:10px; left:auto; nếu muốn góc phải */
+  position:absolute; top:10px; left:10px;
   background-color:#ff0000 !important;
   color:#ffffff !important;
   border:0 !important;
@@ -1169,7 +1173,6 @@ watch([favorites], () => localStorage.setItem('favorites', JSON.stringify(favori
   filter:none !important;
   mix-blend-mode:normal !important;
   backdrop-filter:none !important;
-  -webkit-backdrop-filter:none !important;
 }
 
 .product-card__quick-view-btn{
@@ -1267,6 +1270,13 @@ watch([favorites], () => localStorage.setItem('favorites', JSON.stringify(favori
 .buy-now-btn{ background:#111 !important; color:#fff !important; }
 .buy-now-btn:hover{ background:#222 !important; }
 
+/* ========= Contact dialog ========= */
+.contact-block { font-size:14px; color:var(--text-1); }
+.contact-list { margin:10px 0 0; padding-left:18px; }
+.contact-list li { margin:4px 0; }
+.contact-list a { color: var(--accent); text-decoration: none; }
+.contact-list a:hover { text-decoration: underline; }
+
 /* ========= Pagination ========= */
 .pagination-container{ display:flex; justify-content:center; margin-top:22px; }
 :deep(.el-pagination){
@@ -1288,5 +1298,3 @@ watch([favorites], () => localStorage.setItem('favorites', JSON.stringify(favori
   .collection-title{ font-size:24px; }
 }
 </style>
-
-

@@ -336,7 +336,7 @@ async function fetchBrands() {
   try {
     brandLoading.value = true
     brandError.value = ''
-    const res = await fetch('http://localhost:8080/api/admin/brand/hien-thi')
+    const res = await fetch('http://localhost:8080/api/online-sale/brand/hien-thi')
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const data = await res.json()
     brandList.value = Array.isArray(data) ? data : data?.data || data?.content || []
@@ -371,7 +371,7 @@ async function fetchCategories() {
   try {
     categoryLoading.value = true
     categoryError.value = ''
-    const res = await fetch('http://localhost:8080/api/admin/categories/hien-thi')
+    const res = await fetch('http://localhost:8080/api/online-sale/categories/hien-thi')
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const data = await res.json()
     categoryList.value = Array.isArray(data) ? data : data?.data || data?.content || []
@@ -409,10 +409,10 @@ const handleLoggedIn = (userData) => { localStorage.setItem('user', JSON.stringi
 const handleRegisterSuccess = () => { ElMessage.success('Đăng ký thành công! Vui lòng đăng nhập.'); showRegister.value = false; showLogin.value = true }
 const logout = () => {
   const userId = user.value?.id
-  localStorage.removeItem('user'); localStorage.removeItem('token'); localStorage.removeItem('employeeName'); localStorage.removeItem('customerName'); localStorage.removeItem('userId')
-  if (userId) localStorage.removeItem(`cart_${userId}`)
-  localStorage.removeItem('cart_guest'); localStorage.removeItem('cart')
-  user.value = null; cartCount.value = 0; showUserOptions.value = false
+  // localStorage.removeItem('user'); localStorage.removeItem('token'); localStorage.removeItem('employeeName'); localStorage.removeItem('customerName'); localStorage.removeItem('userId')
+  // if (userId) localStorage.removeItem(`cart_${userId}`)
+  // localStorage.removeItem('cart_guest'); localStorage.removeItem('cart')
+  // user.value = null; cartCount.value = 0; showUserOptions.value = false
   ElMessage.success('Đăng xuất thành công!'); router.push('/')
 }
 

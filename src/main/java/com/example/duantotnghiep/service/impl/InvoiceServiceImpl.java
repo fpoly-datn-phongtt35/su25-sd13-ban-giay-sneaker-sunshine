@@ -37,6 +37,7 @@ import com.example.duantotnghiep.repository.ProductRepository;
 import com.example.duantotnghiep.repository.UserRepository;
 import com.example.duantotnghiep.repository.VoucherHistoryRepository;
 import com.example.duantotnghiep.repository.VoucherRepository;
+import com.example.duantotnghiep.service.AccountEmailService;
 import com.example.duantotnghiep.service.InvoiceService;
 import com.example.duantotnghiep.service.VoucherEmailService;
 import com.example.duantotnghiep.service.VoucherService;
@@ -46,6 +47,7 @@ import com.example.duantotnghiep.state.TrangThaiTong;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.json.JSONObject;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -95,6 +97,8 @@ public class InvoiceServiceImpl implements InvoiceService {
     private final CustomerBlacklistHistoryRepository customerBlacklistHistoryRepository;
     private final DiscountCampaignProductRepository discountCampaignProductRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AccountEmailService accountEmailService;
+    private final ApplicationEventPublisher applicationEventPublisher;
 //    private final InvoiceService invoiceService;
 
     @Transactional
@@ -334,48 +338,73 @@ public class InvoiceServiceImpl implements InvoiceService {
         final String normalizedPhone = phone.trim();
         final String normalizedName  = (name == null || name.isBlank()) ? "Khách lẻ" : name.trim();
         final String normalizedEmail = (email == null || email.isBlank()) ? null : email.trim();
+        final String emailLc         = (normalizedEmail == null) ? null : normalizedEmail.toLowerCase(); // chuẩn hoá email
         final LocalDateTime now = LocalDateTime.now();
 
         // ===== 1) Kiểm tra trùng SĐT =====
-        Optional<Customer> existedOpt = customerRepository.findTop1ByPhoneAndStatus(normalizedPhone, 1);
-        if (existedOpt.isPresent()) {
-            // Nếu đã có khách với số điện thoại này → báo lỗi
+        if (customerRepository.findTop1ByPhoneAndStatus(normalizedPhone, 1).isPresent()) {
             throw new RuntimeException("Số điện thoại đã tồn tại");
         }
 
-        // ===== 2) Tạo customer mới =====
+        // ===== 2) Kiểm tra trùng Email =====
+        if (emailLc != null) {
+            // nếu có thể, dùng findTop1ByEmailAndStatusIgnoreCase
+            if (customerRepository.findTop1ByEmailAndStatus(emailLc, 1).isPresent()) {
+                throw new RuntimeException("Email đã tồn tại");
+            }
+        }
+
+        // ===== 3) Tạo customer mới =====
         Customer customer = new Customer();
         customer.setCustomerName(normalizedName);
         customer.setPhone(normalizedPhone);
-        customer.setEmail(normalizedEmail);
+        customer.setEmail(emailLc);
         customer.setCustomerCode("CUS-" + System.currentTimeMillis());
         customer.setStatus(1);
         customer.setCreatedDate(now);
         customer.setCreatedBy(currentUsername());
         customer = customerRepository.save(customer);
 
-        // ===== 3) Nếu có email → auto tạo User =====
-        if (normalizedEmail != null) {
-            if (!userRepository.existsByUsername(normalizedEmail)) {
-                createUserForCustomer(customer, normalizedEmail);
+        // ===== 4) Nếu có email → auto tạo User =====
+        if (emailLc != null) {
+            // Chỉ query 1 lần
+            Optional<User> userOpt = userRepository.findByUsername(emailLc); // nếu có thể: findByUsernameIgnoreCase
+            if (userOpt.isEmpty()) {
+                // Tạo user mới (giữ hàm 2 tham số như bạn yêu cầu)
+                createUserForCustomer(customer, emailLc);
+
+                // Lấy user vừa tạo để set mật khẩu & phát event gửi mail NỀN
+                userRepository.findByUsername(emailLc).ifPresent(newUser -> {
+                    // Sinh mật khẩu 6 ký tự
+                    String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+                    SecureRandom rnd = new SecureRandom();
+                    StringBuilder pw = new StringBuilder();
+                    for (int i = 0; i < 6; i++) pw.append(chars.charAt(rnd.nextInt(chars.length())));
+                    String rawPassword = pw.toString();
+
+                    // Cập nhật mật khẩu (mã hoá)
+                    newUser.setPassword(passwordEncoder.encode(rawPassword));
+                    newUser.setUpdatedAt(new Date());
+                    newUser.setUpdatedBy(currentUsername());
+                    userRepository.save(newUser);
+
+//                     Nếu bạn chưa tạo listener, có thể gọi trực tiếp service đã @Async:
+                     accountEmailService.sendAccountCreatedEmail(emailLc, normalizedName, newUser.getUsername(), rawPassword);
+                });
             } else {
-                Optional<User> userOpt = userRepository.findByUsername(normalizedEmail);
-                if (userOpt.isPresent()) {
-                    User u = userOpt.get();
-                    if (u.getCustomer() == null) {
-                        u.setCustomer(customer);
-                        u.setUpdatedAt(new Date());          // User dùng java.util.Date
-                        u.setUpdatedBy(currentUsername());
-                        userRepository.save(u);
-                    }
+                User u = userOpt.get();
+                if (u.getCustomer() == null) {
+                    u.setCustomer(customer);
+                    u.setUpdatedAt(new Date());
+                    u.setUpdatedBy(currentUsername());
+                    userRepository.save(u);
                 }
             }
         }
 
-        // ===== 4) Trả về DTO =====
+        // ===== 5) Trả về DTO =====
         return invoiceMapper.toCustomerResponse(customer);
     }
-
 
     /** Tạo tài khoản User cho customer với username=email, mật khẩu ngẫu nhiên (băm BCrypt). */
     private void createUserForCustomer(Customer customer, String emailAsUsername) {

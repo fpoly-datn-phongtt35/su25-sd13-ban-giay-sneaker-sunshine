@@ -23,6 +23,7 @@ import com.example.duantotnghiep.service.*;
 import com.example.duantotnghiep.service.impl.InvoiceEmailService;
 import com.example.duantotnghiep.service.impl.InvoiceServiceImpl;
 import com.example.duantotnghiep.service.impl.OnlineSaleServiceImpl;
+import com.example.duantotnghiep.service.impl.ProductServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -58,6 +59,9 @@ public class SaleOnlineController {
     private final ColorService colorService;
     private final BrandService brandService;
     private final RatingService  ratingService;
+    private final ProductServiceImpl productServiceImpl;
+    private final CategoryService categoryService;
+    private final ProductImageService productImageService;
 
     @GetMapping("/online-home")
     public ResponseEntity<List<ProductResponse>> hienThi(){
@@ -245,9 +249,9 @@ public class SaleOnlineController {
         return ResponseEntity.ok(list);
     }
 
-    @GetMapping("/{brandId}/products")
+    @GetMapping("/brands/{brandId}/products")
     public Page<ProductResponse> getProductsOfBrand(@PathVariable Long brandId, Pageable pageable) {
-        return productService.getProductsByBrand(brandId, pageable);
+        return productServiceImpl.getProductsByBrand(brandId, pageable);
     }
 
     @GetMapping("/delivered")
@@ -258,6 +262,28 @@ public class SaleOnlineController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) Date dateTo
     ) {
         return ratingService.getDeliveredInvoicesForReview(onlyUnrated, keyword, dateFrom, dateTo);
+    }
+
+    @GetMapping("/{categoryId}/products")
+    public Page<ProductResponse> getByCategoryId(
+            @PathVariable Long categoryId,
+            @PageableDefault(size = 12, sort = "id", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        return productServiceImpl.getProductsByCategoryId(categoryId, pageable);
+    }
+
+    @GetMapping("/categories/hien-thi")
+    public ResponseEntity<List<CategoryResponse>> getAllcategories() {
+        List<CategoryResponse> list = categoryService.getAll();
+        return ResponseEntity.ok(list);
+    }
+
+    @GetMapping("/product-images")
+    public ResponseEntity<List<ProductImageResponse>> getImagesByProductAndColor(
+            @RequestParam Long productId,
+            @RequestParam Long colorId) {
+        List<ProductImageResponse> responses = productImageService.getImagesByProductAndColor(productId, colorId);
+        return ResponseEntity.ok(responses);
     }
 
 }

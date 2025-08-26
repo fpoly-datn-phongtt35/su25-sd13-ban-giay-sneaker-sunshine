@@ -50,4 +50,7 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
 
     List<Customer> findByIsBlacklistedTrue();
 
+    Optional<Customer> findTop1ByEmailAndStatus(String email, Integer status);
+
+
 }

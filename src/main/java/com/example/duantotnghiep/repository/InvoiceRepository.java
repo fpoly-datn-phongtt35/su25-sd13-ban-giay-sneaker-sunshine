@@ -349,6 +349,25 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
     Long sumItemsBetween(@Param("start") LocalDateTime start,
                          @Param("end") LocalDateTime end,
                          @Param("status") TrangThaiTong status);
+
+    @Query(value = """
+    select 
+      DATE(i.created_date)              as d,
+      coalesce(sum(i.total_amount), 0)  as revenue,
+      coalesce(sum(idt.quantity), 0)    as qty
+    from invoice i
+    left join invoice_detail idt on idt.invoice_id = i.id
+    where i.status = :status
+      and i.created_date >= :start
+      and i.created_date <  :end
+    group by DATE(i.created_date)
+    order by DATE(i.created_date)
+""", nativeQuery = true)
+    List<Object[]> aggregateDaily(@Param("status") TrangThaiTong status,
+                                  @Param("start")  LocalDateTime start,
+                                  @Param("end")    LocalDateTime end);
+
+
 }
 
 

@@ -54,21 +54,27 @@ public class VoucherSearchRepository {
                 params.put("kw", keyword);
             }
         }
-        // Status
-        if (request.getStatus() != null) {
+
+        // ===== Status (mặc định = 1 nếu không truyền) =====
+        if (request.getStatus() == null) {
+            where.append(" AND v.status = 1");
+        } else {
             where.append(" AND v.status = :status");
             params.put("status", request.getStatus());
         }
+
         // Order type
         if (request.getOrderType() != null) {
             where.append(" AND v.orderType = :orderType");
             params.put("orderType", request.getOrderType());
         }
+
         // Voucher type
         if (request.getVoucherType() != null) {
             where.append(" AND v.voucherType = :voucherType");
             params.put("voucherType", request.getVoucherType());
         }
+
         // Category
         if (request.getCategoryId() != null) {
             where.append(" AND (v.category.id IS NULL OR v.category.id = :catId)");
@@ -99,16 +105,6 @@ public class VoucherSearchRepository {
         return paginationMapper.toPaginationDTO(new PageImpl<>(responses, pageable, total));
     }
 
-    public List<VoucherResponse> searchVoucherWithoutPaging(VoucherSearchRequest request) {
-        Pageable pageable = Pageable.unpaged();
-        List<VoucherResponse> result = searchVouchers(request, pageable).getData();
-
-        if (!result.isEmpty()) {
-            System.out.println("Đã tìm thấy " + result.size() + " vouchers.");
-        }
-
-        return result;
-    }
 
 }
 

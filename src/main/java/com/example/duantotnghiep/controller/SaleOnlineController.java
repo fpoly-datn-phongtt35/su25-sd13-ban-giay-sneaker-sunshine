@@ -1,10 +1,6 @@
 package com.example.duantotnghiep.controller;
 
-import com.example.duantotnghiep.dto.request.FavoriteRequest;
-import com.example.duantotnghiep.dto.request.InvoiceRequest;
-import com.example.duantotnghiep.dto.request.ProductFilterRequest;
-import com.example.duantotnghiep.dto.request.ProductSearchRequest;
-import com.example.duantotnghiep.dto.request.UpdateAddress;
+import com.example.duantotnghiep.dto.request.*;
 import com.example.duantotnghiep.dto.response.GenderDTO;
 import com.example.duantotnghiep.dto.response.InvoiceDisplayResponse;
 import com.example.duantotnghiep.dto.response.InvoiceResponse;
@@ -58,6 +54,7 @@ public class SaleOnlineController {
     private final ColorService colorService;
     private final BrandService brandService;
     private final RatingService  ratingService;
+    private final CustomerService customerService;
 
     @GetMapping("/online-home")
     public ResponseEntity<List<ProductResponse>> hienThi(){
@@ -258,6 +255,75 @@ public class SaleOnlineController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) Date dateTo
     ) {
         return ratingService.getDeliveredInvoicesForReview(onlyUnrated, keyword, dateFrom, dateTo);
+    }
+
+    @PutMapping("/{customerId}/addresses/{addressId}/set-default")
+    public ResponseEntity<String> setDefaultAddress(
+            @PathVariable Long customerId,
+            @PathVariable Long addressId) {
+        customerService.setDefaultAddress(customerId, addressId);
+        return ResponseEntity.ok("Đã đặt địa chỉ mặc định thành công!");
+    }
+
+    @DeleteMapping("/{customerId}/addresses/{addressId}")
+    public ResponseEntity<Void> deleteAddress(
+            @PathVariable Long customerId,
+            @PathVariable Long addressId
+    ) {
+        AddressCustomerResponse response = customerService.getAddressById(addressId);
+        if (!response.getCustomerId().equals(customerId)) {
+            return ResponseEntity.status(403).build();
+        }
+        customerService.deleteAddressCustomer(addressId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{customerId}/addresses/{addressId}")
+    public ResponseEntity<AddressCustomerResponse> getAddressById(
+            @PathVariable Long customerId,
+            @PathVariable Long addressId
+    ) {
+        AddressCustomerResponse response = customerService.getAddressById(addressId);
+        if (!response.getCustomerId().equals(customerId)) {
+            return ResponseEntity.status(403).build(); // FORBIDDEN nếu không khớp
+        }
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{customerId}/addresses")
+    public ResponseEntity<AddressCustomerResponse> createAddress(
+            @PathVariable Long customerId,
+            @RequestBody AddressCustomerRequest request
+    ) {
+        request.setCustomerId(customerId);
+        return ResponseEntity.ok(customerService.create(request));
+    }
+
+    @PutMapping("/{customerId}/addresses/{addressId}")
+    public ResponseEntity<AddressCustomerResponse> updateAddress(
+            @PathVariable Long customerId,
+            @PathVariable Long addressId,
+            @RequestBody AddressCustomerRequest request
+    ) {
+        request.setCustomerId(customerId);
+        return ResponseEntity.ok(customerService.update(addressId, request));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<CustomerResponse> updateCustomer(@PathVariable Long id, @RequestBody CustomerRequest request) {
+        CustomerResponse response = customerService.updateCustomer(id, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/product-customer/{id}")
+    public ResponseEntity<CustomerResponse> getCustomerById(@PathVariable Long id) {
+        CustomerResponse response = customerService.getCustomerById(id);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{customerId}/addresses")
+    public ResponseEntity<List<AddressCustomerResponse>> getAllAddressesByCustomerId(@PathVariable Long customerId) {
+        return ResponseEntity.ok(customerService.getByCustomerId(customerId));
     }
 
 }

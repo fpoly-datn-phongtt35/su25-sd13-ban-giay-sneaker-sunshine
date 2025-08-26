@@ -220,8 +220,7 @@ const selectedProduct = ref({
   comment: '',
 })
 
-/* Hiển thị ô tìm */
-const show = ref(true)
+const show = ref(false)
 
 /* ================== HELPERS ================== */
 function formatDate(d) {

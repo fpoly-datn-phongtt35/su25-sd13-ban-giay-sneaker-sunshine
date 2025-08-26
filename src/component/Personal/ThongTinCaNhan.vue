@@ -15,25 +15,7 @@
         class="customer-form"
         label-position="left"
       >
-        <el-form-item label="Tên đăng nhập" prop="username">
-          <el-input
-            v-model="form.username"
-            :prefix-icon="User"
-            placeholder="Nhập tên đăng nhập"
-            clearable
-          />
-        </el-form-item>
-
-        <el-form-item label="Mật khẩu" prop="password">
-          <el-input
-            v-model="form.password"
-            :prefix-icon="Lock"
-            type="password"
-            show-password
-            placeholder="Nhập mật khẩu"
-            clearable
-          />
-        </el-form-item>
+        <!-- ĐÃ BỎ: Tên đăng nhập, Mật khẩu -->
 
         <el-form-item label="Họ tên khách hàng" prop="customerName">
           <el-input
@@ -108,6 +90,7 @@
       </el-form>
     </el-card>
 
+    <!-- Dialog quản lý địa chỉ: giữ nguyên -->
     <el-dialog
       v-model="addressDialogVisible"
       title="Quản lý địa chỉ khách hàng"
@@ -269,13 +252,11 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRouter } from 'vue-router';
 import axios from 'axios';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import {
-  ArrowLeft,
-  User,
-  Lock,
+  // ĐÃ BỎ: User, Lock
   Avatar,
   Message,
   Phone,
@@ -288,9 +269,9 @@ import {
   Plus,
   Edit,
   Delete,
-  Star // Import the Star icon
+  Star
 } from '@element-plus/icons-vue';
-
+import apiClient from '@/utils/axiosInstance';
 
 const router = useRouter();
 const customerId = localStorage.getItem('userId');
@@ -305,8 +286,7 @@ const addresses = ref([]);
 const addressLoading = ref(false);
 
 const form = ref({
-  username: '',
-  password: '',
+  // ĐÃ BỎ: username, password
   customerName: '',
   email: '',
   phone: '',
@@ -314,34 +294,8 @@ const form = ref({
   dateOfBirth: ''
 });
 
-const addressForm = ref({
-  id: null,
-  provinceCode: null,
-  provinceName: '',
-  districtCode: null,
-  districtName: '',
-  wardCode: null,
-  wardName: '',
-  houseNumber: '',
-  country: 'Việt Nam' // Assuming default country is Vietnam for addresses
-});
-
-const provinces = ref([]);
-const districts = ref([]);
-const wards = ref([]);
-
-const GHN_TOKEN = '847c9bb7-6e42-11ee-a59f-a260851ba65c'; // Your GHN Token
-
-// Validation Rules for Main Customer Form
 const rules = ref({
-  username: [
-    { required: true, message: 'Vui lòng nhập tên đăng nhập', trigger: 'blur' },
-    { min: 3, max: 50, message: 'Tên đăng nhập phải từ 3 đến 50 ký tự', trigger: 'blur' }
-  ],
-  password: [
-    { required: true, message: 'Vui lòng nhập mật khẩu', trigger: 'blur' },
-    { min: 6, message: 'Mật khẩu phải có ít nhất 6 ký tự', trigger: 'blur' }
-  ],
+  // ĐÃ BỎ rule username, password
   customerName: [
     { required: true, message: 'Vui lòng nhập họ tên', trigger: 'blur' },
     { min: 2, max: 100, message: 'Họ tên phải từ 2 đến 100 ký tự', trigger: 'blur' }
@@ -358,23 +312,35 @@ const rules = ref({
   dateOfBirth: [{ required: true, message: 'Vui lòng chọn ngày sinh', trigger: 'change' }]
 });
 
-// Validation Rules for Address Form
-const addressRules = ref({
-  provinceCode: [{ required: true, message: 'Vui lòng chọn Tỉnh/Thành phố', trigger: 'change' }],
-  districtCode: [{ required: true, message: 'Vui lòng chọn Quận/Huyện', trigger: 'change' }],
-  wardCode: [{ required: true, message: 'Vui lòng chọn Phường/Xã', trigger: 'change' }],
-  houseNumber: [{ required: true, message: 'Vui lòng nhập số nhà, tên đường', trigger: 'blur' }]
+const addressForm = ref({
+  id: null,
+  provinceCode: null,
+  provinceName: '',
+  districtCode: null,
+  districtName: '',
+  wardCode: null,
+  wardName: '',
+  houseNumber: '',
+  country: 'Việt Nam'
 });
 
-const disableFutureDates = (time) => {
-  return time.getTime() > Date.now();
-};
+const provinces = ref([]);
+const districts = ref([]);
+const wards = ref([]);
+
+const GHN_TOKEN = '847c9bb7-6e42-11ee-a59f-a260851ba65c';
+
+const disableFutureDates = (time) => time.getTime() > Date.now();
 
 const fetchCustomer = async () => {
   try {
-    const res = await axios.get(`http://localhost:8080/api/admin/customers/${customerId}`);
+    const res = await apiClient.get(`online-sale/product-customer/${customerId}`);
+    // Bỏ 2 trường tài khoản/mật khẩu khi map dữ liệu
     form.value = {
-      ...res.data,
+      customerName: res.data.customerName ?? '',
+      email: res.data.email ?? '',
+      phone: res.data.phone ?? '',
+      gender: res.data.gender ?? null,
       dateOfBirth: res.data.dateOfBirth ? new Date(res.data.dateOfBirth) : null
     };
   } catch (err) {
@@ -386,7 +352,7 @@ const fetchCustomer = async () => {
 const fetchAddresses = async () => {
   addressLoading.value = true;
   try {
-    const res = await axios.get(`http://localhost:8080/api/admin/customers/${customerId}/addresses`);
+    const res = await apiClient.get(`online-sale/${customerId}/addresses`);
     addresses.value = res.data || [];
   } catch (err) {
     console.error('Lỗi tải danh sách địa chỉ:', err);
@@ -401,12 +367,15 @@ const updateCustomer = async () => {
   try {
     await formRef.value.validate();
     submitting.value = true;
-    await axios.put(`http://localhost:8080/api/admin/customers/${customerId}`, {
-      ...form.value,
+    await apiClient.put(`online-sale/customers/${customerId}`, {
+      customerName: form.value.customerName,
+      email: form.value.email,
+      phone: form.value.phone,
+      gender: form.value.gender,
       dateOfBirth: form.value.dateOfBirth ? form.value.dateOfBirth.toISOString() : null
     });
     ElMessage.success('Cập nhật khách hàng thành công!');
-    router.push('/customer');
+    router.push('/collections');
   } catch (err) {
     console.error('Lỗi khi cập nhật khách hàng:', err);
     ElMessage.error('Lỗi khi cập nhật khách hàng!');
@@ -417,7 +386,7 @@ const updateCustomer = async () => {
 
 const openAddressDialog = () => {
   addressDialogVisible.value = true;
-  loadProvincesForAddress(); // Load provinces when dialog opens
+  loadProvincesForAddress();
   fetchAddresses();
 };
 
@@ -437,30 +406,22 @@ const openAddAddressForm = () => {
   districts.value = [];
   wards.value = [];
   addressFormVisible.value = true;
-  // No need to load provinces again here, as they are loaded when addressDialogVisible is true
 };
 
 const editAddress = async (address) => {
   isEditingAddress.value = true;
   addressForm.value = { ...address };
-
-  // Set selected province and load districts
   addressForm.value.provinceCode = address.provinceId;
   addressForm.value.provinceName = address.provinceName;
-  await loadDistrictsForAddress(); // Load districts based on selected province
-  
-  // Set selected district and load wards
+  await loadDistrictsForAddress();
   addressForm.value.districtCode = address.districtId;
   addressForm.value.districtName = address.districtName;
-  await loadWardsForAddress(); // Load wards based on selected district
-
+  await loadWardsForAddress();
   addressForm.value.wardCode = address.wardCode;
   addressForm.value.wardName = address.wardName;
-
   addressFormVisible.value = true;
 };
 
-// Hàm lấy danh sách tỉnh/thành phố cho địa chỉ
 const loadProvincesForAddress = async () => {
   try {
     const res = await axios.post(
@@ -475,7 +436,6 @@ const loadProvincesForAddress = async () => {
   }
 };
 
-// Hàm lấy danh sách quận/huyện cho địa chỉ
 const loadDistrictsForAddress = async () => {
   addressForm.value.districtCode = null;
   addressForm.value.districtName = '';
@@ -501,7 +461,6 @@ const loadDistrictsForAddress = async () => {
   }
 };
 
-// Hàm lấy danh sách phường/xã cho địa chỉ
 const loadWardsForAddress = async () => {
   addressForm.value.wardCode = null;
   addressForm.value.wardName = '';
@@ -524,21 +483,18 @@ const loadWardsForAddress = async () => {
   }
 };
 
-// Xử lý khi chọn tỉnh/thành phố trong form địa chỉ
 const handleProvinceChangeForAddress = () => {
   const selected = provinces.value.find(p => p.ProvinceID === addressForm.value.provinceCode);
   addressForm.value.provinceName = selected?.ProvinceName || '';
   loadDistrictsForAddress();
 };
 
-// Xử lý khi chọn quận/huyện trong form địa chỉ
 const handleDistrictChangeForAddress = () => {
   const selected = districts.value.find(d => d.DistrictID === addressForm.value.districtCode);
   addressForm.value.districtName = selected?.DistrictName || '';
   loadWardsForAddress();
 };
 
-// Xử lý khi chọn phường/xã trong form địa chỉ
 const handleWardChangeForAddress = () => {
   const selected = wards.value.find(w => w.WardCode === addressForm.value.wardCode);
   addressForm.value.wardName = selected?.WardName || '';
@@ -561,14 +517,14 @@ const saveAddress = async () => {
     };
 
     if (isEditingAddress.value) {
-      await axios.put(
-        `http://localhost:8080/api/admin/customers/${customerId}/addresses/${addressForm.value.id}`,
+      await apiClient.put(
+        `online-sale/${customerId}/addresses/${addressForm.value.id}`,
         addressDataToSend
       );
       ElMessage.success('Cập nhật địa chỉ thành công!');
     } else {
-      await axios.post(
-        `http://localhost:8080/api/admin/customers/${customerId}/addresses`,
+      await apiClient.post(
+        `online-sale/${customerId}/addresses`,
         addressDataToSend
       );
       ElMessage.success('Thêm địa chỉ thành công!');
@@ -577,7 +533,6 @@ const saveAddress = async () => {
     fetchAddresses();
   } catch (err) {
     console.error('Lỗi khi lưu địa chỉ:', err);
-    // More specific error handling based on backend response if available
     if (err.response && err.response.data && err.response.data.message) {
       ElMessage.error(`Lỗi: ${err.response.data.message}`);
     } else {
@@ -595,7 +550,7 @@ const confirmDeleteAddress = async (addressId) => {
       cancelButtonText: 'Hủy',
       type: 'warning'
     });
-    await axios.delete(`http://localhost:8080/api/admin/customers/${customerId}/addresses/${addressId}`);
+    await apiClient.delete(`online-sale/customers/${customerId}/addresses/${addressId}`);
     ElMessage.success('Xóa địa chỉ thành công!');
     fetchAddresses();
   } catch (err) {
@@ -615,9 +570,9 @@ const setDefaultAddress = async (addressId) => {
       cancelButtonText: 'Hủy',
       type: 'warning'
     });
-    await axios.put(`http://localhost:8080/api/admin/customers/${customerId}/addresses/${addressId}/set-default`);
+    await apiClient.put(`online-sale/${customerId}/addresses/${addressId}/set-default`);
     ElMessage.success('Đặt địa chỉ mặc định thành công!');
-    fetchAddresses(); // Refresh addresses to show the updated default
+    fetchAddresses();
   } catch (err) {
     console.error('Lỗi khi đặt địa chỉ mặc định:', err);
     ElMessage.error('Không thể đặt địa chỉ mặc định!');
@@ -635,6 +590,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* giữ nguyên style cũ của bạn */
 .update-customer-container {
   max-width: 700px;
   margin: 40px auto;
@@ -653,17 +609,6 @@ onMounted(() => {
   gap: 10px;
   padding: 10px 20px;
   border-bottom: 1px solid #ebeef5;
-}
-
-.back-button {
-  font-size: 16px;
-  color: #606266;
-  padding: 8px 12px;
-  transition: color 0.3s;
-}
-
-.back-button:hover {
-  color: #409eff;
 }
 
 .title {
@@ -721,7 +666,7 @@ onMounted(() => {
   --el-button-hover-bg-color: #85ce61;
 }
 
-.el-button--info { /* Added for the new default button */
+.el-button--info {
   --el-button-bg-color: #909399;
   --el-button-hover-bg-color: #a6a9ad;
 }
@@ -772,7 +717,6 @@ onMounted(() => {
   gap: 10px;
 }
 
-/* Styles for the default address tag */
 .el-tag--success {
   background-color: #e1f3d8;
   border-color: #e1f3d8;
@@ -785,46 +729,18 @@ onMounted(() => {
   color: #909399;
 }
 
-
 @media (max-width: 768px) {
   .update-customer-container {
     padding: 0 10px;
     margin: 20px auto;
   }
-
-  .box-card {
-    border-radius: 8px;
-  }
-
-  .card-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-
-  .title {
-    font-size: 20px;
-  }
-
-  .el-form-item {
-    --el-form-label-width: 100px;
-  }
-
-  .el-form-item__label {
-    font-size: 14px;
-  }
-
-  .el-button {
-    padding: 10px 16px;
-    font-size: 14px;
-  }
-
-  .address-dialog {
-    width: 90%;
-  }
-
-  .address-table {
-    font-size: 12px;
-  }
+  .box-card { border-radius: 8px; }
+  .card-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .title { font-size: 20px; }
+  .el-form-item { --el-form-label-width: 100px; }
+  .el-form-item__label { font-size: 14px; }
+  .el-button { padding: 10px 16px; font-size: 14px; }
+  .address-dialog { width: 90%; }
+  .address-table { font-size: 12px; }
 }
 </style>

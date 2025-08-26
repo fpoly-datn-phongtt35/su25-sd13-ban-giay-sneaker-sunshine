@@ -147,6 +147,7 @@ const totalElements = ref(0)
 const loading = ref(false)
 const isRestoreDialogVisible = ref(false)
 const currentProductId = ref(null)
+import apiClient from '../../utils/axiosInstance.js'
 
 // --- Navigation Function ---
 const goBack = () => {
@@ -161,8 +162,8 @@ const fetchData = async () => {
       page: page.value,
       size: size.value,
     }
-    const response = await axios.post(
-      'http://localhost:8080/api/admin/products/inactive',
+    const response = await apiClient.post(
+      '/admin/products/inactive',
       requestBody,
       {
         headers: { 'Content-Type': 'application/json' },
@@ -187,8 +188,8 @@ const openRestoreDialog = (product) => {
 // --- Save Product Logic ---
 const saveProduct = async () => {
   try {
-    await axios.put(
-      `http://localhost:8080/api/admin/products/restore/${currentProductId.value}`,
+    await apiClient.put(
+      `/admin/products/restore/${currentProductId.value}`,
       null,
       {
         headers: {

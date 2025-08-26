@@ -361,12 +361,21 @@ const fetchProduct = async () => {
       size: size.value,
       status: 1,
     }
+
     const res = await apiClient.post('/admin/products/search', payload)
     productList.value = res.data.data || []
     totalElements.value = res.data.pagination?.totalElements || 0
     totalPages.value = res.data.pagination?.totalPages || 0
-  } catch {
+  } catch (err) {
+    if (err?.response?.status === 403) {
+      router.push('/error')
+      return
+    }
     ElMessage.error('Tải danh sách sản phẩm thất bại!')
+    productList.value = []
+    totalElements.value = 0
+    totalPages.value = 0
+    page.value = 1
   } finally {
     tableLoading.value = false
   }

@@ -176,24 +176,17 @@
     </el-main>
   </el-container>
 </template>
-
 <script setup>
 import { reactive, ref, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import axios from 'axios'
 import { ElMessage } from 'element-plus'
+import apiClient from '@/utils/axiosInstance'
 
 const router = useRouter()
 
-/** ======== API ENDPOINTS ======== */
-const BASE_URL = 'http://localhost:8080'
-const PRODUCTS_API = `${BASE_URL}/api/admin/products`
-const PRODUCT_DETAILS_API = `${BASE_URL}/api/admin/products/details`
-const CREATE_CAMPAIGN_API = `${BASE_URL}/api/admin/campaigns` // POST
-
 /** ======== STATE FORM ======== */
 const form = reactive({
-  campaignCode: '',       // optional
+  campaignCode: '',
   name: '',
   discountPercentage: null,
   description: '',
@@ -204,14 +197,13 @@ const form = reactive({
   productDetails: []
 })
 
-/** ======== DATE RANGE ======== */
+/** ======== DATE RANGE (ISO "YYYY-MM-DDTHH:mm:ss") ======== */
 const dateRange = computed({
   get() {
     return form.startDate && form.endDate ? [form.startDate, form.endDate] : []
   },
   set(val) {
     if (Array.isArray(val) && val.length === 2) {
-      // el-date-picker với value-format="YYYY-MM-DDTHH:mm:ss" trả sẵn ISO đúng
       form.startDate = val[0]
       form.endDate   = val[1]
     } else {
@@ -221,7 +213,7 @@ const dateRange = computed({
   }
 })
 
-/** ========= Helpers: chuẩn hoá hiển thị ========= */
+/** ========= Helpers ========= */
 const fallbackId = (id) => (id !== undefined && id !== null ? `#${id}` : '')
 const textOf = (obj, keys) => {
   for (const k of keys) {
@@ -232,7 +224,7 @@ const textOf = (obj, keys) => {
 }
 const normalizeProduct = (row) => {
   const productText = textOf(row, ['productName', 'product.productName', 'name', 'product.name']) || fallbackId(row.productId ?? row.id)
-  const brandText   = textOf(row, ['brandName', 'brand.brandName', 'brand.name']) || fallbackId(row.brandId)
+  const brandText   = textOf(row, ['brandName, brand.brandName, brand.name']) || fallbackId(row.brandId)
   return { ...row, productText, brandText }
 }
 const normalizeDetail = (row) => {
@@ -255,10 +247,14 @@ const selectedProductIds = ref(new Set())
 const fetchProducts = async () => {
   loadingProducts.value = true
   try {
-    const res = await axios.get(PRODUCTS_API, { params: { page: currentPage.value - 1, size: pageSize.value } })
-    const content = res.data?.content || []
+    const { data } = await apiClient.get('/admin/products', {
+      params: { page: currentPage.value - 1, size: pageSize.value }
+    })
+    const content = data?.content || []
     products.value = content.map(normalizeProduct)
-    totalItems.value = res.data?.page?.totalElements ?? res.data?.totalElements ?? content.length
+    totalItems.value = data?.page?.totalElements ?? data?.totalElements ?? content.length
+
+    // giữ selection qua trang
     await nextTick()
     productTableRef.value?.clearSelection?.()
     products.value.forEach(row => {
@@ -292,10 +288,14 @@ const spctExtraPercent = reactive({})
 const fetchDetails = async () => {
   loadingDetails.value = true
   try {
-    const { data } = await axios.get(PRODUCT_DETAILS_API, { params: { page: detailsPage.value - 1, size: detailsSize.value } })
+    const { data } = await apiClient.get('/admin/products/details', {
+      params: { page: detailsPage.value - 1, size: detailsSize.value }
+    })
     const content = data?.content || []
     details.value = content.map(normalizeDetail)
-    detailsTotal.value = data?.totalElements ?? data?.page?.totalElements ?? content.length
+    detailsTotal.value = data?.page?.totalElements ?? data?.totalElements ?? content.length
+
+    // giữ selection qua trang
     await nextTick()
     spctTableRef.value?.clearSelection?.()
     details.value.forEach(row => {
@@ -356,7 +356,6 @@ const buildProductDetailsPayload = () => {
 }
 
 const sanitize = (obj) => {
-  // loại bỏ các field trống không cần thiết (giữ 0)
   const out = {}
   Object.entries(obj).forEach(([k, v]) => {
     if (v === '' || v === undefined) return
@@ -368,7 +367,7 @@ const sanitize = (obj) => {
 const createCampaign = async () => {
   if (!validateBeforeSubmit()) return
   const payload = sanitize({
-    campaignCode: form.campaignCode?.trim() || null, // optional
+    campaignCode: form.campaignCode?.trim() || null,
     name: form.name.trim(),
     discountPercentage: Number(form.discountPercentage),
     description: form.description?.trim() || null,
@@ -380,12 +379,14 @@ const createCampaign = async () => {
   })
 
   try {
-    await axios.post(CREATE_CAMPAIGN_API, payload, { headers: { 'Content-Type': 'application/json' } })
+    await apiClient.post('/admin/campaigns', payload, {
+      headers: { 'Content-Type': 'application/json' }
+    })
     ElMessage.success('Tạo đợt giảm giá thành công!')
     router.back()
   } catch (e) {
     console.error('Create campaign error:', {
-      url: CREATE_CAMPAIGN_API,
+      url: '/admin/campaigns',
       status: e?.response?.status,
       data: e?.response?.data,
       payload
@@ -396,9 +397,11 @@ const createCampaign = async () => {
 
 /** ======== INIT ======== */
 onMounted(() => { fetchProducts(); fetchDetails() })
+
 const goBack = () => router.back()
 const formatCurrency = (v) => (v === null || v === undefined ? '' : Number(v).toLocaleString('vi-VN'))
 </script>
+
 
 <style scoped>
 .page-container { padding: 20px; background-color: #f5f7fb; min-height: 100vh; }

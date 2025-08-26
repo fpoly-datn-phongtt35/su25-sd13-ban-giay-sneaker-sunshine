@@ -42,18 +42,18 @@
         border
         stripe
       >
-        <el-table-column prop="sizeName" label="Size" width="150" align="center"/>
-        <el-table-column prop="colorName" label="Màu sắc" width="150" align="center"/>
+        <el-table-column prop="sizeName" label="Size" width="150" align="center" />
+        <el-table-column prop="colorName" label="Màu sắc" width="150" align="center" />
         <el-table-column label="Giá bán" width="150" align="center">
           <template #default="{ row }">{{ formatCurrency(row.sellPrice) }}</template>
         </el-table-column>
-        <el-table-column prop="quantity" label="Số lượng" width="120" align="center"/>
+        <el-table-column prop="quantity" label="Số lượng" width="120" align="center" />
         <el-table-column label="Trạng thái" width="150" align="center">
           <template #default="{ row }">{{ row.status === 1 ? 'Hoạt động' : 'Ngừng hoạt động' }}</template>
         </el-table-column>
-        <el-table-column label="QR Code" width="120" align="center">
+        <el-table-column label="QR Code" width="140" align="center">
           <template #default="{ row }">
-            <el-button size="mini" type="success" @click="openQrDialog(row.productDetailCode)">QR</el-button>
+            <el-button size="small" type="success" @click="openQrDialog(row.productDetailCode)">QR</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -74,11 +74,18 @@
     </template>
 
     <!-- Dialog QR Code -->
-    <el-dialog v-model="qrDialogVisible" title="QR Code" width="300px">
+    <el-dialog v-model="qrDialogVisible" title="QR Code" width="320px" @close="onCloseQrDialog">
       <div style="text-align: center;">
-        <img :src="qrImageUrl" alt="QR Code" style="width: 200px; height: 200px; margin-bottom: 10px;" />
-        <br />
-        <el-button type="primary" plain @click="downloadQrCode">Tải về QR</el-button>
+        <el-image
+          v-if="qrImageUrl"
+          :src="qrImageUrl"
+          fit="contain"
+          style="width: 220px; height: 220px; margin-bottom: 10px;"
+        />
+        <div v-else class="text-gray-500" style="height:220px;display:flex;align-items:center;justify-content:center">
+          Không tải được QR
+        </div>
+        <el-button type="primary" plain :loading="downloadingQr" @click="downloadQrCode">Tải về QR</el-button>
       </div>
     </el-dialog>
 
@@ -94,7 +101,7 @@
             <el-rate v-model="row.rate" disabled show-score text-color="#ff9900" />
           </template>
         </el-table-column>
-        <el-table-column label="Nội dung đánh giá" prop="comment"/>
+        <el-table-column label="Nội dung đánh giá" prop="comment" />
         <el-table-column label="Ngày đánh giá" width="150">
           <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
         </el-table-column>
@@ -105,14 +112,14 @@
     <el-dialog v-model="historyDialogVisible" title="Lịch sử tác động sản phẩm" width="800px">
       <el-empty v-if="productHistory.length === 0" description="Không có lịch sử tác động." />
       <el-table v-else :data="productHistory" border style="width: 100%">
-        <el-table-column label="Người tạo" prop="employeeName" width="180"/>
+        <el-table-column label="Người tạo" prop="employeeName" width="180" />
         <el-table-column label="Loại tác động" width="150">
           <template #default="{ row }">{{ getActionType(row.actionType) }}</template>
         </el-table-column>
-        <el-table-column label="Trường" prop="note"/>
-        <el-table-column label="Giá trị cũ" prop="oldValue"/>
-        <el-table-column label="Giá trị mới" prop="newValue"/>
-        <el-table-column label="Mô tả" prop="note"/>
+        <el-table-column label="Trường" prop="note" />
+        <el-table-column label="Giá trị cũ" prop="oldValue" />
+        <el-table-column label="Giá trị mới" prop="newValue" />
+        <el-table-column label="Mô tả" prop="note" />
         <el-table-column label="Thời gian" width="200">
           <template #default="{ row }">{{ formatDateTime(row.createdDate) }}</template>
         </el-table-column>
@@ -122,7 +129,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElNotification } from 'element-plus'
 import apiClient from '@/utils/axiosInstance'
@@ -134,53 +141,80 @@ const product = ref(null)
 const loading = ref(false)
 const error = ref(false)
 
+/** ---------- QR ---------- **/
 const qrDialogVisible = ref(false)
-const qrImageUrl = ref('')
+const qrImageUrl = ref('')     // ObjectURL
 const currentSpctCode = ref('')
+const downloadingQr = ref(false)
+let lastObjectUrl = null
 
-const reviewsDialogVisible = ref(false)
-const productReviews = ref([])
-
-const historyDialogVisible = ref(false)
-const productHistory = ref([])
-
-function goBack() { router.push('/product') }
-function formatCurrency(value) { return value == null || isNaN(value) ? '0 ₫' : value.toLocaleString('vi-VN', { style:'currency', currency:'VND' }) }
-function formatDate(dateString) { return dateString ? new Date(dateString).toLocaleDateString('vi-VN') : 'Không có' }
-function formatDateTime(dateString) { return dateString ? new Date(dateString).toLocaleString('vi-VN') : 'Không có' }
-function getActionType(type) { const map = { CREATE: 'Tạo mới', UPDATE: 'Cập nhật', DELETE: 'Xóa' }; return map[type] || type }
-
-function openQrDialog(productDetailCode) {
-  qrDialogVisible.value = true
-  if (!productDetailCode) return
-  console.log('spct code: ',productDetailCode)
-  currentSpctCode.value = productDetailCode
-  qrImageUrl.value = `http://localhost:8080/api/admin/products/qrcode/${productDetailCode}`
+function revokeQrUrl() {
+  if (lastObjectUrl) {
+    URL.revokeObjectURL(lastObjectUrl)
+    lastObjectUrl = null
+  }
 }
 
-async function downloadQrCode() {
+async function openQrDialog(productDetailCode) {
+  qrDialogVisible.value = true
+  if (!productDetailCode) return
+  currentSpctCode.value = productDetailCode
+
   try {
-    const response = await fetch(qrImageUrl.value)
-    const blob = await response.blob()
-    const url = window.URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `qrcode_${currentSpctCode.value}.png`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    window.URL.revokeObjectURL(url)
-  } catch (error) {
-    console.error('Lỗi khi tải QR code:', error)
+    // Lấy ảnh QR qua axios instance để kèm Authorization → tránh 403
+    const res = await apiClient.get(`/admin/products/qrcode/${productDetailCode}`, {
+      responseType: 'blob'
+    })
+    revokeQrUrl()
+    const url = URL.createObjectURL(res.data)
+    qrImageUrl.value = url
+    lastObjectUrl = url
+  } catch (e) {
+    console.error('Load QR failed:', e?.response || e)
+    qrImageUrl.value = ''
     ElNotification({ title: 'Lỗi', message: 'Không thể tải QR code.', type: 'error' })
   }
 }
 
-// ---------------- Reviews -----------------
+function onCloseQrDialog() {
+  qrDialogVisible.value = false
+  revokeQrUrl()
+  qrImageUrl.value = ''
+  currentSpctCode.value = ''
+}
+
+async function downloadQrCode() {
+  if (!currentSpctCode.value) return
+  downloadingQr.value = true
+  try {
+    const res = await apiClient.get(`/admin/products/qrcode/${currentSpctCode.value}`, {
+      responseType: 'blob'
+    })
+    const blob = res.data
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `qrcode_${currentSpctCode.value}.png`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  } catch (error) {
+    console.error('Download QR failed:', error?.response || error)
+    ElNotification({ title: 'Lỗi', message: 'Không thể tải QR code.', type: 'error' })
+  } finally {
+    downloadingQr.value = false
+  }
+}
+
+/** ---------- Reviews ---------- **/
+const reviewsDialogVisible = ref(false)
+const productReviews = ref([])
+
 async function fetchProductReviews(productId) {
   try {
-    const response = await apiClient.get(`/admin/products/reviews-product/${productId}`)
-    productReviews.value = response.data
+    const { data } = await apiClient.get(`/admin/products/reviews-product/${productId}`)
+    productReviews.value = Array.isArray(data) ? data : []
     return true
   } catch (e) {
     console.error('Lỗi fetch reviews:', e)
@@ -188,19 +222,23 @@ async function fetchProductReviews(productId) {
     return false
   }
 }
-
 async function openReviewsDialog() {
-  if (product.value && product.value.id) {
-    const success = await fetchProductReviews(product.value.id)
-    if (success) reviewsDialogVisible.value = true
+  if (product.value?.id) {
+    const ok = await fetchProductReviews(product.value.id)
+    if (ok) reviewsDialogVisible.value = true
   }
 }
 
-// ---------------- History -----------------
+/** ---------- History ---------- **/
+const historyDialogVisible = ref(false)
+const productHistory = ref([])
+
 async function fetchProductHistory(productId) {
   try {
-    const response = await apiClient.get(`/admin/product-histories/get-by-productId?productId=${productId}`)
-    productHistory.value = response.data
+    const { data } = await apiClient.get(`/admin/product-histories/get-by-productId`, {
+      params: { productId }
+    })
+    productHistory.value = Array.isArray(data) ? data : []
     return true
   } catch (e) {
     console.error('Lỗi fetch history:', e)
@@ -208,27 +246,36 @@ async function fetchProductHistory(productId) {
     return false
   }
 }
-
 async function openHistoryDialog() {
-  if (product.value && product.value.id) {
-    const success = await fetchProductHistory(product.value.id)
-    if (success) historyDialogVisible.value = true
+  if (product.value?.id) {
+    const ok = await fetchProductHistory(product.value.id)
+    if (ok) historyDialogVisible.value = true
   }
 }
 
-// ---------------- Fetch product -----------------
+/** ---------- Product ---------- **/
+function goBack() { router.push('/product') }
+function formatCurrency(v) {
+  const n = Number(v)
+  return Number.isFinite(n) ? n.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' }) : '0 ₫'
+}
+function formatDate(s) { return s ? new Date(s).toLocaleDateString('vi-VN') : 'Không có' }
+function formatDateTime(s) { return s ? new Date(s).toLocaleString('vi-VN') : 'Không có' }
+function getActionType(t) { const map = { CREATE: 'Tạo mới', UPDATE: 'Cập nhật', DELETE: 'Xóa' }; return map[t] || t }
+
 async function fetchProduct(id) {
   loading.value = true
   error.value = false
   try {
-    const response = await apiClient.get(`/admin/products/${id}`)
-    product.value = response.data
-    console.log('produc: ',product.value)
+    const { data } = await apiClient.get(`/admin/products/${id}`)
+    product.value = data
   } catch (e) {
     console.error('Lỗi fetch product:', e)
     error.value = true
     ElNotification({ title: 'Lỗi', message: 'Không thể tải thông tin sản phẩm.', type: 'error' })
-  } finally { loading.value = false }
+  } finally {
+    loading.value = false
+  }
 }
 
 onMounted(() => {
@@ -238,6 +285,10 @@ onMounted(() => {
     error.value = true
     ElNotification({ title: 'Lỗi', message: 'Không tìm thấy ID sản phẩm trong URL.', type: 'error' })
   }
+})
+
+onBeforeUnmount(() => {
+  revokeQrUrl()
 })
 </script>
 

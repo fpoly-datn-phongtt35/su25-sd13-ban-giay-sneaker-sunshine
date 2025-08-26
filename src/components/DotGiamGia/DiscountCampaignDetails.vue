@@ -181,6 +181,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
+import apiClient from '@/utils/axiosInstance'
 
 const router = useRouter()
 const route = useRoute()
@@ -285,7 +286,7 @@ const loadCampaign = async () => {
   error.value = ''
   try {
     const id = route.params.id
-    const res = await axios.get(`http://localhost:8080/api/admin/campaigns/${id}`)
+    const res = await apiClient.get(`/admin/campaigns/${id}`)
     campaign.value = res.data
     // reset phân trang khi đổi dữ liệu
     prodPage.value = 1
@@ -300,7 +301,7 @@ const loadCampaign = async () => {
 const loadStats = async () => {
   try {
     const id = route.params.id
-    const res = await axios.get(`http://localhost:8080/api/admin/campaigns/${id}/statistics`)
+    const res = await apiClient.get(`/admin/campaigns/${id}/statistics`)
     stats.value = res.data
   } catch {
     stats.value = null

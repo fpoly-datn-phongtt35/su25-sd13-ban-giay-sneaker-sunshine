@@ -56,7 +56,6 @@ const soles = ref([])
 const form = ref({ id: null, name: '' }) // 'name' for the form input
 const isEditing = ref(false)
 const formRef = ref(null)
-const loading = ref(false)
 const rules = {
   name: [
     { required: true, message: 'Tên không được để trống', trigger: 'blur' },

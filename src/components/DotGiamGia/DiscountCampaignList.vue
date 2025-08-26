@@ -49,11 +49,6 @@
                   <el-icon><View /></el-icon>
                 </el-button>
 
-                <!-- Nút in -->
-                <!-- <el-button class="action-btn print" size="small" @click="printCampaign(row)">
-                  <el-icon><Printer /></el-icon>
-                </el-button> -->
-
                 <!-- Menu thêm -->
                 <el-dropdown trigger="click">
                   <span class="el-dropdown-link more-btn">
@@ -92,7 +87,6 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import axios from 'axios'
 import { ElMessage } from 'element-plus'
 import { View, Printer, MoreFilled } from '@element-plus/icons-vue'
 
@@ -105,6 +99,7 @@ const loading = ref(true)
 const currentPage = ref(1)
 const pageSize = ref(10)
 const totalItems = ref(0)
+import apiClient from '@/utils/axiosInstance'
 
 const formatDateTime = (dateStr) => {
   if (!dateStr) return ''
@@ -139,7 +134,7 @@ const statusTagType = (status) => {
 
 const changeStatus = async (campaign) => {
   try {
-    await axios.post(`http://localhost:8080/api/admin/campaigns/${campaign.id}/delete`)
+    await apiClient.post(`/admin/campaigns/${campaign.id}/delete`)
     ElMessage.success('Đã chuyển trạng thái thành công!')
     loadCampaigns()
   } catch (error) {
@@ -161,14 +156,14 @@ const handleSizeChange = (newSize) => {
 const loadCampaigns = async () => {
   loading.value = true
   try {
-    const res = await axios.get('http://localhost:8080/api/admin/campaigns', {
+    const res = await apiClient.get('/admin/campaigns', {
       params: { page: currentPage.value - 1, size: pageSize.value },
     })
 
     const data = res.data?.content ?? []
     const statsPromises = data.map(async (c) => {
       try {
-        const statsRes = await axios.get(`http://localhost:8080/api/admin/campaigns/${c.id}/statistics`)
+        const statsRes = await apiClient.get(`/admin/campaigns/${c.id}/statistics`)
         return { ...c, ...statsRes.data }
       } catch {
         return c
@@ -180,13 +175,21 @@ const loadCampaigns = async () => {
     totalItems.value = pageMeta.totalElements ?? 0
     pageSize.value = pageMeta.size ?? pageSize.value
     currentPage.value = (pageMeta.number ?? 0) + 1
-  } catch (error) {
-    console.error('Lỗi tải đợt giảm giá:', error)
+  } catch (err) {
+    if (err?.response?.status === 403) {
+      router.push('/error')
+      return
+    }
+    console.error('Lỗi tải đợt giảm giá:', err)
     ElMessage.error('Không thể tải danh sách đợt giảm giá.')
+    campaigns.value = []
+    totalItems.value = 0
+    currentPage.value = 1
   } finally {
     loading.value = false
   }
 }
+
 
 const goToAddPage = () => router.push('/discount-campaigns/add')
 const goToUpdate = (id) => router.push(`/discount-campaigns/update/${id}`)

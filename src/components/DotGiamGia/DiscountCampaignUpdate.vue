@@ -182,18 +182,12 @@
 <script setup>
 import { reactive, ref, computed, onMounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import axios from 'axios'
 import { ElMessage } from 'element-plus'
+import apiClient from '@/utils/axiosInstance'
 
 const router = useRouter()
 const route = useRoute()
 const campaignId = route.params.id
-
-/** ======== API ENDPOINTS ======== */
-const BASE_URL = 'http://localhost:8080'
-const PRODUCTS_API = `${BASE_URL}/api/admin/products`
-const PRODUCT_DETAILS_API = `${BASE_URL}/api/admin/products/details`
-const CAMPAIGN_API = `${BASE_URL}/api/admin/campaigns` // GET/:id, PUT/:id
 
 /** ======== STATE FORM ======== */
 const form = reactive({
@@ -232,9 +226,7 @@ const dateRange = computed({
 /** ======== Helpers ======== */
 const normalizeIso = (s) => {
   if (!s) return ''
-  // Nếu backend trả "yyyy-MM-dd HH:mm:ss" => đổi khoảng trắng thành 'T'
-  if (typeof s === 'string') return s.replace(' ', 'T')
-  return s
+  return typeof s === 'string' ? s.replace(' ', 'T') : s
 }
 const fallbackId = (id) => (id !== undefined && id !== null ? `#${id}` : '')
 const textOf = (obj, keys) => {
@@ -268,12 +260,15 @@ const selectedProductIds = ref(new Set())
 const fetchProducts = async () => {
   loadingProducts.value = true
   try {
-    const res = await axios.get(PRODUCTS_API, { params: { page: currentPage.value - 1, size: pageSize.value } })
-    const content = res.data?.content || []
+    const { data } = await apiClient.get('/admin/products', {
+      params: { page: currentPage.value - 1, size: pageSize.value }
+    })
+    const content = data?.content || []
     products.value = content.map(normalizeProduct)
-    totalItems.value = res.data?.page?.totalElements ?? res.data?.totalElements ?? content.length
-    await nextTick()
+    totalItems.value = data?.page?.totalElements ?? data?.totalElements ?? content.length
+
     // re-apply selection
+    await nextTick()
     productTableRef.value?.clearSelection?.()
     products.value.forEach(row => {
       if (selectedProductIds.value.has(row.id)) productTableRef.value?.toggleRowSelection?.(row, true)
@@ -305,12 +300,15 @@ const spctExtraPercent = reactive({})
 const fetchDetails = async () => {
   loadingDetails.value = true
   try {
-    const { data } = await axios.get(PRODUCT_DETAILS_API, { params: { page: detailsPage.value - 1, size: detailsSize.value } })
+    const { data } = await apiClient.get('/admin/products/details', {
+      params: { page: detailsPage.value - 1, size: detailsSize.value }
+    })
     const content = data?.content || []
     details.value = content.map(normalizeDetail)
-    detailsTotal.value = data?.totalElements ?? data?.page?.totalElements ?? content.length
-    await nextTick()
+    detailsTotal.value = data?.page?.totalElements ?? data?.totalElements ?? content.length
+
     // re-apply selection
+    await nextTick()
     spctTableRef.value?.clearSelection?.()
     details.value.forEach(row => {
       if (selectedDetailIds.value.has(row.id) && Number(row.quantity) > 0) {
@@ -338,7 +336,8 @@ const totalSelectedDetails = computed(() => selectedDetailIds.value.size)
 const fetchCampaign = async () => {
   loadingCampaign.value = true
   try {
-    const { data } = await axios.get(`${CAMPAIGN_API}/${campaignId}`)
+    const { data } = await apiClient.get(`/admin/campaigns/${campaignId}`)
+
     // Scalar
     form.campaignCode       = data?.campaignCode ?? ''
     form.name               = data?.name ?? ''
@@ -398,7 +397,9 @@ const validateBeforeSubmit = () => {
   return true
 }
 
-const buildProductPayload = () => Array.from(selectedProductIds.value).map(id => ({ productId: id }))
+const buildProductPayload = () =>
+  Array.from(selectedProductIds.value).map(id => ({ productId: id }))
+
 const buildProductDetailsPayload = () => {
   const list = []
   selectedDetailIds.value.forEach(id => {
@@ -411,6 +412,7 @@ const buildProductDetailsPayload = () => {
   })
   return list
 }
+
 const sanitize = (obj) => {
   const out = {}
   Object.entries(obj).forEach(([k, v]) => {
@@ -422,8 +424,9 @@ const sanitize = (obj) => {
 
 const updateCampaign = async () => {
   if (!validateBeforeSubmit()) return
+
   const payload = sanitize({
-    campaignCode: form.campaignCode?.trim() || null, // gửi nếu muốn đổi code
+    campaignCode: form.campaignCode?.trim() || null,
     name: form.name.trim(),
     discountPercentage: Number(form.discountPercentage),
     description: form.description?.trim() || null,
@@ -435,12 +438,14 @@ const updateCampaign = async () => {
   })
 
   try {
-    await axios.put(`${CAMPAIGN_API}/${campaignId}`, payload, { headers: { 'Content-Type': 'application/json' } })
+    await apiClient.put(`/admin/campaigns/${campaignId}`, payload, {
+      headers: { 'Content-Type': 'application/json' }
+    })
     ElMessage.success('Cập nhật đợt giảm giá thành công!')
     router.back()
   } catch (e) {
     console.error('Update campaign error:', {
-      url: `${CAMPAIGN_API}/${campaignId}`,
+      url: `/admin/campaigns/${campaignId}`,
       status: e?.response?.status,
       data: e?.response?.data,
       payload
@@ -459,6 +464,7 @@ onMounted(async () => {
 const goBack = () => router.back()
 const formatCurrency = (v) => (v === null || v === undefined ? '' : Number(v).toLocaleString('vi-VN'))
 </script>
+
 
 <style scoped>
 .page-container { padding: 20px; background-color: #f5f7fb; min-height: 100vh; }

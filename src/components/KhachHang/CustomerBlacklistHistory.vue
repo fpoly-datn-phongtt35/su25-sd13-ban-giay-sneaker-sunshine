@@ -65,12 +65,18 @@ const badCustomers = ref([])
 const fetchBadCustomers = async () => {
   try {
     const res = await apiClient.get('/admin/customers/bad')
-    badCustomers.value = res.data
+    badCustomers.value = res.data || []
   } catch (err) {
-    console.error(err)
+    if (err?.response?.status === 403) {
+      router.push('/error')
+      return
+    }
+    console.error('Lỗi khi tải khách hàng xấu:', err)
     ElMessage.error('Lỗi khi tải khách hàng xấu')
+    badCustomers.value = []
   }
 }
+
 
 const removeFromBlacklist = async (id) => {
   try {

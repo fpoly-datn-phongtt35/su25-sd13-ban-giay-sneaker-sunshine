@@ -126,7 +126,7 @@
               <el-table-column prop="productName" label="Sản phẩm" min-width="180" />
               <el-table-column prop="size.sizeName" label="Size" width="80" />
               <el-table-column prop="color.colorName" label="Màu" width="90" />
-              <el-table-column label="SL" width="120" align="center">
+              <el-table-column label="SL" width="110" align="center">
                 <template #default="{ row }">
                   <div class="qty-inline">
                     <el-button size="small" :icon="Minus" circle @click="decreaseQuantity(row)" :disabled="row.quantity <= 1" />
@@ -135,7 +135,7 @@
                   </div>
                 </template>
               </el-table-column>
-              <el-table-column label="Đơn giá" width="140" align="right">
+              <el-table-column label="Đơn giá" width="100" align="right">
                 <template #default="{ row }">
                   <div class="price-cell">
                     <template v-if="row.discountedPrice && row.discountedPrice !== row.sellPrice">
@@ -174,6 +174,7 @@
           </div>
           <el-empty v-else description="Chưa có hóa đơn được chọn." />
         </el-card>
+        
       </el-col>
 
       <!-- ==== CỘT PHẢI: KHÁCH HÀNG + THANH TOÁN + VOUCHER ==== -->
@@ -375,9 +376,12 @@
 </template>
 
 <script setup>
+/* ============================================================
+ * POS COUNTER SALES - SCRIPT (CLEAN & STABLE)
+ * ============================================================ */
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import apiClient from '../../utils/axiosInstance.js'
+import apiClient from '@/utils/axiosInstance'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   ArrowLeft, Plus, Minus, Delete, Check, Search, User, CircleClose, Select,
@@ -387,19 +391,28 @@ import CounterSalesCreateCustomer from './CounterSalesCreateCustomer.vue'
 import { BrowserMultiFormatReader } from '@zxing/browser'
 import { BarcodeFormat, DecodeHintType } from '@zxing/library'
 
-/* ----------------- Tabs Hóa đơn ----------------- */
+/* ----------------- Router/State chung ----------------- */
 const route = useRoute()
 const router = useRouter()
-const employeeId = 1
+const employeeId = 1 // TODO: lấy từ auth nếu có
 
-const openInvoices = ref([]) // [{id, code}]
+const openInvoices = ref([]) // [{ id, code }]
 const activeInvoiceId = ref(route.params.id ? String(route.params.id) : '')
 const invoiceId = computed(() => Number(activeInvoiceId.value || 0))
+
+/* ----------------- Tabs Hóa đơn ----------------- */
+const loadActiveInvoice = async () => {
+  if (!invoiceId.value) return
+  await Promise.all([
+    fetchInvoiceDetails(invoiceId.value),
+    fetchVoucherByInvoiceId(invoiceId.value),
+  ])
+}
 
 const createInvoiceTab = async () => {
   try {
     const { data } = await apiClient.post(`/admin/counter-sales/create-empty?employeeId=${employeeId}`, {})
-    if (!openInvoices.value.some((t) => t.id === data.id)) {
+    if (!openInvoices.value.some(t => t.id === data.id)) {
       openInvoices.value.push({ id: data.id, code: data.invoiceCode || '' })
     }
     activeInvoiceId.value = String(data.id)
@@ -412,15 +425,15 @@ const createInvoiceTab = async () => {
 }
 
 const closeInvoiceTab = async (tab) => {
-  const justClose = await ElMessageBox.confirm(
+  const ok = await ElMessageBox.confirm(
     'Đóng tab này? (Hóa đơn trên hệ thống sẽ giữ nguyên)',
     'Đóng tab',
     { type: 'warning', confirmButtonText: 'Đóng tab', cancelButtonText: 'Hủy' },
   ).then(() => true).catch(() => false)
-  if (!justClose) return
+  if (!ok) return
 
   const closingActive = String(tab.id) === activeInvoiceId.value
-  openInvoices.value = openInvoices.value.filter((t) => t.id !== tab.id)
+  openInvoices.value = openInvoices.value.filter(t => t.id !== tab.id)
 
   if (openInvoices.value.length === 0) {
     activeInvoiceId.value = ''
@@ -429,6 +442,7 @@ const closeInvoiceTab = async (tab) => {
     router.push('/sales-counter/list')
     return
   }
+
   if (closingActive) {
     const last = openInvoices.value.at(-1)
     activeInvoiceId.value = String(last.id)
@@ -437,10 +451,10 @@ const closeInvoiceTab = async (tab) => {
   }
 }
 
-watch(activeInvoiceId, async (newId, oldId) => {
-  if (!newId || newId === oldId) return
-  if (route.params.id !== newId) {
-    router.replace({ name: 'CounterSalesDisplay', params: { id: newId } })
+watch(activeInvoiceId, async (nid, oid) => {
+  if (!nid || nid === oid) return
+  if (route.params.id !== nid) {
+    router.replace({ name: 'CounterSalesDisplay', params: { id: nid } })
   }
   await loadActiveInvoice()
 })
@@ -448,7 +462,7 @@ watch(activeInvoiceId, async (newId, oldId) => {
 watch(() => route.params.id, async (nid) => {
   if (!nid) return
   const num = Number(nid)
-  if (!openInvoices.value.some((t) => t.id === num)) {
+  if (!openInvoices.value.some(t => t.id === num)) {
     openInvoices.value.push({ id: num, code: '' })
   }
   activeInvoiceId.value = String(num)
@@ -464,7 +478,7 @@ const productLoading = ref(false)
 
 const productDialogVisible = ref(false)
 const currentProduct = ref(null)
-const attributes = ref([])
+const attributes = ref([])       // biến thể (size/color/quantity)
 const sizes = ref([])
 const colors = ref([])
 const selectedSizeId = ref('')
@@ -500,15 +514,15 @@ const debounce = (fn, delay) => {
   }
 }
 
-/* ----------------- API ----------------- */
+/* ----------------- API: Invoice/Voucher ----------------- */
 const fetchInvoiceDetails = async (id) => {
   if (!id) return
   try {
     const { data } = await apiClient.get(`/admin/counter-sales/${id}/details`)
     invoiceDetails.value = data
-    appliedVoucher.value = data.invoice?.voucher || null
-    const t = openInvoices.value.find((x) => x.id === id)
-    if (t) t.code = data.invoice?.invoiceCode || t.code
+    appliedVoucher.value = data?.invoice?.voucher || null
+    const tab = openInvoices.value.find(x => x.id === id)
+    if (tab) tab.code = data?.invoice?.invoiceCode || tab.code
   } catch {
     ElMessage.error('Lỗi khi tải chi tiết hóa đơn.')
     invoiceDetails.value = null
@@ -522,7 +536,7 @@ const fetchVoucherByInvoiceId = async (id) => {
   vouchers.value = []
   try {
     const res = await apiClient.get(`/admin/vouchers/by-invoice/${id}`)
-    vouchers.value = res.data || []
+    vouchers.value = Array.isArray(res.data) ? res.data : (res.data?.data || [])
   } catch {
     voucherError.value = 'Chưa chọn khách hàng hoặc không có voucher phù hợp.'
   } finally {
@@ -530,73 +544,103 @@ const fetchVoucherByInvoiceId = async (id) => {
   }
 }
 
-const loadActiveInvoice = async () => {
-  if (!invoiceId.value) return
-  await Promise.all([
-    fetchInvoiceDetails(invoiceId.value),
-    fetchVoucherByInvoiceId(invoiceId.value),
-  ])
-}
-
 /* ----------------- Sản phẩm (tìm & phân trang) ----------------- */
 const pagination = ref({ currentPage: 1, pageSize: 5, totalPages: 1, totalElements: 0 })
+
+const parseProductSearchResponse = (data) => {
+  // Hỗ trợ nhiều dạng response backend
+  // Dữ liệu
+  let list = []
+  if (Array.isArray(data)) list = data
+  else if (Array.isArray(data?.data)) list = data.data
+  else if (Array.isArray(data?.content)) list = data.content
+  else if (Array.isArray(data?.page?.content)) list = data.page.content
+  // Phân trang
+  const totalElements =
+    data?.pagination?.totalElements ??
+    data?.page?.totalElements ??
+    data?.totalElements ??
+    list.length
+  const size =
+    data?.pagination?.pageSize ??
+    data?.page?.size ??
+    pagination.value.pageSize
+  const number =
+    (data?.pagination?.currentPage ?? data?.page?.number ?? 0) + (data?.page ? 1 : 0) || pagination.value.currentPage
+  const totalPages =
+    data?.pagination?.totalPages ?? data?.page?.totalPages ?? Math.ceil((totalElements || 0) / (size || 1))
+
+  return {
+    list,
+    page: {
+      currentPage: number || 1,
+      pageSize: size || 5,
+      totalElements: totalElements || 0,
+      totalPages: totalPages || 1,
+    }
+  }
+}
+
 const fetchProducts = async (page = 1) => {
   productLoading.value = true
   try {
+    // Ưu tiên API search POST
     const { data } = await apiClient.post('/admin/products/search', {
       keyword: searchTerm.value.trim(),
       page: page - 1,
       size: pagination.value.pageSize,
     })
-    products.value = data.data || []
-    pagination.value = {
-      ...data.pagination,
-      currentPage: data.pagination.currentPage,
-      totalElements: data.pagination.totalElements,
-    }
+    const parsed = parseProductSearchResponse(data)
+    products.value = parsed.list || []
+    pagination.value = parsed.page
   } catch {
-    ElMessage.error('Lỗi khi tải sản phẩm.')
+    // Fallback: GET dạng phân trang chuẩn
+    try {
+      const { data } = await apiClient.get('/admin/products', {
+        params: { keyword: searchTerm.value.trim(), page: page - 1, size: pagination.value.pageSize }
+      })
+      const parsed = parseProductSearchResponse(data)
+      products.value = parsed.list || []
+      pagination.value = parsed.page
+    } catch {
+      ElMessage.error('Lỗi khi tải sản phẩm.')
+    }
   } finally {
     productLoading.value = false
   }
 }
+
 const changePage = (p) => {
   pagination.value.currentPage = p
   fetchProducts(p)
 }
+
 watch(searchTerm, debounce(() => fetchProducts(1), 250))
 
-/* ====== QUÉT QR: tăng nhạy + thêm giỏ NGAY (không tự tạo hóa đơn) ====== */
+/* ----------------- QR bằng Camera ----------------- */
 const qrDialogVisible = ref(false)
 const qrVideoRef = ref(null)
 const qrDevices = ref([])
 const selectedDeviceId = ref('')
 const qrScanning = ref(false)
 const qrMessage = ref('')
-
-// trạng thái quét tăng cường
 const boostedMode = ref(false)
-
-// Torch & stream
 const torchOn = ref(false)
 const canTorch = ref(false)
+
 let mediaStream = null
 let rafId = null
 let fallbackTimer = null
-
-// engine flags
 const useNativeDetector = 'BarcodeDetector' in window
 let barcodeDetector = null
 let zxingReader = null
 
-// guard chống chồng lệnh & chống quét trùng
 const handlingDecode = ref(false)
 const lastScannedCode = ref('')
 let lastScanAt = 0
 const DUP_WINDOW = 1200 // ms
 
 const openQrDialog = async () => {
-  // ❗ BẮT BUỘC PHẢI CÓ HÓA ĐƠN đang mở
   if (!invoiceId.value) {
     ElMessage.warning('Chưa có hóa đơn đang mở. Hãy tạo/chọn hóa đơn trước khi quét.')
     return
@@ -609,10 +653,10 @@ const openQrDialog = async () => {
 async function initQrDevices() {
   try {
     const devices = await navigator.mediaDevices.enumerateDevices()
-    const videos = devices.filter((d) => d.kind === 'videoinput')
+    const videos = devices.filter(d => d.kind === 'videoinput')
     qrDevices.value = videos
     if (!selectedDeviceId.value) {
-      const back = videos.find((d) => /back|trailing|environment/i.test(d.label))
+      const back = videos.find(d => /back|trailing|environment/i.test(d.label))
       selectedDeviceId.value = (back || videos[0])?.deviceId || ''
     }
   } catch {
@@ -621,7 +665,6 @@ async function initQrDevices() {
 }
 
 function buildConstraints() {
-  // Ưu tiên độ phân giải cao + autofocus
   const base = {
     width: { ideal: 1920 },
     height: { ideal: 1080 },
@@ -644,11 +687,10 @@ async function startQrScan() {
     video.srcObject = mediaStream
     await video.play()
 
-    // Torch capability
     canTorch.value = false
     torchOn.value = false
     const track = mediaStream.getVideoTracks()[0]
-    if (track && track.getCapabilities) {
+    if (track?.getCapabilities) {
       const caps = track.getCapabilities()
       canTorch.value = !!caps.torch
     }
@@ -656,24 +698,20 @@ async function startQrScan() {
     qrScanning.value = true
     qrMessage.value = 'Đưa mã QR vào khung…'
 
-    // 1) Native trước
     if (useNativeDetector) {
-      try { await window.BarcodeDetector.getSupportedFormats?.() } catch {}
       barcodeDetector = new window.BarcodeDetector({ formats: ['qr_code'] })
       nativeLoop()
-      // 2) Fallback tăng cường sau 1200ms nếu chưa có kết quả
       fallbackTimer = setTimeout(() => {
         if (qrScanning.value) {
-          startZXingFallback() // chạy song song
+          startZXingFallback()
           boostedMode.value = true
         }
       }, 1200)
     } else {
-      // Không có native → dùng ZXing luôn
       startZXingFallback()
       boostedMode.value = true
     }
-  } catch (e) {
+  } catch {
     qrMessage.value = 'Không thể mở camera. Kiểm tra quyền hoặc kết nối thiết bị.'
     qrScanning.value = false
   }
@@ -683,11 +721,11 @@ async function nativeLoop() {
   if (!qrScanning.value || !barcodeDetector) return
   try {
     const codes = await barcodeDetector.detect(qrVideoRef.value)
-    if (codes && codes.length) {
+    if (codes?.length) {
       const code = (codes[0]?.rawValue || '').trim()
-      if (code) await onQrDecoded(code) // KHÔNG dừng camera
+      if (code) await onQrDecoded(code)
     }
-  } catch { /* bỏ qua lỗi khung hình */ }
+  } catch { /* frame error ignore */ }
   rafId = requestAnimationFrame(nativeLoop)
 }
 
@@ -698,7 +736,7 @@ async function startZXingFallback() {
   zxingReader = new BrowserMultiFormatReader(hints, 0)
 
   try {
-    await zxingReader.decodeFromVideoElement(qrVideoRef.value, async (result, err) => {
+    await zxingReader.decodeFromVideoElement(qrVideoRef.value, async (result) => {
       if (result) {
         const code = result.getText()?.trim()
         if (code) await onQrDecoded(code)
@@ -706,7 +744,7 @@ async function startZXingFallback() {
     })
   } catch {
     try {
-      await zxingReader.decodeFromConstraints(buildConstraints(), qrVideoRef.value, async (result, err) => {
+      await zxingReader.decodeFromConstraints(buildConstraints(), qrVideoRef.value, async (result) => {
         if (result) {
           const code = result.getText()?.trim()
           if (code) await onQrDecoded(code)
@@ -730,9 +768,7 @@ async function toggleTorch() {
   }
 }
 
-async function restartQrScan() {
-  await startQrScan()
-}
+async function restartQrScan() { await startQrScan() }
 
 function stopQrScan() {
   qrScanning.value = false
@@ -743,7 +779,7 @@ function stopQrScan() {
   zxingReader = null
   barcodeDetector = null
   if (mediaStream) {
-    mediaStream.getTracks().forEach((t) => t.stop())
+    mediaStream.getTracks().forEach(t => t.stop())
     mediaStream = null
   }
 }
@@ -753,32 +789,47 @@ function closeCameraNow() {
 }
 onBeforeUnmount(() => stopQrScan())
 
-// ===== Helpers thêm vào giỏ =====
+/* ====== Thêm vào giỏ từ QR ====== */
 async function addDetailToInvoice(invoiceIdNum, pd) {
+  if (!pd?.id) throw new Error('Invalid ProductDetail from /scan')
   const payload = {
     productDetailId: pd.id,
     quantity: 1,
     ...(pd.discountCampaignId ? { discountCampaignId: pd.discountCampaignId } : {}),
   }
-  return apiClient.post(`/admin/counter-sales/${invoiceIdNum}/details`, payload)
-}
-async function bumpIfExists(pd) {
-  await fetchInvoiceDetails(invoiceId.value)
-  const line =
-    invoiceDetails.value?.details?.find(
-      d => d.productDetailId === pd.id || d.productDetail?.id === pd.id
-    )
-  if (line) {
-    await updateInvoiceDetailQuantity(line.id, (line.quantity || 0) + 1)
-    return true
+  const res = await apiClient.post(`/admin/counter-sales/${invoiceIdNum}/details`, payload)
+  // Nếu backend trả invoice đầy đủ -> cập nhật ngay; nếu không -> fetch lại
+  if (res.data?.invoice && Array.isArray(res.data?.details)) {
+    invoiceDetails.value = res.data
+  } else {
+    await fetchInvoiceDetails(invoiceIdNum)
   }
-  return false
+  return res
 }
 
-// ==== “ĂN LUÔN”: decode -> thêm vào giỏ ngay, SAU ĐÓ TẮT CAM ====
-// ❗ KHÔNG TỰ TẠO HÓA ĐƠN ở đây.
+async function updateInvoiceDetailQuantity(detailId, newQty) {
+  const { data } = await apiClient.put(`/admin/counter-sales/invoice-details/${detailId}/quantity`, null, {
+    params: { quantity: newQty },
+  })
+  // Backend có thể trả lại toàn bộ invoice; nếu không, fetch
+  if (data?.invoice && Array.isArray(data?.details)) {
+    invoiceDetails.value = data
+  } else {
+    await fetchInvoiceDetails(invoiceId.value)
+  }
+  return data
+}
+
 async function onQrDecoded(code) {
   const now = Date.now()
+
+  // Không đọc được mã → báo lỗi + tắt cam
+  if (!code || !code.trim()) {
+    ElMessage.error('Không đọc được mã QR. Vui lòng đưa mã gần hơn hoặc đủ sáng.')
+    closeCameraNow()
+    return
+  }
+
   if (code === lastScannedCode.value && now - lastScanAt < DUP_WINDOW) return
   lastScannedCode.value = code
   lastScanAt = now
@@ -786,53 +837,78 @@ async function onQrDecoded(code) {
   handlingDecode.value = true
 
   try {
-    // 0) Nếu vì lý do gì đó không còn invoice active → chặn, đóng cam
+    // Chưa có hóa đơn đang mở → tắt cam + cảnh báo
     if (!invoiceId.value) {
       ElMessage.warning('Chưa có hóa đơn đang mở. Hãy tạo/chọn hóa đơn trước khi quét.')
       closeCameraNow()
       return
     }
 
-    // 1) Lấy SPCT từ API scan (ProductDetailResponse)
+    // 1) Tra cứu SPCT theo QR
     const { data: pd } = await apiClient.get('/admin/products/scan', { params: { code } })
 
-    // 2) Thêm vào giỏ (không tạo invoice mới nếu lỗi)
-    await addDetailToInvoice(invoiceId.value, pd).catch(async (err) => {
+    // Mã QR không hợp lệ/không có sản phẩm → tắt cam + báo lỗi
+    if (!pd?.id) {
+      ElMessage.error('Mã QR không hợp lệ hoặc sản phẩm không tồn tại.')
+      closeCameraNow()
+      return
+    }
+
+    // 2) Thêm vào giỏ; nếu trùng dòng thì tăng SL
+    try {
+      await addDetailToInvoice(invoiceId.value, pd)
+    } catch (err) {
       const msg = err?.response?.data?.message || err?.response?.data || ''
-      if (/tồn tại|duplicate|đã có/i.test(msg)) {
-        const bumped = await bumpIfExists(pd)
-        if (bumped) return
+      if (/tồn tại|duplicate|đã có|exists/i.test(String(msg))) {
+        await fetchInvoiceDetails(invoiceId.value)
+        const line = invoiceDetails.value?.details?.find(
+          d => d.productDetailId === pd.id || d.productDetail?.id === pd.id
+        )
+        if (line) {
+          await updateInvoiceDetailQuantity(line.id, (line.quantity || 0) + 1)
+        } else {
+          // Không tìm thấy dòng để tăng → xem như lỗi
+          throw err
+        }
+      } else {
+        // Lỗi khác → ném lên để rơi vào catch chung (tắt cam)
+        throw err
       }
-      throw err
-    })
+    }
 
-    // 3) Refresh giỏ
+    // 3) Refresh & UX
     await fetchInvoiceDetails(invoiceId.value)
-
-    // 4) UX
     try { navigator.vibrate?.(80) } catch {}
     const variant = [pd.sizeName, pd.colorName].filter(Boolean).join(' / ') || ''
     ElMessage.success(`+1 ${pd.productName}${variant ? ' (' + variant + ')' : ''}`)
-    qrMessage.value = `Đã thêm: ${pd.productName}${variant ? ' (' + variant + ')' : ''}`
 
-    // 5) TẮT CAMERA + đóng dialog sau khi thêm thành công
+    // 4) Thành công → tắt cam
     closeCameraNow()
   } catch (e) {
     const status = e?.response?.status
     const body = e?.response?.data
-    const msg = (body && (body.message || body.error || body.msg || body)) || e?.message || 'Lỗi không xác định.'
+    const msg =
+      (body && (body.message || body.error || body.msg || body)) ||
+      e?.message ||
+      'Có lỗi xảy ra khi xử lý mã QR.'
+
+    // Cập nhật message hiển thị trong dialog (nếu bạn vẫn mở), và hiện toast
     qrMessage.value = `[${status || 'ERR'}] ${msg}`
-    console.warn('Add-to-cart failed:', e?.response || e)
+    ElMessage.error(msg)
+
+    // LỖI → tắt cam ngay
+    closeCameraNow()
   } finally {
     handlingDecode.value = false
   }
 }
 
-/* ----------------- Thuộc tính thủ công (khi chọn từ bảng) ----------------- */
+
+/* ----------------- Chọn thuộc tính thủ công (từ bảng SP) ----------------- */
 const maxQuantity = computed(() => {
   if (!currentProduct.value || !selectedSizeId.value || !selectedColorId.value) return 0
   const attr = attributes.value.find(
-    (a) => a.size?.id === selectedSizeId.value && a.color?.id === selectedColorId.value,
+    a => a.size?.id === selectedSizeId.value && a.color?.id === selectedColorId.value
   )
   return Number(attr?.quantity || 0)
 })
@@ -841,9 +917,9 @@ const openProductDialog = async (product) => {
   currentProduct.value = product
   try {
     const { data: attrs } = await apiClient.get(`/admin/counter-sales/${product.id}/attributes`)
-    attributes.value = attrs
-    sizes.value = [...new Map(attrs.filter((a) => a.size).map((a) => [a.size.id, a.size])).values()]
-    colors.value = [...new Map(attrs.filter((a) => a.color).map((a) => [a.color.id, a.color])).values()]
+    attributes.value = Array.isArray(attrs) ? attrs : (attrs?.data || [])
+    sizes.value = [...new Map(attributes.value.filter(a => a.size).map(a => [a.size.id, a.size])).values()]
+    colors.value = [...new Map(attributes.value.filter(a => a.color).map(a => [a.color.id, a.color])).values()]
     selectedSizeId.value = ''
     selectedColorId.value = ''
     selectedQuantity.value = 1
@@ -852,6 +928,7 @@ const openProductDialog = async (product) => {
     ElMessage.error('Không thể lấy thuộc tính sản phẩm.')
   }
 }
+
 const closeProductDialog = () => {
   productDialogVisible.value = false
   currentProduct.value = null
@@ -859,14 +936,16 @@ const closeProductDialog = () => {
   sizes.value = []
   colors.value = []
 }
+
 const confirmAddProduct = async () => {
   const id = invoiceDetails.value?.invoice?.id
   if (!id) return ElMessage.warning('Hóa đơn không hợp lệ.')
 
   const matched = attributes.value.find(
-    (a) => a.size?.id === selectedSizeId.value && a.color?.id === selectedColorId.value
+    a => a.size?.id === selectedSizeId.value && a.color?.id === selectedColorId.value
   )
   if (!matched) return ElMessage.warning('Vui lòng chọn đủ size & màu.')
+  if (maxQuantity.value === 0) return ElMessage.warning('Biến thể này đã hết hàng.')
 
   if (addingProduct.value) return
   addingProduct.value = true
@@ -891,16 +970,10 @@ const confirmAddProduct = async () => {
   }
 }
 
-/* ----------------- Sửa số lượng giỏ ----------------- */
-const updateInvoiceDetailQuantity = async (detailId, newQty) => {
-  const { data } = await apiClient.put(`/admin/counter-sales/invoice-details/${detailId}/quantity`, null, {
-    params: { quantity: newQty },
-  })
-  return data
-}
+/* ----------------- Sửa số lượng/Xóa dòng ----------------- */
 const increaseQuantity = async (row) => {
   try {
-    invoiceDetails.value = await updateInvoiceDetailQuantity(row.id, row.quantity + 1)
+    await updateInvoiceDetailQuantity(row.id, (row.quantity || 0) + 1)
   } catch (e) {
     ElMessage.error(e?.response?.data?.message || 'Không thể tăng số lượng.')
   }
@@ -908,7 +981,7 @@ const increaseQuantity = async (row) => {
 const decreaseQuantity = async (row) => {
   if (row.quantity <= 1) return
   try {
-    invoiceDetails.value = await updateInvoiceDetailQuantity(row.id, row.quantity - 1)
+    await updateInvoiceDetailQuantity(row.id, (row.quantity || 0) - 1)
   } catch (e) {
     ElMessage.error(e?.response?.data?.message || 'Không thể giảm số lượng.')
   }
@@ -945,15 +1018,15 @@ const selectCustomer = async (customer) => {
 }
 const createCustomerDialog = ref(null)
 const openCreateCustomerDialog = () => createCustomerDialog.value?.openDialog()
-const handleCustomerCreated = (c) => (createdCustomer.value = c)
 const createdCustomer = ref(null)
+const handleCustomerCreated = (c) => (createdCustomer.value = c)
 const selectCreatedCustomer = async () => {
   if (!createdCustomer.value) return
   await selectCustomer(createdCustomer.value)
   createdCustomer.value = null
 }
 
-/* ---- Voucher apply/remove ---- */
+/* ----------------- Voucher ----------------- */
 const applyVoucher = async (code) => {
   if (!invoiceId.value) return
   try {
@@ -1011,7 +1084,7 @@ const autoApplyBestVoucher = async (invoiceIdParam) => {
   }
 }
 
-/* ----------------- Thanh toán ----------------- */
+/* ----------------- Thanh toán/Hủy ----------------- */
 function onCustomerPaidInput() {
   const numeric = customerPaidInput.value.replace(/[^\d]/g, '')
   customerPaid.value = Number(numeric)
@@ -1025,6 +1098,7 @@ function calculateChange() {
   errorMessage.value =
     customerPaid.value > 0 && customerPaid.value < finalAmount ? 'Tiền khách đưa chưa đủ.' : ''
 }
+
 const checkoutInvoice = async () => {
   if (!invoiceId.value) return ElMessage.error('Hóa đơn không hợp lệ!')
   if (!invoiceDetails.value?.details?.length) return ElMessage.error('Giỏ hàng trống!')
@@ -1050,7 +1124,8 @@ const checkoutInvoice = async () => {
       URL.revokeObjectURL(url)
     }
 
-    openInvoices.value = openInvoices.value.filter((t) => t.id !== invoiceId.value)
+    // Đóng tab hiện tại
+    openInvoices.value = openInvoices.value.filter(t => t.id !== invoiceId.value)
     const last = openInvoices.value.at(-1)
     activeInvoiceId.value = last ? String(last.id) : ''
     if (activeInvoiceId.value) await loadActiveInvoice()
@@ -1061,6 +1136,7 @@ const checkoutInvoice = async () => {
     isLoading.value = false
   }
 }
+
 const cancelInvoice = async () => {
   if (!invoiceId.value) return
   try {
@@ -1068,7 +1144,7 @@ const cancelInvoice = async () => {
     await apiClient.post(`/admin/counter-sales/${invoiceId.value}/cancel`)
     ElMessage.success('Đã hủy hóa đơn.')
 
-    openInvoices.value = openInvoices.value.filter((t) => t.id !== invoiceId.value)
+    openInvoices.value = openInvoices.value.filter(t => t.id !== invoiceId.value)
     const last = openInvoices.value.at(-1)
     activeInvoiceId.value = last ? String(last.id) : ''
     if (activeInvoiceId.value) await loadActiveInvoice()
@@ -1084,6 +1160,7 @@ const getTotalQuantity = computed(() =>
     ? invoiceDetails.value.details.reduce((s, it) => s + Number(it.quantity || 0), 0)
     : 0
 )
+
 const tableSummary = ({ data, columns }) => {
   const sums = []
   columns.forEach((col, idx) => {
@@ -1104,13 +1181,14 @@ const tableSummary = ({ data, columns }) => {
 onMounted(async () => {
   if (route.params.id) {
     const idNum = Number(route.params.id)
-    if (!openInvoices.value.some((t) => t.id === idNum)) openInvoices.value.push({ id: idNum, code: '' })
+    if (!openInvoices.value.some(t => t.id === idNum)) openInvoices.value.push({ id: idNum, code: '' })
     activeInvoiceId.value = String(idNum)
     await loadActiveInvoice()
   }
   fetchProducts()
 })
 </script>
+
 
 <style scoped>
 /* Layout tổng thể */

@@ -1,6 +1,6 @@
 <template>
   <div class="pd-wrapper" :class="{ 'has-variant-selected': !!selectedDetail }">
-    <!-- Breadcrumb -->
+    <!-- ===== Breadcrumb ===== -->
     <div class="pd-breadcrumb">
       <RouterLink to="/">Trang chủ</RouterLink>
       <span class="sep">/</span>
@@ -17,7 +17,7 @@
     </div>
 
     <el-row :gutter="24" class="product-detail">
-      <!-- Thumbnails -->
+      <!-- ===== Thumbnails ===== -->
       <el-col :span="3" class="pd-thumbs-col">
         <div class="thumbnail-list">
           <img
@@ -34,7 +34,7 @@
         </div>
       </el-col>
 
-      <!-- Ảnh chính -->
+      <!-- ===== Ảnh chính ===== -->
       <el-col :span="9">
         <div class="main-image-container">
           <img :src="mainImage" alt="Ảnh chính" class="main-image" />
@@ -55,7 +55,7 @@
         </div>
       </el-col>
 
-      <!-- Thông tin sản phẩm -->
+      <!-- ===== Thông tin sản phẩm ===== -->
       <el-col :span="12">
         <div class="pd-head">
           <h1 class="product-name">{{ product.productName }}</h1>
@@ -72,7 +72,7 @@
 
         <p class="product-code">Style Code: {{ product.productCode }}</p>
 
-        <!-- Giá -->
+        <!-- ===== Giá ===== -->
         <div v-if="selectedDetail" class="product-price variant">
           <template v-if="Number(displayPrice.discounted) > 0 && Number(displayPrice.discounted) < Number(displayPrice.original)">
             <span class="original-price">{{ money(displayPrice.original) }}</span>
@@ -93,7 +93,7 @@
           </template>
         </div>
 
-        <!-- Màu -->
+        <!-- ===== Màu ===== -->
         <div class="color-selector" v-if="uniqueColors.length">
           <div class="selector-title">Màu sắc</div>
           <div class="color-swatches">
@@ -112,7 +112,7 @@
           </div>
         </div>
 
-        <!-- Size -->
+        <!-- ===== Size ===== -->
         <div class="size-selector" v-if="availableSizes.length">
           <div class="size-header">
             <div class="selector-title">Kích thước</div>
@@ -143,38 +143,50 @@
           </div>
         </div>
 
-        <!-- Số lượng -->
+        <!-- ===== Số lượng & tồn ===== -->
         <div class="qty-row" v-if="selectedDetail">
           <span class="stock" :class="{ low: Number(selectedDetail.quantity) <= 5 }">
             Còn {{ selectedDetail.quantity }} sản phẩm
           </span>
           <div class="qty-actions">
-            <el-input-number v-model="quantity" :min="1" :max="Number(selectedDetail.quantity) || 1" size="small" />
+            <el-input-number
+              v-model="quantity"
+              :min="1"
+              :max="Number(selectedDetail.quantity) || 1"
+              size="small"
+            />
           </div>
         </div>
 
-        <!-- Actions -->
+        <!-- ===== Action buttons ===== -->
         <div class="action-buttons">
-          <el-button class="add-to-cart-btn" @click="handleAddToCart" :disabled="!selectedDetail">THÊM VÀO GIỎ</el-button>
-          <el-button class="buy-now-btn" @click="handleBuyNow" :disabled="!selectedDetail">MUA NGAY</el-button>
+          <el-button
+            class="add-to-cart-btn"
+            @click="handleAddToCart"
+            :disabled="!selectedDetail"
+          >
+            THÊM VÀO GIỎ
+          </el-button>
+          <el-button
+            class="buy-now-btn"
+            @click="handleBuyNow"
+            :disabled="!selectedDetail"
+          >
+            MUA NGAY
+          </el-button>
         </div>
 
-        <!-- Khuyến mãi -->
-<div class="promotions-section">
-  <div class="promotion-item">
-    <p class="promotion-title">
-      <span class="dot">●</span> Ghi chú sản phẩm
-    </p>
-    <p class="promotion-text">
-      {{ product.description || 'Không có ghi chú' }}
-    </p>
-  </div>
-</div>
-
+        <!-- ===== Ghi chú / mô tả ===== -->
+        <div class="promotions-section">
+          <div class="promotion-item">
+            <p class="promotion-title"><span class="dot">●</span> Ghi chú sản phẩm</p>
+            <p class="promotion-text">{{ product.description || 'Không có ghi chú' }}</p>
+          </div>
+        </div>
       </el-col>
     </el-row>
 
-    <!-- Liên quan -->
+    <!-- ===== Liên quan ===== -->
     <div class="related-wrapper" v-if="related.items.length">
       <div class="related-header">
         <div class="related-title">
@@ -199,7 +211,10 @@
           <div class="related-card" @click="goToDetail(rp.id)">
             <div class="related-image">
               <img :src="rp.activeImage" :alt="rp.productName" class="related-img" loading="lazy" decoding="async" />
-              <span v-if="Number(rp.discountedPrice) > 0 && Number(rp.discountedPrice) < Number(rp.sellPrice)" class="badge">
+              <span
+                v-if="Number(rp.discountedPrice) > 0 && Number(rp.discountedPrice) < Number(rp.sellPrice)"
+                class="badge"
+              >
                 -{{ rp.discountPercentage }}%
               </span>
             </div>
@@ -219,6 +234,27 @@
         </el-col>
       </el-row>
     </div>
+
+    <!-- ===== CONTACT STAFF (SL ≥ NGAY_MAX_QTY) ===== -->
+    <el-dialog
+      v-model="contactDialogVisible"
+      title="Liên hệ nhân viên để đặt số lượng lớn"
+      width="520px"
+    >
+      <div class="contact-block">
+        <p>Đơn online không hỗ trợ đặt <strong>số lượng từ {{ NGAY_MAX_QTY }}</strong> đôi trở lên.</p>
+        <p>Vui lòng liên hệ nhân viên để được hỗ trợ:</p>
+        <ul class="contact-list">
+          <li>Hotline: <a :href="`tel:${hotline}`">{{ hotline }}</a></li>
+          <li>Zalo/WhatsApp: <a :href="zaloLink" target="_blank" rel="noopener">Chat ngay</a></li>
+          <li>Facebook: <a :href="facebookLink" target="_blank" rel="noopener">Fanpage</a></li>
+        </ul>
+      </div>
+      <template #footer>
+        <el-button @click="contactDialogVisible = false">Đóng</el-button>
+        <el-button type="primary" @click="contactDialogVisible = false">Đã hiểu</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -226,17 +262,54 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import axios from 'axios'
 import { addToCart } from '@/utils/cart'
+import apiClient from '@/utils/axiosInstance'
 
-/* API base */
-const API = axios.create({ baseURL: 'http://localhost:8080/api' })
+/* ========== Cấu hình giới hạn & liên hệ ========== */
+const NGAY_MAX_QTY = 10 // ngưỡng chặn mua/giỏ
+const hotline = '09xx xxx xxx'                 // TODO: thay số thật
+const zaloLink = 'https://zalo.me/09xxxxxxxx'  // TODO
+const facebookLink = 'https://facebook.com/yourpage' // TODO
+const contactDialogVisible = ref(false)
+const showBulkDialog = () => {
+  contactDialogVisible.value = true
+  ElMessage.warning(`Số lượng lớn (≥ ${NGAY_MAX_QTY} đôi). Vui lòng liên hệ nhân viên để đặt hàng.`)
+}
 
-/* Router */
+/* ========== Router ========== */
 const route = useRoute()
 const router = useRouter()
 
-/* ====== Color map (VN + EN) ====== */
+/* ========== State sản phẩm ========== */
+const product = ref({
+  id: null,
+  productName: 'Đang tải…',
+  productCode: '…',
+  sellPrice: 0,
+  discountedPrice: 0,
+  brandId: null,
+  brandName: '',
+  brand: null,
+  description: '',
+  productDetails: [],
+})
+
+/* ========== Ảnh theo màu ========== */
+const colorSpecificImages = ref([])
+const currentImageIndex = ref(0)
+const isLoadingImages = ref(false)
+
+/* ========== Lựa chọn ========== */
+const selectedColor = ref(null)
+const selectedSize = ref(null)
+const quantity = ref(1)
+const isSizeGuideVisible = ref(false)
+
+/* ========== Helpers ========== */
+const money = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(n || 0))
+const imgSrc = (img) => (img?.image ? `data:image/jpeg;base64,${img.image}` : (img?.url || '/no-image.jpg'))
+
+/* Màu chuẩn hóa (VN/EN/tên CSS) */
 const colorMap = {
   'đen':'#000000','trắng':'#FFFFFF','đỏ':'#FF0000','xanh dương':'#0000FF','xanh lá':'#008000','xám':'#808080',
   'bạc':'#C0C0C0','hồng':'#FFC0CB','vàng':'#FFFF00','tím':'#800080','cam':'#FFA500','nâu':'#A52A2A',
@@ -248,63 +321,33 @@ const colorMap = {
 const getColorHex = (name) => {
   if (!name) return '#ccc'
   const key = String(name).trim().toLowerCase()
-  // nếu key không có trong map nhưng là tên màu CSS hợp lệ (vd: cyan), trả về chính key
   return colorMap[key] || key
 }
 const isLightColor = (hexOrName) => {
-  // nhận HEX (#RRGGBB) hoặc tên màu css — cố gắng parse
   let hex = hexOrName
   if (!hex) return false
   if (!hex.startsWith('#')) {
-    // tên màu -> tạo canvas để lấy computed color (fallback false nếu không có DOM/canvas)
     try {
       const ctx = document.createElement('canvas').getContext('2d')
       ctx.fillStyle = hexOrName
-      hex = ctx.fillStyle  // trình duyệt chuyển tên sang rgb(...)
-      // convert rgb(...) -> hex
-      const m = /^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/.exec(hex)
+      const rgb = ctx.fillStyle
+      const m = /^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/.exec(rgb)
       if (m) {
         const r = (+m[1]).toString(16).padStart(2,'0')
         const g = (+m[2]).toString(16).padStart(2,'0')
         const b = (+m[3]).toString(16).padStart(2,'0')
         hex = `#${r}${g}${b}`
       }
-    } catch (_) { return false }
+    } catch { return false }
   }
-  // #RRGGBB
   const r = parseInt(hex.slice(1,3),16)
   const g = parseInt(hex.slice(3,5),16)
   const b = parseInt(hex.slice(5,7),16)
-  // perceived luminance
   const L = 0.2126*r + 0.7152*g + 0.0722*b
-  return L > 200 // khá sáng
+  return L > 200
 }
 
-/* State */
-const product = ref({
-  id: null,
-  productName: 'Đang tải…',
-  productCode: '…',
-  sellPrice: 0,
-  discountedPrice: 0,
-  brandId: null,
-  brandName: '',
-  brand: null,
-  productDetails: [],
-})
-const colorSpecificImages = ref([])
-const currentImageIndex = ref(0)
-const isLoadingImages = ref(false)
-const selectedColor = ref(null)
-const selectedSize = ref(null)
-const quantity = ref(1)
-const isSizeGuideVisible = ref(false)
-
-/* Helpers */
-const money = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(n || 0))
-const imgSrc = (img) => (img?.image ? `data:image/jpeg;base64,${img.image}` : (img?.url || '/no-image.jpg'))
-
-/* Brand */
+/* ========== Brand computed ========== */
 const brandId = computed(() => product.value?.brandId ?? product.value?.brand?.id ?? null)
 const brandName = computed(() =>
   product.value?.brandName
@@ -313,14 +356,14 @@ const brandName = computed(() =>
   ?? ''
 )
 
-/* Ảnh chính */
+/* ========== Ảnh chính ========== */
 const mainImage = computed(() => {
   if (isLoadingImages.value) return '/loading-placeholder.gif'
   if (!colorSpecificImages.value.length) return '/no-image.jpg'
   return imgSrc(colorSpecificImages.value[currentImageIndex.value])
 })
 
-/* Màu & size */
+/* ========== Màu & size ========== */
 const uniqueColors = computed(() => {
   const m = new Map()
   ;(product.value.productDetails || []).forEach(d => {
@@ -336,6 +379,7 @@ const availableSizes = computed(() => {
       (product.value.productDetails || [])
         .filter(d => d.colorName === selectedColor.value)
         .map(d => d.sizeName)
+        .filter(Boolean)
     )
   ).sort((a, b) => {
     const na = Number(a), nb = Number(b)
@@ -344,7 +388,7 @@ const availableSizes = computed(() => {
   })
 })
 
-/* Biến thể & giá hiển thị */
+/* ========== Biến thể & giá hiển thị ========== */
 const findSelectedDetail = () =>
   (product.value.productDetails || []).find(d => d.colorName === selectedColor.value && d.sizeName === selectedSize.value)
 
@@ -364,7 +408,7 @@ const displayPrice = computed(() => {
   return { original: null, discounted: product.value.sellPrice }
 })
 
-/* Liên quan */
+/* ========== Liên quan ========== */
 const related = ref({ items: [], pageSize: 8 })
 const normalizeProduct = (p) => {
   const images = Array.isArray(p.productImages) ? p.productImages : []
@@ -385,10 +429,10 @@ const normalizeProduct = (p) => {
   return { ...p, variants, activeImage: variants[0]?.image || firstImg || '/no-image.jpg' }
 }
 
-/* Methods */
+/* ========== API calls ========== */
 const fetchProduct = async () => {
   const id = route.params.id
-  const { data } = await API.get(`/online-sale/${id}`)
+  const { data } = await apiClient.get(`/online-sale/${id}`)
   product.value = data
 }
 
@@ -397,7 +441,7 @@ const fetchImagesForColor = async (colorId) => {
   isLoadingImages.value = true
   try {
     const productId = route.params.id
-    const { data } = await API.get(`/admin/product-images`, { params: { productId, colorId } })
+    const { data } = await apiClient.get(`/online-sale/product-images`, { params: { productId, colorId } })
     colorSpecificImages.value = Array.isArray(data) ? data : []
     currentImageIndex.value = 0
   } finally {
@@ -405,6 +449,23 @@ const fetchImagesForColor = async (colorId) => {
   }
 }
 
+const fetchRelated = async () => {
+  related.value.items = []
+  if (!brandId.value) return
+  try {
+    const { data } = await apiClient.get(`/online-sale/brands/${brandId.value}/products`, { params: { page: 0, size: related.value.pageSize + 1 } })
+    const payload = data ?? {}
+    const list = Array.isArray(payload.content) ? payload.content
+               : Array.isArray(payload.data?.content) ? payload.data.content
+               : Array.isArray(payload) ? payload : []
+    related.value.items = list
+      .filter(p => p && p.id !== product.value.id)
+      .slice(0, related.value.pageSize)
+      .map(normalizeProduct)
+  } catch {}
+}
+
+/* ========== UI events ========== */
 const selectColor = (c) => {
   selectedColor.value = c.name
   selectedSize.value = null
@@ -412,18 +473,24 @@ const selectColor = (c) => {
   fetchImagesForColor(c.id)
 }
 const selectSize = (s) => { selectedSize.value = s; quantity.value = 1 }
-
 const setMainImageByIndex = (i) => { currentImageIndex.value = i }
 const nextImage = () => { if (colorSpecificImages.value.length) currentImageIndex.value = (currentImageIndex.value + 1) % colorSpecificImages.value.length }
 const prevImage = () => { if (colorSpecificImages.value.length) currentImageIndex.value = (currentImageIndex.value - 1 + colorSpecificImages.value.length) % colorSpecificImages.value.length }
 
+/* ========== Cart / Buy now với giới hạn SL ========== */
 const handleAddToCart = () => {
   if (!selectedColor.value || !selectedSize.value) {
     return ElMessage.warning('Vui lòng chọn màu & kích thước!')
   }
-
   const d = findSelectedDetail()
   if (!d) return ElMessage.error('Không tìm thấy biến thể phù hợp!')
+
+  // Chặn SL lớn
+  if (Number(quantity.value) >= NGAY_MAX_QTY) {
+    showBulkDialog()
+    return
+  }
+
   if (quantity.value > Number(d.quantity || 0)) {
     return ElMessage.warning(`Chỉ còn ${d.quantity} sản phẩm.`)
   }
@@ -444,49 +511,25 @@ const handleAddToCart = () => {
   }
 
   addToCart(cartItem)
-  console.log('✅ Đã thêm vào giỏ:', cartItem)
-  console.table(cartItem)
   ElMessage.success('Đã thêm vào giỏ hàng!')
 }
 
 const handleBuyNow = () => {
+  // Chặn SL lớn
+  if (Number(quantity.value) >= NGAY_MAX_QTY) {
+    showBulkDialog()
+    return
+  }
   handleAddToCart()
   if (selectedDetail.value) router.push('/cart')
 }
 
-const fetchRelated = async () => {
-  related.value.items = []
-  const id = route.params.id
-
-  // Ưu tiên: endpoint liên quan mới
-  try {
-    const { data } = await API.get(`/online-sale/${id}/related`, { params: { limit: related.value.pageSize } })
-    const list = Array.isArray(data) ? data : (Array.isArray(data?.content) ? data.content : [])
-    related.value.items = list.map(normalizeProduct)
-    if (related.value.items.length) return
-  } catch (_) {}
-
-  // Fallback: theo brand
-  if (!brandId.value) return
-  try {
-    const { data } = await API.get(`/admin/brand/${brandId.value}/products`, { params: { page: 0, size: related.value.pageSize + 1 } })
-    const payload = data ?? {}
-    const list = Array.isArray(payload.content) ? payload.content
-               : Array.isArray(payload.data?.content) ? payload.data.content
-               : Array.isArray(payload) ? payload : []
-    related.value.items = list
-      .filter(p => p && p.id !== product.value.id)
-      .slice(0, related.value.pageSize)
-      .map(normalizeProduct)
-  } catch (_) {}
-}
-
+/* ========== Điều hướng chi tiết sp liên quan ========== */
 const goToDetail = (id) => router.push(`/product/${id}`)
 
-/* Lifecycle */
+/* ========== Lifecycle ========== */
 const initPage = async () => {
   await fetchProduct()
-  // Auto chọn màu/size đầu tiên
   const colors = uniqueColors.value
   if (colors.length) {
     selectColor(colors[0])
@@ -544,12 +587,12 @@ watch(brandId, fetchRelated)
   aspect-ratio: 1/1;
   object-fit: cover;
   display: block;
-  border: none;         /* bỏ viền */
-  border-radius: 0;     /* vuông */
+  border: none;
+  border-radius: 0;
   cursor: pointer;
 }
 .thumbnail.active {
-  outline: 2px solid #000; /* chỉ hiển thị khung đen cho ảnh active */
+  outline: 2px solid #000;
   outline-offset: -2px;
 }
 .thumbnail:hover { opacity: 0.9; }
@@ -613,7 +656,6 @@ watch(brandId, fetchRelated)
   cursor: pointer;
 }
 .color-swatch.selected { border: 2px solid #000; }
-/* màu sáng auto viền đậm để không bị chìm */
 .color-swatch.is-light { border-color: #333; }
 
 .size-selector { margin: 14px 0; }
@@ -662,6 +704,13 @@ watch(brandId, fetchRelated)
 .related-info .price { display: flex; gap: 8px; align-items: baseline; }
 .related-info .price .new { font-weight: 700; }
 .related-info .price .old { color: #999; text-decoration: line-through; }
+
+/* ==== Contact dialog ==== */
+.contact-block { font-size:14px; color:#333; }
+.contact-list { margin:10px 0 0; padding-left:18px; }
+.contact-list li { margin:4px 0; }
+.contact-list a { color:#409eff; text-decoration:none; }
+.contact-list a:hover { text-decoration:underline; }
 
 /* ==== Responsive ==== */
 @media (max-width: 992px) { .product-name { font-size: 24px; } }

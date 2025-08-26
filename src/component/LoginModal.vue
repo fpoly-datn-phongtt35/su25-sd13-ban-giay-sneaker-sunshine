@@ -55,9 +55,9 @@
 
 <script setup>
 import { ref, watch } from 'vue'
-import axios from 'axios'
 import { ElMessage } from 'element-plus'
 import { User, Lock, Right } from '@element-plus/icons-vue'
+import apiClient from '../utils/axiosInstance.js'
 
 // Props và Emits
 const props = defineProps({
@@ -90,7 +90,7 @@ const handleLogin = async () => {
     await loginFormRef.value.validate()
     loading.value = true
 
-    const res = await axios.post('http://localhost:8080/api/auth/login-user', loginForm.value)
+    const res = await apiClient.post('/auth/login-user', loginForm.value)
     const { token, employeeName, customerName, id } = res.data
 
     console.log('id:', id)
@@ -108,7 +108,6 @@ const handleLogin = async () => {
       localStorage.removeItem('cart_guest') // xoá giỏ hàng guest
     }
 
-    ElMessage.success('Đăng nhập thành công!')
     emit('loggedIn', { username: loginForm.value.username, employeeName, customerName, id, token })
     dialogVisible.value = false
   } catch (error) {

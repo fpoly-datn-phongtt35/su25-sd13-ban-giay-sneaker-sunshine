@@ -49,12 +49,9 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-// Import your pre-configured API client
 import apiClient from '@/utils/axiosInstance'
 import { ElMessage, ElMessageBox } from 'element-plus'
-// You might want to add icons here, for example:
 import { Plus, Edit, Delete, RefreshRight, CirclePlus } from '@element-plus/icons-vue'
-const loading = ref(false)
 const soles = ref([])
 const form = ref({ id: null, name: '' }) // 'name' for the form input
 const isEditing = ref(false)

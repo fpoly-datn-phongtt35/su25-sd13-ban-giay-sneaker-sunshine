@@ -1,111 +1,177 @@
 <template>
-  <div class="voucher-wrapper p-4">
-    <el-card shadow="hover" class="mb-4">
-      <div class="row g-3">
-        <div class="col-md-4 col-sm-6 mb-2">
-          <el-input
-            v-model="searchVoucher.keyword"
-            placeholder="Tìm mã, tên voucher"
-            size="small"
-            clearable
-          />
-        </div>
-        <div class="col-md-2 col-sm-6 mb-2">
-          <el-select v-model="searchVoucher.status" placeholder="Tất cả trạng thái" size="small" clearable>
-            <el-option :label="'Đang diễn ra'" :value="1" />
-            <el-option :label="'Ngừng hoạt động'" :value="0" />
-            <el-option :label="'Sắp diễn ra'" :value="2" />
-          </el-select>
-        </div>
-        <div class="col-md-2 col-sm-6 mb-2">
-          <el-select v-model="searchVoucher.orderType" placeholder="Tất cả loại đơn hàng" size="small" clearable>
-            <el-option :label="'Tại quầy'" :value="1" />
-            <el-option :label="'Online'" :value="2" />
-          </el-select>
-        </div>
-        <div class="col-md-4 col-sm-12 mb-2 d-flex gap-2">
-          <el-button type="primary" size="small" @click="fetchVoucher(0)">Tìm</el-button>
-          <el-button type="default" size="small" @click="resetForm">Xóa bộ lọc</el-button>
-          <el-button type="success" size="small" @click="exportExcel">Xuất Excel</el-button>
-          <el-button type="primary" size="small" @click="onAddVoucher">Thêm Voucher</el-button>
+  <div class="voucher-page">
+    <!-- Header -->
+    <div class="page-header">
+      <div class="title-wrap">
+        <el-icon class="title-icon"><Ticket /></el-icon>
+        <div>
+          <h2 class="title">Quản lý Voucher</h2>
+          <div class="subtitle">Tìm kiếm, xuất Excel và quản trị voucher</div>
         </div>
       </div>
+      <div class="header-actions">
+        <el-button type="success" size="small" @click="exportExcel">Xuất Excel</el-button>
+        <el-button type="primary" size="small" :icon="Plus" @click="onAddVoucher">Thêm Voucher</el-button>
+      </div>
+    </div>
+
+    <!-- Bộ lọc -->
+    <el-card shadow="never" class="filter-card">
+      <el-form :inline="true" :model="searchVoucher" class="filter-form" @submit.prevent>
+        <el-form-item>
+          <el-input
+            v-model="searchVoucher.keyword"
+            placeholder="Tìm mã / tên voucher"
+            clearable
+            class="w-72"
+            @keyup.enter="fetchVoucher(0)"
+          />
+        </el-form-item>
+
+        <el-form-item>
+          <el-select v-model="searchVoucher.status" placeholder="Trạng thái" clearable class="w-48" @change="fetchVoucher(0)">
+            <el-option label="Đang diễn ra" :value="1" />
+            <el-option label="Ngừng hoạt động" :value="0" />
+            <el-option label="Sắp diễn ra" :value="2" />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item>
+          <el-select v-model="searchVoucher.orderType" placeholder="Loại đơn hàng" clearable class="w-48" @change="fetchVoucher(0)">
+            <el-option label="Tại quầy" :value="1" />
+            <el-option label="Online" :value="2" />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item>
+          <el-select
+            v-model="searchVoucher.categoryIds"
+            placeholder="Danh mục"
+            clearable
+            filterable
+            class="w-60"
+            @change="fetchVoucher(0)"
+          >
+            <el-option
+              v-for="c in categoryList"
+              :key="c.id"
+              :label="c.name"
+              :value="c.id"
+            />
+          </el-select>
+        </el-form-item>
+
+        <div class="filter-buttons">
+          <el-button type="primary" size="small" @click="fetchVoucher(0)">Tìm</el-button>
+          <el-button size="small" @click="resetForm">Xóa bộ lọc</el-button>
+        </div>
+      </el-form>
     </el-card>
 
-    <el-card shadow="hover">
+    <!-- Bảng dữ liệu -->
+    <el-card shadow="never" class="table-card">
       <el-table
         :data="vouchers"
-        stripe
         border
+        stripe
+        size="large"
         style="width: 100%"
         :row-key="row => row.id"
         @selection-change="handleSelectionChange"
+        v-loading="loading"
+        element-loading-text="Đang tải dữ liệu..."
+        empty-text="Chưa có voucher phù hợp."
+        :height="tableHeight"
       >
-        <el-table-column type="selection" width="55" />
-        <el-table-column prop="voucherCode" label="Mã" width="200" />
-        <el-table-column prop="voucherName" label="Tên" width="200" />
-        <el-table-column
-          label="Giảm (%)"
-          width="200"
-          :formatter="row => formatDiscountPercent(row)"
-        />
-        <el-table-column
-          label="Tiền giảm"
-          width="200"
-          :formatter="row => formatDiscountAmount(row)"
-        />
-        <el-table-column
-          label="Tối thiểu"
-          width="170"
-          :formatter="row => formatCurrency(row, null, row.minOrderValue)"
-        />
-        <el-table-column
-          label="Tối đa"
-          width="170"
-          :formatter="row => formatCurrency(row, null, row.maxDiscountValue)"
-        />
-        <el-table-column
-          label="Bắt đầu"
-          width="200"
-          :formatter="row => formatDate(row, null, row.startDate)"
-        />
-        <el-table-column
-          label="Kết thúc"
-          width="200"
-          :formatter="row => formatDate(row, null, row.endDate)"
-        />
-        <el-table-column label="Thao tác" width="120">
-          <template #default="scope">
+        <el-table-column type="selection" width="56" />
+
+        <el-table-column prop="voucherCode" label="Mã" min-width="160">
+          <template #default="{ row }">
+            <span class="mono strong">{{ row.voucherCode || '-' }}</span>
+          </template>
+        </el-table-column>
+
+        <el-table-column prop="voucherName" label="Tên" min-width="260" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span class="text">{{ row.voucherName || '-' }}</span>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="Giảm (%)" width="120" align="center">
+          <template #default="{ row }">
+            <el-tag v-if="row.discountPercentage" type="warning" effect="light">
+              {{ Number(row.discountPercentage) }}%
+            </el-tag>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="Tiền giảm" width="160" align="right">
+          <template #default="{ row }">
+            <span class="mono">{{ row.discountAmount ? toVND(row.discountAmount) : '-' }}</span>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="Tối thiểu" width="160" align="right">
+          <template #default="{ row }">
+            <span class="mono">{{ row.minOrderValue ? toVND(row.minOrderValue) : '-' }}</span>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="Tối đa" width="160" align="right">
+          <template #default="{ row }">
+            <span class="mono">{{ row.maxDiscountValue ? toVND(row.maxDiscountValue) : '-' }}</span>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="Bắt đầu" width="190">
+          <template #default="{ row }">
+            <span class="mono">{{ formatDate(row.startDate) }}</span>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="Kết thúc" width="190">
+          <template #default="{ row }">
+            <span class="mono">{{ formatDate(row.endDate) }}</span>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="Loại đơn" width="130" align="center">
+          <template #default="{ row }">
+            <el-tag :type="row.orderType === 1 ? 'success' : row.orderType === 2 ? 'info' : 'default'" effect="light">
+              {{ row.orderType === 1 ? 'Tại quầy' : row.orderType === 2 ? 'Online' : '-' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+
+        <!-- <el-table-column label="Trạng thái" width="150" align="center">
+          <template #default="{ row }">
+            <el-tag :type="statusTagType(row.status)" effect="light">
+              {{ statusText(row.status) }}
+            </el-tag>
+          </template>
+        </el-table-column> -->
+
+        <el-table-column label="Thao tác" width="130" fixed="right" align="center">
+          <template #default="{ row }">
             <el-tooltip content="Sửa" placement="top">
-              <el-button
-                type="primary"
-                :icon="Edit"
-                size="small"
-                circle
-                @click="onEditVoucher(scope.row)"
-              />
+              <el-button type="primary" :icon="Edit" size="small" circle @click="onEditVoucher(row)" />
             </el-tooltip>
             <el-tooltip content="Xóa" placement="top">
-              <el-button
-                type="danger"
-                :icon="Delete"
-                size="small"
-                circle
-                @click="onDeleteVoucher(scope.row)"
-              />
+              <el-button type="danger" :icon="Delete" size="small" circle @click="onDeleteVoucher(row)" />
             </el-tooltip>
           </template>
         </el-table-column>
       </el-table>
 
-      <div class="d-flex justify-content-end mt-3">
+      <div class="pagination-wrap">
         <el-pagination
           background
           layout="total, sizes, prev, pager, next, jumper"
           :current-page="page + 1"
           :page-size="size"
           :total="totalElements"
-          :page-sizes="[5, 10, 20, 50]"
+          :page-sizes="[10, 20, 50, 100]"
           @current-change="handlePageChange"
           @size-change="handlePageSizeChange"
         />
@@ -115,36 +181,42 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import apiClient from '@/utils/axiosInstance'
-import { ElMessageBox, ElButton, ElIcon, ElMessage } from 'element-plus'
+import { ElMessageBox, ElMessage } from 'element-plus'
 import { Ticket, Edit, Delete, Plus } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 
 const vouchers = ref([])
-const totalElements = ref(0) // Đã đổi tên từ totalPages sang totalElements
+const totalElements = ref(0)
 const page = ref(0)
-const size = ref(10) // Mặc định 10 phần tử mỗi trang
+const size = ref(10)
 const categoryList = ref([])
 const selectedVouchers = ref([])
-const selectAll = ref(false)
+const loading = ref(false)
+
+const tableHeight = ref(560) // auto-fill theo viewport
+
+const computeTableHeight = () => {
+  // chừa header + filter + pagination
+  tableHeight.value = Math.max(420, window.innerHeight - 320)
+}
 
 const router = useRouter()
 
 const searchVoucher = ref({
   keyword: null,
-  status: null,
+  status: 1,
   orderType: null,
   voucherType: null,
   categoryIds: null,
   productId: null,
 })
 
-// Reset form tìm kiếm
 const resetForm = async () => {
   searchVoucher.value = {
     keyword: null,
-    status: null,
+    status: 1,
     orderType: null,
     voucherType: null,
     categoryIds: null,
@@ -152,11 +224,9 @@ const resetForm = async () => {
   }
   page.value = 0
   selectedVouchers.value = []
-  selectAll.value = false
   await fetchVoucher()
 }
 
-// Lấy danh mục
 const fetchCategories = async () => {
   try {
     const response = await apiClient.get('/admin/categories/hien-thi')
@@ -168,9 +238,9 @@ const fetchCategories = async () => {
   }
 }
 
-// Lấy danh sách voucher
 const fetchVoucher = async (newPage = 0) => {
   try {
+    loading.value = true
     const searchParams = {
       keyword: searchVoucher.value.keyword?.trim() || null,
       status: searchVoucher.value.status ?? null,
@@ -182,18 +252,14 @@ const fetchVoucher = async (newPage = 0) => {
     }
 
     const requestBody = Object.keys(searchParams).every(
-      (key) => searchParams[key] === null || searchParams[key].length === 0,
-    )
-      ? {}
-      : searchParams
+      (key) => searchParams[key] === null || (Array.isArray(searchParams[key]) && searchParams[key].length === 0)
+    ) ? {} : searchParams
 
     const response = await apiClient.post('/admin/vouchers/search', requestBody)
-    vouchers.value = response.data.data || []
-    totalElements.value = response.data.pagination?.totalElements || 0
+    vouchers.value = response?.data?.data || []
+    totalElements.value = response?.data?.pagination?.totalElements ?? 0
     page.value = newPage
-
     selectedVouchers.value = []
-    selectAll.value = false
 
     if (!vouchers.value.length) {
       ElMessage.warning('Không tìm thấy voucher nào!')
@@ -203,33 +269,22 @@ const fetchVoucher = async (newPage = 0) => {
     ElMessage.error(`Tải danh sách voucher thất bại: ${error.message}`)
     vouchers.value = []
     totalElements.value = 0
+  } finally {
+    loading.value = false
   }
 }
 
-// Cập nhật danh sách các voucher được chọn
 const handleSelectionChange = (val) => {
-  selectedVouchers.value = val.map(voucher => voucher.id);
-};
+  selectedVouchers.value = val.map(voucher => voucher.id)
+}
+const handlePageChange = (newPage) => { fetchVoucher(newPage - 1) }
+const handlePageSizeChange = (newSize) => { size.value = newSize; fetchVoucher(0) }
 
-// Xử lý khi người dùng chuyển trang
-const handlePageChange = (newPage) => {
-  fetchVoucher(newPage - 1); // Trừ 1 vì API bắt đầu từ trang 0
-};
-
-// Xử lý khi người dùng thay đổi số lượng mục trên mỗi trang
-const handlePageSizeChange = (newSize) => {
-  size.value = newSize;
-  fetchVoucher(0); // Chuyển về trang 1 khi thay đổi kích thước
-};
-
-// Xuất Excel
 const exportExcel = async () => {
-  // 1) Lấy list ID sạch (phòng trường hợp bạn bind object thay vì id)
-  let ids = (selectedVouchers.value || []).map(v => {
-    const val = (v && typeof v === 'object') ? (v.id ?? v.value ?? v) : v
-    const n = typeof val === 'string' ? Number(val) : val
-    return n
-  }).filter(n => Number.isFinite(n))
+  const ids = (selectedVouchers.value || [])
+    .map(v => (typeof v === 'object' ? (v.id ?? v.value ?? v) : v))
+    .map(val => (typeof val === 'string' ? Number(val) : val))
+    .filter(n => Number.isFinite(n))
 
   if (ids.length === 0) {
     ElMessage.warning('Vui lòng chọn ít nhất một voucher để xuất!')
@@ -237,23 +292,14 @@ const exportExcel = async () => {
   }
 
   try {
-    // 2) Gửi MẢNG JSON THUẦN cho backend
-    const res = await apiClient.post(
-      '/admin/vouchers/export-excel/by-ids',
-      ids,
-      { responseType: 'blob' }
-    )
-
-    // 3) Lấy tên file từ header (nếu backend set)
+    const res = await apiClient.post('/admin/vouchers/export-excel/by-ids', ids, { responseType: 'blob' })
     const disposition = res.headers?.['content-disposition'] || ''
     const match = /filename\*?=(?:UTF-8'')?["']?([^;"']+)/i.exec(disposition)
     const filename = match?.[1] ? decodeURIComponent(match[1]) : 'vouchers-by-ids.xlsx'
 
-    // 4) Tạo blob & tải xuống
-    const blob = new Blob(
-      [res.data],
-      { type: res.headers?.['content-type'] || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }
-    )
+    const blob = new Blob([res.data], {
+      type: res.headers?.['content-type'] || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -265,7 +311,6 @@ const exportExcel = async () => {
 
     ElMessage.success('Xuất Excel thành công!')
   } catch (error) {
-    // Thử đọc lỗi text từ blob (nếu server trả JSON lỗi dưới dạng blob)
     let msg = error?.message || 'Không rõ nguyên nhân'
     try {
       if (error?.response?.data instanceof Blob) {
@@ -279,15 +324,22 @@ const exportExcel = async () => {
 }
 
 onMounted(async () => {
+  computeTableHeight()
+  window.addEventListener('resize', computeTableHeight)
   await Promise.all([fetchCategories(), fetchVoucher()])
 })
 
-const formatCurrency = (row, column, value) =>
-  value ? Number(value).toLocaleString('vi-VN') + ' ₫' : '-'
-const formatDate = (row, column, value) => {
-  if (!value) return '-'
-  const date = new Date(value)
-  return date.toLocaleString('vi-VN', {
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', computeTableHeight)
+})
+
+/** ===== Helpers ===== **/
+const toVND = (v) => Number(v).toLocaleString('vi-VN') + ' ₫'
+const formatDate = (val) => {
+  if (!val) return '-'
+  const d = new Date(val)
+  if (isNaN(d.getTime())) return '-'
+  return d.toLocaleString('vi-VN', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -298,38 +350,18 @@ const formatDate = (row, column, value) => {
   })
 }
 
-const formatStatus = (row) => {
-  switch (row.status) {
-    case 1:
-      return 'Đang diễn ra'
-    case 0:
-      return 'Ngừng hoạt động'
-    case 2:
-      return 'Sắp diễn ra'
-    default:
-      return '-'
-  }
-}
+const statusText = (s) => (s === 1 ? 'Đang diễn ra' : s === 2 ? 'Sắp diễn ra' : s === 0 ? 'Ngừng hoạt động' : '-')
+const statusTagType = (s) => (s === 1 ? 'success' : s === 2 ? 'warning' : s === 0 ? 'info' : 'default')
 
-const formatDiscountPercent = (row) =>
-  row.discountPercentage ? `${Number(row.discountPercentage)}%` : '-'
-const formatDiscountAmount = (row) =>
-  row.discountAmount ? row.discountAmount.toLocaleString('vi-VN') + ' ₫' : '-'
-const formatOrderType = (row) =>
-  row.orderType === 1 ? 'Tại quầy' : row.orderType === 0 ? 'Online' : '-'
-const formatVoucherType = (row) =>
-  row.voucherType === 1 ? 'Công khai' : row.voucherType === 2 ? 'Cá nhân' : '-'
-
+/** ===== Navigate ===== **/
 const onAddVoucher = () => {
   router.push({ name: 'AddVoucher' })
   ElMessage.success('Chuyển đến trang thêm voucher!')
 }
-
 const onEditVoucher = (row) => {
   router.push({ name: 'UpdateVoucher', params: { id: row.id } })
   ElMessage.success('Chuyển đến trang sửa voucher!')
 }
-
 const onDeleteVoucher = (row) => {
   ElMessageBox.confirm(`Xác nhận xóa voucher ${row.voucherCode}?`, 'Xác nhận xóa', {
     confirmButtonText: 'Xóa',
@@ -353,145 +385,53 @@ const onDeleteVoucher = (row) => {
 </script>
 
 <style scoped>
-.voucher-wrapper {
-  max-width: 100%;
-  padding: 1rem;
-  box-sizing: border-box;
+/* Layout rộng gần full màn hình */
+.voucher-page {
+  max-width: 96vw;          /* gần full-bleed */
+  margin: 20px auto 40px;
+  padding: 0 16px;
+}
+@media (min-width: 1400px) {
+  .voucher-page { max-width: 1680px; } /* cap để bố cục vẫn đẹp trên màn siêu lớn */
 }
 
-.card {
-  background: #fff;
-  border: none;
+/* Header */
+.page-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 12px;
+}
+.title-wrap { display: flex; align-items: center; gap: 12px; }
+.title-icon { font-size: 26px; }
+.title { margin: 0; font-size: 24px; font-weight: 700; color: #1f2937; }
+.subtitle { font-size: 12px; color: #6b7280; }
+.header-actions { display: flex; gap: 8px; }
+
+/* Cards */
+.filter-card, .table-card {
   border-radius: 12px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  border: 1px solid #ebeef5;
+}
+.filter-card { margin-bottom: 12px; }
+
+/* Filter form */
+.filter-form { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; }
+.w-48 { width: 192px; }
+.w-60 { width: 240px; }
+.w-72 { width: 288px; }
+.filter-buttons { display: flex; gap: 8px; margin-left: auto; }
+
+/* Table */
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+.strong { font-weight: 600; }
+.text { color: #111827; }
+.pagination-wrap {
+  display: flex; justify-content: flex-end; padding: 12px 8px 4px;
 }
 
-.search-section {
-  background: #f8f9fa;
-  border-radius: 8px;
-  padding: 1.5rem;
-}
-
-.voucher-header h2 {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #2c3e50;
-}
-
-.table {
-  font-size: 0.875rem;
-  border-collapse: separate;
-  border-spacing: 0;
-  border-radius: 10px;
-  overflow: hidden;
-}
-
-.table th,
-.table td {
-  padding: 0.75rem;
-  vertical-align: middle;
-}
-
-.table th {
-  background: #e9ecef;
-  font-weight: 600;
-  color: #34495e;
-}
-
-.table tbody tr:hover {
-  background: #f1f3f5;
-}
-
-.text-wrap {
-  white-space: normal !important;
-  word-break: break-word;
-  max-width: 150px;
-}
-
-.table-responsive {
-  border-radius: 10px;
-  overflow-x: auto;
-}
-
-.table-responsive::-webkit-scrollbar {
-  height: 8px;
-}
-
-.table-responsive::-webkit-scrollbar-thumb {
-  background-color: #adb5bd;
-  border-radius: 4px;
-}
-
-.table-responsive::-webkit-scrollbar-track {
-  background: #f1f3f5;
-  border-radius: 4px;
-}
-
-.form-control-sm,
-.form-select-sm {
-  border-radius: 6px;
-  font-size: 0.875rem;
-  padding: 0.5rem;
-}
-
-.pagination .page-link {
-  border-radius: 5px;
-  margin: 0 3px;
-  color: #2980b9;
-}
-
-.pagination .page-item.active .page-link {
-  background-color: #2980b9;
-  border-color: #2980b9;
-  color: #fff;
-}
-
-.badge {
-  padding: 0.4em 0.8em;
-  border-radius: 4px;
-  font-size: 0.75rem;
-}
-
+/* Responsive */
 @media (max-width: 768px) {
-  .voucher-wrapper {
-    padding: 0.5rem;
-  }
-
-  .search-section {
-    padding: 1rem;
-  }
-
-  .voucher-header h2 {
-    font-size: 1rem;
-  }
-
-  .table {
-    font-size: 0.75rem;
-  }
-
-  .table th,
-  .table td {
-    padding: 0.5rem;
-  }
-}
-
-@media (max-width: 576px) {
-  .search-section {
-    padding: 0.75rem;
-  }
-
-  .form-control-sm,
-  .form-select-sm {
-    font-size: 0.8rem;
-  }
-
-  .table {
-    font-size: 0.7rem;
-  }
-
-  .table th,
-  .table td {
-    padding: 0.4rem;
-  }
+  .voucher-page { padding: 0 12px; }
+  .filter-buttons { width: 100%; justify-content: flex-start; margin-left: 0; }
+  .page-header { flex-direction: column; align-items: flex-start; gap: 8px; }
 }
 </style>

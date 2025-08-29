@@ -7,6 +7,8 @@ import com.example.duantotnghiep.service.DiscountCampaignService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -16,6 +18,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/api/admin/campaigns")
@@ -61,6 +65,19 @@ public class DiscountCampaignController {
         return ResponseEntity.ok(service.updateDiscountCampaign(id, request));
     }
 
+    @GetMapping("/search")
+    public ResponseEntity<Page<DiscountCampaignResponse>> search(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Integer status,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate createdDate,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        Page<DiscountCampaignResponse> result =
+                service.search(keyword, status, createdDate, PageRequest.of(page, size));
+        return ResponseEntity.ok(result);
+    }
 
 }
 

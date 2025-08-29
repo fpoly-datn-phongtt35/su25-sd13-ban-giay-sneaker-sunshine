@@ -10,6 +10,7 @@ import com.example.duantotnghiep.model.Voucher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -19,6 +20,7 @@ import java.util.Optional;
 
 @Repository
 public interface CustomerRepository extends JpaRepository<Customer, Long> {
+
     @Query("SELECT c FROM Customer c WHERE c.phone LIKE CONCAT(:phonePrefix, '%') AND c.status = 1")
     List<Customer> findByPhoneStartingWithAndStatusActive(@Param("phonePrefix") String phonePrefix);
 
@@ -28,6 +30,22 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
 
     @Query("SELECT c FROM Customer c WHERE c.status = :status")
     Page<Customer> findCustomerByStatus1(@Param("status") Integer status, Pageable pageable);
+
+    //Tim kiếm nâng cao
+    @Query("""
+    SELECT c FROM Customer c
+    WHERE c.status = 1
+      AND (:name IS NULL OR LOWER(c.customerName) LIKE LOWER(CONCAT('%', :name, '%')))
+      AND (:phone IS NULL OR c.phone = :phone)
+      AND (:phoneSuffix IS NULL OR RIGHT(c.phone, 5) = :phoneSuffix)
+""")
+    Page<Customer> searchByNameAndPhone(@Param("name") String name,
+                                        @Param("phone") String phone,
+                                        @Param("phoneSuffix") String phoneSuffix,
+                                        Pageable pageable);
+
+
+
 
     boolean existsByEmail(String email);
 
@@ -49,6 +67,9 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
     List<Customer> findAllByIsBlacklistedTrue();
 
     List<Customer> findByIsBlacklistedTrue();
+    Page<Customer> findByCustomerNameContainingIgnoreCase(String name, Pageable pageable);
+    Page<Customer> findByPhoneContaining(String phone, Pageable pageable);
+    Page<Customer> findByCustomerNameContainingIgnoreCaseAndPhoneContaining(String name, String phone, Pageable pageable);
 
     Optional<Customer> findTop1ByEmailAndStatus(String email, Integer status);
 

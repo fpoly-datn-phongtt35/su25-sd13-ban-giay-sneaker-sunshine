@@ -12,12 +12,14 @@ import com.example.duantotnghiep.dto.response.ProductResponse;
 import com.example.duantotnghiep.dto.response.StatusCountDTO;
 import com.example.duantotnghiep.dto.response.*;
 import com.example.duantotnghiep.mapper.InvoiceMapper;
+import com.example.duantotnghiep.mapper.VoucherMapper;
 import com.example.duantotnghiep.model.Brand;
 import com.example.duantotnghiep.model.Color;
 import com.example.duantotnghiep.model.Invoice;
 import com.example.duantotnghiep.model.Product;
 import com.example.duantotnghiep.model.PromotionSuggestion;
 import com.example.duantotnghiep.model.Size;
+import com.example.duantotnghiep.model.Voucher;
 import com.example.duantotnghiep.repository.InvoiceRepository;
 import com.example.duantotnghiep.service.*;
 import com.example.duantotnghiep.service.impl.InvoiceEmailService;
@@ -62,6 +64,9 @@ public class SaleOnlineController {
     private final ProductServiceImpl productServiceImpl;
     private final CategoryService categoryService;
     private final ProductImageService productImageService;
+    private final CustomerService customerService;
+    private final VoucherService voucherService;
+    private final VoucherMapper voucherMapper;
 
     @GetMapping("/online-home")
     public ResponseEntity<List<ProductResponse>> hienThi(){
@@ -264,7 +269,7 @@ public class SaleOnlineController {
         return ratingService.getDeliveredInvoicesForReview(onlyUnrated, keyword, dateFrom, dateTo);
     }
 
-    @GetMapping("/{categoryId}/products")
+    @GetMapping("/categories/{categoryId}/products")
     public Page<ProductResponse> getByCategoryId(
             @PathVariable Long categoryId,
             @PageableDefault(size = 12, sort = "id", direction = Sort.Direction.DESC) Pageable pageable
@@ -284,6 +289,36 @@ public class SaleOnlineController {
             @RequestParam Long colorId) {
         List<ProductImageResponse> responses = productImageService.getImagesByProductAndColor(productId, colorId);
         return ResponseEntity.ok(responses);
+    }
+
+    @GetMapping("/customers/{id}")
+    public ResponseEntity<CustomerResponse> getCustomerById(@PathVariable Long id) {
+        CustomerResponse response = customerService.getCustomerById(id);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/vouchers/apply-best")
+    public VoucherResponse applyBestVoucher(
+            @RequestParam Long customerId,
+            @RequestParam BigDecimal orderTotal
+    ) {
+        Voucher bestVoucher = voucherService.findBestVoucherForCustomer(customerId, orderTotal);
+
+        if (bestVoucher == null) {
+            throw new RuntimeException("Không tìm thấy voucher phù hợp");
+        }
+
+        return voucherMapper.toDto(bestVoucher);
+    }
+
+    @GetMapping("/vouchers/apply")
+    public VoucherResponse applyVoucher(
+            @RequestParam Long customerId,
+            @RequestParam String voucherCode,
+            @RequestParam BigDecimal orderTotal
+    ) {
+        Voucher voucher = voucherService.validateVoucher(customerId, voucherCode, orderTotal);
+        return voucherMapper.toDto(voucher);
     }
 
 }

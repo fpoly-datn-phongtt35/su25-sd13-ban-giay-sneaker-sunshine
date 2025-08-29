@@ -4,6 +4,7 @@ import com.example.duantotnghiep.dto.response.DiscountCampaignResponse;
 import com.example.duantotnghiep.model.DiscountCampaign;
 import jakarta.validation.constraints.Size;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -41,6 +42,43 @@ public interface DiscountCampaignRepository extends JpaRepository<DiscountCampai
                     "  AND (c.endDate   IS NULL OR c.endDate   >= :now)"
     )
     List<DiscountCampaign> findActiveCampaigns(@Param("now") LocalDateTime now);
+
+    @Query("""
+    SELECT new com.example.duantotnghiep.dto.response.DiscountCampaignResponse(
+        c.id,
+        c.campaignCode,
+        c.name,
+        c.description,
+        c.startDate,
+        c.endDate,
+        c.status,
+        c.discountPercentage,
+        null,
+        null
+    )
+    FROM DiscountCampaign c
+    WHERE
+      ( :keyword IS NULL OR :keyword = '' OR
+        LOWER(c.name)         LIKE LOWER(CONCAT('%', :keyword, '%')) OR
+        LOWER(c.campaignCode) LIKE LOWER(CONCAT('%', :keyword, '%')) OR
+        LOWER(c.description)  LIKE LOWER(CONCAT('%', :keyword, '%'))
+      )
+      AND ( :status IS NULL OR c.status = :status )
+      AND (
+           (:createdStart IS NULL AND :createdEnd IS NULL)
+        OR (:createdStart IS NOT NULL AND :createdEnd IS NULL AND c.createdDate >= :createdStart)
+        OR (:createdStart IS NULL AND :createdEnd IS NOT NULL AND c.createdDate <= :createdEnd)
+        OR (:createdStart IS NOT NULL AND :createdEnd IS NOT NULL AND c.createdDate BETWEEN :createdStart AND :createdEnd)
+      )
+    ORDER BY c.createdDate DESC
+    """)
+    Page<DiscountCampaignResponse> searchByKeywordStatusCreatedDate(
+            @Param("keyword") String keyword,
+            @Param("status") Integer status,
+            @Param("createdStart") LocalDateTime createdStart,
+            @Param("createdEnd") LocalDateTime createdEnd,
+            Pageable pageable
+    );
 
 
 }

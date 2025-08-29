@@ -9,6 +9,7 @@ import com.example.duantotnghiep.dto.response.CustomerBlacklistHistoryResponse;
 import com.example.duantotnghiep.dto.response.CustomerResponse;
 import com.example.duantotnghiep.service.CustomerBlacklistHistoryService;
 import com.example.duantotnghiep.service.CustomerService;
+import com.example.duantotnghiep.xuatExcel.CustomerExcelExporter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -25,6 +26,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -160,6 +162,76 @@ public class CustomerController {
     public ResponseEntity<List<BadCustomerResponse>> getBlacklistedCustomers() {
         List<BadCustomerResponse> list = customerService.getAllBlacklistedCustomers();
         return ResponseEntity.ok(list);
+    }
+
+    ///Tìm kiếm nâng cao
+
+    // CustomerController.java
+
+    @GetMapping("/search")
+    public ResponseEntity<Page<CustomerResponse>> searchByNameAndPhone(
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false, name = "customerName") String customerName,
+            @RequestParam(required = false) String phone,
+            @RequestParam(required = false) String phoneSuffix,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "createdDate,desc") String sort
+    ) {
+        String finalName = firstNonBlank(customerName, name);
+        String finalPhone = toNullIfBlank(phone);
+        String finalSuffix = toNullIfBlank(phoneSuffix);
+
+        if (finalName == null && finalPhone == null && finalSuffix == null) {
+            return ResponseEntity.badRequest().body(Page.empty());
+        }
+
+        // sort
+        String[] parts = sort.split(",");
+        Sort s = (parts.length == 2)
+                ? Sort.by(Sort.Direction.fromString(parts[1]), parts[0])
+                : Sort.by(Sort.Direction.DESC, "createdDate");
+        Pageable pageable = PageRequest.of(page, size, s);
+
+        Page<CustomerResponse> result = customerService.searchByNameAndPhone(finalName, finalPhone, finalSuffix, pageable);
+        return ResponseEntity.ok(result);
+
+    }
+
+
+    //xuất excel
+    @GetMapping("/export")
+    public ResponseEntity<byte[]> exportCustomers(
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String phone) throws IOException {
+
+        var list = customerService.findAllForExport(name, phone); // <-- dùng method mới
+        var in = CustomerExcelExporter.exportCustomerToExcel(list);
+        byte[] bytes = in.readAllBytes();
+
+        var headers = new org.springframework.http.HttpHeaders();
+        headers.add(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=customers.xlsx");
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .contentType(org.springframework.http.MediaType.parseMediaType(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .contentLength(bytes.length)
+                .body(bytes);
+    }
+
+
+    private String toNullIfBlank(String s) {
+        return (s == null || s.trim().isEmpty()) ? null : s.trim();
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String v : values) {
+            if (v != null && !v.trim().isEmpty()) {
+                return v.trim();
+            }
+        }
+        return null;
     }
 
 }

@@ -4,6 +4,7 @@ import com.example.duantotnghiep.dto.request.VoucherRequest;
 import com.example.duantotnghiep.dto.request.VoucherSearchRequest;
 import com.example.duantotnghiep.dto.response.PaginationDTO;
 import com.example.duantotnghiep.dto.response.VoucherResponse;
+import com.example.duantotnghiep.dto.response.VoucherStatusDTO;
 import com.example.duantotnghiep.mapper.VoucherMapper;
 import com.example.duantotnghiep.model.Customer;
 import com.example.duantotnghiep.model.Invoice;
@@ -11,15 +12,7 @@ import com.example.duantotnghiep.model.InvoiceDetail;
 import com.example.duantotnghiep.model.Product;
 import com.example.duantotnghiep.model.ProductCategory;
 import com.example.duantotnghiep.model.Voucher;
-import com.example.duantotnghiep.repository.CategoryRepository;
-import com.example.duantotnghiep.repository.CustomerRepository;
-import com.example.duantotnghiep.repository.EmployeeRepository;
-import com.example.duantotnghiep.repository.InvoiceRepository;
-import com.example.duantotnghiep.repository.ProductCategoryRepository;
-import com.example.duantotnghiep.repository.ProductRepository;
-import com.example.duantotnghiep.repository.VoucherHistoryRepository;
-import com.example.duantotnghiep.repository.VoucherRepository;
-import com.example.duantotnghiep.repository.VoucherSearchRepository;
+import com.example.duantotnghiep.repository.*;
 import com.example.duantotnghiep.service.VoucherService;
 import com.example.duantotnghiep.xuatExcel.ProductExcelExporter;
 import com.example.duantotnghiep.xuatExcel.VoucherExportExcel;
@@ -34,7 +27,10 @@ import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
@@ -55,7 +51,7 @@ public class VoucherServiceIpml implements VoucherService {
     private final EmployeeRepository employeeRepository;
     private final CustomerRepository customerRepository;
     private final ProductCategoryRepository productCategoryRepository;
-
+    private final VoucherNativeRepository voucherNativeRepository;
 
     public List<VoucherResponse> getValidVouchers() {
         LocalDateTime now = LocalDateTime.now();
@@ -307,6 +303,20 @@ public class VoucherServiceIpml implements VoucherService {
         } catch (IOException e) {
             throw new IOException("Không thể xuất Excel theo ID: " + e.getMessage(), e);
         }
+    }
+
+    @Override
+    public VoucherStatusDTO getVoucherStatsForToday(Long voucherId) {
+        ZoneId zone = ZoneId.systemDefault();
+
+        LocalDate today = LocalDate.now(zone);
+        ZonedDateTime startZdt = today.atStartOfDay(zone);
+        ZonedDateTime endZdt = startZdt.plusDays(1);
+
+        Date start = Date.from(startZdt.toInstant());
+        Date end = Date.from(endZdt.toInstant());
+
+        return voucherNativeRepository.findStatusByVoucherId(voucherId, start, end);
     }
 
 

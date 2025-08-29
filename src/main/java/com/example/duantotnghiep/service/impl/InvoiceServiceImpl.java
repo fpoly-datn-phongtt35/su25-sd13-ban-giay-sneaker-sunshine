@@ -1400,35 +1400,32 @@ public class InvoiceServiceImpl implements InvoiceService {
                     });
         }
 
-        // ✅ Kiểm tra blacklist
         if (Boolean.TRUE.equals(customer.getIsBlacklisted())) {
             LocalDateTime expiry = customer.getBlacklistExpiryDate();
             if (expiry == null || expiry.isAfter(LocalDateTime.now())) {
                 throw new RuntimeException("Khách hàng đang bị cấm mua hàng. Lý do: " + customer.getBlacklistReason());
             }
-            // ✅ Gỡ blacklist nếu đã hết hạn
             customer.setIsBlacklisted(false);
             customer.setBlacklistReason(null);
             customer.setBlacklistExpiryDate(null);
             customerRepository.save(customer);
         }
 
-        // 2. Lưu địa chỉ
         AddressRequest addr = request.getCustomerInfo().getAddress();
-        AddressCustomer address = new AddressCustomer();
-        address.setCustomer(customer);
-        address.setCountry(addr.getCountry());
-        address.setProvinceCode(addr.getProvinceCode());
-        address.setProvinceName(addr.getProvinceName());
-        address.setDistrictCode(addr.getDistrictCode());
-        address.setDistrictName(addr.getDistrictName());
-        address.setWardCode(addr.getWardCode());
-        address.setWardName(addr.getWardName());
-        address.setHouseName(addr.getHouseName());
-        address.setStatus(1);
-        address.setCreatedDate(new Date());
-        address.setDefaultAddress(true);
-        addressRepository.save(address);
+//        AddressCustomer address = new AddressCustomer();
+//        address.setCustomer(customer);
+//        address.setCountry(addr.getCountry());
+//        address.setProvinceCode(addr.getProvinceCode());
+//        address.setProvinceName(addr.getProvinceName());
+//        address.setDistrictCode(addr.getDistrictCode());
+//        address.setDistrictName(addr.getDistrictName());
+//        address.setWardCode(addr.getWardCode());
+//        address.setWardName(addr.getWardName());
+//        address.setHouseName(addr.getHouseName());
+//        address.setStatus(1);
+//        address.setCreatedDate(new Date());
+//        address.setDefaultAddress(true);
+//        addressRepository.save(address);
 
         String addressInvoice = addr.getHouseName() + " - "
                 + addr.getWardName() + " - "

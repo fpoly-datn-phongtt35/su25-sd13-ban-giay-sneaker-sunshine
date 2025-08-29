@@ -41,6 +41,7 @@ import CustomerBlacklistHistoryDetail from '@/components/KhachHang/CustomerBlack
 import DiscountCampaignDetails from '@/components/DotGiamGia/DiscountCampaignDetails.vue'
 import DiscountCampaignUpdate from '@/components/DotGiamGia/DiscountCampaignUpdate.vue'
 import DashboardStats from '@/components/ThongKe/DashboardStats.vue'
+import VoucherHistory from '@/components/MaGiamGia/VoucherHistory.vue'
 
 const routes = [
   {
@@ -84,6 +85,7 @@ const routes = [
       { path: 'categories', name: 'Category', component: CategoryList },
 
       { path: 'voucher', name: 'VoucherList', component: VoucherList },
+      { path: 'voucher-history/:id', name: 'VoucherHistory', component: VoucherHistory },
       { path: 'voucher/add', name: 'AddVoucher', component: AddVoucher },
       { path: 'voucher/update/:id', name: 'UpdateVoucher', component: UpdateVoucher },
 

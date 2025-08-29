@@ -38,7 +38,6 @@
           <el-radio-group v-model="form.gender">
             <el-radio :label="1">Nam</el-radio>
             <el-radio :label="0">Nữ</el-radio>
-            <el-radio :label="2">Khác</el-radio>
           </el-radio-group>
         </el-form-item>
 

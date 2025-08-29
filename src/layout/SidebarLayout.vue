@@ -38,11 +38,6 @@
           <span class="menu-label">Sản phẩm</span>
         </el-menu-item>
 
-        <el-menu-item index="/voucher">
-          <i class="menu-icon bi bi-tag" aria-hidden="true"></i>
-          <span class="menu-label">Mã giảm giá</span>
-        </el-menu-item>
-
         <el-menu-item index="/supplier">
           <i class="menu-icon bi bi-truck" aria-hidden="true"></i>
           <span class="menu-label">Nhà cung cấp</span>
@@ -83,6 +78,11 @@
           <span class="menu-label">Thương hiệu</span>
         </el-menu-item>
       </el-sub-menu>
+
+        <el-menu-item index="/voucher">
+          <i class="menu-icon bi bi-tag" aria-hidden="true"></i>
+          <span class="menu-label">Mã giảm giá</span>
+        </el-menu-item>
 
       <el-menu-item index="/employee">
         <i class="menu-icon bi bi-person" aria-hidden="true"></i>

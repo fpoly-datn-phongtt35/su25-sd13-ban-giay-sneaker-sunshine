@@ -18,25 +18,6 @@
         class="customer-form"
         label-position="left"
       >
-        <el-form-item label="Tên đăng nhập" prop="username">
-          <el-input
-            v-model="form.username"
-            :prefix-icon="User"
-            placeholder="Nhập tên đăng nhập"
-            clearable
-          />
-        </el-form-item>
-
-        <el-form-item label="Mật khẩu" prop="password">
-          <el-input
-            v-model="form.password"
-            :prefix-icon="Lock"
-            type="password"
-            show-password
-            placeholder="Nhập mật khẩu"
-            clearable
-          />
-        </el-form-item>
 
         <el-form-item label="Họ tên khách hàng" prop="customerName">
           <el-input
@@ -455,7 +436,7 @@ const editAddress = async (address) => {
   addressForm.value.provinceCode = address.provinceId; // Assuming backend uses provinceId
   addressForm.value.provinceName = address.provinceName;
   await loadDistrictsForAddress(); // Load districts based on selected province
-  
+
   // Set selected district and load wards
   addressForm.value.districtCode = address.districtId; // Assuming backend uses districtId
   addressForm.value.districtName = address.districtName;

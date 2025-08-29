@@ -144,16 +144,19 @@
           </template>
         </el-table-column>
 
-        <!-- <el-table-column label="Trạng thái" width="150" align="center">
+        <el-table-column label="Trạng thái" width="150" align="center">
           <template #default="{ row }">
             <el-tag :type="statusTagType(row.status)" effect="light">
               {{ statusText(row.status) }}
             </el-tag>
           </template>
-        </el-table-column> -->
+        </el-table-column>
 
         <el-table-column label="Thao tác" width="130" fixed="right" align="center">
           <template #default="{ row }">
+            <el-tooltip content="Lịch sử" placement="top">
+              <el-button type="primary" :icon="Edit" size="small" circle @click="onHistory(row)" />
+            </el-tooltip>
             <el-tooltip content="Sửa" placement="top">
               <el-button type="primary" :icon="Edit" size="small" circle @click="onEditVoucher(row)" />
             </el-tooltip>
@@ -361,6 +364,10 @@ const onAddVoucher = () => {
 const onEditVoucher = (row) => {
   router.push({ name: 'UpdateVoucher', params: { id: row.id } })
   ElMessage.success('Chuyển đến trang sửa voucher!')
+}
+const onHistory = (row) => {
+  router.push({ name: 'VoucherHistory', params: { id: row.id } })
+  ElMessage.success('Chuyển đến trang history voucher!')
 }
 const onDeleteVoucher = (row) => {
   ElMessageBox.confirm(`Xác nhận xóa voucher ${row.voucherCode}?`, 'Xác nhận xóa', {

@@ -31,7 +31,6 @@
           <el-select v-model="employee.gender" placeholder="Chọn giới tính">
             <el-option label="Nam" :value="1" />
             <el-option label="Nữ" :value="0" />
-            <el-option label="Khác" :value="2" />
           </el-select>
         </el-form-item>
 

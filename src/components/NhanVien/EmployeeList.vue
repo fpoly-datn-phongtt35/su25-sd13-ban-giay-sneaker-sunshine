@@ -6,14 +6,36 @@
           <el-icon :size="24" class="text-blue-500"><Avatar /></el-icon>
           Danh sách nhân viên
         </h2>
-        <el-button type="primary" round plain @click="addEmployee">
-          <el-icon :size="16" class="mr-1"><CirclePlus /></el-icon>
-          Thêm nhân viên
-        </el-button>
+        <div class="flex gap-2">
+          <el-button type="success" plain round @click="exportExcel" :loading="exporting">
+            Xuất Excel
+          </el-button>
+          <el-button type="primary" round plain @click="addEmployee">
+            <el-icon :size="16" class="mr-1"><CirclePlus /></el-icon>
+            Thêm nhân viên
+          </el-button>
+        </div>
       </div>
 
+      <!-- Search filters -->
+      <el-form :inline="true" class="mb-4">
+        <el-form-item label="Mã NV">
+          <el-input v-model.trim="filters.employeeCode" placeholder="VD: NV001" clearable @keyup.enter.native="handleSearch"/>
+        </el-form-item>
+        <el-form-item label="Họ tên">
+          <el-input v-model.trim="filters.employeeName" placeholder="VD: Nguyễn Văn A" clearable @keyup.enter.native="handleSearch"/>
+        </el-form-item>
+        <el-form-item label="Email">
+          <el-input v-model.trim="filters.email" placeholder="VD: a@gmail.com" clearable @keyup.enter.native="handleSearch"/>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="handleSearch">Tìm kiếm</el-button>
+          <el-button @click="handleReset" :disabled="!isSearching && !hasAnyFilter">Xóa lọc</el-button>
+        </el-form-item>
+      </el-form>
+
       <el-table
-        :data="employees"
+        :data="tableData"
         :loading="loading"
         style="width: 100%"
         stripe
@@ -24,7 +46,7 @@
       >
         <el-table-column label="STT" width="80" align="center">
           <template #default="{ $index }">
-            {{ pageStartIndex + $index + 1 }}
+            {{ isSearching ? $index + 1 : pageStartIndex + $index + 1 }}
           </template>
         </el-table-column>
 
@@ -70,7 +92,8 @@
         </el-table-column>
       </el-table>
 
-      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mt-6">
+      <!-- Pagination: ẩn khi đang ở chế độ search -->
+      <div v-if="!isSearching" class="flex flex-col md:flex-row md:items-center justify-between gap-4 mt-6">
         <div class="text-gray-600">
           Tổng: <strong>{{ totalElements }}</strong> bản ghi
         </div>
@@ -86,6 +109,14 @@
           @size-change="handleSizeChange"
         />
       </div>
+
+      <!-- Thông tin kết quả tìm kiếm -->
+      <div v-else class="flex items-center justify-between mt-4 text-gray-600">
+        <div>
+          Kết quả tìm thấy: <strong>{{ employees.length }}</strong> bản ghi
+        </div>
+        <el-button link type="primary" @click="handleReset">Quay lại danh sách phân trang</el-button>
+      </div>
     </el-card>
   </div>
 </template>
@@ -100,19 +131,36 @@ import { useRouter } from 'vue-router'
 const router = useRouter()
 
 // ====== State ======
-const employees = ref([])
+const employees = ref([])          // dữ liệu hiện trong bảng
 const loading = ref(false)
+const exporting = ref(false)
 
 const currentPage = ref(1)        // 1-based cho UI
 const pageSize = ref(10)          // số bản ghi/trang
 const totalElements = ref(0)      // tổng số bản ghi từ backend
 
+const isSearching = ref(false)    // đang ở chế độ search (dùng /search, không phân trang)
+const filters = ref({
+  employeeCode: '',
+  employeeName: '',
+  email: ''
+})
+
+const hasAnyFilter = computed(() =>
+  !!(filters.value.employeeCode || filters.value.employeeName || filters.value.email)
+)
+
 // Tính chỉ số bắt đầu của trang hiện tại (để hiển thị STT)
 const pageStartIndex = computed(() => (currentPage.value - 1) * pageSize.value)
 
-// ====== API ======
+// Dữ liệu đưa vào bảng: nếu đang search thì dùng employees trực tiếp,
+// nếu không thì cũng dùng employees (đã là data trang hiện tại)
+const tableData = computed(() => employees.value)
+
+// ====== API: danh sách mặc định (phân trang) ======
 const fetchEmployees = async () => {
   loading.value = true
+  isSearching.value = false
   try {
     const res = await apiClient.get('/admin/employees', {
       params: {
@@ -121,27 +169,106 @@ const fetchEmployees = async () => {
       }
     })
 
-    // Chuẩn hoá dữ liệu về dạng Spring Data Page
     const data = res?.data || {}
-    console.log('data: ',data)
     employees.value = data.content ?? []
-    totalElements.value = Number(data.page.totalElements ?? 0)
+    totalElements.value = Number(data.page?.totalElements ?? 0)
 
-    if (employees.value.length === 0 && currentPage.value > 1) {
-      currentPage.value = currentPage.value - 1
+    if (employees.value.length === 0 && currentPage.value > 1 && totalElements.value > 0) {
+      // nếu trang rỗng -> lùi 1 trang và gọi lại
+      currentPage.value = Math.max(1, currentPage.value - 1)
       await fetchEmployees()
     }
   } catch (error) {
-    console.error('Lỗi khi tải dữ liệu nhân viên:', error)
     if (error?.response?.status === 403) {
       router.push('/error')
-    } else {
-      ElMessage.error('Không thể tải dữ liệu nhân viên. Vui lòng thử lại sau.')
+      return
     }
+    console.error('Lỗi khi tải dữ liệu nhân viên:', error)
+    ElMessage.error('Không thể tải dữ liệu nhân viên. Vui lòng thử lại sau.')
     employees.value = []
     totalElements.value = 0
   } finally {
     loading.value = false
+  }
+}
+
+// ====== API: tìm kiếm theo Mã NV / Họ tên / Email (không phân trang BE) ======
+const handleSearch = async () => {
+  // Nếu không có filter -> quay về danh sách phân trang
+  if (!hasAnyFilter.value) {
+    currentPage.value = 1
+    await fetchEmployees()
+    return
+  }
+
+  loading.value = true
+  try {
+    const res = await apiClient.get('/admin/employees/search', {
+      params: {
+        employeeCode: filters.value.employeeCode || null,
+        employeeName: filters.value.employeeName || null,
+        email: filters.value.email || null
+      }
+    })
+    employees.value = res?.data ?? []
+    isSearching.value = true
+  } catch (error) {
+    if (error?.response?.status === 403) {
+      router.push('/error')
+      return
+    }
+    console.error('Lỗi tìm kiếm nhân viên:', error)
+    ElMessage.error('Tìm kiếm thất bại. Vui lòng thử lại.')
+    employees.value = []
+    isSearching.value = true
+  } finally {
+    loading.value = false
+  }
+}
+
+const handleReset = async () => {
+  filters.value = { employeeCode: '', employeeName: '', email: '' }
+  currentPage.value = 1
+  await fetchEmployees()
+}
+
+// ====== Export Excel theo filter hiện tại ======
+const exportExcel = async () => {
+  try {
+    exporting.value = true
+    const res = await apiClient.get('/admin/employees/export-excel', {
+      params: {
+        employeeCode: filters.value.employeeCode || null,
+        employeeName: filters.value.employeeName || null,
+        email: filters.value.email || null
+      },
+      responseType: 'blob'
+    })
+
+    // Tạo file tải về
+    const blob = new Blob([res.data], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    const ts = new Date().toISOString().replace(/[:.]/g, '-')
+    a.href = url
+    a.download = `employees-${ts}.xlsx`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    window.URL.revokeObjectURL(url)
+
+    ElMessage.success('Xuất Excel thành công!')
+  } catch (error) {
+    if (error?.response?.status === 403) {
+      router.push('/error')
+      return
+    }
+    console.error('Lỗi xuất Excel:', error)
+    ElMessage.error('Xuất Excel thất bại.')
+  } finally {
+    exporting.value = false
   }
 }
 
@@ -186,11 +313,17 @@ const deleteEmployee = async (id) => {
     )
     await apiClient.delete(`/admin/employees/${id}`)
     ElMessage.success('Xóa nhân viên thành công.')
-    // Sau khi xoá: nạp lại trang hiện tại (logic trong fetchEmployees tự xử lý lùi trang nếu cần)
-    fetchEmployees()
+    if (isSearching.value) {
+      // nếu đang ở chế độ tìm kiếm -> tìm lại theo filter hiện tại
+      await handleSearch()
+    } else {
+      await fetchEmployees()
+    }
   } catch (error) {
     if (error === 'cancel' || error === 'close') {
       ElMessage.info('Đã hủy thao tác xóa.')
+    } else if (error?.response?.status === 403) {
+      router.push('/error')
     } else {
       console.error('Lỗi khi xóa nhân viên:', error)
       ElMessage.error('Xóa nhân viên thất bại. Vui lòng thử lại.')

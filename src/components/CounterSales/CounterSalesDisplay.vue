@@ -201,7 +201,7 @@
                     {{ formatCurrency(invoiceDetails.invoice.totalAmount) }}
                   </el-tag>
                 </el-descriptions-item>
-                <el-descriptions-item label="Giảm giá">
+                <el-descriptions-item label="Tiền giảm">
                   <el-tag type="warning" size="large">
                     - {{ formatCurrency(invoiceDetails.invoice.discountAmount || 0) }}
                   </el-tag>
@@ -990,12 +990,21 @@ const deleteCartItem = async (detailId) => {
   try {
     await ElMessageBox.confirm('Xóa sản phẩm này khỏi giỏ?', 'Xác nhận', { type: 'warning' })
     await apiClient.delete(`/admin/counter-sales/cart-item/${detailId}`)
+
+    // 1) Load lại chi tiết hóa đơn
     await fetchInvoiceDetails(invoiceId.value)
+    // 2) Load lại danh sách voucher theo invoice
+    await fetchVoucherByInvoiceId(invoiceId.value)
+
     ElMessage.success('Đã xóa sản phẩm.')
   } catch (e) {
-    if (e !== 'cancel') ElMessage.error(e?.response?.data || 'Xóa thất bại.')
+    // Element Plus có thể trả 'cancel' hoặc 'close'
+    if (e !== 'cancel' && e !== 'close') {
+      ElMessage.error(e?.response?.data || 'Xóa thất bại.')
+    }
   }
 }
+
 
 /* ----------------- Khách hàng ----------------- */
 const selectCustomer = async (customer) => {

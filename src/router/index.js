@@ -41,6 +41,7 @@ import CustomerBlacklistHistoryDetail from '@/components/KhachHang/CustomerBlack
 import DiscountCampaignDetails from '@/components/DotGiamGia/DiscountCampaignDetails.vue'
 import DiscountCampaignUpdate from '@/components/DotGiamGia/DiscountCampaignUpdate.vue'
 import DashboardStats from '@/components/ThongKe/DashboardStats.vue'
+import Introduce from '../../../../sale_online/su25-sd13-ban-giay-sneaker-sunshine/src/component/Home/Introduce.vue'
 
 const routes = [
   {
@@ -136,6 +137,7 @@ const routes = [
 
       { path: 'blacklist-history', name: 'BlacklistHistory', component: CustomerBlacklistHistory },
       { path: 'blacklist-history/:id', name: 'BlacklistHistoryDetail', component: CustomerBlacklistHistoryDetail },
+
     ],
   },
 ]

@@ -10,100 +10,37 @@
         </div>
       </template>
 
-      <el-form
-        ref="formRef"
-        :model="form"
-        :rules="rules"
-        label-width="140px"
-        class="customer-form"
-        label-position="left"
-      >
-        <el-form-item label="Tên đăng nhập" prop="username">
-          <el-input
-            v-model="form.username"
-            :prefix-icon="User"
-            placeholder="Nhập tên đăng nhập"
-            clearable
-          />
-        </el-form-item>
-
-        <el-form-item label="Mật khẩu" prop="password">
-          <el-input
-            v-model="form.password"
-            :prefix-icon="Lock"
-            type="password"
-            show-password
-            placeholder="Nhập mật khẩu"
-            clearable
-          />
-        </el-form-item>
-
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="140px" class="customer-form"
+        label-position="left">
         <el-form-item label="Họ tên khách hàng" prop="customerName">
-          <el-input
-            v-model="form.customerName"
-            :prefix-icon="Avatar"
-            placeholder="Nhập họ tên"
-            clearable
-          />
+          <el-input v-model="form.customerName" :prefix-icon="Avatar" placeholder="Nhập họ tên" clearable />
         </el-form-item>
 
         <el-form-item label="Email" prop="email">
-          <el-input
-            v-model="form.email"
-            :prefix-icon="Message"
-            placeholder="Nhập email"
-            clearable
-          />
+          <el-input v-model="form.email" :prefix-icon="Message" placeholder="Nhập email" clearable />
         </el-form-item>
 
         <el-form-item label="Số điện thoại" prop="phone">
-          <el-input
-            v-model="form.phone"
-            :prefix-icon="Phone"
-            placeholder="Nhập số điện thoại"
-            clearable
-          />
+          <el-input v-model="form.phone" :prefix-icon="Phone" placeholder="Nhập số điện thoại" clearable />
         </el-form-item>
 
         <el-form-item label="Giới tính" prop="gender">
-          <el-select
-            v-model="form.gender"
-            :prefix-icon="Male"
-            placeholder="Chọn giới tính"
-            style="width: 100%"
-          >
+          <el-select v-model="form.gender" :prefix-icon="Male" placeholder="Chọn giới tính" style="width: 100%">
             <el-option label="Nam" :value="1" :icon="Male" />
             <el-option label="Nữ" :value="0" :icon="Female" />
           </el-select>
         </el-form-item>
 
         <el-form-item label="Ngày sinh" prop="dateOfBirth">
-          <el-date-picker
-            v-model="form.dateOfBirth"
-            :prefix-icon="Calendar"
-            type="date"
-            placeholder="Chọn ngày sinh"
-            style="width: 100%"
-            :disabled-date="disableFutureDates"
-          />
+          <el-date-picker v-model="form.dateOfBirth" :prefix-icon="Calendar" type="date" placeholder="Chọn ngày sinh"
+            style="width: 100%" :disabled-date="disableFutureDates" />
         </el-form-item>
 
         <el-form-item class="action-buttons">
-          <el-button
-            type="primary"
-            :icon="Check"
-            @click="updateCustomer"
-            :loading="submitting"
-            round
-          >
+          <el-button type="primary" :icon="Check" @click="updateCustomer" :loading="submitting" round>
             Cập nhật
           </el-button>
-          <el-button
-            type="success"
-            :icon="Location"
-            @click="openAddressDialog"
-            round
-          >
+          <el-button type="success" :icon="Location" @click="openAddressDialog" round>
             Quản lý địa chỉ
           </el-button>
           <el-button :icon="Refresh" @click="resetForm" round>Làm mới</el-button>
@@ -111,33 +48,16 @@
       </el-form>
     </el-card>
 
-    <el-dialog
-      v-model="addressDialogVisible"
-      title="Quản lý địa chỉ khách hàng"
-      width="900px"
-      :close-on-click-modal="false"
-      class="address-dialog"
-    >
+    <el-dialog v-model="addressDialogVisible" title="Quản lý địa chỉ khách hàng" width="900px"
+      :close-on-click-modal="false" class="address-dialog">
       <div class="address-actions">
-        <el-button
-          type="primary"
-          :icon="Plus"
-          @click="openAddAddressForm"
-          round
-        >
+        <el-button type="primary" :icon="Plus" @click="openAddAddressForm" round>
           Thêm địa chỉ mới
         </el-button>
       </div>
 
-      <el-table
-        :data="addresses"
-        border
-        stripe
-        v-loading="addressLoading"
-        element-loading-text="Đang tải danh sách địa chỉ..."
-        empty-text="Chưa có địa chỉ nào."
-        class="address-table"
-      >
+      <el-table :data="addresses" border stripe v-loading="addressLoading"
+        element-loading-text="Đang tải danh sách địa chỉ..." empty-text="Chưa có địa chỉ nào." class="address-table">
         <el-table-column prop="houseName" label="Số nhà, tên đường" min-width="150" />
         <el-table-column prop="wardName" label="Phường/Xã" min-width="120" />
         <el-table-column prop="districtName" label="Quận/Huyện" min-width="120" />
@@ -151,116 +71,52 @@
         </el-table-column>
         <el-table-column label="Hành động" width="200" fixed="right">
           <template #default="scope">
-            <el-button
-              type="info"
-              :icon="Star"
-              size="small"
-              circle
-              @click="setDefaultAddress(scope.row.id)"
-              title="Đặt làm mặc định"
-              v-if="!scope.row.defaultAddress"
-            />
-            <el-button
-              type="primary"
-              :icon="Edit"
-              size="small"
-              circle
-              @click="editAddress(scope.row)"
-              title="Sửa"
-            />
-            <el-button
-              type="danger"
-              :icon="Delete"
-              size="small"
-              circle
-              @click="confirmDeleteAddress(scope.row.id)"
-              title="Xóa"
-            />
+            <el-button type="info" :icon="Star" size="small" circle @click="setDefaultAddress(scope.row.id)"
+              title="Đặt làm mặc định" v-if="!scope.row.defaultAddress" />
+            <el-button type="primary" :icon="Edit" size="small" circle @click="editAddress(scope.row)" title="Sửa" />
+            <el-button type="danger" :icon="Delete" size="small" circle @click="confirmDeleteAddress(scope.row.id)"
+              title="Xóa" />
           </template>
         </el-table-column>
       </el-table>
 
-      <el-dialog
-        v-model="addressFormVisible"
-        :title="isEditingAddress ? 'Sửa địa chỉ' : 'Thêm địa chỉ'"
-        width="500px"
-        append-to-body
-        :close-on-click-modal="false"
-      >
-        <el-form
-          ref="addressFormRef"
-          :model="addressForm"
-          :rules="addressRules"
-          label-width="120px"
-          class="address-form"
-        >
+      <el-dialog v-model="addressFormVisible" :title="isEditingAddress ? 'Sửa địa chỉ' : 'Thêm địa chỉ'" width="500px"
+        append-to-body :close-on-click-modal="false">
+        <el-form ref="addressFormRef" :model="addressForm" :rules="addressRules" label-width="120px"
+          class="address-form">
           <el-form-item label="Tỉnh/Thành phố" prop="provinceCode">
-            <el-select v-model="addressForm.provinceCode" placeholder="Chọn Tỉnh/Thành" @change="handleProvinceChangeForAddress" filterable style="width: 100%;">
-              <el-option
-                v-for="item in provinces"
-                :key="item.ProvinceID"
-                :label="item.ProvinceName"
-                :value="item.ProvinceID"
-              />
+            <el-select v-model="addressForm.provinceCode" placeholder="Chọn Tỉnh/Thành"
+              @change="handleProvinceChangeForAddress" filterable style="width: 100%;">
+              <el-option v-for="item in provinces" :key="item.ProvinceID" :label="item.ProvinceName"
+                :value="item.ProvinceID" />
             </el-select>
           </el-form-item>
 
           <el-form-item label="Quận/Huyện" prop="districtCode">
-            <el-select
-              v-model="addressForm.districtCode"
-              placeholder="Chọn Quận/Huyện"
-              :disabled="!districts.length"
-              @change="handleDistrictChangeForAddress"
-              filterable
-              style="width: 100%;"
-            >
-              <el-option
-                v-for="item in districts"
-                :key="item.DistrictID"
-                :label="item.DistrictName"
-                :value="item.DistrictID"
-              />
+            <el-select v-model="addressForm.districtCode" placeholder="Chọn Quận/Huyện" :disabled="!districts.length"
+              @change="handleDistrictChangeForAddress" filterable style="width: 100%;">
+              <el-option v-for="item in districts" :key="item.DistrictID" :label="item.DistrictName"
+                :value="item.DistrictID" />
             </el-select>
           </el-form-item>
 
           <el-form-item label="Phường/Xã" prop="wardCode">
-            <el-select
-              v-model="addressForm.wardCode"
-              placeholder="Chọn Phường/Xã"
-              :disabled="!wards.length"
-              @change="handleWardChangeForAddress"
-              filterable
-              style="width: 100%;"
-            >
-              <el-option
-                v-for="item in wards"
-                :key="item.WardCode"
-                :label="item.WardName"
-                :value="item.WardCode"
-              />
+            <el-select v-model="addressForm.wardCode" placeholder="Chọn Phường/Xã" :disabled="!wards.length"
+              @change="handleWardChangeForAddress" filterable style="width: 100%;">
+              <el-option v-for="item in wards" :key="item.WardCode" :label="item.WardName" :value="item.WardCode" />
             </el-select>
           </el-form-item>
 
           <el-form-item label="Số nhà, tên đường" prop="houseNumber">
-            <el-input
-              v-model="addressForm.houseNumber"
-              :prefix-icon="Location"
-              placeholder="Nhập số nhà, tên đường"
-              clearable
-            />
+            <el-input v-model="addressForm.houseNumber" :prefix-icon="Location" placeholder="Nhập số nhà, tên đường"
+              clearable />
           </el-form-item>
         </el-form>
 
         <template #footer>
           <span class="dialog-footer">
             <el-button @click="addressFormVisible = false" round>Hủy</el-button>
-            <el-button
-              type="primary"
-              :icon="Check"
-              @click="saveAddress"
-              :loading="addressSubmitting"
-              round
-            >
+            <el-button type="primary" :icon="Check" @click="saveAddress" :loading="addressSubmitting" round>
               Lưu
             </el-button>
           </span>
@@ -278,8 +134,6 @@ import apiClient from '@/utils/axiosInstance'; // Import your pre-configured API
 import { ElMessage, ElMessageBox } from 'element-plus';
 import {
   ArrowLeft,
-  User,
-  Lock,
   Avatar,
   Message,
   Phone,
@@ -309,8 +163,6 @@ const addresses = ref([]);
 const addressLoading = ref(false);
 
 const form = ref({
-  username: '',
-  password: '',
   customerName: '',
   email: '',
   phone: '',
@@ -338,14 +190,6 @@ const GHN_TOKEN = '847c9bb7-6e42-11ee-a59f-a260851ba65c'; // Your GHN Token
 
 // Validation Rules for Main Customer Form
 const rules = ref({
-  username: [
-    { required: true, message: 'Vui lòng nhập tên đăng nhập', trigger: 'blur' },
-    { min: 3, max: 50, message: 'Tên đăng nhập phải từ 3 đến 50 ký tự', trigger: 'blur' }
-  ],
-  password: [
-    { required: true, message: 'Vui lòng nhập mật khẩu', trigger: 'blur' },
-    { min: 6, message: 'Mật khẩu phải có ít nhất 6 ký tự', trigger: 'blur' }
-  ],
   customerName: [
     { required: true, message: 'Vui lòng nhập họ tên', trigger: 'blur' },
     { min: 2, max: 100, message: 'Họ tên phải từ 2 đến 100 ký tự', trigger: 'blur' }
@@ -455,7 +299,7 @@ const editAddress = async (address) => {
   addressForm.value.provinceCode = address.provinceId; // Assuming backend uses provinceId
   addressForm.value.provinceName = address.provinceName;
   await loadDistrictsForAddress(); // Load districts based on selected province
-  
+
   // Set selected district and load wards
   addressForm.value.districtCode = address.districtId; // Assuming backend uses districtId
   addressForm.value.districtName = address.districtName;
@@ -734,7 +578,8 @@ onMounted(() => {
   --el-button-hover-bg-color: #85ce61;
 }
 
-.el-button--info { /* Added for the new default button */
+.el-button--info {
+  /* Added for the new default button */
   --el-button-bg-color: #909399;
   --el-button-hover-bg-color: #a6a9ad;
 }

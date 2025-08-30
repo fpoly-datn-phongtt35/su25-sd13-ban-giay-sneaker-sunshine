@@ -116,7 +116,7 @@
         <el-table-column label="Loại tác động" width="150">
           <template #default="{ row }">{{ getActionType(row.actionType) }}</template>
         </el-table-column>
-        <el-table-column label="Trường" prop="note" />
+        <el-table-column label="Trường" prop="fieldName" />
         <el-table-column label="Giá trị cũ" prop="oldValue" />
         <el-table-column label="Giá trị mới" prop="newValue" />
         <el-table-column label="Mô tả" prop="note" />

@@ -91,7 +91,7 @@ const handleLogin = async () => {
     loading.value = true
 
     const res = await apiClient.post('/auth/login-user', loginForm.value)
-    const { token, employeeName, customerName, id } = res.data
+    const { token, employeeName, customerName, id, customerId } = res.data
 
     console.log('id:', id)
 
@@ -100,6 +100,7 @@ const handleLogin = async () => {
     localStorage.setItem('employeeName', employeeName || '')
     localStorage.setItem('customerName', customerName || '')
     localStorage.setItem('userId', id)
+    localStorage.setItem('customerId', customerId)
 
     // Giả sử giỏ hàng khách vãng lai lưu ở 'cart_guest'
     const guestCart = localStorage.getItem('cart_guest')

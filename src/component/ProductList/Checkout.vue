@@ -196,7 +196,7 @@ const applyDiscountCode = async () => {
     return
   }
   try {
-    const res = await axios.get('http://localhost:8080/api/admin/vouchers/apply', {
+    const res = await axios.get('http://localhost:8080/api/online-sale/vouchers/apply', {
       params: {
         customerId: form.value.customerId || 0,
         voucherCode: discountCode.value,
@@ -240,7 +240,7 @@ const applyBestVoucherAutomatically = async () => {
       // Clear any manually entered discount code
       discountCode.value = '';
 
-      const res = await axios.get('http://localhost:8080/api/admin/vouchers/apply-best', { // Corrected line
+      const res = await axios.get('http://localhost:8080/api/online-sale/vouchers/apply-best', { // Corrected line
         params: {
           customerId: customerId,
           orderTotal: orderTotal
@@ -359,7 +359,7 @@ onMounted(async () => {
   if (userId) {
     let loadingInstance = ElLoading.service({ fullscreen: true, text: 'Đang tải thông tin...' });
     try {
-      const res = await axios.get(`http://localhost:8080/api/admin/customers/${userId}`)
+      const res = await axios.get(`http://localhost:8080/api/online-sale/customers/${userId}`)
       const customer = res.data
 
       // Pre-fill form with customer data

@@ -404,10 +404,10 @@ const handleLoggedIn = (userData) => { localStorage.setItem('user', JSON.stringi
 const handleRegisterSuccess = () => { ElMessage.success('Đăng ký thành công! Vui lòng đăng nhập.'); showRegister.value = false; showLogin.value = true }
 const logout = () => {
   const userId = user.value?.id
-  // localStorage.removeItem('user'); localStorage.removeItem('token'); localStorage.removeItem('employeeName'); localStorage.removeItem('customerName'); localStorage.removeItem('userId')
-  // if (userId) localStorage.removeItem(`cart_${userId}`)
-  // localStorage.removeItem('cart_guest'); localStorage.removeItem('cart')
-  // user.value = null; cartCount.value = 0; showUserOptions.value = false
+   localStorage.removeItem('user'); localStorage.removeItem('token'); localStorage.removeItem('employeeName'); localStorage.removeItem('customerName'); localStorage.removeItem('userId') ;  localStorage.removeItem('customerId')
+   if (userId) localStorage.removeItem(`cart_${userId}`)
+   localStorage.removeItem('cart_guest'); localStorage.removeItem('cart')
+   user.value = null; cartCount.value = 0; showUserOptions.value = false
   ElMessage.success('Đăng xuất thành công!'); router.push('/')
 }
 

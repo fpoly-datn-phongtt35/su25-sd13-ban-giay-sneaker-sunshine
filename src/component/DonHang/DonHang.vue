@@ -107,10 +107,9 @@ const search = async () => {
   loading.value = true
   try {
     const statusDetailCode = statusLabelToCode(currentTab.value)
-
     if (statusDetailCode !== null) {
       console.log('Gửi yêu cầu API với statusDetail:', statusDetailCode) // Log debug
-      const res = await apiClient.get('/admin/online-sales/get-order-customer', {
+      const res = await apiClient.get('/online-sale/get-order-customer-v2', {
         params: {
           statusDetail: statusDetailCode
         }
@@ -190,7 +189,7 @@ const openReviewDialog = async (order) => {
 
 const fetchStatusCounts = async () => {
   try {
-    const response = await apiClient.get('/admin/online-sales/count-by-status')
+    const response = await apiClient.get('/online-sale/count-by-status')
     const data = response.data || []
 
     // Map count về tabs

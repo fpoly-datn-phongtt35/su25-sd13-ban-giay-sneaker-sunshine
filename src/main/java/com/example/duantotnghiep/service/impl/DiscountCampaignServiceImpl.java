@@ -30,11 +30,10 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -376,6 +375,21 @@ public class DiscountCampaignServiceImpl implements DiscountCampaignService {
     @Override
     public DiscountCampaignStatisticsResponse getStatistics(Long campaignId) {
         return invoiceRepository.getStatisticsByCampaignId(campaignId);
+    }
+
+    @Override
+    public Page<DiscountCampaignResponse> search(String keyword,
+                                                 Integer status,
+                                                 LocalDate createdDate,
+                                                 Pageable pageable) {
+        LocalDateTime start = null, end = null;
+        if (createdDate != null) {
+            start = createdDate.atStartOfDay();
+            end   = createdDate.atTime(LocalTime.MAX);
+        }
+        return discountCampaignRepository.searchByKeywordStatusCreatedDate(
+                keyword, status, start, end, pageable
+        );
     }
 
 }

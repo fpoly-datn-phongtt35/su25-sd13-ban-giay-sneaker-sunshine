@@ -3,10 +3,14 @@ package com.example.duantotnghiep.controller;
 import com.example.duantotnghiep.dto.request.EmployeeRequest;
 import com.example.duantotnghiep.dto.response.EmployeeResponse;
 import com.example.duantotnghiep.service.EmployeeService;
+import com.example.duantotnghiep.xuatExcel.EmployeeExportService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -24,6 +28,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class EmployeeController {
     private final EmployeeService employeeService;
+    private final EmployeeExportService employeeExportService;
 
     //  Get all employees with pagination
     @GetMapping
@@ -63,5 +68,35 @@ public class EmployeeController {
     @GetMapping("/get-data")
     public List<EmployeeResponse> getEmployeeData() {
         return employeeService.getAllData();
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<List<EmployeeResponse>> searchEmployees(
+            @RequestParam(required = false) String employeeCode,
+            @RequestParam(required = false) String employeeName,
+            @RequestParam(required = false) String email
+    ) {
+        List<EmployeeResponse> result = employeeService.searchEmployees(employeeCode, employeeName, email);
+        return ResponseEntity.ok(result);
+    }
+
+    @GetMapping("/export-excel")
+    public ResponseEntity<byte[]> exportEmployeesExcel(
+            @RequestParam(required = false) String employeeCode,
+            @RequestParam(required = false) String employeeName,
+            @RequestParam(required = false) String email
+    ) {
+        byte[] file = employeeExportService.exportEmployeesExcel(employeeCode, employeeName, email);
+
+        String filename = "employees-" + java.time.LocalDateTime.now()
+                .toString().replace(":", "-")
+                + ".xlsx";
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .contentType(MediaType.parseMediaType(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .contentLength(file.length)
+                .body(file);
     }
 }

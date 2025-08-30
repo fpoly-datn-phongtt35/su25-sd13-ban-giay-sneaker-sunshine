@@ -25,86 +25,35 @@ public class SecurityConfig {
     private final JwtFilter jwtFilter;
     private final CustomUserDetailsService userDetailsService;
 
-        @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http
-                .csrf(csrf -> csrf.disable())
-                .authorizeHttpRequests(auth -> auth
-                        // Cho phép truy cập login và register
-                        .requestMatchers("/api/auth/**").permitAll() // gồm /login-user
-
-                        .requestMatchers("/api/online-sale/**").permitAll()
-
-                        // ADMIN và STAFF có thể truy cập counter-sales
-                        .requestMatchers("/api/admin/counter-sales/**").hasAnyRole("ADMIN", "STAFF")
-
-                        // CHỈ ADMIN mới được phép truy cập thống kê
-                        .requestMatchers("/api/admin/statistics/**").hasAnyRole("ADMIN", "STAFF")
-
-                        .requestMatchers("/api/admin/customers/**").hasRole("ADMIN")
-
-                        .requestMatchers("/api/admin/employees/**").hasRole("ADMIN")
-
-                        .requestMatchers("/api/admin/products/**").hasRole("ADMIN")
-
-                        .requestMatchers("/api/admin/campaigns/**").hasRole("ADMIN")
-
-                        // CHỈ ADMIN được phép vào các API admin khác
-                        .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "STAFF")
-
-                        // Các request khác yêu cầu xác thực
-                        .anyRequest().authenticated()
-                )
-                .sessionManagement(sess -> sess
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                )
-                .authenticationProvider(authenticationProvider());
-
-        http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
-
-        return http.build();
-    }
-//    @Bean
+//        @Bean
 //    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 //        http
 //                .csrf(csrf -> csrf.disable())
-//                .cors(c -> {
-//                }) // nếu bạn có CorsConfigurationSource bean bên dưới
-//                .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 //                .authorizeHttpRequests(auth -> auth
-//                        // ===== AUTH (mở hết) =====
-//                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+//                        // Cho phép truy cập login và register
 //                        .requestMatchers("/api/auth/**").permitAll() // gồm /login-user
 //
-//                        // ===== PUBLIC =====
 //                        .requestMatchers("/api/online-sale/**").permitAll()
 //
-//                        // ===== ADMIN/STAFF =====
+//                        // ADMIN và STAFF có thể truy cập counter-sales
 //                        .requestMatchers("/api/admin/counter-sales/**").hasAnyRole("ADMIN", "STAFF")
-//                        .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "STAFF")
 //
-//                        // Nếu thật sự chỉ ADMIN được xem statistics/customers/employees,
-//                        // dùng hasRole thay vì hasAnyRole:
-//                        .requestMatchers("/api/admin/statistics/**").hasRole("ADMIN")
+//                        // CHỈ ADMIN mới được phép truy cập thống kê
+//                        .requestMatchers("/api/admin/statistics/**").hasAnyRole("ADMIN", "STAFF")
+//
 //                        .requestMatchers("/api/admin/customers/**").hasRole("ADMIN")
+//
 //                        .requestMatchers("/api/admin/employees/**").hasRole("ADMIN")
 //
-//                        // Các request còn lại cần đăng nhập
-//                        .anyRequest().authenticated()
-//                )
-//                .authenticationProvider(authenticationProvider());
+//                        .requestMatchers("/api/admin/products/**").hasRole("ADMIN")
 //
-//        http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
-//        return http.build();
-//    }
-
-
-//    @Bean
-//    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-//        http
-//                .csrf(csrf -> csrf.disable())
-//                .authorizeHttpRequests(auth -> auth
-//                        .anyRequest().permitAll()  // Mở tất cả các đường dẫn
+//                        .requestMatchers("/api/admin/campaigns/**").hasRole("ADMIN")
+//
+//                        // CHỈ ADMIN được phép vào các API admin khác
+//                        .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "STAFF")
+//
+//                        // Các request khác yêu cầu xác thực
+//                        .anyRequest().authenticated()
 //                )
 //                .sessionManagement(sess -> sess
 //                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
@@ -115,6 +64,24 @@ public class SecurityConfig {
 //
 //        return http.build();
 //    }
+
+
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http
+                .csrf(csrf -> csrf.disable())
+                .authorizeHttpRequests(auth -> auth
+                        .anyRequest().permitAll()  // Mở tất cả các đường dẫn
+                )
+                .sessionManagement(sess -> sess
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
+                .authenticationProvider(authenticationProvider());
+
+        http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+
+        return http.build();
+    }
 
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {

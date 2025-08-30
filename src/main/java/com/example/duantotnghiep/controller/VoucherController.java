@@ -29,6 +29,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/admin/vouchers")
@@ -129,8 +130,18 @@ public class VoucherController {
     }
 
     @GetMapping("/by-customer/{customerId}")
-    public ResponseEntity<List<VoucherResponse>> getVouchersByCustomer(@PathVariable String customerId) {
-        List<VoucherResponse> response = voucherService.getVouchersByCustomerId(customerId);
+    public ResponseEntity<List<VoucherResponse>> getVouchersByCustomer(
+            @PathVariable Long customerId,
+            @RequestParam(required = false) Integer orderType,
+            @RequestParam(required = false) Set<Long> productIds,
+            @RequestParam(required = false) Set<Long> categoryIds
+    ) {
+        List<VoucherResponse> response = voucherService.getVouchersByCustomer(
+                customerId,
+                orderType,
+                productIds,
+                categoryIds
+        );
         return ResponseEntity.ok(response);
     }
 

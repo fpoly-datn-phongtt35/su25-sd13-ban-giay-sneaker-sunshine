@@ -138,4 +138,11 @@ public class EmployeeServiceImpl implements EmployeeService {
         String randomPart = String.format("%04d", (int) (Math.random() * 10000));
         return prefix + datePart + "-" + randomPart;
     }
+
+    @Transactional(readOnly = true)
+    @Override
+    public List<EmployeeResponse> searchEmployees(String employeeCode, String employeeName, String email) {
+        List<Employee> employees = employeeRepository.searchEmployees(employeeCode, employeeName, email);
+        return employeeMapper.toEmployeeResponseList(employees);
+    }
 }

@@ -6,7 +6,6 @@ import com.example.duantotnghiep.dto.response.PaginationDTO;
 import com.example.duantotnghiep.dto.response.VoucherResponse;
 import com.example.duantotnghiep.dto.response.VoucherStatusDTO;
 import com.example.duantotnghiep.mapper.VoucherMapper;
-import com.example.duantotnghiep.model.Customer;
 import com.example.duantotnghiep.model.Invoice;
 import com.example.duantotnghiep.model.InvoiceDetail;
 import com.example.duantotnghiep.model.Product;
@@ -14,12 +13,12 @@ import com.example.duantotnghiep.model.ProductCategory;
 import com.example.duantotnghiep.model.Voucher;
 import com.example.duantotnghiep.repository.*;
 import com.example.duantotnghiep.service.VoucherService;
-import com.example.duantotnghiep.xuatExcel.ProductExcelExporter;
 import com.example.duantotnghiep.xuatExcel.VoucherExportExcel;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -29,11 +28,13 @@ import java.math.RoundingMode;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -62,7 +63,9 @@ public class VoucherServiceIpml implements VoucherService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional
     public List<VoucherResponse> getVouchersByCustomerInInvoice(Long invoiceId) {
+        // 1) Lấy hóa đơn + kiểm tra KH
         Invoice invoice = invoiceRepository.findById(invoiceId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy hóa đơn với ID: " + invoiceId));
 
@@ -70,47 +73,82 @@ public class VoucherServiceIpml implements VoucherService {
             throw new RuntimeException("Hóa đơn không có khách hàng.");
         }
 
-        Long customerId = invoice.getCustomer().getId();
+        Integer orderType = invoice.getOrderType(); // 0: quầy, 1: online
         LocalDateTime now = LocalDateTime.now();
+        Long customerId = invoice.getCustomer().getId();
 
-        // Tập hợp productId và categoryId
-        Set<String> productIds = new HashSet<>();
-        Set<String> categoryIds = new HashSet<>();
+        // 2) Thu thập productId & categoryId từ các dòng HỢP LỆ (nếu có)
+        Set<Long> productIds = new HashSet<>();
+        Set<Long> categoryIds = new HashSet<>();
 
-        for (InvoiceDetail detail : invoice.getInvoiceDetails()) {
-            Product product = detail.getProductDetail().getProduct();
-            if (product != null) {
-                productIds.add(String.valueOf(product.getId()));
+        List<InvoiceDetail> details = invoice.getInvoiceDetails();
+        if (details != null) {
+            for (InvoiceDetail d : details) {
+                if (d == null) continue;
+                // status null hoặc =1 và quantity > 0
+                boolean okStatus = (d.getStatus() == null || d.getStatus() == 1);
+                boolean okQty    = (d.getQuantity() != null && d.getQuantity() > 0);
+                if (!okStatus || !okQty) continue;
 
-                // Lấy danh sách category từ bảng product_category
-                List<ProductCategory> productCategories = productCategoryRepository.findByProduct(product);
-                for (ProductCategory pc : productCategories) {
-                    if (pc.getCategory() != null) {
-                        categoryIds.add(String.valueOf(pc.getCategory().getId()));
+                if (d.getProductDetail() != null && d.getProductDetail().getProduct() != null) {
+                    Product p = d.getProductDetail().getProduct();
+                    if (p.getId() != null) {
+                        productIds.add(p.getId());
+
+                        // lấy category của product
+                        List<ProductCategory> pcs = productCategoryRepository.findByProduct(p);
+                        if (pcs != null) {
+                            for (ProductCategory pc : pcs) {
+                                if (pc != null && pc.getCategory() != null && pc.getCategory().getId() != null) {
+                                    categoryIds.add(pc.getCategory().getId());
+                                }
+                            }
+                        }
                     }
                 }
             }
         }
 
-        // Truy vấn voucher phù hợp
-        List<Voucher> vouchers = voucherRepository.findValidVouchers(now, customerId, productIds, categoryIds);
+        // 3) Xác định cờ lọc
+        boolean hasProductIds   = !productIds.isEmpty();
+        boolean hasCategoryIds  = !categoryIds.isEmpty();
+        boolean useProducts     = hasProductIds;         // có productIds thì mới lọc theo sản phẩm
+        boolean useCategories   = hasCategoryIds;        // có categoryIds thì mới lọc theo danh mục
 
-        // Lọc bỏ voucher đã dùng và voucher có quantity <= 0
-        Set<Long> usedVoucherIds = voucherHistoryRepository
-                .findByCustomerIdAndStatus(customerId, 1)
-                .stream()
-                .map(vh -> vh.getVoucher().getId())
+        // 4) Gọi repo: nếu không có ids, truyền Set rỗng + cờ false để query không ép điều kiện IN
+        List<Voucher> vouchers = voucherRepository.findValidVouchers(
+                now,
+                customerId,
+                orderType,
+                useProducts,
+                useCategories,
+                hasProductIds,
+                hasCategoryIds,
+                hasProductIds ? productIds : Collections.emptySet(),
+                hasCategoryIds ? categoryIds : Collections.emptySet()
+        );
+
+        // 5) Lọc voucher đã dùng + quantity <= 0 (an toàn)
+        Set<Long> usedVoucherIds = Optional.ofNullable(
+                        voucherHistoryRepository.findByCustomerIdAndStatus(customerId, 1)
+                ).orElseGet(Collections::emptyList).stream()
+                .filter(Objects::nonNull)
+                .map(vh -> vh.getVoucher() == null ? null : vh.getVoucher().getId())
+                .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
 
         List<Voucher> availableVouchers = vouchers.stream()
-                .filter(v -> !usedVoucherIds.contains(v.getId()))
-                .filter(v -> v.getQuantity() != null && v.getQuantity() > 0) // Kiểm tra số lượng
-                .collect(Collectors.toList());
+                .filter(v -> v.getId() != null && !usedVoucherIds.contains(v.getId()))
+                .filter(v -> v.getQuantity() == null || v.getQuantity() > 0)
+                .toList();
 
+        // 6) Map DTO
         return availableVouchers.stream()
                 .map(voucherMapper::toDto)
                 .toList();
     }
+
+
 
     @Override
     public VoucherResponse themMoi(VoucherRequest voucherRequest) {
@@ -216,12 +254,13 @@ public class VoucherServiceIpml implements VoucherService {
 
     @Override
     public Voucher validateVoucher(Long customerId, String voucherCode, BigDecimal orderTotal) {
-        Voucher voucher = voucherRepository.findByCustomerIdAndVoucherCode(customerId, voucherCode)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy voucher hoặc không thuộc khách hàng này"));
+        Voucher voucher = voucherRepository.findByCustomerIdOrGlobalVoucherCode(customerId, voucherCode)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy voucher hợp lệ"));
 
         LocalDateTime now = LocalDateTime.now();
 
-        if (voucher.getStartDate().isAfter(now) || voucher.getEndDate().isBefore(now)) {
+        if ((voucher.getStartDate() != null && voucher.getStartDate().isAfter(now)) ||
+                (voucher.getEndDate() != null && voucher.getEndDate().isBefore(now))) {
             throw new RuntimeException("Voucher đã hết hạn hoặc chưa đến thời gian sử dụng");
         }
 
@@ -229,66 +268,168 @@ public class VoucherServiceIpml implements VoucherService {
             throw new RuntimeException("Voucher đã hết lượt sử dụng");
         }
 
-        if (orderTotal.compareTo(voucher.getMinOrderValue()) < 0) {
+        if (voucher.getMinOrderValue() != null && orderTotal.compareTo(voucher.getMinOrderValue()) < 0) {
             throw new RuntimeException("Đơn hàng chưa đạt giá trị tối thiểu để áp dụng voucher");
         }
 
-        if (voucher.getStatus() != null && voucher.getStatus() != 1) {
+        if (voucher.getStatus() == null || voucher.getStatus() != 1) {
             throw new RuntimeException("Voucher đang không hoạt động");
         }
 
         return voucher;
     }
 
-    @Override
-    public Voucher findBestVoucherForCustomer(Long customerId, BigDecimal orderTotal) {
-        Customer customer = customerRepository.findById(customerId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy khách hàng"));
 
+    @Transactional(readOnly = true)
+    public Voucher findBestVoucherForCustomer(Long invoiceId, BigDecimal orderTotal) {
+        Invoice invoice = invoiceRepository.findById(invoiceId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy hóa đơn: " + invoiceId));
+
+        if (invoice.getCustomer() == null) {
+            throw new RuntimeException("Hóa đơn không có khách hàng.");
+        }
+
+        // Lọc dòng hợp lệ
+        List<InvoiceDetail> validDetails = Optional.ofNullable(invoice.getInvoiceDetails())
+                .orElse(List.of()).stream()
+                .filter(d -> d != null
+                        && (d.getStatus() == null || d.getStatus() == 1)
+                        && d.getQuantity() != null && d.getQuantity() > 0
+                        && d.getProductDetail() != null
+                        && d.getProductDetail().getProduct() != null
+                        && d.getProductDetail().getProduct().getId() != null)
+                .toList();
+
+        if (validDetails.isEmpty()) {
+            throw new RuntimeException("Giỏ hàng trống, không thể tự động áp voucher.");
+        }
+
+        // Gom productIds (đúng kiểu Long)
+        Set<Long> productIds = validDetails.stream()
+                .map(d -> d.getProductDetail().getProduct().getId())
+                .collect(Collectors.toSet());
+
+        if (productIds.isEmpty()) {
+            throw new RuntimeException("Không có sản phẩm hợp lệ trong giỏ để áp voucher theo sản phẩm.");
+        }
+
+        Long customerId = invoice.getCustomer().getId();
+        Integer orderType = invoice.getOrderType(); // 0: quầy, 1: online
         LocalDateTime now = LocalDateTime.now();
 
-        // Lọc các voucher mà khách hàng đang sở hữu (được gán riêng cho khách đó)
-        List<Voucher> ownedVouchers = voucherRepository.findByCustomerId(customerId).stream()
-                .filter(v -> v.getStatus() != null && v.getStatus() == 1) // Voucher đang hoạt động
-                .filter(v -> v.getQuantity() == null || v.getQuantity() > 0) // Còn số lượng
-                .filter(v -> now.isAfter(v.getStartDate()) && now.isBefore(v.getEndDate())) // Trong thời gian áp dụng
-                .filter(v -> v.getMinOrderValue() == null || orderTotal.compareTo(v.getMinOrderValue()) >= 0) // Đủ điều kiện đơn hàng tối thiểu
-                .filter(v -> !voucherHistoryRepository.existsByVoucherAndCustomer(v, customer)) // Chưa từng dùng
-                .collect(Collectors.toList());
+        // ===== GỌI QUERY STRICT THEO SẢN PHẨM =====
+        List<Voucher> candidates = voucherRepository.findValidVouchersStrictByProducts(
+                now, orderType, productIds
+        );
 
-        Voucher bestVoucher = null;
+        // Hàng rào cuối: chỉ giữ voucher có product trùng với productIds
+        List<Voucher> applicable = candidates.stream()
+                .filter(v -> v.getProduct() != null
+                        && v.getProduct().getId() != null
+                        && productIds.contains(v.getProduct().getId()))
+                .toList();
+
+        if (applicable.isEmpty()) {
+            throw new RuntimeException("Không có voucher nào khớp đúng sản phẩm trong giỏ.");
+        }
+
+        // Voucher đã dùng
+        Set<Long> usedVoucherIds = voucherHistoryRepository
+                .findByCustomerIdAndStatus(customerId, 1)
+                .stream()
+                .map(vh -> vh.getVoucher() != null ? vh.getVoucher().getId() : null)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        // Chọn voucher tốt nhất
+        Voucher best = null;
         BigDecimal bestDiscount = BigDecimal.ZERO;
 
-        for (Voucher v : ownedVouchers) {
+        for (Voucher v : applicable) {
+            if (usedVoucherIds.contains(v.getId())) continue;
+            if (v.getMinOrderValue() != null && orderTotal.compareTo(v.getMinOrderValue()) < 0) continue;
+
             BigDecimal discount = BigDecimal.ZERO;
 
+            // % giảm
             if (v.getDiscountPercentage() != null && v.getDiscountPercentage().compareTo(BigDecimal.ZERO) > 0) {
                 discount = orderTotal.multiply(v.getDiscountPercentage())
                         .divide(BigDecimal.valueOf(100), 0, RoundingMode.HALF_UP);
-
                 if (v.getMaxDiscountValue() != null && discount.compareTo(v.getMaxDiscountValue()) > 0) {
                     discount = v.getMaxDiscountValue();
                 }
-            } else if (v.getDiscountAmount() != null && BigDecimal.valueOf(v.getDiscountAmount()).compareTo(BigDecimal.ZERO) > 0) {
-                discount = BigDecimal.valueOf(v.getDiscountAmount());
+            }
+            // Số tiền cố định
+            else if (v.getDiscountAmount() != null
+                    && BigDecimal.valueOf(v.getDiscountAmount().longValue()).compareTo(BigDecimal.ZERO) > 0) {
+                discount = BigDecimal.valueOf(v.getDiscountAmount().longValue());
             }
 
             if (discount.compareTo(bestDiscount) > 0) {
                 bestDiscount = discount;
-                bestVoucher = v;
+                best = v;
             }
         }
 
-        return bestVoucher;
+        if (best == null) {
+            throw new RuntimeException("Không có voucher nào đạt điều kiện (đơn chưa đủ min hoặc voucher đã dùng).");
+        }
+
+        return best;
     }
 
+    @Transactional(readOnly = true)
     @Override
-    public List<VoucherResponse> getVouchersByCustomerId(String customerId) {
-        List<Voucher> vouchers = voucherRepository.findByCustomer_Id(Long.valueOf(customerId));
-        return vouchers.stream()
+    public List<VoucherResponse> getVouchersByCustomer(
+            Long customerId,
+            Integer orderType,                // 0: quầy, 1: online, null: không lọc
+            Set<Long> productIds,             // có thể null/rỗng
+            Set<Long> categoryIds             // có thể null/rỗng
+    ) {
+        if (customerId == null) {
+            return Collections.emptyList();
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+
+        boolean hasProductIds  = productIds != null && !productIds.isEmpty();
+        boolean hasCategoryIds = categoryIds != null && !categoryIds.isEmpty();
+
+        boolean useProducts   = hasProductIds;   // chỉ lọc theo sản phẩm khi có productIds
+        boolean useCategories = hasCategoryIds;  // chỉ lọc theo danh mục khi có categoryIds
+
+        // Gọi query đã sửa: (v.customer IS NULL OR v.customer.id = :customerId)
+        List<Voucher> vouchers = voucherRepository.findValidVouchers(
+                now,
+                customerId,
+                orderType,
+                useProducts,
+                useCategories,
+                hasProductIds,
+                hasCategoryIds,
+                hasProductIds ? productIds : Collections.emptySet(),
+                hasCategoryIds ? categoryIds : Collections.emptySet()
+        );
+
+        // Loại voucher đã dùng bởi khách này (status=1) — có thể tuỳ dự án
+        Set<Long> usedVoucherIds = Optional.ofNullable(
+                        voucherHistoryRepository.findByCustomerIdAndStatus(customerId, 1)
+                ).orElseGet(Collections::emptyList).stream()
+                .filter(Objects::nonNull)
+                .map(vh -> vh.getVoucher() == null ? null : vh.getVoucher().getId())
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        List<Voucher> available = vouchers.stream()
+                .filter(v -> v != null && v.getId() != null && !usedVoucherIds.contains(v.getId()))
+                .filter(v -> v.getQuantity() == null || v.getQuantity() > 0)
+                .toList();
+
+        return available.stream()
                 .map(voucherMapper::toDto)
-                .collect(Collectors.toList());
+                .toList();
     }
+
 
     @Override
     public void exportVoucherToExcelByIds(List<Long> voucherIds, OutputStream outputStream) throws IOException {

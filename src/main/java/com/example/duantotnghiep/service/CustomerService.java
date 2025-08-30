@@ -34,4 +34,10 @@ public interface CustomerService {
     void unblacklistCustomer(Long id);
 
     List<BadCustomerResponse> getAllBlacklistedCustomers();
+
+    //Tìm kiếm nâng cao
+
+    Page<CustomerResponse> searchByNameAndPhone(String name, String phone,String phoneSuffix, Pageable pageable);
+    // xuất excel lấy ra thông tin khách hàng
+    List<CustomerResponse> findAllForExport(String name, String phone);
 }

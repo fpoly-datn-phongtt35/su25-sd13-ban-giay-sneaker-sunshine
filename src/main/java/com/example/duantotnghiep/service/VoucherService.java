@@ -9,6 +9,7 @@ import com.example.duantotnghiep.model.Voucher;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -17,6 +18,7 @@ import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public interface VoucherService {
     List<VoucherResponse> getValidVouchers();
@@ -34,7 +36,14 @@ public interface VoucherService {
 
     Voucher findBestVoucherForCustomer(Long customerId, BigDecimal orderTotal);
 
-    List<VoucherResponse> getVouchersByCustomerId(String customerId);
+
+    @Transactional(readOnly = true)
+    List<VoucherResponse> getVouchersByCustomer(
+            Long customerId,
+            Integer orderType,                // 0: quầy, 1: online, null: không lọc
+            Set<Long> productIds,             // có thể null/rỗng
+            Set<Long> categoryIds             // có thể null/rỗng
+    );
 
     void exportVoucherToExcelByIds(List<Long> voucherIds, OutputStream outputStream) throws IOException;
     VoucherStatusDTO getVoucherStatsForToday(Long voucherId);

@@ -117,6 +117,9 @@ public class Voucher {
     @JoinColumn(name = "category_id")
     private Category category;
 
+    @Column(name = "min_order_to_receive")
+    private BigDecimal minOrderToReceive;
+
     @OneToMany(mappedBy = "voucher")
     private Set<VoucherHistory> voucherHistories = new LinkedHashSet<>();
 

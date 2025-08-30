@@ -101,10 +101,16 @@ public class CustomerServiceImpl implements CustomerService {
         customer.setUpdatedDate(LocalDateTime.now());
 
         // Cập nhật thông tin user
-        user.setUsername(request.getUsername());
-        user.setPassword(request.getPassword());
+        // Cập nhật thông tin user (chỉ khi FE gửi lên)
+        if (request.getUsername() != null && !request.getUsername().isBlank()) {
+            user.setUsername(request.getUsername().trim());
+        }
+        if (request.getPassword() != null && !request.getPassword().isBlank()) {
+            user.setPassword(request.getPassword());
+        }
         user.setUpdatedAt(new Date());
         user.setUpdatedBy("admin");
+
 
         // Gán lại customer vào user nếu cần
         user.setCustomer(customer);
@@ -319,6 +325,52 @@ public class CustomerServiceImpl implements CustomerService {
         List<Customer> blacklistedCustomers = customerRepository.findByIsBlacklistedTrue();
         return customerMapper.toBadCustomerDtoList(blacklistedCustomers);
     }
+
+    //Tìm kiếm nâng cao
+
+    @Override
+    public Page<CustomerResponse> searchByNameAndPhone(String name, String phone, String phoneSuffix, Pageable pageable) {
+        Page<Customer> customers = customerRepository.searchByNameAndPhone(name, phone, phoneSuffix, pageable);
+        return customers.map(customerMapper::toDto);
+    }
+
+
+
+// xuất excel lấy ra thông tin địa chỉ khách hàng
+
+    @Override
+    public List<CustomerResponse> findAllForExport(String name, String phone) {
+        // lấy toàn bộ KH (hoặc theo filter) ở dạng entity -> dto
+        var dtoPage = this.searchByNameAndPhone(name, phone, null, Pageable.unpaged());
+        var dtos = dtoPage.getContent();
+        if (dtos.isEmpty()) return dtos;
+
+        var ids = dtos.stream().map(CustomerResponse::getId).toList();
+        var addresses = addressRepository.findBestAddressesForCustomerIds(ids);
+
+
+        // map nhanh theo customerId
+        var map = new java.util.HashMap<Long, AddressCustomer>();
+        for (var a : addresses) {
+            map.put(a.getCustomer().getId(), a);
+        }
+        for (var dto : dtos) {
+            var a = map.get(dto.getId());
+            if (a != null) {
+                dto.setCountry(a.getCountry());
+                dto.setProvinceCode(a.getProvinceCode());
+                dto.setProvinceName(a.getProvinceName());
+                dto.setDistrictCode(a.getDistrictCode());
+                dto.setDistrictName(a.getDistrictName());
+                dto.setWardCode(a.getWardCode());
+                dto.setWardName(a.getWardName());
+                dto.setHouseName(a.getHouseName());
+            }
+        }
+        return dtos;
+    }
+
+
 
 
 

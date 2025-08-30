@@ -298,117 +298,6 @@ const discountCode = ref('')
 const appliedVoucher = ref(null)
 const discountAmount = ref(0)
 
-<<<<<<< HEAD
-const cancelVoucher = () => {
-  appliedVoucher.value = null
-  discountCode.value = ''           // Xóa code trong input
-  discountAmount.value = 0
-  // Cập nhật lại finalTotal
-  finalTotal.value = totalPrice.value + shippingFee.value
-  ElMessage.info('Đã hủy bỏ mã giảm giá.')
-}
-
-const applyDiscountCode = async () => {
-  if (!discountCode.value) {
-    ElMessage.warning('Vui lòng nhập mã giảm giá!')
-    return
-  }
-  try {
-    const res = await axios.get('http://localhost:8080/api/online-sale/vouchers/apply', {
-      params: {
-        customerId: form.value.customerId || 0,
-        voucherCode: discountCode.value,
-        orderTotal: totalPrice.value
-      }
-    })
-    appliedVoucher.value = res.data
-    ElMessage.success(`Áp dụng voucher thành công: ${appliedVoucher.value.voucherName}`)
-
-    // 👉 Tính tiền giảm giá
-    let discount = 0
-    if (appliedVoucher.value.discountPercentage) {
-      discount = Math.min(
-        (totalPrice.value * appliedVoucher.value.discountPercentage) / 100,
-        appliedVoucher.value.maxDiscountValue || Infinity
-      )
-    } else if (appliedVoucher.value.discountAmount) {
-      discount = appliedVoucher.value.discountAmount
-    }
-
-    discountAmount.value = discount
-    finalTotal.value = totalPrice.value - discountAmount.value + shippingFee.value
-
-  } catch (err) {
-    console.error('❌ Lỗi áp dụng voucher:', err)
-    ElMessage.error(err?.response?.data?.message || 'Không áp dụng được voucher, vui lòng kiểm tra lại.')
-    // Reset discount nếu fail
-    discountAmount.value = 0
-    finalTotal.value = totalPrice.value + shippingFee.value
-  }
-}
-
-// ✨ NEW FUNCTION: Automatic Best Voucher Application
-const applyBestVoucherAutomatically = async () => {
-  const customerId = form.value.customerId;
-  const orderTotal = totalPrice.value;
-
-  // Only attempt to apply if customerId is known and orderTotal is greater than 0
-  if (customerId && orderTotal > 0) {
-    try {
-      // Clear any manually entered discount code
-      discountCode.value = '';
-
-      const res = await axios.get('http://localhost:8080/api/online-sale/vouchers/apply-best', { // Corrected line
-        params: {
-          customerId: customerId,
-          orderTotal: orderTotal
-        }
-      });
-
-      // If a best voucher is found
-      if (res.data) {
-        appliedVoucher.value = res.data;
-        // Corrected variable name: appliedVoucher.value.voucherName instead of appliedVulatedVoucher.value.voucherName
-        ElMessage.success(`Tự động áp dụng voucher tốt nhất: ${appliedVoucher.value.voucherName}`);
-
-        let discount = 0;
-        if (appliedVoucher.value.discountPercentage) {
-          discount = Math.min(
-            (orderTotal * appliedVoucher.value.discountPercentage) / 100,
-            appliedVoucher.value.maxDiscountValue || Infinity
-          );
-        } else if (appliedVoucher.value.discountAmount) {
-          discount = appliedVoucher.value.discountAmount;
-        }
-
-        discountAmount.value = discount;
-        finalTotal.value = orderTotal - discountAmount.value + shippingFee.value;
-      } else {
-        // No suitable voucher found, just keep current state
-        ElMessage.info('Không tìm thấy voucher phù hợp nào để tự động áp dụng.');
-        discountAmount.value = 0;
-        finalTotal.value = orderTotal + shippingFee.value;
-        appliedVoucher.value = null; // Ensure no voucher is considered applied
-      }
-
-    } catch (err) {
-      console.error('❌ Lỗi tự động áp dụng voucher:', err);
-      // If no best voucher is found or an error occurs, simply don't apply one automatically.
-      // The backend should return a 404 or handle null gracefully.
-      ElMessage.info('Không tìm thấy voucher phù hợp để tự động áp dụng.');
-      discountAmount.value = 0;
-      finalTotal.value = orderTotal + shippingFee.value;
-      appliedVoucher.value = null; // Ensure no voucher is considered applied
-    }
-  } else {
-    // If customerId is not available or orderTotal is zero, ensure no discount is applied.
-    discountAmount.value = 0;
-    appliedVoucher.value = null;
-    finalTotal.value = orderTotal + shippingFee.value;
-  }
-};
-
-=======
 const vouchers = ref([])
 const voucherDialog = ref({
   visible: false,
@@ -416,7 +305,6 @@ const voucherDialog = ref({
   search: '',
   filtered: [],
 })
->>>>>>> c2ada23183d58b8b9798e6d957e75e644f7755fe
 
 /** ====== Form ====== */
 const form = ref({

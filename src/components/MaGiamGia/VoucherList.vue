@@ -143,7 +143,6 @@
             </el-tag>
           </template>
         </el-table-column>
-
         <el-table-column label="Trạng thái" width="150" align="center">
           <template #default="{ row }">
             <el-tag :type="statusTagType(row.status)" effect="light">
@@ -151,7 +150,6 @@
             </el-tag>
           </template>
         </el-table-column>
-
         <el-table-column label="Thao tác" width="130" fixed="right" align="center">
           <template #default="{ row }">
             <el-tooltip content="Lịch sử" placement="top">

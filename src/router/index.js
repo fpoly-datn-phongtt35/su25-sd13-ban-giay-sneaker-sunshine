@@ -138,6 +138,7 @@ const routes = [
 
       { path: 'blacklist-history', name: 'BlacklistHistory', component: CustomerBlacklistHistory },
       { path: 'blacklist-history/:id', name: 'BlacklistHistoryDetail', component: CustomerBlacklistHistoryDetail },
+
     ],
   },
 ]

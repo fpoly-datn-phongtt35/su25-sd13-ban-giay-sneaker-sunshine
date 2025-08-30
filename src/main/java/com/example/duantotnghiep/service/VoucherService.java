@@ -4,6 +4,7 @@ import com.example.duantotnghiep.dto.request.VoucherRequest;
 import com.example.duantotnghiep.dto.request.VoucherSearchRequest;
 import com.example.duantotnghiep.dto.response.PaginationDTO;
 import com.example.duantotnghiep.dto.response.VoucherResponse;
+import com.example.duantotnghiep.dto.response.VoucherStatusDTO;
 import com.example.duantotnghiep.model.Voucher;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Query;
@@ -14,6 +15,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -44,5 +46,6 @@ public interface VoucherService {
     );
 
     void exportVoucherToExcelByIds(List<Long> voucherIds, OutputStream outputStream) throws IOException;
+    VoucherStatusDTO getVoucherStatsForToday(Long voucherId);
 
 }

@@ -4,6 +4,7 @@ import com.example.duantotnghiep.dto.request.VoucherRequest;
 import com.example.duantotnghiep.dto.request.VoucherSearchRequest;
 import com.example.duantotnghiep.dto.response.PaginationDTO;
 import com.example.duantotnghiep.dto.response.VoucherResponse;
+import com.example.duantotnghiep.dto.response.VoucherStatusDTO;
 import com.example.duantotnghiep.mapper.VoucherMapper;
 import com.example.duantotnghiep.model.Voucher;
 import com.example.duantotnghiep.service.VoucherService;
@@ -51,8 +52,6 @@ public class VoucherController {
     @PostMapping("/search")
     public ResponseEntity<PaginationDTO<VoucherResponse>> searchVouchers(
             @RequestBody VoucherSearchRequest request) {
-
-        System.out.println("status: "+request.getStatus());
 
         int page = (request.getPage() != null && request.getPage() >= 0) ? request.getPage() : 0;
         int size = (request.getSize() != null && request.getSize() > 0) ? request.getSize() : 5;
@@ -143,6 +142,12 @@ public class VoucherController {
                 productIds,
                 categoryIds
         );
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/get-voucher/{voucherId}")
+    public ResponseEntity<?> getVouchers(@RequestParam("voucherId") Long voucherId) {
+        VoucherStatusDTO response = voucherService.getVoucherStatsForToday(voucherId);
         return ResponseEntity.ok(response);
     }
 

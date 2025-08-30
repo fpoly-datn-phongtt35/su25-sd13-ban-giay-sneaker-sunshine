@@ -287,6 +287,7 @@ public class SaleOnlineController {
         return ResponseEntity.ok(responses);
     }
 
+
     @GetMapping("/customers/{id}")
     public ResponseEntity<CustomerResponse> getCustomerById(@PathVariable Long id) {
         CustomerResponse response = customerService.getCustomerById(id);
@@ -379,5 +380,14 @@ public class SaleOnlineController {
     public ResponseEntity<List<AddressCustomerResponse>> getAllAddressesByCustomerId(@PathVariable Long customerId) {
         return ResponseEntity.ok(customerService.getByCustomerId(customerId));
     }
+
+    @GetMapping("/get-order-customer-v2")
+    public ResponseEntity<List<InvoiceOnlineResponse>> getOrderCustomerOnline2(@RequestParam("statusDetail") Integer statusDetail){
+        System.out.println("status: "+statusDetail);
+        List<InvoiceOnlineResponse> response = onlineSaleService.getOrderByCustomer2(statusDetail);
+        return ResponseEntity.ok(response);
+    }
+
+
 
 }

@@ -43,7 +43,7 @@ public class VoucherHistory {
     @Column(name = "used_at")
     private LocalDateTime usedAt;
 
-    @Column(name = "discount_value_applied", precision = 18, scale = 3)
+    @Column(name = "discount_value_applied")
     private BigDecimal discountValueApplied;
 
     @Column(name = "status")

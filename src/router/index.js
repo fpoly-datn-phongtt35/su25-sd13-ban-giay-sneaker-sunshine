@@ -3,6 +3,7 @@ import DonHang from '@/component/DonHang/DonHang.vue'
 import DonHangChuaNhan from '@/component/DonHang/DonHangChuaNhan.vue'
 import DonHangVanDe from '@/component/DonHang/DonHangVanDe.vue'
 import Home from '@/component/Home/Home.vue'
+import Introduce from '@/component/Home/Introduce.vue'
 import ThongTinCaNhan from '@/component/Personal/ThongTinCaNhan.vue'
 import CartDisplay from '@/component/ProductList/CartDisplay.vue'
 import Checkout from '@/component/ProductList/Checkout.vue'
@@ -33,6 +34,8 @@ const routes = [
   { path: '/san-pham-yeu-thich', name: 'SanPhamYeuThich', component: SanPhamYeuThich },
   { path: '/san-pham-uu-dai', name: 'PreferentialProducts', component: PreferentialProducts },
   { path: '/don-hang-da-mua', name: 'DonHangDaMua', component: DonHangDaMua },
+          { path: '/gioi-thieu', name: 'Introduce', component: Introduce },
+
 
 ]
 

@@ -292,7 +292,7 @@ const showScrollTopButton = ref(false)
 /* ================= NAV ================= */
 const navLinks = [
   { path: '/', label: 'TRANG CHỦ' },
-  { path: '/', label: 'GIỚI THIỆU' },
+  { path: '/gioi-thieu', label: 'GIỚI THIỆU' },
   { path: '/collections', label: 'SẢN PHẨM' },
   { path: '/san-pham-uu-dai', label: 'ƯU ĐÃI', isSale: true },
   { path: '/', label: 'THƯƠNG HIỆU' },
@@ -408,6 +408,7 @@ const logout = () => {
    if (userId) localStorage.removeItem(`cart_${userId}`)
    localStorage.removeItem('cart_guest'); localStorage.removeItem('cart')
    user.value = null; cartCount.value = 0; showUserOptions.value = false
+
   ElMessage.success('Đăng xuất thành công!'); router.push('/')
 }
 

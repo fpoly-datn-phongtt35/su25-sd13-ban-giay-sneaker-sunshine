@@ -60,4 +60,7 @@ public interface ProductDetailRepository extends JpaRepository<ProductDetail,Lon
     """)
     Optional<ProductDetail> findActiveByDetailCodeFetchAll(@Param("code") String code);
 
+    @Query("SELECT pd FROM ProductDetail pd WHERE pd.id in :ids")
+    List<ProductDetail> findByProductIds(@Param("ids") List<Long> ids);
+
 }

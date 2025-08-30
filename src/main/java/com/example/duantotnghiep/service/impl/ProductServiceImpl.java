@@ -365,10 +365,8 @@ public class ProductServiceImpl implements ProductService {
     private void compareAndLogProductChanges(Product oldProduct, Product newProduct) {
         saveHistoryIfChanged(newProduct.getId(), "Tên sản phẩm", oldProduct.getProductName(), newProduct.getProductName());
         saveHistoryIfChanged(newProduct.getId(), "Mô tả sản phẩm", oldProduct.getDescription(), newProduct.getDescription());
-        saveHistoryIfChanged(newProduct.getId(), "Giá nhập", oldProduct.getOriginPrice(), newProduct.getOriginPrice());
-        saveHistoryIfChanged(newProduct.getId(), "Giá bán", oldProduct.getSellPrice(), newProduct.getSellPrice());
-        saveHistoryIfChanged(newProduct.getId(), "Trọng lượng", oldProduct.getWeight(), newProduct.getWeight());
-        saveHistoryIfChanged(newProduct.getId(), "Tổng số lượng", oldProduct.getQuantity(), newProduct.getQuantity());
+        saveHistoryIfChanged(newProduct.getId(), "Giá bán",oldProduct.getSellPrice(), newProduct.getSellPrice());
+        saveHistoryIfChanged(newProduct.getId(), "Trọng lượng",oldProduct.getWeight(), newProduct.getWeight());
 
         Long oldBrandId = oldProduct.getBrand() != null ? oldProduct.getBrand().getId() : null;
         Long newBrandId = newProduct.getBrand() != null ? newProduct.getBrand().getId() : null;
@@ -388,7 +386,9 @@ public class ProductServiceImpl implements ProductService {
 
     private <T> void saveHistoryIfChanged(Long productId, String fieldName, T oldValue, T newValue) {
         // Sử dụng Objects.equals() để so sánh an toàn, bao gồm cả trường hợp null
-        if (!Objects.equals(oldValue, newValue)) {
+        String oldValueStr = String.valueOf(oldValue);
+        String newValueStr = String.valueOf(newValue);
+        if (!Objects.equals(oldValueStr, newValueStr)) {
             String username = SecurityContextHolder.getContext().getAuthentication().getName();
             User user = userRepository.findByUsername(username)
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng với username: " + username));
@@ -709,16 +709,11 @@ public class ProductServiceImpl implements ProductService {
                 .orElse(null);
     }
 
-
-
     @Override
     public PaginationDTO<ProductSearchResponse> phanTrang(ProductSearchRequest request, Pageable pageable) {
         // 1) Lấy kết quả phân trang
         PaginationDTO<ProductSearchResponse> pagination = productSearchRepository.searchProducts(request, pageable);
 
-        // 2) Lấy danh sách campaign đang hoạt động
-        // Khuyến nghị: dùng method fetch join để có sẵn relations (tránh lazy ngoài session)
-        // List<DiscountCampaign> activeCampaigns = discountCampaignRepository.findActiveCampaignsWithRelations(LocalDateTime.now());
         List<DiscountCampaign> activeCampaigns = discountCampaignRepository.findActiveCampaigns(LocalDateTime.now());
 
         // 3) Áp dụng giảm giá
@@ -1015,6 +1010,24 @@ public class ProductServiceImpl implements ProductService {
                 ))
                 .toList();
         return products;
+    }
+
+    @Override
+    public ProductDetailResponse verifyProductDetail(Long id) {
+        ProductDetail v = productDetailRepository.findById(id).orElse(null);
+        if (v == null) {
+            throw new RuntimeException("Ko tìm thấy spct với id: "+id);
+        }
+        return productDetailMapper.toResponse(v);
+    }
+
+    @Override
+    public List<ProductDetailResponse> verifyListProductDetail(List<Long> id) {
+        List<ProductDetail> details = productDetailRepository.findByProductIds(id);
+        if (details == null || details.isEmpty()) {
+            throw new RuntimeException("Ko tìm thấy spct với id: "+id);
+        }
+        return productDetailMapper.toResponses(details);
     }
 
 }

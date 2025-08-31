@@ -369,7 +369,63 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
 
     Optional<Invoice> findTopByCustomerIdAndStatusOrderByCreatedDateDesc(Long customerId, TrangThaiTong status);
 
+    // ===== GROUP BY DAY: label = yyyy-MM-dd =====
+    @Query("""
+        select 
+            FUNCTION('FORMAT', i.createdDate, 'yyyy-MM-dd') as label,
+            COALESCE(SUM(i.totalAmount), 0)                as totalRevenue,
+            COALESCE(SUM(COALESCE(d.quantity, 0)), 0)      as totalQuantity
+        from Invoice i
+        left join InvoiceDetail d on d.invoice.id = i.id
+        where i.status = :status
+          and i.createdDate >= :start
+          and i.createdDate <  :end
+        group by FUNCTION('FORMAT', i.createdDate, 'yyyy-MM-dd')
+        order by FUNCTION('FORMAT', i.createdDate, 'yyyy-MM-dd')
+    """)
+    List<TimeAggRow> aggregateBy(@Param("status") TrangThaiTong status,
+                                 @Param("start") LocalDateTime start,
+                                 @Param("end")   LocalDateTime end);
 
+    // ===== GROUP BY MONTH: label = MM/yyyy =====
+    @Query("""
+        select 
+            FUNCTION('FORMAT', i.createdDate, 'MM/yyyy')    as label,
+            COALESCE(SUM(i.totalAmount), 0)                as totalRevenue,
+            COALESCE(SUM(COALESCE(d.quantity, 0)), 0)      as totalQuantity
+        from Invoice i
+        left join InvoiceDetail d on d.invoice.id = i.id
+        where i.status = :status
+          and i.createdDate >= :start
+          and i.createdDate <  :end
+        group by FUNCTION('FORMAT', i.createdDate, 'MM/yyyy'),
+                 FUNCTION('YEAR',  i.createdDate),
+                 FUNCTION('MONTH', i.createdDate)
+        order by FUNCTION('YEAR',  i.createdDate),
+                 FUNCTION('MONTH', i.createdDate)
+    """)
+    List<TimeAggRow> aggregateByMonth(@Param("status") TrangThaiTong status,
+                                      @Param("start") LocalDateTime start,
+                                      @Param("end")   LocalDateTime end);
+
+    // ===== GROUP BY YEAR: label = yyyy =====
+    @Query("""
+        select 
+            FUNCTION('FORMAT', i.createdDate, 'yyyy')       as label,
+            COALESCE(SUM(i.totalAmount), 0)                as totalRevenue,
+            COALESCE(SUM(COALESCE(d.quantity, 0)), 0)      as totalQuantity
+        from Invoice i
+        left join InvoiceDetail d on d.invoice.id = i.id
+        where i.status = :status
+          and i.createdDate >= :start
+          and i.createdDate <  :end
+        group by FUNCTION('FORMAT', i.createdDate, 'yyyy'),
+                 FUNCTION('YEAR',  i.createdDate)
+        order by FUNCTION('YEAR',  i.createdDate)
+    """)
+    List<TimeAggRow> aggregateByYear(@Param("status") TrangThaiTong status,
+                                     @Param("start") LocalDateTime start,
+                                     @Param("end")   LocalDateTime end);
 }
 
 

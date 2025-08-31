@@ -20,6 +20,7 @@ import java.time.YearMonth;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.temporal.WeekFields;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -37,6 +38,15 @@ public class StatisticServiceImpl implements StatisticService {
         Range range = normalizeRangeFromRequest(req);
         LocalDateTime start = range.start();
         LocalDateTime end   = range.end(); // end-exclusive nếu có
+
+        // ===== 0.1) Nếu FE có yêu cầu groupBy mà vẫn thiếu range -> mặc định tháng hiện tại =====
+        String groupBy = safeGroupBy(req.getGroupBy());    // "day" | "month" | "year" (fallback "day")
+        String metric  = safeMetric(req.getMetric());      // "revenue" | "quantity" (fallback "revenue")
+        if ((start == null || end == null) && groupBy != null) {
+            YearMonth cur = YearMonth.now(ZONE_VN);
+            if (start == null) start = cur.atDay(1).atStartOfDay();
+            if (end   == null) end   = start.plusMonths(1); // end-exclusive
+        }
 
         // ===== 1) Nếu cần Top SP mà thiếu range -> mặc định tháng hiện tại =====
         if (isTrue(req.getIncludeTopProducts()) && (start == null || end == null)) {
@@ -61,18 +71,18 @@ public class StatisticServiceImpl implements StatisticService {
                         LocalDateTime me = ms.plusMonths(1); // end-exclusive
 
                         Long rev = invoiceRepository.sumRevenueBetween(ms, me, success);
-                        Long qty = invoiceRepository.sumItemsBetween(ms, me, success); // <-- thêm
+                        Long qty = invoiceRepository.sumItemsBetween(ms, me, success);
 
                         return MonthlyRevenueResponse.builder()
                                 .month(m).year(y)
                                 .totalRevenue(nz(rev))
-                                .totalQuantity(nz(qty)) // <-- thêm
+                                .totalQuantity(nz(qty))
                                 .build();
                     })
                     .collect(Collectors.toList());
         }
 
-// ===== 4) YEARLY: Doanh thu + SỐ LƯỢNG =====
+        // ===== 4) YEARLY: Doanh thu + SỐ LƯỢNG =====
         List<YearlyRevenueResponse> yearly = null;
         if (isTrue(req.getIncludeYearly())) {
             final int y = (req.getPeriodYear() != null) ? req.getPeriodYear()
@@ -82,15 +92,14 @@ public class StatisticServiceImpl implements StatisticService {
             LocalDateTime ye = ys.plusYears(1); // end-exclusive
 
             Long totalRev = invoiceRepository.sumRevenueBetween(ys, ye, success);
-            Long totalQty = invoiceRepository.sumItemsBetween(ys, ye, success); // <-- thêm
+            Long totalQty = invoiceRepository.sumItemsBetween(ys, ye, success);
 
             yearly = List.of(YearlyRevenueResponse.builder()
                     .year(y)
                     .totalRevenue(nz(totalRev))
-                    .totalQuantity(nz(totalQty)) // <-- thêm
+                    .totalQuantity(nz(totalQty))
                     .build());
         }
-
 
         // ===== 5) DOANH THU THEO LOẠI ĐƠN (áp dụng start/end nếu có) =====
         List<OrderTypeRevenueResponse> byOrderType = null;
@@ -133,7 +142,7 @@ public class StatisticServiceImpl implements StatisticService {
                     .collect(Collectors.toList());
         }
 
-        // ===== 8) DOANH THU HÔM NAY (thống nhất bằng sumRevenueBetween) =====
+        // ===== 8) DOANH THU HÔM NAY =====
         Long todayRevenue = null;
         if (isTrue(req.getIncludeTodayRevenue())) {
             LocalDate today = ZonedDateTime.now(ZONE_VN).toLocalDate();
@@ -148,7 +157,13 @@ public class StatisticServiceImpl implements StatisticService {
             current = computeCurrentPeriods(success);
         }
 
-        // ===== 10) Build response =====
+        // ===== 10) CHART AGG (theo groupBy, áp dụng start/end nếu có) =====
+        List<StatisticDashboardResponse.ChartAggItem> chartAgg = null;
+        if (start != null && end != null) {
+            chartAgg = buildChartAgg(success, start, end, groupBy);
+        }
+
+        // ===== 11) Build response =====
         return StatisticDashboardResponse.builder()
                 .monthly(monthly)
                 .yearly(yearly)
@@ -159,10 +174,47 @@ public class StatisticServiceImpl implements StatisticService {
                 .periodStart(start)
                 .periodEnd(end)
                 .currentPeriods(current)
+                .chartAgg(chartAgg) // <===== FE ưu tiên dùng cho biểu đồ
                 .build();
     }
 
     /* ===================== CORE HELPERS ===================== */
+
+    private List<StatisticDashboardResponse.ChartAggItem> buildChartAgg(TrangThaiTong success,
+                                                                        LocalDateTime start,
+                                                                        LocalDateTime end,
+                                                                        String groupBy) {
+        // Nếu Repository dùng status code int/string thì chuyển đổi ở đây
+        int statusCode = success.getMa();
+
+        List<TimeAggRow> rows;
+        switch (groupBy) {
+            case "day"   -> rows = invoiceRepository.aggregateBy(TrangThaiTong.tuMa(statusCode), start, end);
+            case "month" -> rows = invoiceRepository.aggregateByMonth(TrangThaiTong.tuMa(statusCode), start, end);
+            case "year"  -> rows = invoiceRepository.aggregateByYear(TrangThaiTong.tuMa(statusCode), start, end);
+            default      -> rows = Collections.emptyList();
+        }
+
+        return rows.stream()
+                .map(r -> StatisticDashboardResponse.ChartAggItem.builder()
+                        .label(r.getLabel())
+                        .totalRevenue(nz(r.getTotalRevenue()))
+                        .totalQuantity(nz(r.getTotalQuantity()))
+                        .build())
+                .collect(Collectors.toList());
+    }
+
+    private String safeGroupBy(String gb) {
+        if (gb == null) return "day";
+        String v = gb.trim().toLowerCase();
+        return (v.equals("day") || v.equals("month") || v.equals("year")) ? v : "day";
+    }
+
+    private String safeMetric(String m) {
+        if (m == null) return "revenue";
+        String v = m.trim().toLowerCase();
+        return (v.equals("revenue") || v.equals("quantity")) ? v : "revenue";
+    }
 
     private Range normalizeRangeFromRequest(StatisticFilterRequest req) {
         LocalDateTime start = req.getStartDateTime();
@@ -196,6 +248,7 @@ public class StatisticServiceImpl implements StatisticService {
                         if (end   == null) end   = r.end();
                     }
                     case "month" -> {
+                        // hỗ trợ month nếu bạn có field month trong request, nếu không sẽ lấy tháng hiện tại
                         Range r = resolveMonthRange(req.getYear(), req.getPeriodYear(), null);
                         if (start == null) start = r.start();
                         if (end   == null) end   = r.end();
@@ -212,30 +265,26 @@ public class StatisticServiceImpl implements StatisticService {
         return new Range(start, end);
     }
 
-    /** Tính WTD/MTD/QTD/YTD đến thời điểm hiện tại (end = now) */
+    /** Tính WTD/MTD/QTD/YTD đến thời điểm hiện tại (end = now) – giữ nguyên code của bạn */
     private CurrentPeriodRevenueResponse computeCurrentPeriods(TrangThaiTong status) {
         LocalDateTime now = ZonedDateTime.now(ZONE_VN).toLocalDateTime();
         LocalDate today = now.toLocalDate();
 
-        // Tuần ISO
         WeekFields wf = WeekFields.ISO;
-        LocalDate weekStartDate = today.with(wf.dayOfWeek(), 1); // Thứ 2
+        LocalDate weekStartDate = today.with(wf.dayOfWeek(), 1);
         LocalDateTime weekStart = weekStartDate.atStartOfDay();
         LocalDateTime weekEndEx = weekStart.plusWeeks(1);
 
-        // Tháng
         YearMonth ym = YearMonth.from(today);
         LocalDateTime monthStart = ym.atDay(1).atStartOfDay();
         LocalDateTime monthEndEx = monthStart.plusMonths(1);
 
-        // Quý
         int m = today.getMonthValue();
         int q = (m - 1) / 3 + 1;
-        int firstMonth = (q - 1) * 3 + 1; // 1,4,7,10
+        int firstMonth = (q - 1) * 3 + 1;
         LocalDateTime quarterStart = LocalDate.of(today.getYear(), firstMonth, 1).atStartOfDay();
         LocalDateTime quarterEndEx = quarterStart.plusMonths(3);
 
-        // Năm
         LocalDateTime yearStart = LocalDate.of(today.getYear(), 1, 1).atStartOfDay();
         LocalDateTime yearEndEx = yearStart.plusYears(1);
 
@@ -256,11 +305,10 @@ public class StatisticServiceImpl implements StatisticService {
                 .build();
     }
 
-    /* ===================== PERIOD HELPERS ===================== */
+    /* ===================== PERIOD HELPERS (giữ như cũ) ===================== */
 
     private record Range(LocalDateTime start, LocalDateTime end) {}
 
-    /** Tuần ISO; nếu week=null -> tuần hiện tại (theo ZONE_VN) */
     private Range resolveWeekRange(Integer week, Integer periodYear) {
         WeekFields wf = WeekFields.ISO;
         int y = (periodYear != null) ? periodYear : Year.now(ZONE_VN).getValue();
@@ -271,33 +319,29 @@ public class StatisticServiceImpl implements StatisticService {
             return new Range(s.atStartOfDay(), s.plusWeeks(1).atStartOfDay());
         }
 
-        // Anchor ISO (Jan 4) để tránh edge-case đầu/cuối năm
         LocalDate s = LocalDate.of(y, 1, 4)
                 .with(wf.weekOfWeekBasedYear(), week)
                 .with(wf.dayOfWeek(), 1);
         return new Range(s.atStartOfDay(), s.plusWeeks(1).atStartOfDay());
     }
 
-    /** Quý; nếu quarter=null -> quý hiện tại */
     private Range resolveQuarterRange(Integer quarter, Integer periodYear) {
         LocalDate today = ZonedDateTime.now(ZONE_VN).toLocalDate();
         int y = (periodYear != null) ? periodYear : today.getYear();
         int q = (quarter != null && quarter >= 1 && quarter <= 4)
                 ? quarter
                 : ((today.getMonthValue() - 1) / 3 + 1);
-        int firstMonth = (q - 1) * 3 + 1; // 1,4,7,10
+        int firstMonth = (q - 1) * 3 + 1;
         LocalDateTime s = LocalDate.of(y, firstMonth, 1).atStartOfDay();
         return new Range(s, s.plusMonths(3));
     }
 
-    /** Năm; nếu periodYear=null -> năm hiện tại */
     private Range resolveYearRange(Integer periodYear) {
         int y = (periodYear != null) ? periodYear : Year.now(ZONE_VN).getValue();
         LocalDateTime s = LocalDate.of(y, 1, 1).atStartOfDay();
         return new Range(s, s.plusYears(1));
     }
 
-    /** Tháng; nếu month=null -> tháng hiện tại; năm ưu tiên req.year -> periodYear -> hiện tại */
     private Range resolveMonthRange(Integer year, Integer periodYear, Integer month) {
         int y = (year != null) ? year : (periodYear != null ? periodYear : Year.now(ZONE_VN).getValue());
         int m = (month != null) ? month : ZonedDateTime.now(ZONE_VN).getMonthValue();
@@ -324,6 +368,7 @@ public class StatisticServiceImpl implements StatisticService {
         if (v instanceof Number n) return n.longValue();
         return Long.parseLong(v.toString());
     }
+
 
     @Override
     public List<EmployeeReportDto> getEmployeeSalesReport(EmployeeReportRequest request) {

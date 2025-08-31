@@ -264,6 +264,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { addToCart } from '@/utils/cart'
 import apiClient from '@/utils/axiosInstance'
+import axios from 'axios'
 
 /* ========== Cấu hình giới hạn & liên hệ ========== */
 const NGAY_MAX_QTY = 10 // ngưỡng chặn mua/giỏ
@@ -462,7 +463,9 @@ const fetchRelated = async () => {
       .filter(p => p && p.id !== product.value.id)
       .slice(0, related.value.pageSize)
       .map(normalizeProduct)
-  } catch {}
+  } catch (e){
+    console.log(e);
+  }
 }
 
 /* ========== UI events ========== */
@@ -478,11 +481,27 @@ const nextImage = () => { if (colorSpecificImages.value.length) currentImageInde
 const prevImage = () => { if (colorSpecificImages.value.length) currentImageIndex.value = (currentImageIndex.value - 1 + colorSpecificImages.value.length) % colorSpecificImages.value.length }
 
 /* ========== Cart / Buy now với giới hạn SL ========== */
-const handleAddToCart = () => {
+const handleAddToCart = async () => {
   if (!selectedColor.value || !selectedSize.value) {
     return ElMessage.warning('Vui lòng chọn màu & kích thước!')
   }
   const d = findSelectedDetail()
+  const productDetailId = d.id;
+try {
+  const res = await axios.get(`http://localhost:8080/api/online-sale/verify-pdDetail/${productDetailId}`)
+  console.log('res hihi: ',res)
+  const status = res?.data?.status;
+  const statusNum = Number(status)
+  if (!Number.isFinite(statusNum) || statusNum !== 1) {
+    ElMessage.error('Sản phẩm hiện không hợp lệ để mua (đã bị vô hiệu hóa hoặc không còn bán).')
+    return false
+  }
+} catch (e) {
+  console.error('Lỗi khi kiểm tra trạng thái productDetail:', e)
+  ElMessage.error('Không thể kiểm tra trạng thái sản phẩm. Vui lòng thử lại sau.')
+  return false
+}
+
   if (!d) return ElMessage.error('Không tìm thấy biến thể phù hợp!')
 
   // Chặn SL lớn
@@ -508,6 +527,7 @@ const handleAddToCart = () => {
     price,
     quantity: quantity.value,
     discountCampaignId: d.discountCampaignId || null,
+    status: d.status
   }
 
   addToCart(cartItem)
@@ -521,7 +541,9 @@ const handleBuyNow = () => {
     return
   }
   handleAddToCart()
-  if (selectedDetail.value) router.push('/cart')
+  if (selectedDetail.value){
+      router.push('/cart')
+  }
 }
 
 /* ========== Điều hướng chi tiết sp liên quan ========== */

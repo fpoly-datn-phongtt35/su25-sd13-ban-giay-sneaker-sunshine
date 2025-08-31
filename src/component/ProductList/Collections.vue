@@ -375,6 +375,7 @@ import { ElMessage } from 'element-plus'
 import { ShoppingCart } from '@element-plus/icons-vue'
 import apiClient from '@/utils/axiosInstance'
 import { addToCart } from '@/utils/cart.js'
+import axios from 'axios'
 
 /* ========== Config (có thể bind từ .env hoặc API) ========== */
 const NGAY_MAX_QTY = 10 // ngưỡng chặn Mua ngay/Thêm giỏ
@@ -933,7 +934,7 @@ const showBulkDialog = () => {
   contactDialogVisible.value = true
   ElMessage.warning(`Số lượng lớn (≥ ${NGAY_MAX_QTY} đôi). Vui lòng liên hệ nhân viên để đặt hàng.`)
 }
-const handleAddToCartInModal = () => {
+const handleAddToCartInModal = async () => {
   const sp = selectedProduct.value
   if (!sp) return false
 
@@ -950,6 +951,21 @@ const handleAddToCartInModal = () => {
   }
 
   const detail = findSelectedProductDetail()
+  const productDetailId = detail.id;
+  try {
+  const res = await axios.get(`http://localhost:8080/api/online-sale/verify-pdDetail/${productDetailId}`)
+  console.log('res hihi: ',res)
+  const status = res?.data?.status;
+  const statusNum = Number(status)
+  if (!Number.isFinite(statusNum) || statusNum !== 1) {
+    ElMessage.error('Sản phẩm hiện không hợp lệ để mua (đã bị vô hiệu hóa hoặc không còn bán).')
+    return false
+  }
+} catch (e) {
+  console.error('Lỗi khi kiểm tra trạng thái productDetail:', e)
+  ElMessage.error('Không thể kiểm tra trạng thái sản phẩm. Vui lòng thử lại sau.')
+  return false
+}
   if (!detail) { ElMessage.error('Không tìm thấy chi tiết phù hợp.'); return false }
   if (quickViewQuantity.value <= 0) { ElMessage.warning('Số lượng phải lớn hơn 0.'); return false }
   if (quickViewQuantity.value > Number(detail.quantity || 0)) { ElMessage.warning(`Tồn kho không đủ (còn ${detail.quantity}).`); return false }
@@ -966,6 +982,7 @@ const handleAddToCartInModal = () => {
     quantity: quickViewQuantity.value,
     maxQuantity: Number(detail.quantity || 0),
     discountCampaignId: detail.discountCampaignId || null,
+    status: detail.status
   }
   addToCart(item)
   ElMessage.success('Đã thêm vào giỏ hàng!')

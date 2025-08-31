@@ -1,7 +1,7 @@
 <template>
-  <div class="voucher-page">
+  <div class="voucher-page" ref="pageRef">
     <!-- Header -->
-    <div class="page-header">
+    <div class="page-header" ref="headerRef">
       <div class="title-wrap">
         <el-icon class="title-icon"><Ticket /></el-icon>
         <div>
@@ -16,7 +16,7 @@
     </div>
 
     <!-- Bộ lọc -->
-    <el-card shadow="never" class="filter-card">
+    <el-card shadow="never" class="filter-card" ref="filterRef">
       <el-form :inline="true" :model="searchVoucher" class="filter-form" @submit.prevent>
         <el-form-item>
           <el-input
@@ -69,7 +69,7 @@
     </el-card>
 
     <!-- Bảng dữ liệu -->
-    <el-card shadow="never" class="table-card">
+    <el-card shadow="never" class="table-card" ref="tableCardRef">
       <el-table
         :data="vouchers"
         border
@@ -82,22 +82,41 @@
         element-loading-text="Đang tải dữ liệu..."
         empty-text="Chưa có voucher phù hợp."
         :height="tableHeight"
+        :show-header="true"
+        class="responsive-voucher-table"
       >
         <el-table-column type="selection" width="56" />
 
-        <el-table-column prop="voucherCode" label="Mã" min-width="160">
+        <!-- Mã -->
+        <el-table-column
+          prop="voucherCode"
+          label="Mã"
+          :min-width="140"
+          show-overflow-tooltip
+        >
           <template #default="{ row }">
             <span class="mono strong">{{ row.voucherCode || '-' }}</span>
           </template>
         </el-table-column>
 
-        <el-table-column prop="voucherName" label="Tên" min-width="260" show-overflow-tooltip>
+        <!-- Tên -->
+        <el-table-column
+          prop="voucherName"
+          label="Tên"
+          :min-width="220"
+          show-overflow-tooltip
+        >
           <template #default="{ row }">
             <span class="text">{{ row.voucherName || '-' }}</span>
           </template>
         </el-table-column>
 
-        <el-table-column label="Giảm (%)" width="120" align="center">
+        <!-- Giảm % -->
+        <el-table-column
+          label="Giảm (%)"
+          :min-width="100"
+          align="center"
+        >
           <template #default="{ row }">
             <el-tag v-if="row.discountPercentage" type="warning" effect="light">
               {{ Number(row.discountPercentage) }}%
@@ -106,66 +125,107 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="Tiền giảm" width="160" align="right">
+        <!-- Tiền giảm -->
+        <el-table-column
+          label="Tiền giảm"
+          :min-width="120"
+          align="right"
+        >
           <template #default="{ row }">
             <span class="mono">{{ row.discountAmount ? toVND(row.discountAmount) : '-' }}</span>
           </template>
         </el-table-column>
 
-        <el-table-column label="Tối thiểu" width="160" align="right">
+        <!-- Tối thiểu / Tối đa -->
+        <el-table-column
+          label="Tối thiểu / Tối đa"
+          :min-width="170"
+          align="right"
+          class-name="col-minmax"
+        >
           <template #default="{ row }">
-            <span class="mono">{{ row.minOrderValue ? toVND(row.minOrderValue) : '-' }}</span>
+            <div class="minmax">
+              <div class="mono small-line">{{ row.minOrderValue ? toVND(row.minOrderValue) : '-' }}</div>
+              <div class="mono small-line muted">{{ row.maxDiscountValue ? toVND(row.maxDiscountValue) : '-' }}</div>
+            </div>
           </template>
         </el-table-column>
 
-        <el-table-column label="Tối đa" width="160" align="right">
-          <template #default="{ row }">
-            <span class="mono">{{ row.maxDiscountValue ? toVND(row.maxDiscountValue) : '-' }}</span>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="Bắt đầu" width="190">
+        <!-- Bắt đầu -->
+        <el-table-column
+          label="Bắt đầu"
+          :min-width="160"
+          class-name="col-datetime"
+        >
           <template #default="{ row }">
             <span class="mono">{{ formatDate(row.startDate) }}</span>
           </template>
         </el-table-column>
 
-        <el-table-column label="Kết thúc" width="190">
+        <!-- Kết thúc -->
+        <el-table-column
+          label="Kết thúc"
+          :min-width="160"
+          class-name="col-datetime"
+        >
           <template #default="{ row }">
             <span class="mono">{{ formatDate(row.endDate) }}</span>
           </template>
         </el-table-column>
 
-        <el-table-column label="Loại đơn" width="130" align="center">
+        <!-- Loại đơn -->
+        <el-table-column
+          label="Loại đơn"
+          :min-width="120"
+          align="center"
+        >
           <template #default="{ row }">
             <el-tag :type="row.orderType === 1 ? 'success' : row.orderType === 2 ? 'info' : 'default'" effect="light">
               {{ row.orderType === 1 ? 'Tại quầy' : row.orderType === 2 ? 'Online' : '-' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="Trạng thái" width="150" align="center">
+
+        <!-- Trạng thái -->
+        <el-table-column
+          label="Trạng thái"
+          :min-width="130"
+          align="center"
+        >
           <template #default="{ row }">
             <el-tag :type="statusTagType(row.status)" effect="light">
               {{ statusText(row.status) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="Thao tác" width="130" fixed="right" align="center">
+
+        <!-- Thao tác (rộng hơn) -->
+        <el-table-column
+          label="Thao tác"
+          :min-width="200"
+          align="center"
+          fixed="right"
+          class-name="col-actions"
+        >
           <template #default="{ row }">
-            <el-tooltip content="Lịch sử" placement="top">
-              <el-button type="primary" :icon="Edit" size="small" circle @click="onHistory(row)" />
-            </el-tooltip>
-            <el-tooltip content="Sửa" placement="top">
-              <el-button type="primary" :icon="Edit" size="small" circle @click="onEditVoucher(row)" />
-            </el-tooltip>
-            <el-tooltip content="Xóa" placement="top">
-              <el-button type="danger" :icon="Delete" size="small" circle @click="onDeleteVoucher(row)" />
-            </el-tooltip>
+            <div class="actions-cell">
+              <el-tooltip content="Lịch sử" placement="top">
+                <el-button type="primary" :icon="Reading" size="small" circle @click="onHistory(row)" />
+              </el-tooltip>
+
+              <el-tooltip content="Sửa" placement="top">
+                <el-button type="primary" :icon="Edit" size="small" circle @click="onEditVoucher(row)" />
+              </el-tooltip>
+
+              <el-tooltip content="Xóa" placement="top">
+                <el-button type="danger" :icon="Delete" size="small" circle @click="onDeleteVoucher(row)" />
+              </el-tooltip>
+            </div>
           </template>
         </el-table-column>
       </el-table>
 
-      <div class="pagination-wrap">
+      <div class="pagination-wrap" ref="paginationRef">
         <el-pagination
           background
           layout="total, sizes, prev, pager, next, jumper"
@@ -182,10 +242,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import apiClient from '@/utils/axiosInstance'
 import { ElMessageBox, ElMessage } from 'element-plus'
-import { Ticket, Edit, Delete, Plus } from '@element-plus/icons-vue'
+import { Ticket, Edit, Delete, Plus, Reading } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 
 const vouchers = ref([])
@@ -196,12 +256,13 @@ const categoryList = ref([])
 const selectedVouchers = ref([])
 const loading = ref(false)
 
-const tableHeight = ref(560) // auto-fill theo viewport
+const pageRef = ref(null)
+const headerRef = ref(null)
+const filterRef = ref(null)
+const tableCardRef = ref(null)
+const paginationRef = ref(null)
 
-const computeTableHeight = () => {
-  // chừa header + filter + pagination
-  tableHeight.value = Math.max(420, window.innerHeight - 320)
-}
+const tableHeight = ref(420)
 
 const router = useRouter()
 
@@ -214,6 +275,22 @@ const searchVoucher = ref({
   productId: null,
 })
 
+const computeTableHeight = async () => {
+  await nextTick()
+  try {
+    const headerH = headerRef.value ? headerRef.value.getBoundingClientRect().height : 0
+    const filterH = filterRef.value ? filterRef.value.getBoundingClientRect().height : 0
+    const paginationH = paginationRef.value ? paginationRef.value.getBoundingClientRect().height : 0
+    const pageTop = pageRef.value ? pageRef.value.getBoundingClientRect().top : 0
+    const buffer = 48
+    const available = window.innerHeight - pageTop - headerH - filterH - paginationH - buffer
+    tableHeight.value = Math.max(320, Math.min(available, window.innerHeight - 160))
+  } catch (e) {
+    tableHeight.value = Math.max(420, window.innerHeight - 320)
+  }
+}
+
+/* Fetch / actions */
 const resetForm = async () => {
   searchVoucher.value = {
     keyword: null,
@@ -265,6 +342,9 @@ const fetchVoucher = async (newPage = 0) => {
     if (!vouchers.value.length) {
       ElMessage.warning('Không tìm thấy voucher nào!')
     }
+
+    await nextTick()
+    computeTableHeight()
   } catch (error) {
     console.error('Lỗi tải danh sách voucher:', error)
     ElMessage.error(`Tải danh sách voucher thất bại: ${error.message}`)
@@ -275,6 +355,7 @@ const fetchVoucher = async (newPage = 0) => {
   }
 }
 
+/* selection & pagination */
 const handleSelectionChange = (val) => {
   selectedVouchers.value = val.map(voucher => voucher.id)
 }
@@ -324,49 +405,10 @@ const exportExcel = async () => {
   }
 }
 
-onMounted(async () => {
-  computeTableHeight()
-  window.addEventListener('resize', computeTableHeight)
-  await Promise.all([fetchCategories(), fetchVoucher()])
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', computeTableHeight)
-})
-
-/** ===== Helpers ===== **/
-const toVND = (v) => Number(v).toLocaleString('vi-VN') + ' ₫'
-const formatDate = (val) => {
-  if (!val) return '-'
-  const d = new Date(val)
-  if (isNaN(d.getTime())) return '-'
-  return d.toLocaleString('vi-VN', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false
-  })
-}
-
-const statusText = (s) => (s === 1 ? 'Đang diễn ra' : s === 2 ? 'Sắp diễn ra' : s === 0 ? 'Ngừng hoạt động' : '-')
-const statusTagType = (s) => (s === 1 ? 'success' : s === 2 ? 'warning' : s === 0 ? 'info' : 'default')
-
-/** ===== Navigate ===== **/
-const onAddVoucher = () => {
-  router.push({ name: 'AddVoucher' })
-  ElMessage.success('Chuyển đến trang thêm voucher!')
-}
-const onEditVoucher = (row) => {
-  router.push({ name: 'UpdateVoucher', params: { id: row.id } })
-  ElMessage.success('Chuyển đến trang sửa voucher!')
-}
-const onHistory = (row) => {
-  router.push({ name: 'VoucherHistory', params: { id: row.id } })
-  ElMessage.success('Chuyển đến trang history voucher!')
-}
+/* Navigate */
+const onAddVoucher = () => { router.push({ name: 'AddVoucher' }); ElMessage.success('Chuyển đến trang thêm voucher!') }
+const onEditVoucher = (row) => { router.push({ name: 'UpdateVoucher', params: { id: row.id } }); ElMessage.success('Chuyển đến trang sửa voucher!') }
+const onHistory = (row) => { router.push({ name: 'VoucherHistory', params: { id: row.id } }); ElMessage.success('Chuyển đến trang history voucher!') }
 const onDeleteVoucher = (row) => {
   ElMessageBox.confirm(`Xác nhận xóa voucher ${row.voucherCode}?`, 'Xác nhận xóa', {
     confirmButtonText: 'Xóa',
@@ -387,17 +429,62 @@ const onDeleteVoucher = (row) => {
       ElMessage.info('Đã hủy xóa voucher')
     })
 }
+
+/* utils hiển thị */
+const toVND = (v) => Number(v).toLocaleString('vi-VN') + ' ₫'
+const formatDate = (val) => {
+  if (!val) return '-'
+  const d = new Date(val)
+  if (isNaN(d.getTime())) return '-'
+  return d.toLocaleString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  })
+}
+const statusText = (s) => (s === 1 ? 'Đang diễn ra' : s === 2 ? 'Sắp diễn ra' : s === 0 ? 'Ngừng hoạt động' : '-')
+const statusTagType = (s) => (s === 1 ? 'success' : s === 2 ? 'warning' : s === 0 ? 'info' : 'default')
+
+/* lifecycles */
+let ro = null
+const onWindowResize = () => computeTableHeight()
+
+onMounted(async () => {
+  await computeTableHeight()
+  await Promise.all([fetchCategories(), fetchVoucher()])
+
+  window.addEventListener('resize', onWindowResize)
+
+  if (window.ResizeObserver) {
+    ro = new ResizeObserver(() => computeTableHeight())
+    if (headerRef.value) ro.observe(headerRef.value)
+    if (filterRef.value) ro.observe(filterRef.value)
+    if (tableCardRef.value) ro.observe(tableCardRef.value)
+  }
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', onWindowResize)
+  if (ro) {
+    try { ro.disconnect() } catch (_) {}
+    ro = null
+  }
+})
 </script>
 
 <style scoped>
-/* Layout rộng gần full màn hình */
 .voucher-page {
-  max-width: 96vw;          /* gần full-bleed */
+  max-width: 96vw;
   margin: 20px auto 40px;
   padding: 0 16px;
+  box-sizing: border-box;
 }
 @media (min-width: 1400px) {
-  .voucher-page { max-width: 1680px; } /* cap để bố cục vẫn đẹp trên màn siêu lớn */
+  .voucher-page { max-width: 1680px; }
 }
 
 /* Header */
@@ -426,14 +513,63 @@ const onDeleteVoucher = (row) => {
 .filter-buttons { display: flex; gap: 8px; margin-left: auto; }
 
 /* Table */
+.table-card {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-sizing: border-box;
+}
+
+/* ensure ellipsis */
+.responsive-voucher-table .cell {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* minmax small lines */
+.minmax .small-line { line-height: 1; font-size: 12px; }
+.minmax .muted { color: #6b7280; }
+
+/* actions */
+.col-actions { min-width: 240px; padding-right: 8px; box-sizing: border-box; }
+.actions-cell {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+}
+.actions-cell .el-button { padding: 6px; }
+
+/* pagination */
+.pagination-wrap {
+  display: flex; justify-content: flex-end; padding: 12px 8px 4px;
+  background: transparent;
+}
+
+/* typography */
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
 .strong { font-weight: 600; }
 .text { color: #111827; }
-.pagination-wrap {
-  display: flex; justify-content: flex-end; padding: 12px 8px 4px;
+
+/* responsive hide columns progressively */
+@media (max-width: 1100px) {
+  .col-datetime { display: none; }
+}
+@media (max-width: 900px) {
+  .col-minmax { display: none; }
+}
+@media (max-width: 700px) {
+  /* fallback hide specific columns for very small screens */
+  .responsive-voucher-table .el-table__body-wrapper td:nth-child(4),
+  .responsive-voucher-table .el-table__header-wrapper th:nth-child(4) {
+    display: none;
+  }
+  .filter-buttons { margin-left: 0; }
 }
 
-/* Responsive */
+/* small screens */
 @media (max-width: 768px) {
   .voucher-page { padding: 0 12px; }
   .filter-buttons { width: 100%; justify-content: flex-start; margin-left: 0; }

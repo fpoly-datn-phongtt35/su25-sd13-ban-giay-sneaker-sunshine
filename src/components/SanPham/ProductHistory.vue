@@ -50,13 +50,6 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="Trạng thái" width="120">
-          <template #default="scope">
-            <el-tag :type="scope.row.status === 0 ? 'danger' : 'success'">
-              {{ scope.row.status === 0 ? 'Đã xóa' : 'Hoạt động' }}
-            </el-tag>
-          </template>
-        </el-table-column>
         <el-table-column label="Hành động" width="120">
           <template #default="scope">
             <el-button type="primary" size="small" @click="openRestoreDialog(scope.row)">

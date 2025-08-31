@@ -96,9 +96,9 @@
           </el-tooltip>
         </template>
       </el-table-column>
-      <el-table-column prop="totalAmount" label="Tổng tiền" width="150" align="right">
+      <el-table-column prop="finalAmount" label="Tổng tiền" width="150" align="right">
         <template #default="scope">
-          {{ scope.row.totalAmount.toLocaleString() }} ₫
+          {{ scope.row.finalAmount.toLocaleString() }} ₫
         </template>
       </el-table-column>
       <el-table-column label="Hành động" width="160" align="center">
@@ -192,6 +192,7 @@ const search = async () => {
 
     const res = await apiClient.post('/admin/online-sales/search', requestBody)
     invoices.value = res.data
+    console.log('res là : ',invoices.value)
     await fetchStatusCounts()
   } catch (err) {
     console.error('Lỗi tìm kiếm:', err)

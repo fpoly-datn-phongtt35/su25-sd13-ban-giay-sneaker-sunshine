@@ -30,51 +30,55 @@
         </div>
       </template>
 
-      <!-- Hàng filter chính (inline, nhỏ gọn) -->
-      <el-form :model="filters" :inline="true" size="small" class="filter-inline" @submit.prevent>
-        <el-form-item label="Tên/Mã" class="w-64">
-          <el-input
-            v-model="filters.keyword"
-            clearable
-            :prefix-icon="Search"
-            placeholder="Nhập tên hoặc mã"
-            @keyup.enter="onSearch"
-          />
-        </el-form-item>
+      <!-- NEW: filter row with left (inputs) and right (buttons) -->
+      <div class="filter-row">
+        <div class="filter-left">
+          <el-form :model="filters" :inline="true" size="small" class="filter-inline" @submit.prevent>
+            <el-form-item label="Tên/Mã" class="w-64">
+              <el-input
+                v-model="filters.keyword"
+                clearable
+                :prefix-icon="Search"
+                placeholder="Nhập tên hoặc mã"
+                @keyup.enter="onSearch"
+              />
+            </el-form-item>
 
-        <el-form-item label="Danh mục" class="w-60">
-          <el-select
-            v-model="filters.categoryIds"
-            multiple
-            collapse-tags
-            collapse-tags-tooltip
-            filterable
-            clearable
-            placeholder="Chọn"
-          >
-            <el-option v-for="c in categoryList" :key="c.id" :label="c.categoryName" :value="c.id" />
-          </el-select>
-        </el-form-item>
+            <el-form-item label="Danh mục" class="w-60">
+              <el-select
+                v-model="filters.categoryIds"
+                multiple
+                collapse-tags
+                collapse-tags-tooltip
+                filterable
+                clearable
+                placeholder="Chọn"
+              >
+                <el-option v-for="c in categoryList" :key="c.id" :label="c.categoryName" :value="c.id" />
+              </el-select>
+            </el-form-item>
 
-        <el-form-item label="Thương hiệu" class="w-56">
-          <el-select v-model="filters.brandId" filterable clearable placeholder="Chọn">
-            <el-option v-for="b in brandList" :key="b.id" :label="b.brandName" :value="b.id" />
-          </el-select>
-        </el-form-item>
+            <el-form-item label="Thương hiệu" class="w-56">
+              <el-select v-model="filters.brandId" filterable clearable placeholder="Chọn">
+                <el-option v-for="b in brandList" :key="b.id" :label="b.brandName" :value="b.id" />
+              </el-select>
+            </el-form-item>
 
-        <el-form-item label="Giá" class="w-64">
-          <div class="price-range">
-            <el-input-number v-model="filters.priceMin" :min="0" :step="1000" :precision="0" placeholder="Min" />
-            <span class="sep">—</span>
-            <el-input-number v-model="filters.priceMax" :min="0" :step="1000" :precision="0" placeholder="Max" />
-          </div>
-        </el-form-item>
+            <el-form-item label="Giá" class="w-64 price-form-item">
+              <div class="price-range">
+                <el-input-number v-model="filters.priceMin" :min="0" :step="1000" :precision="0" placeholder="Min" />
+                <span class="sep">—</span>
+                <el-input-number v-model="filters.priceMax" :min="0" :step="1000" :precision="0" placeholder="Max" />
+              </div>
+            </el-form-item>
+          </el-form>
+        </div>
 
-        <el-form-item>
+        <div class="filter-right">
           <el-button type="primary" :icon="Search" @click="onSearch">Tìm kiếm</el-button>
           <el-button :icon="Refresh" @click="onReset">Đặt lại</el-button>
-        </el-form-item>
-      </el-form>
+        </div>
+      </div>
 
       <!-- Nâng cao -->
       <el-collapse-transition>
@@ -139,6 +143,7 @@
     <!-- Table -->
     <el-card shadow="never">
       <el-table
+        ref="tableRef"
         v-loading="tableLoading"
         :data="productList"
         :row-key="rowKey"
@@ -146,7 +151,7 @@
         stripe
         height="540"
         @selection-change="onSelectionChange"
-        :default-sort="{ prop: 'productCode', order: 'ascending' }"
+        @sort-change="onSortChange"
       >
         <el-table-column type="selection" width="50" :reserve-selection="true" />
 
@@ -156,14 +161,14 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="productCode" label="Mã" min-width="120" show-overflow-tooltip />
+        <el-table-column prop="productCode" label="Mã" min-width="120" show-overflow-tooltip sortable />
         <el-table-column prop="productName" label="Tên sản phẩm" min-width="220" show-overflow-tooltip />
         <el-table-column prop="brandName" label="Thương hiệu" min-width="140" />
         <el-table-column prop="styleName" label="Cổ giày" min-width="120" />
 
         <el-table-column label="Giá bán" min-width="180">
           <template #default="{ row }">
-            <template v-if="row.discountPercentage > 0 || row.discountedPrice < row.sellPrice">
+            <template v-if="(row.discountPercentage || 0) > 0 && row.discountedPrice < row.sellPrice">
               <span class="line-through mr-2 text-muted">{{ formatCurrency(row.sellPrice) }}</span>
               <span class="price-sale">{{ formatCurrency(row.discountedPrice) }}</span>
             </template>
@@ -217,7 +222,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+// (script phần giữ nguyên như file trước — chỉ cut ngắn để tránh lặp lại)
+// Dán nguyên phần script từ file trước (đã working) сюда:
+import { ref, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -281,16 +288,26 @@ const totalPages = ref(0)
 const page = ref(0)
 const size = ref(8)
 
+/* ===== Sorting (server-side) ===== */
+const sortField = ref<string | null>(null)
+const sortOrder = ref<'asc' | 'desc' | null>(null)
+
 /* ===== Selection (reserve across pages) ===== */
 const selectedIds = ref<Set<number>>(new Set<number>())
 const rowKey = (row: ProductRow) => row.id
+const tableRef = ref<any>(null)
+
 const onSelectionChange = (rows: ProductRow[]) => {
   const currentPageIds = productList.value.map(r => r.id)
   currentPageIds.forEach(id => selectedIds.value.delete(id))
   rows.forEach(r => selectedIds.value.add(r.id))
 }
+
 const clearAllSelections = () => {
   selectedIds.value.clear()
+  if (tableRef.value) {
+    tableRef.value.clearSelection()
+  }
   ElMessage.info('Đã bỏ chọn tất cả sản phẩm.')
 }
 
@@ -299,31 +316,41 @@ const fetchCategories = async () => {
   try {
     const res = await apiClient.get('/admin/categories/hien-thi')
     categoryList.value = res.data
-  } catch { ElMessage.error('Lấy danh mục thất bại!') }
+  } catch {
+    ElMessage.error('Lấy danh mục thất bại!')
+  }
 }
 const fetchMaterial = async () => {
   try {
     const res = await apiClient.get('/admin/material/hien-thi')
     materialList.value = res.data
-  } catch { ElMessage.error('Lấy chất liệu thất bại!') }
+  } catch {
+    ElMessage.error('Lấy chất liệu thất bại!')
+  }
 }
 const fetchBrand = async () => {
   try {
     const res = await apiClient.get('/admin/brand/hien-thi')
     brandList.value = res.data
-  } catch { ElMessage.error('Lấy thương hiệu thất bại!') }
+  } catch {
+    ElMessage.error('Lấy thương hiệu thất bại!')
+  }
 }
 const fetchSole = async () => {
   try {
     const res = await apiClient.get('/admin/sole/hien-thi')
     soleList.value = res.data
-  } catch { ElMessage.error('Lấy đế giày thất bại!') }
+  } catch {
+    ElMessage.error('Lấy đế giày thất bại!')
+  }
 }
 const fetchStyle = async () => {
   try {
     const res = await apiClient.get('/admin/style/hien-thi')
     styleList.value = res.data
-  } catch { ElMessage.error('Lấy phong cách thất bại!') }
+  } catch {
+    ElMessage.error('Lấy phong cách thất bại!')
+  }
 }
 
 /* ===== Validation ===== */
@@ -345,7 +372,7 @@ const fetchProduct = async () => {
   if (!validateRanges()) return
   tableLoading.value = true
   try {
-    const payload = {
+    const payload: any = {
       keyword: filters.value.keyword || null,
       brandId: filters.value.brandId || null,
       genderId: filters.value.genderId || null,
@@ -362,11 +389,27 @@ const fetchProduct = async () => {
       status: 1,
     }
 
+    if (sortField.value) {
+      payload.sortField = sortField.value
+      payload.sortOrder = sortOrder.value
+    }
+
     const res = await apiClient.post('/admin/products/search', payload)
     productList.value = res.data.data || []
     totalElements.value = res.data.pagination?.totalElements || 0
     totalPages.value = res.data.pagination?.totalPages || 0
-  } catch (err) {
+
+    // restore visual selection
+    await nextTick()
+    if (tableRef.value) {
+      tableRef.value.clearSelection()
+      productList.value.forEach((row) => {
+        if (selectedIds.value.has(row.id)) {
+          tableRef.value.toggleRowSelection(row, true)
+        }
+      })
+    }
+  } catch (err: any) {
     if (err?.response?.status === 403) {
       router.push('/error')
       return
@@ -375,14 +418,17 @@ const fetchProduct = async () => {
     productList.value = []
     totalElements.value = 0
     totalPages.value = 0
-    page.value = 1
+    page.value = 0
   } finally {
     tableLoading.value = false
   }
 }
 
 /* ===== Actions ===== */
-const onSearch = () => { page.value = 0; fetchProduct() }
+const onSearch = () => {
+  page.value = 0
+  fetchProduct()
+}
 const onReset = () => {
   filters.value = {
     keyword: '',
@@ -395,11 +441,25 @@ const onReset = () => {
   page.value = 0
   size.value = 8
   selectedIds.value.clear()
+  if (tableRef.value) tableRef.value.clearSelection()
   fetchProduct()
 }
 
 const handleSizeChange = (newSize: number) => { size.value = newSize; page.value = 0; fetchProduct() }
 const handleCurrentChange = (newPage: number) => { page.value = newPage - 1; fetchProduct() }
+
+/* ===== Sorting handler (server-side) ===== */
+const onSortChange = ({ prop, order }: { prop: string | undefined; order: string | undefined }) => {
+  if (!prop || !order) {
+    sortField.value = null
+    sortOrder.value = null
+  } else {
+    sortField.value = prop
+    sortOrder.value = order === 'ascending' ? 'asc' : 'desc'
+  }
+  page.value = 0
+  fetchProduct()
+}
 
 const downloadExcel = async () => {
   try {
@@ -461,7 +521,7 @@ const goToDetail = (id: number) => router.push({ name: 'DetailProduct', params: 
 
 /* ===== Helpers ===== */
 const formatCurrency = (val: number) => {
-  if (!val) return '0 ₫'
+  if (val == null) return '0 ₫'
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', minimumFractionDigits: 0 }).format(val)
 }
 
@@ -485,13 +545,68 @@ onMounted(() => {
 .filter-title { font-weight: 600; }
 .filter-card__body { padding-top: 10px; padding-bottom: 8px; }
 
-/* Inline form gọn */
-.filter-inline :deep(.el-form-item) { margin-right: 10px; margin-bottom: 8px; }
+/* NEW: filter row container: left (inputs) + right (buttons) */
+.filter-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+
+/* left group: inputs; allow wrap for small screens */
+.filter-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: 1 1 auto;
+  min-width: 0; /* important for truncation in flex layouts */
+}
+
+/* right group: buttons fixed on the right */
+.filter-right {
+  display: flex;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+/* Inline form items inside left group */
+.filter-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.filter-inline :deep(.el-form-item) {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 8px;
+  margin-bottom: 6px;
+  vertical-align: middle;
+}
+
+/* cụm price inputs: buộc kích thước hợp lý cho el-input-number */
+.price-range {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* đặt width/min-width cho el-input-number để không bị co quá nhỏ */
+.price-range :deep(.el-input-number),
+.price-range :deep(.el-input-number) :deep(input) {
+  min-width: 110px;
+  width: 110px;
+}
+
+/* thêm padding cho form-item chứa price để tránh chồng lấn */
+.price-form-item { padding-right: 4px; }
+
+/* Width helpers */
 .w-56 { width: 224px; }
 .w-60 { width: 240px; }
 .w-64 { width: 256px; }
-.price-range { display: flex; align-items: center; gap: 4px; }
-.sep { color: #c0c4cc; padding: 0 2px; }
 
 /* Advanced area */
 .advanced { margin-top: 8px; }
@@ -513,4 +628,10 @@ onMounted(() => {
 
 /* Pager */
 .pager { display: flex; justify-content: end; margin-top: 12px; }
+
+/* Responsive: nếu màn hình quá nhỏ, left và right sẽ bẻ hàng */
+@media (max-width: 720px) {
+  .filter-row { flex-direction: column; align-items: stretch; gap: 8px; }
+  .filter-right { justify-content: flex-start; }
+}
 </style>

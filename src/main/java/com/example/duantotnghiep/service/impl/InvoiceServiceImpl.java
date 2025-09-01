@@ -917,10 +917,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         return invoiceMapper.toInvoiceDisplayResponse(invoice, all);
     }
 
-
-
-
-
+    
     @Transactional
     public InvoiceDisplayResponse updateInvoiceDetailQuantity(Long invoiceDetailId, Integer newQuantity) {
         if (newQuantity == null || newQuantity <= 0) throw new RuntimeException("Số lượng phải > 0");

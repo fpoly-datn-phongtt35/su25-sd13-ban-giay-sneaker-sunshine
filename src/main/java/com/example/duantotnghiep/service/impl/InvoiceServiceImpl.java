@@ -2071,7 +2071,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         Invoice invoice = invoiceRepository.findById(invoiceId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy hóa đơn"));
 
-        invoice.setStatus(TrangThaiTong.THANH_CONG);
+        invoice.setStatus(TrangThaiTong.DANG_XU_LY);
         LocalDateTime now = LocalDateTime.now();
         Date updatedDate = Date.from(now.atZone(ZoneId.systemDefault()).toInstant());
         invoice.setUpdatedDate(updatedDate);

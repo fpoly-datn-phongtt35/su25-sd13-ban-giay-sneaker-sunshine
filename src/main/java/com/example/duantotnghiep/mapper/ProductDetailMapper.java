@@ -28,6 +28,9 @@ public interface ProductDetailMapper {
     ProductDetail fromRequest(ProductDetailRequest request);
 
     List<ProductDetail> mapProductDetailRequests(List<ProductDetailRequest> requests);
+
+    List<ProductDetailResponse> toResponses(List<ProductDetail> productDetails);
+
 }
 
 

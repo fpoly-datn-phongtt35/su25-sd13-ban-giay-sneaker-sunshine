@@ -47,7 +47,7 @@ public class InvoiceResponse {
     private List<InvoiceDetailResponse> invoiceDetails;
 
     public InvoiceResponse(Long id, String invoiceCode, TrangThaiChiTiet status, Integer orderType,
-                           Date createdDate, String customerName, String phone, BigDecimal totalAmount) {
+                           Date createdDate, String customerName, String phone, BigDecimal totalAmount,BigDecimal finalAmount) {
         this.id = id;
         this.invoiceCode = invoiceCode;
         this.statusDetail = status;
@@ -56,6 +56,7 @@ public class InvoiceResponse {
         this.customerName = customerName;
         this.phone = phone;
         this.totalAmount = totalAmount;
+        this.finalAmount = finalAmount;
     }
 
 }

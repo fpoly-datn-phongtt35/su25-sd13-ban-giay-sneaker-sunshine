@@ -4,6 +4,7 @@ import com.example.duantotnghiep.dto.request.ProductFilterRequest;
 import com.example.duantotnghiep.dto.request.ProductRequest;
 import com.example.duantotnghiep.dto.request.ProductSearchRequest;
 import com.example.duantotnghiep.dto.response.*;
+import com.example.duantotnghiep.model.ProductDetail;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.transaction.annotation.Transactional;
@@ -51,4 +52,7 @@ public interface ProductService {
     Page<ProductResponse> getProductsBySizeId(Long sizeId, Pageable pageable);
 
     List<ProductResponse> getProductSearch(String name);
+
+    ProductDetailResponse verifyProductDetail(Long id);
+    List<ProductDetailResponse> verifyListProductDetail(List<Long> id);
 }

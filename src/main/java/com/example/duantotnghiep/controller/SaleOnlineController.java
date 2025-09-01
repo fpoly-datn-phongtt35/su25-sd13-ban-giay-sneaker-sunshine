@@ -388,6 +388,14 @@ public class SaleOnlineController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/verify-pdDetail/{id}")
+    public ResponseEntity<ProductDetailResponse> verifyProductDetail(@PathVariable("id") Long id) {
+        return ResponseEntity.ok(productService.verifyProductDetail(id));
+    }
 
+    @GetMapping("/verify-list-pdDetail/{ids}")
+    public ResponseEntity<List<ProductDetailResponse>> verifyListProductDetail(@PathVariable("ids") List<Long> ids) {
+        return ResponseEntity.ok(productService.verifyListProductDetail(ids));
+    }
 
 }

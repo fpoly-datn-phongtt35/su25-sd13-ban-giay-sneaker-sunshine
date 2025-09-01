@@ -30,7 +30,8 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
                     i.createdDate,
                     i.customer.customerName,
                     i.customer.phone,
-                    i.totalAmount
+                    i.totalAmount,
+                    i.finalAmount
                 )
                 FROM Invoice i
                 WHERE (:status IS NULL OR i.statusDetail = :status)

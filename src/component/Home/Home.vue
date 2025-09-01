@@ -272,6 +272,7 @@ import { addToCart } from '@/utils/cart.js'
 // ====== Banner images (thay bằng ảnh bạn) ======
 import banner1 from '@/img/1.jpg'
 import banner2 from '@/img/2.jpg'
+import axios from 'axios'
 
 /* =======================
  * State chung
@@ -564,7 +565,7 @@ const requiresSizeSelection = (sp) => {
   const named = new Set((sp.productDetails || []).map((d) => d.sizeName).filter(Boolean))
   return named.size > 0
 }
-const handleAddToCartInModal = () => {
+const handleAddToCartInModal = async () => {
   const sp = selectedProduct.value
   if (!sp) return false
 
@@ -574,6 +575,23 @@ const handleAddToCartInModal = () => {
   }
 
   const detail = findSelectedProductDetail()
+
+  const productDetailId = detail.id;
+  try {
+  const res = await axios.get(`http://localhost:8080/api/online-sale/verify-pdDetail/${productDetailId}`)
+  console.log('res hihi: ',res)
+  const status = res?.data?.status;
+  const statusNum = Number(status)
+  if (!Number.isFinite(statusNum) || statusNum !== 1) {
+    ElMessage.error('Sản phẩm hiện không hợp lệ để mua (đã bị vô hiệu hóa hoặc không còn bán).')
+    return false
+  }
+} catch (e) {
+  console.error('Lỗi khi kiểm tra trạng thái productDetail:', e)
+  ElMessage.error('Không thể kiểm tra trạng thái sản phẩm. Vui lòng thử lại sau.')
+  return false
+}
+
   if (!detail) {
     ElMessage.error('Không tìm thấy chi tiết phù hợp. Vui lòng chọn lại màu và kích thước.')
     return false

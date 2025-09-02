@@ -37,11 +37,11 @@ public class StatisticServiceImpl implements StatisticService {
         // ===== 0) Chuẩn hoá khoảng thời gian từ request =====
         Range range = normalizeRangeFromRequest(req);
         LocalDateTime start = range.start();
-        LocalDateTime end   = range.end(); // end-exclusive nếu có
+        LocalDateTime end   = range.end(); // end-exclusive
 
-        // ===== 0.1) Nếu FE có yêu cầu groupBy mà vẫn thiếu range -> mặc định tháng hiện tại =====
-        String groupBy = safeGroupBy(req.getGroupBy());    // "day" | "month" | "year" (fallback "day")
-        String metric  = safeMetric(req.getMetric());      // "revenue" | "quantity" (fallback "revenue")
+        // ===== 0.1) Nếu FE có groupBy mà thiếu range -> mặc định tháng hiện tại =====
+        String groupBy = safeGroupBy(req.getGroupBy());    // "day" | "month" | "year"
+        String metric  = safeMetric(req.getMetric());      // "revenue" | "quantity"
         if ((start == null || end == null) && groupBy != null) {
             YearMonth cur = YearMonth.now(ZONE_VN);
             if (start == null) start = cur.atDay(1).atStartOfDay();
@@ -52,13 +52,13 @@ public class StatisticServiceImpl implements StatisticService {
         if (isTrue(req.getIncludeTopProducts()) && (start == null || end == null)) {
             YearMonth cur = YearMonth.now(ZONE_VN);
             if (start == null) start = cur.atDay(1).atStartOfDay();
-            if (end == null)   end   = start.plusMonths(1); // end-exclusive
+            if (end   == null) end   = start.plusMonths(1);
         }
 
         // ===== 2) Trạng thái thống kê =====
         TrangThaiTong success = TrangThaiTong.THANH_CONG;
 
-        // ===== 3) MONTHLY: Doanh thu + SỐ LƯỢNG =====
+        // ===== 3) MONTHLY =====
         List<MonthlyRevenueResponse> monthly = null;
         if (isTrue(req.getIncludeMonthly())) {
             final int y = (req.getYear() != null)
@@ -68,11 +68,9 @@ public class StatisticServiceImpl implements StatisticService {
             monthly = java.util.stream.IntStream.rangeClosed(1, 12)
                     .mapToObj(m -> {
                         LocalDateTime ms = LocalDate.of(y, m, 1).atStartOfDay();
-                        LocalDateTime me = ms.plusMonths(1); // end-exclusive
-
+                        LocalDateTime me = ms.plusMonths(1);
                         Long rev = invoiceRepository.sumRevenueBetween(ms, me, success);
                         Long qty = invoiceRepository.sumItemsBetween(ms, me, success);
-
                         return MonthlyRevenueResponse.builder()
                                 .month(m).year(y)
                                 .totalRevenue(nz(rev))
@@ -82,15 +80,14 @@ public class StatisticServiceImpl implements StatisticService {
                     .collect(Collectors.toList());
         }
 
-        // ===== 4) YEARLY: Doanh thu + SỐ LƯỢNG =====
+        // ===== 4) YEARLY =====
         List<YearlyRevenueResponse> yearly = null;
         if (isTrue(req.getIncludeYearly())) {
             final int y = (req.getPeriodYear() != null) ? req.getPeriodYear()
                     : (req.getYear() != null ? req.getYear() : Year.now(ZONE_VN).getValue());
 
             LocalDateTime ys = LocalDate.of(y, 1, 1).atStartOfDay();
-            LocalDateTime ye = ys.plusYears(1); // end-exclusive
-
+            LocalDateTime ye = ys.plusYears(1);
             Long totalRev = invoiceRepository.sumRevenueBetween(ys, ye, success);
             Long totalQty = invoiceRepository.sumItemsBetween(ys, ye, success);
 
@@ -101,7 +98,7 @@ public class StatisticServiceImpl implements StatisticService {
                     .build());
         }
 
-        // ===== 5) DOANH THU THEO LOẠI ĐƠN (áp dụng start/end nếu có) =====
+        // ===== 5) ORDER TYPE =====
         List<OrderTypeRevenueResponse> byOrderType = null;
         if (isTrue(req.getIncludeOrderType())) {
             byOrderType = invoiceRepository.getRevenueByOrderType(success, start, end).stream()
@@ -126,7 +123,7 @@ public class StatisticServiceImpl implements StatisticService {
                     .collect(Collectors.toList());
         }
 
-        // ===== 7) TRẠNG THÁI HÓA ĐƠN =====
+        // ===== 7) STATUS COUNTS =====
         List<InvoiceStatusStatisticResponse> statusStats = null;
         if (isTrue(req.getIncludeStatus())) {
             statusStats = invoiceRepository.countInvoicesByStatus(start, end).stream()
@@ -142,13 +139,13 @@ public class StatisticServiceImpl implements StatisticService {
                     .collect(Collectors.toList());
         }
 
-        // ===== 8) DOANH THU HÔM NAY =====
+        // ===== 8) TODAY REVENUE =====
         Long todayRevenue = null;
         if (isTrue(req.getIncludeTodayRevenue())) {
             LocalDate today = ZonedDateTime.now(ZONE_VN).toLocalDate();
             LocalDateTime sod = today.atStartOfDay();
             LocalDateTime eod = sod.plusDays(1);
-            todayRevenue = invoiceRepository.sumRevenueBetween(sod, eod, success);
+            todayRevenue = invoiceRepository.getTodayRevenue(sod, eod, success);
         }
 
         // ===== 9) WTD/MTD/QTD/YTD =====
@@ -157,10 +154,22 @@ public class StatisticServiceImpl implements StatisticService {
             current = computeCurrentPeriods(success);
         }
 
-        // ===== 10) CHART AGG (theo groupBy, áp dụng start/end nếu có) =====
+        // ===== 10) CHART AGG (theo groupBy)
         List<StatisticDashboardResponse.ChartAggItem> chartAgg = null;
         if (start != null && end != null) {
-            chartAgg = buildChartAgg(success, start, end, groupBy);
+            List<TimeAggRow> rows = switch (groupBy) {
+                case "day"   -> invoiceRepository.aggregateBy(success, start, end);
+                case "month" -> invoiceRepository.aggregateByMonth(success, start, end);
+                case "year"  -> invoiceRepository.aggregateByYear(success, start, end);
+                default      -> Collections.emptyList();
+            };
+            chartAgg = rows.stream()
+                    .map(r -> StatisticDashboardResponse.ChartAggItem.builder()
+                            .label(r.getLabel())
+                            .totalRevenue(nz(r.getTotalRevenue()))
+                            .totalQuantity(nz(r.getTotalQuantity()))
+                            .build())
+                    .collect(Collectors.toList());
         }
 
         // ===== 11) Build response =====
@@ -174,9 +183,10 @@ public class StatisticServiceImpl implements StatisticService {
                 .periodStart(start)
                 .periodEnd(end)
                 .currentPeriods(current)
-                .chartAgg(chartAgg) // <===== FE ưu tiên dùng cho biểu đồ
+                .chartAgg(chartAgg)
                 .build();
     }
+
 
     /* ===================== CORE HELPERS ===================== */
 

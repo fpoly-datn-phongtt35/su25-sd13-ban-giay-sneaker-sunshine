@@ -24,6 +24,19 @@ public interface InvoiceDetailRepository extends JpaRepository<InvoiceDetail, Lo
 
     List<InvoiceDetail> findByInvoiceAndStatus(Invoice invoice, Integer status);
 
+    @Query("""
+                select id from InvoiceDetail id
+                join id.productDetail pd
+                where id.invoice = :invoice
+                  and id.status = :status
+                  and pd.status = 1
+            """)
+    List<InvoiceDetail> findByInvoiceAndStatusAndProductDetailActive(
+            @Param("invoice") Invoice invoice,
+            @Param("status") Integer status
+    );
+
+
     List<InvoiceDetail> findByInvoiceIdIn(Collection<Long> invoiceIds);
 
 

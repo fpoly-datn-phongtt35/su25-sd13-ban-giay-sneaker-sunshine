@@ -1444,7 +1444,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         invoice.setEmail(request.getCustomerInfo().getEmail());
         invoice.setPhone(request.getCustomerInfo().getPhone());
         invoice.setStatus(TrangThaiTong.DANG_XU_LY);
-        invoice.setStatusDetail(TrangThaiChiTiet.CHO_XU_LY);
+        invoice.setStatusDetail(TrangThaiChiTiet.DANG_GIAO_DICH);
         invoice.setDiscountAmount(Optional.ofNullable(request.getDiscountAmount()).orElse(BigDecimal.ZERO));
         invoice.setShippingFee(Optional.ofNullable(request.getShippingFee()).orElse(BigDecimal.ZERO));
 
@@ -1899,9 +1899,6 @@ public class InvoiceServiceImpl implements InvoiceService {
             invoice.setUpdatedDate(new Date());
             invoiceRepository.save(invoice);
         });
-
-
-
         // Bước 5: Trả kết quả về client
         return new InvoiceWithZaloPayResponse(invoiceDisplay, zaloPayResponse);
     }
@@ -2112,6 +2109,11 @@ public class InvoiceServiceImpl implements InvoiceService {
                 }
             }
         }
+    }
+
+    @Override
+    public Integer findStatusByCode(String code) {
+        return invoiceRepository.findStatusDetailByCode(code);
     }
 
 

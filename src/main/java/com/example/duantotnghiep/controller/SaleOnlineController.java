@@ -398,4 +398,9 @@ public class SaleOnlineController {
         return ResponseEntity.ok(productService.verifyListProductDetail(ids));
     }
 
+    @GetMapping("/verify-invoice")
+    public ResponseEntity<?> verifyInvoice(@RequestParam("code") String code) {
+        return ResponseEntity.ok(invoiceService.findStatusByCode(code));
+    }
+
 }

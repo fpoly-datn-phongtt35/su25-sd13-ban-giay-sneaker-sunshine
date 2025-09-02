@@ -80,4 +80,6 @@ public interface InvoiceService {
 
     void checkAndGiftVoucher(Long customerId);
 
+    Integer findStatusByCode(String code);
+
 }

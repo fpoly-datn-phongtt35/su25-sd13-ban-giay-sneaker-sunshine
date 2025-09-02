@@ -427,6 +427,9 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
     List<TimeAggRow> aggregateByYear(@Param("status") TrangThaiTong status,
                                      @Param("start") LocalDateTime start,
                                      @Param("end")   LocalDateTime end);
+
+    @Query("select i.statusDetail from Invoice i where i.invoiceCode = :code ")
+    Integer findStatusDetailByCode(String code);
 }
 
 

@@ -193,7 +193,7 @@
                   </RouterLink>
 
                    <RouterLink to="/don-hang-da-mua" class="dropdown-item" @click="closeDropdown">
-                    <el-icon><Box /></el-icon> Đánh giá sản phẩm đã mua
+                    <el-icon><Box /></el-icon> Đánh giá sản phẩm
                   </RouterLink>
 
                   <RouterLink to="/thong-tin-ca-nhan" class="dropdown-item" @click="closeDropdown">

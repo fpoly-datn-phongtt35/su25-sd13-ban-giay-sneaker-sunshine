@@ -405,24 +405,7 @@ const filterVouchers = () => {
 const isCurrentApplied = (row) => !!(appliedVoucher.value && (row?.voucherCode || '') === (appliedVoucher.value?.voucherCode || ''))
 
 // auto apply best
-const applyBestVoucherAutomatically = async () => {
-  const cid = form.value.customerId || localStorage.getItem('userId')
-  if (!cid || orderTotal.value <= 0) { recalcFinal(); return }
-  try {
-    const res = await axios.get('http://localhost:8080/api/online-sale/vouchers/apply-best', {
-      params: { customerId: cid, orderTotal: orderTotal.value }
-    })
-    if (res.data) {
-      appliedVoucher.value = res.data
-      discountCode.value = res.data.voucherCode || ''
-      recalcFinal()
-      ElMessage.success('Tự động áp voucher phù hợp')
-    } else recalcFinal()
-  } catch (err) {
-    console.error('Lỗi apply-best:', err)
-    recalcFinal()
-  }
-}
+
 
 // ===== GHN helpers
 const loadProvinces = async () => {
@@ -677,65 +660,52 @@ const handleSubmit = async () => {
     };
 
     // ------------- Payment flow -------------
-    if (paymentMethod.value === 1) {
-      // ZaloPay: mở tab trống ngay để tránh popup blocker
-      try {
-        const newTab = window.open('', '_blank', 'noopener');
-        if (!newTab) {
-          ElMessage.warning('Trình duyệt có thể chặn pop-up. Vui lòng cho phép pop-up hoặc thử lại.');
-        } else {
-          try { newTab.document.write('<p>Đang chuyển tới ZaloPay…</p>'); } catch (e) { /* ignore cross-origin write error */ }
-        }
+if (paymentMethod.value === 1) {
+  // ZaloPay
+  try {
+    const res = await axios.post('http://localhost:8080/api/payment/zalo/create', payload);
+    const zaloPay = res.data?.zaloPay;
+    const invoice = res.data?.invoice || null;
+    const customerId = invoice?.customerId;
+    if (customerId) localStorage.setItem('userId', String(customerId));
 
-        // Gọi backend tạo order ZaloPay
-        const createRes = await axios.post('http://localhost:8080/api/payment/zalo/create', payload);
-        console.log('Zalo create response:', createRes?.data);
+    if (zaloPay?.orderUrl && zaloPay?.appTransId) {
+      const pending = {
+        invoiceId: invoice?.id || null,
+        appTransId: zaloPay.appTransId,
+        amount: payload.amount
+      };
 
-        const zaloPay = createRes.data?.zaloPay;
-        const invoice = createRes.data?.invoice || null;
-        if (invoice?.customerId) localStorage.setItem('userId', String(invoice.customerId));
+      localStorage.setItem('appTransId', zaloPay.appTransId);
+      localStorage.setItem('pendingOrder', JSON.stringify(pending));
 
-        if (!zaloPay || !zaloPay.orderUrl || !zaloPay.appTransId) {
-          console.error('Zalo create returned incomplete data:', createRes.data);
-          ElMessage.error(createRes.data?.message || 'Không nhận được URL thanh toán từ server.');
-          if (newTab) try { newTab.close(); } catch {}
-          return;
-        }
+      ElMessage.success('Đang mở ZaloPay ở tab mới. Sau khi thanh toán xong, quay lại trang này để xem kết quả.');
 
-        // lưu pendingOrder
-        const pending = {
-          invoiceId: invoice?.id || null,
-          appTransId: zaloPay.appTransId,
-          amount: payload.amount
-        };
-        localStorage.setItem('appTransId', zaloPay.appTransId);
-        localStorage.setItem('pendingOrder', JSON.stringify(pending));
+      // MỞ ZALOPAY Ở TAB MỚI (khuyến nghị)
+      const newTab = window.open(zaloPay.orderUrl, '_blank');
 
-        // Điều hướng tab mới sang ZaloPay
-        if (newTab) {
-          try {
-            newTab.location.href = zaloPay.orderUrl;
-            ElMessage.success('Đã mở ZaloPay ở tab mới. Vui lòng hoàn tất thanh toán ở tab đó.');
-            // chuyển tab gốc sang trang kết quả (replace để tránh back về checkout)
-            if (typeof router !== 'undefined' && router && typeof router.replace === 'function') {
-              router.replace('/payment-result');
-            } else {
-              window.location.replace('/payment-result');
-            }
-          } catch (e) {
-            console.warn('Không thể set location của tab mới, fallback redirect cùng tab', e);
-            if (newTab) try { newTab.close(); } catch {}
-            window.location.href = zaloPay.orderUrl;
-          }
-        } else {
-          // newTab bị block -> redirect cùng tab
-          window.location.href = zaloPay.orderUrl;
-        }
-      } catch (err) {
-        console.error('Lỗi khi khởi tạo thanh toán ZaloPay:', err);
-        ElMessage.error(err?.response?.data?.message || 'Lỗi khi khởi tạo thanh toán ZaloPay. Vui lòng thử lại.');
+      if (!newTab) {
+        // Nếu bị block popup -> fallback: chuyển cùng tab (replace để không lưu lịch sử quay về checkout)
+        console.warn('window.open bị chặn, fallback sang redirect cùng tab');
+        window.location.replace(zaloPay.orderUrl);
+        return;
+      }
+
+      // Điều hướng tab gốc sang trang kết quả mà không thêm entry lịch sử (không cho Back quay về form)
+      if (typeof router !== 'undefined' && router && typeof router.replace === 'function') {
+        router.replace('/payment-result');
+      } else {
+        // fallback nếu không có router instance
+        window.location.replace('/payment-result');
       }
     } else {
+      ElMessage.error('Không nhận được URL thanh toán từ ZaloPay. Vui lòng thử lại.');
+    }
+  } catch (err) {
+    console.error('Lỗi khi khởi tạo thanh toán ZaloPay:', err);
+    ElMessage.error(err?.response?.data?.message || 'Lỗi khi khởi tạo thanh toán ZaloPay. Vui lòng thử lại.');
+  }
+}else {
       // COD flow
       try {
         const res = await axios.post('http://localhost:8080/api/online-sale/checkout', payload);
@@ -759,7 +729,6 @@ const handleSubmit = async () => {
     try { loadingInstance.close(); } catch (e) { /* ignore */ }
   }
 };
-
 
 // ===== watchers
 watch([orderTotal, shippingFee, appliedVoucher], () => { recalcFinal() }, { immediate: true })
@@ -824,7 +793,6 @@ onMounted(async () => {
   }
 
   recalcFinal()
-  await applyBestVoucherAutomatically()
 })
 </script>
 

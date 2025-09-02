@@ -405,24 +405,7 @@ const filterVouchers = () => {
 const isCurrentApplied = (row) => !!(appliedVoucher.value && (row?.voucherCode || '') === (appliedVoucher.value?.voucherCode || ''))
 
 // auto apply best
-const applyBestVoucherAutomatically = async () => {
-  const cid = form.value.customerId || localStorage.getItem('userId')
-  if (!cid || orderTotal.value <= 0) { recalcFinal(); return }
-  try {
-    const res = await axios.get('http://localhost:8080/api/online-sale/vouchers/apply-best', {
-      params: { customerId: cid, orderTotal: orderTotal.value }
-    })
-    if (res.data) {
-      appliedVoucher.value = res.data
-      discountCode.value = res.data.voucherCode || ''
-      recalcFinal()
-      ElMessage.success('Tự động áp voucher phù hợp')
-    } else recalcFinal()
-  } catch (err) {
-    console.error('Lỗi apply-best:', err)
-    recalcFinal()
-  }
-}
+
 
 // ===== GHN helpers
 const loadProvinces = async () => {
@@ -856,7 +839,6 @@ onMounted(async () => {
   }
 
   recalcFinal()
-  await applyBestVoucherAutomatically()
 })
 </script>
 

@@ -19,11 +19,14 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
                 """)
     List<Employee> getData();
 
-    @Query("SELECT e FROM Employee e " +
-            "WHERE (:employeeCode IS NULL OR e.employeeCode LIKE %:employeeCode%) " +
-            "AND (:employeeName IS NULL OR e.employeeName LIKE %:employeeName%) " +
-            "AND (:email IS NULL OR e.email LIKE %:email%) " +
-            "AND e.status = 1")
+    @Query("""
+        SELECT e
+        FROM Employee e
+        WHERE
+            ( :employeeCode IS NOT NULL AND LOWER(e.employeeCode) LIKE CONCAT('%', LOWER(:employeeCode), '%') )
+         OR ( :employeeName IS NOT NULL AND LOWER(e.employeeName) LIKE CONCAT('%', LOWER(:employeeName), '%') )
+         OR ( :email        IS NOT NULL AND LOWER(e.email)        LIKE CONCAT('%', LOWER(:email), '%') )
+        """)
     List<Employee> searchEmployees(
             @Param("employeeCode") String employeeCode,
             @Param("employeeName") String employeeName,

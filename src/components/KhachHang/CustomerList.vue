@@ -1,87 +1,119 @@
 <template>
   <div class="customer-list-container">
     <el-card class="box-card">
-      <div class="card-header">
-        <h3 class="title">Danh sách khách hàng</h3>
-
-        <div class="actions">
-          <el-button type="primary" :icon="Download" :loading="exporting" @click="exportExcel" size="default">
-            Xuất Excel
-          </el-button>
-
-          <el-button type="success" :icon="Plus" @click="goToAddCustomer" size="default">
-            Thêm khách hàng
-          </el-button>
-        </div>
+      <div class="controls-container">
+        <el-row :gutter="20" justify="space-between" align="middle">
+          <el-col :xs="24" :sm="12" :md="14">
+            <div class="header-left">
+              <h2 class="title">Quản Lý Khách Hàng</h2>
+              <el-input
+                v-model="searchKeyword"
+                placeholder="Tìm kiếm theo tên, mã, email, SĐT..."
+                :prefix-icon="Search"
+                clearable
+                @clear="fetchCustomers"
+                @keyup.enter="handleSearch"
+                class="search-input"
+              />
+            </div>
+          </el-col>
+          <el-col :xs="24" :sm="12" :md="10">
+            <div class="actions">
+              <el-space wrap>
+                <el-button :icon="Refresh" @click="resetSearch">Làm mới</el-button>
+                <el-button type="primary" :icon="Download" :loading="exporting" @click="exportExcel">
+                  Xuất Excel
+                </el-button>
+                <el-button type="success" :icon="Plus" @click="goToAddCustomer">
+                  Thêm mới
+                </el-button>
+              </el-space>
+            </div>
+          </el-col>
+        </el-row>
       </div>
 
+      <el-divider />
 
-      <div class="search-section">
-        <el-input v-model="searchKeyword" placeholder="Tìm kiếm theo tên, mã, email, SĐT..." :prefix-icon="Search"
-          clearable @clear="fetchCustomers" @keyup.enter="handleSearch" class="search-input" />
-        <el-button type="primary" :icon="Search" @click="handleSearch">Tìm kiếm</el-button>
-        <el-button :icon="Refresh" @click="resetSearch">Reset</el-button>
-      </div>
+      <el-table
+        :data="customers"
+        border
+        stripe
+        v-loading="loading"
+        element-loading-text="Đang tải dữ liệu..."
+        class="customer-table"
+        :row-class-name="tableRowClassName"
+      >
+        <template #empty>
+          <el-empty description="Không tìm thấy khách hàng nào" />
+        </template>
 
-      <el-table :data="customers" border stripe v-loading="loading" element-loading-text="Đang tải dữ liệu..."
-        empty-text="Không có dữ liệu khách hàng nào." class="customer-table" :row-class-name="tableRowClassName">
-        <el-table-column type="index" label="#" width="60" :index="indexMethod" />
-        <el-table-column prop="customerName" label="Tên khách hàng" sortable />
-        <el-table-column prop="email" label="Email" />
+        <el-table-column type="index" label="#" width="60" :index="indexMethod" align="center" />
+        <el-table-column prop="customerName" label="Tên khách hàng" sortable min-width="180" />
+        <el-table-column prop="email" label="Email" min-width="200" />
         <el-table-column prop="phone" label="Số điện thoại" width="140" />
-        <el-table-column label="Ngày tạo" width="150">
+        <el-table-column label="Ngày tạo" width="150" sortable prop="createdDate">
           <template #default="scope">
             {{ formatDate(scope.row.createdDate) }}
           </template>
         </el-table-column>
 
-        <!-- <el-table-column prop="trustScore" label="Điểm tin cậy" width="130" sortable>
+        <el-table-column label="Trạng thái" width="180" align="center">
           <template #default="scope">
-            <el-tag :type="getTrustScoreTagType(scope.row.trustScore)" effect="light">
-              {{ scope.row.trustScore }}
-            </el-tag>
-          </template>
-        </el-table-column> -->
-
-        <el-table-column label="Cảnh báo khách hàng" min-width="200">
-          <template #default="scope">
-            <div class="flex items-center space-x-2">
-              <!-- <el-tag :type="scope.row.isBlacklisted ? 'danger' : 'success'" effect="dark" size="small">
-        {{ scope.row.isBlacklisted ? 'Đang bị cấm' : 'Hoạt động' }}
-      </el-tag> -->
-
-              <template v-if="scope.row.blacklistReason && scope.row.blacklistReason.trim()">
-                <span class="text-reason">Lý do: {{ scope.row.blacklistReason }}</span>
-                <el-tag v-if="scope.row.blacklistEndDate" type="danger" size="small" effect="plain">
-                  Đến {{ formatDate(scope.row.blacklistEndDate) }}
-                </el-tag>
-              </template>
-
-              <template v-else>
-                <div class="text-muted-reason"></div>
-              </template>
+            <div v-if="scope.row.isBlacklisted" class="status-cell">
+              <el-tag type="danger" effect="dark" size="small">
+                Đang bị cấm
+              </el-tag>
+              <el-tooltip effect="dark" placement="top">
+                <template #content>
+                  <div class="blacklist-tooltip">
+                    <p><strong>Lý do:</strong> {{ scope.row.blacklistReason || 'Không có' }}</p>
+                    <p v-if="scope.row.blacklistEndDate">
+                      <strong>Hết hạn:</strong> {{ formatDate(scope.row.blacklistEndDate) }}
+                    </p>
+                     <p v-else><strong>Hết hạn:</strong> Vĩnh viễn</p>
+                  </div>
+                </template>
+                <el-icon class="info-icon"><WarningFilled /></el-icon>
+              </el-tooltip>
             </div>
+            <el-tag v-else type="success" effect="light" size="small">
+              Hoạt động
+            </el-tag>
           </template>
         </el-table-column>
 
-        <el-table-column label="Hành động" width="200" fixed="right">
+        <el-table-column label="Hành động" width="180" fixed="right" align="center">
           <template #default="scope">
-            <el-button type="primary" :icon="Edit" size="small" circle @click="goToEditCustomer(scope.row.id)"
-              title="Sửa" />
-            <el-button type="danger" :icon="Delete" size="small" circle @click="confirmDeleteCustomer(scope.row.id)"
-              title="Xóa" />
-            <el-button v-if="!scope.row.isBlacklisted" type="warning" :icon="CircleClose" size="small" circle
-              @click="confirmBlacklistCustomer(scope.row.id)" title="Cấm khách hàng" />
-            <el-button v-else type="success" :icon="CircleCheck" size="small" circle
-              @click="confirmUnblacklistCustomer(scope.row.id)" title="Bỏ cấm khách hàng" />
+            <el-space>
+              <el-tooltip content="Sửa thông tin" placement="top">
+                <el-button type="primary" :icon="Edit" size="small" circle @click="goToEditCustomer(scope.row.id)" />
+              </el-tooltip>
+              <el-tooltip content="Xóa khách hàng" placement="top">
+                <el-button type="danger" :icon="Delete" size="small" circle @click="confirmDeleteCustomer(scope.row.id)" />
+              </el-tooltip>
+              <el-tooltip v-if="!scope.row.isBlacklisted" content="Cấm khách hàng" placement="top">
+                <el-button type="warning" :icon="CircleClose" size="small" circle @click="confirmBlacklistCustomer(scope.row.id)" />
+              </el-tooltip>
+              <el-tooltip v-else content="Bỏ cấm khách hàng" placement="top">
+                <el-button type="success" :icon="CircleCheck" size="small" circle @click="confirmUnblacklistCustomer(scope.row.id)" />
+              </el-tooltip>
+            </el-space>
           </template>
         </el-table-column>
       </el-table>
 
       <div class="pagination-container">
-        <el-pagination @size-change="handleSizeChange" @current-change="handleCurrentChange"
-          v-model:current-page="currentPage" :page-sizes="[5, 10, 20, 50]" :page-size="size"
-          layout="total, sizes, prev, pager, next, jumper" :total="totalElements" background />
+        <el-pagination
+          @size-change="handleSizeChange"
+          @current-change="handleCurrentChange"
+          v-model:current-page="currentPage"
+          :page-sizes="[10, 20, 50, 100]"
+          :page-size="size"
+          layout="total, sizes, prev, pager, next, jumper"
+          :total="totalElements"
+          background
+        />
       </div>
     </el-card>
   </div>
@@ -461,255 +493,111 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* Container chính cho toàn bộ trang */
+/* --- BỐ CỤC CHUNG --- */
 .customer-list-container {
-  max-width: 1300px;
-  margin: 40px auto;
-  padding: 20px;
+  padding: 24px;
+  background-color: #f5f7fa; /* Nền xám nhẹ cho toàn trang */
 }
 
-/* Thẻ bao quanh nội dung */
 .box-card {
-  border-radius: 12px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
-  /* Đổ bóng nhẹ nhàng */
+  border: none;
+  border-radius: 8px;
+  box-shadow: var(--el-box-shadow-light);
+  padding: 12px;
 }
 
-/* Header của thẻ, chứa tiêu đề và nút thêm */
-.card-header {
+/* --- KHU VỰC ĐIỀU KHIỂN --- */
+.controls-container {
+  margin-bottom: 16px;
+}
+
+.header-left {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 25px;
-  padding-bottom: 18px;
-  border-bottom: 1px solid #ebeef5;
-  /* Đường kẻ dưới */
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
-/* Tiêu đề chính */
 .title {
   margin: 0;
-  color: #303133;
-  font-size: 28px;
-  font-weight: bold;
-}
-
-/* Phần tìm kiếm và lọc */
-.search-section {
-  display: flex;
-  gap: 10px;
-  /* Khoảng cách giữa các phần tử */
-  margin-bottom: 20px;
-  align-items: center;
+  color: var(--el-text-color-primary);
+  font-size: 24px;
+  font-weight: 600;
+  white-space: nowrap; /* Không xuống dòng */
 }
 
 .search-input {
-  max-width: 400px;
+  max-width: 350px;
+  min-width: 250px;
 }
 
-/* Bảng hiển thị danh sách khách hàng */
+.actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* --- BẢNG DỮ LIỆU --- */
 .customer-table {
   width: 100%;
-  border-radius: 8px;
+  border-radius: 6px;
   overflow: hidden;
-  /* Đảm bảo góc bo tròn */
-  margin-top: 0;
 }
 
-/* Header của bảng */
-.customer-table .el-table__header-wrapper th {
-  background-color: #f5f7fa;
-  /* Màu nền header */
-  color: #606266;
-  font-weight: bold;
+/* Style cho hàng bị cấm - nhẹ nhàng hơn */
+:deep(.el-table .danger-row) {
+  background-color: #fff2f2 !important;
+  --el-table-tr-bg-color: #fff2f2;
+}
+:deep(.el-table .danger-row:hover > td) {
+  background-color: #ffe8e8 !important;
 }
 
-.customer-table .el-table__cell {
-  padding: 10px 0;
+/* Cột trạng thái */
+.status-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
-
-/* --- ĐIỂM QUAN TRỌNG: STYLE CHO DÒNG BỊ CẤM --- */
-.el-table .danger-row {
-  background-color: #fef0f0 !important;
-  /* Màu nền đỏ nhạt cho hàng bị cấm */
-  border-left: 8px solid #f56c6c;
-  /* Tăng độ dày viền đỏ bên trái */
+.info-icon {
+  cursor: pointer;
+  color: var(--el-color-info);
+  font-size: 16px;
 }
-
-/* Đảm bảo tất cả các văn bản và phần tử trong ô của hàng này có màu đỏ đậm và in đậm */
-.el-table .danger-row .el-table__cell {
-  color: #a30000 !important;
-  /* Màu chữ đỏ đậm cho toàn bộ nội dung ô */
-  font-weight: bold !important;
-  /* In đậm chữ trong toàn bộ nội dung ô */
+.blacklist-tooltip {
+  max-width: 250px;
 }
-
-.el-table .danger-row:hover>td {
-  background-color: #fce7e7 !important;
-  /* Đảm bảo màu hover cũng theo màu đỏ nhạt */
-}
-
-/* --- STYLE CỦA CÁC THẺ TAG --- */
-.el-tag {
-  font-weight: 500;
-  border-radius: 4px;
-}
-
-/* Định nghĩa màu sắc cho các loại tag (nếu cần tùy chỉnh so với default của Element Plus) */
-/* Cập nhật màu tag cho trạng thái Blacklisted/Active */
-.el-tag.el-tag--success[effect='dark'] {
-  background-color: #67c23a;
-  border-color: #67c23a;
-  color: #fff;
-}
-
-.el-tag.el-tag--danger[effect='dark'] {
-  background-color: #f56c6c;
-  border-color: #f56c6c;
-  color: #fff;
-}
-
-/* Màu tag cho lý do cấm (plain effect) */
-.el-tag.el-tag--danger[effect='plain'] {
-  background-color: #fef0f0;
-  /* Màu nền nhẹ nhàng hơn */
-  color: #f56c6c;
-  /* Màu chữ đỏ */
-  border-color: #fde2e2;
-}
-
-/* Styles cho tag 'light' effect (cho điểm tin cậy) */
-.el-tag.el-tag--success[effect='light'] {
-  background-color: #f0f9eb;
-  /* Light green */
-  color: #67c23a;
-  border-color: #e1f3d8;
-}
-
-.el-tag.el-tag--warning[effect='light'] {
-  background-color: #fdf6ec;
-  /* Light orange */
-  color: #e6a23c;
-  border-color: #faecd8;
-}
-
-.el-tag.el-tag--danger[effect='light'] {
-  background-color: #fef0f0;
-  /* Light red */
-  color: #f56c6c;
-  border-color: #fde2e2;
-}
-
-/* --- STYLE CỦA CÁC NÚT HÀNH ĐỘNG --- */
-.el-button.el-button--small.is-circle {
-  padding: 6px;
-  font-size: 14px;
-  margin-left: 5px;
-}
-
-/* Tùy chỉnh màu nút warning (ví dụ cho nút "Cấm khách hàng") */
-.el-button--warning {
-  --el-button-bg-color: var(--el-color-warning);
-  --el-button-border-color: var(--el-color-warning);
-  --el-button-hover-bg-color: var(--el-color-warning-light-3);
-  --el-button-hover-border-color: var(--el-color-warning-light-3);
-  --el-button-active-bg-color: var(--el-color-warning-dark-2);
-  --el-button-active-border-color: var(--el-color-warning-dark-2);
+.blacklist-tooltip p {
+  margin: 4px 0;
 }
 
 /* --- PHÂN TRANG --- */
 .pagination-container {
-  margin-top: 25px;
+  margin-top: 24px;
   display: flex;
   justify-content: flex-end;
-  /* Căn phải */
-  padding: 10px 0;
 }
 
-.el-pagination {
-  --el-pagination-font-size: 0.875rem;
-  --el-pagination-button-width: 36px;
-  --el-pagination-button-height: 36px;
-}
-
-.el-pagination.is-background .el-pager li,
-.el-pagination.is-background .btn-prev,
-.el-pagination.is-background .btn-next {
-  background-color: #f0f2f5;
-  border-radius: 6px;
-  transition: background-color 0.3s ease;
-}
-
-.el-pagination.is-background .el-pager li:not(.is-disabled):hover {
-  background-color: #e0e6ed;
-}
-
-.el-pagination.is-background .el-pager li:not(.is-disabled).is-active {
-  background-color: #409eff;
-  /* Màu xanh nổi bật cho trang hiện tại */
-  color: #fff;
-  font-weight: bold;
-}
-
-.el-pagination__total,
-.el-pagination__sizes,
-.el-pagination__jump {
-  font-size: 0.9rem;
-  color: #606266;
-}
-
-/* --- UTILITIES --- */
-.mt-1 {
-  margin-top: 4px;
-}
-
-.ml-1 {
-  margin-left: 4px;
-}
-
-.ml-2 {
-  margin-left: 8px;
-}
-
-/* Để đảm bảo màu chữ trong phần lý do cấm cũng là màu đỏ đã chọn */
-.text-reason {
-  color: #a30000;
-  /* Màu chữ cho "Lý do:" */
-}
-
-.text-muted-reason {
-  color: #a30000;
-  /* Màu chữ cho "Không có lý do cụ thể" */
-}
-
-/* --- RESPONSIVE DESIGN --- */
-@media (max-width: 768px) {
-  .customer-list-container {
-    padding: 10px;
-    margin: 20px auto;
+/* --- RESPONSIVE --- */
+@media (max-width: 992px) {
+  .header-left {
+    margin-bottom: 16px;
   }
-
-  .card-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
+  .actions {
+    justify-content: flex-start;
   }
+}
 
+@media (max-width: 576px) {
   .title {
-    font-size: 24px;
+    font-size: 20px;
   }
-
-  .search-section {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
   .search-input {
-    max-width: 100%;
+    width: 100%;
   }
-
-  .el-table {
-    font-size: 12px;
+  .actions .el-space {
+    width: 100%;
+    justify-content: flex-start;
   }
 }
 </style>

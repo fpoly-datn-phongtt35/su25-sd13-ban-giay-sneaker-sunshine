@@ -23,32 +23,44 @@
                 <el-form-item label="Giá trị giảm (%) (mặc định cho toàn chiến dịch)" required>
                   <el-input-number
                     v-model="form.discountPercentage"
-                    :min="0" :max="100" :precision="2" :step="0.5"
-                    controls-position="right" placeholder="%" style="width:100%"
+                    :min="0"
+                    :max="100"
+                    :precision="2"
+                    :step="0.5"
+                    controls-position="right"
+                    placeholder="%"
+                    style="width: 100%"
                   />
                 </el-form-item>
 
                 <el-form-item label="Thời gian diễn ra" required>
-               <el-date-picker
-  v-model="dateRange"
-  type="datetimerange"
-  range-separator="Đến"
-  start-placeholder="Bắt đầu"
-  end-placeholder="Kết thúc"
-  format="YYYY-MM-DD HH:mm:ss"
-  value-format="YYYY-MM-DDTHH:mm:ss"
-  style="width: 100%;"
-/>
-<!-- FIX: định dạng ISO đúng -->
-
+                  <el-date-picker
+                    v-model="dateRange"
+                    type="datetimerange"
+                    range-separator="Đến"
+                    start-placeholder="Bắt đầu"
+                    end-placeholder="Kết thúc"
+                    format="YYYY-MM-DD HH:mm:ss"
+                    value-format="YYYY-MM-DDTHH:mm:ss"
+                    style="width: 100%"
+                  />
+                  <!-- FIX: định dạng ISO đúng -->
                 </el-form-item>
 
                 <el-form-item label="Ghi chú">
-                  <el-input v-model="form.description" type="textarea" :rows="5" placeholder="Mô tả..." />
+                  <el-input
+                    v-model="form.description"
+                    type="textarea"
+                    :rows="5"
+                    placeholder="Mô tả..."
+                  />
                 </el-form-item>
 
                 <el-alert
-                  type="info" :closable="false" show-icon class="mt-2"
+                  type="info"
+                  :closable="false"
+                  show-icon
+                  class="mt-2"
                   title="Mẹo"
                   description="Để trống % ở từng SPCT sẽ dùng % mặc định của chiến dịch."
                 />
@@ -64,19 +76,40 @@
                   ref="productTableRef"
                   v-loading="loadingProducts"
                   :data="products"
-                  border stripe
+                  border
+                  stripe
                   size="small"
-                  :row-key="row => row.id"
+                  :row-key="(row) => row.id"
                   :height="320"
                   @selection-change="onProductSelectionChange"
                 >
-                  <el-table-column type="selection" width="44" align="center" :reserve-selection="true">
+                  <el-table-column
+                    type="selection"
+                    width="44"
+                    align="center"
+                    :reserve-selection="true"
+                  >
                     <template #header><span class="empty-header"></span></template>
                   </el-table-column>
                   <el-table-column type="index" label="#" width="56" align="center" />
-                  <el-table-column prop="productCode" label="Mã" width="140" show-overflow-tooltip />
-                  <el-table-column prop="productText" label="Tên sản phẩm" min-width="200" show-overflow-tooltip />
-                  <el-table-column prop="brandText" label="Thương hiệu" width="160" show-overflow-tooltip />
+                  <el-table-column
+                    prop="productCode"
+                    label="Mã"
+                    width="140"
+                    show-overflow-tooltip
+                  />
+                  <el-table-column
+                    prop="productText"
+                    label="Tên sản phẩm"
+                    min-width="200"
+                    show-overflow-tooltip
+                  />
+                  <el-table-column
+                    prop="brandText"
+                    label="Thương hiệu"
+                    width="160"
+                    show-overflow-tooltip
+                  />
                   <el-table-column prop="quantity" label="Tồn" width="90" align="center" />
                 </el-table>
 
@@ -109,25 +142,43 @@
                   ref="spctTableRef"
                   v-loading="loadingDetails"
                   :data="details"
-                  border stripe
+                  border
+                  stripe
                   size="small"
-                  :row-key="r => r.id"
+                  :row-key="(r) => r.id"
                   :height="520"
                   class="wide-table"
                   @selection-change="onDetailSelectionChange"
                 >
                   <el-table-column
-                    type="selection" width="44" align="center"
+                    type="selection"
+                    width="44"
+                    align="center"
                     :reserve-selection="true"
-                    :selectable="r => Number(r.quantity) > 0"
+                    :selectable="(r) => Number(r.quantity) > 0"
                   >
                     <template #header><span class="empty-header"></span></template>
                   </el-table-column>
 
                   <el-table-column type="index" label="#" width="56" align="center" />
-                  <el-table-column prop="productDetailCode" label="Mã SPCT" width="160" show-overflow-tooltip />
-                  <el-table-column prop="productText" label="Sản phẩm" min-width="220" show-overflow-tooltip />
-                  <el-table-column prop="brandText" label="Thương hiệu" width="160" show-overflow-tooltip />
+                  <el-table-column
+                    prop="productDetailCode"
+                    label="Mã SPCT"
+                    width="160"
+                    show-overflow-tooltip
+                  />
+                  <el-table-column
+                    prop="productText"
+                    label="Sản phẩm"
+                    min-width="220"
+                    show-overflow-tooltip
+                  />
+                  <el-table-column
+                    prop="brandText"
+                    label="Thương hiệu"
+                    width="160"
+                    show-overflow-tooltip
+                  />
                   <el-table-column prop="colorText" label="Màu" width="120" show-overflow-tooltip />
                   <el-table-column prop="sizeText" label="Size" width="90" align="center" />
                   <el-table-column prop="sellPrice" label="Giá bán" width="140">
@@ -138,8 +189,13 @@
                     <template #default="{ row }">
                       <el-input-number
                         v-model="spctExtraPercent[row.id]"
-                        :min="0" :max="100" :precision="2" :step="0.5"
-                        placeholder="%" controls-position="right" style="width:140px"
+                        :min="0"
+                        :max="100"
+                        :precision="2"
+                        :step="0.5"
+                        placeholder="%"
+                        controls-position="right"
+                        style="width: 140px"
                       />
                     </template>
                   </el-table-column>
@@ -163,12 +219,18 @@
 
           <div class="footer-actions">
             <div class="left">
-              <el-tag type="info" effect="plain">SP đã chọn: <b>{{ totalSelectedProducts }}</b></el-tag>
-              <el-tag type="warning" effect="plain">SPCT đã chọn: <b>{{ totalSelectedDetails }}</b></el-tag>
+              <el-tag type="info" effect="plain"
+                >SP đã chọn: <b>{{ totalSelectedProducts }}</b></el-tag
+              >
+              <el-tag type="warning" effect="plain"
+                >SPCT đã chọn: <b>{{ totalSelectedDetails }}</b></el-tag
+              >
             </div>
             <div class="right">
               <el-button @click="goBack" size="large">Quay lại</el-button>
-              <el-button type="primary" @click="createCampaign" size="large">Tạo mới đợt giảm giá</el-button>
+              <el-button type="primary" @click="createCampaign" size="large"
+                >Tạo mới đợt giảm giá</el-button
+              >
             </div>
           </div>
         </el-form>
@@ -194,7 +256,7 @@ const form = reactive({
   startDate: '',
   endDate: '',
   products: [],
-  productDetails: []
+  productDetails: [],
 })
 
 /** ======== DATE RANGE (ISO "YYYY-MM-DDTHH:mm:ss") ======== */
@@ -205,33 +267,43 @@ const dateRange = computed({
   set(val) {
     if (Array.isArray(val) && val.length === 2) {
       form.startDate = val[0]
-      form.endDate   = val[1]
+      form.endDate = val[1]
     } else {
       form.startDate = ''
-      form.endDate   = ''
+      form.endDate = ''
     }
-  }
+  },
 })
 
 /** ========= Helpers ========= */
 const fallbackId = (id) => (id !== undefined && id !== null ? `#${id}` : '')
 const textOf = (obj, keys) => {
   for (const k of keys) {
-    const v = k.split('.').reduce((acc, kk) => (acc && acc[kk] !== undefined ? acc[kk] : undefined), obj)
+    const v = k
+      .split('.')
+      .reduce((acc, kk) => (acc && acc[kk] !== undefined ? acc[kk] : undefined), obj)
     if (v !== undefined && v !== null && String(v).trim() !== '') return String(v)
   }
   return ''
 }
 const normalizeProduct = (row) => {
-  const productText = textOf(row, ['productName', 'product.productName', 'name', 'product.name']) || fallbackId(row.productId ?? row.id)
-  const brandText   = textOf(row, ['brandName, brand.brandName, brand.name']) || fallbackId(row.brandId)
+  const productText =
+    textOf(row, ['productName', 'product.productName', 'name', 'product.name']) ||
+    fallbackId(row.productId ?? row.id)
+  const brandText =
+    textOf(row, ['brandName', 'brand.brandName', 'brand.name']) || fallbackId(row.brandId)
   return { ...row, productText, brandText }
 }
+
 const normalizeDetail = (row) => {
-  const productText = textOf(row, ['productName', 'product.productName', 'product.name']) || fallbackId(row.productId)
-  const brandText   = textOf(row, ['brandName', 'brand.brandName', 'brand.name']) || fallbackId(row.brandId)
-  const colorText   = textOf(row, ['colorName', 'color.colorName', 'color.name']) || fallbackId(row.colorId)
-  const sizeText    = textOf(row, ['sizeName', 'size.sizeName', 'size.name', 'sizeValue']) || fallbackId(row.sizeId)
+  const productText =
+    textOf(row, ['productName', 'product.productName', 'product.name']) || fallbackId(row.productId)
+  const brandText =
+    textOf(row, ['brandName', 'brand.brandName', 'brand.name']) || fallbackId(row.brandId)
+  const colorText =
+    textOf(row, ['colorName', 'color.colorName', 'color.name']) || fallbackId(row.colorId)
+  const sizeText =
+    textOf(row, ['sizeName', 'size.sizeName', 'size.name', 'sizeValue']) || fallbackId(row.sizeId)
   return { ...row, productText, brandText, colorText, sizeText }
 }
 
@@ -248,7 +320,7 @@ const fetchProducts = async () => {
   loadingProducts.value = true
   try {
     const { data } = await apiClient.get('/admin/products', {
-      params: { page: currentPage.value - 1, size: pageSize.value }
+      params: { page: currentPage.value - 1, size: pageSize.value },
     })
     const content = data?.content || []
     products.value = content.map(normalizeProduct)
@@ -257,8 +329,9 @@ const fetchProducts = async () => {
     // giữ selection qua trang
     await nextTick()
     productTableRef.value?.clearSelection?.()
-    products.value.forEach(row => {
-      if (selectedProductIds.value.has(row.id)) productTableRef.value?.toggleRowSelection?.(row, true)
+    products.value.forEach((row) => {
+      if (selectedProductIds.value.has(row.id))
+        productTableRef.value?.toggleRowSelection?.(row, true)
     })
   } catch (e) {
     console.error(e)
@@ -267,11 +340,14 @@ const fetchProducts = async () => {
     loadingProducts.value = false
   }
 }
-const onSizeChangeProducts = () => { currentPage.value = 1; fetchProducts() }
+const onSizeChangeProducts = () => {
+  currentPage.value = 1
+  fetchProducts()
+}
 const onProductSelectionChange = (rows) => {
-  const currentIds = products.value.map(r => r.id)
-  currentIds.forEach(id => selectedProductIds.value.delete(id))
-  rows.forEach(r => selectedProductIds.value.add(r.id))
+  const currentIds = products.value.map((r) => r.id)
+  currentIds.forEach((id) => selectedProductIds.value.delete(id))
+  rows.forEach((r) => selectedProductIds.value.add(r.id))
 }
 const totalSelectedProducts = computed(() => selectedProductIds.value.size)
 
@@ -289,7 +365,7 @@ const fetchDetails = async () => {
   loadingDetails.value = true
   try {
     const { data } = await apiClient.get('/admin/products/details', {
-      params: { page: detailsPage.value - 1, size: detailsSize.value }
+      params: { page: detailsPage.value - 1, size: detailsSize.value },
     })
     const content = data?.content || []
     details.value = content.map(normalizeDetail)
@@ -298,7 +374,7 @@ const fetchDetails = async () => {
     // giữ selection qua trang
     await nextTick()
     spctTableRef.value?.clearSelection?.()
-    details.value.forEach(row => {
+    details.value.forEach((row) => {
       if (selectedDetailIds.value.has(row.id) && Number(row.quantity) > 0) {
         spctTableRef.value?.toggleRowSelection?.(row, true)
       }
@@ -312,17 +388,26 @@ const fetchDetails = async () => {
     loadingDetails.value = false
   }
 }
-const onSizeChangeDetails = () => { detailsPage.value = 1; fetchDetails() }
+const onSizeChangeDetails = () => {
+  detailsPage.value = 1
+  fetchDetails()
+}
 const onDetailSelectionChange = (rows) => {
-  const currentIds = details.value.map(r => r.id)
-  currentIds.forEach(id => selectedDetailIds.value.delete(id))
-  rows.forEach(r => selectedDetailIds.value.add(r.id))
+  const currentIds = details.value.map((r) => r.id)
+  currentIds.forEach((id) => selectedDetailIds.value.delete(id))
+  rows.forEach((r) => selectedDetailIds.value.add(r.id))
 }
 const totalSelectedDetails = computed(() => selectedDetailIds.value.size)
 
 /** ======== VALIDATE + SUBMIT ======== */
 const validateBeforeSubmit = () => {
-  if (!form.name?.trim() || form.discountPercentage === null || form.discountPercentage === '' || !form.startDate || !form.endDate) {
+  if (
+    !form.name?.trim() ||
+    form.discountPercentage === null ||
+    form.discountPercentage === '' ||
+    !form.startDate ||
+    !form.endDate
+  ) {
     ElMessage.warning('Vui lòng điền đủ Tên, %, và Thời gian diễn ra.')
     return false
   }
@@ -341,10 +426,11 @@ const validateBeforeSubmit = () => {
   return true
 }
 
-const buildProductPayload = () => Array.from(selectedProductIds.value).map(id => ({ productId: id }))
+const buildProductPayload = () =>
+  Array.from(selectedProductIds.value).map((id) => ({ productId: id }))
 const buildProductDetailsPayload = () => {
   const list = []
-  selectedDetailIds.value.forEach(id => {
+  selectedDetailIds.value.forEach((id) => {
     const percent = spctExtraPercent[id]
     if (percent !== undefined && percent !== null && percent !== '') {
       list.push({ productDetailId: id, discountPercentage: Number(percent) })
@@ -375,12 +461,12 @@ const createCampaign = async () => {
     startDate: form.startDate, // "YYYY-MM-DDTHH:mm:ss"
     endDate: form.endDate,
     products: buildProductPayload(),
-    productDetails: buildProductDetailsPayload()
+    productDetails: buildProductDetailsPayload(),
   })
 
   try {
     await apiClient.post('/admin/campaigns', payload, {
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json' },
     })
     ElMessage.success('Tạo đợt giảm giá thành công!')
     router.back()
@@ -389,51 +475,129 @@ const createCampaign = async () => {
       url: '/admin/campaigns',
       status: e?.response?.status,
       data: e?.response?.data,
-      payload
+      payload,
     })
-    ElMessage.error(e?.response?.data?.message || `Không thể tạo đợt giảm giá (HTTP ${e?.response?.status || 'ERR'}).`)
+    ElMessage.error(
+      e?.response?.data?.message ||
+        `Không thể tạo đợt giảm giá (HTTP ${e?.response?.status || 'ERR'}).`,
+    )
   }
 }
 
 /** ======== INIT ======== */
-onMounted(() => { fetchProducts(); fetchDetails() })
+onMounted(() => {
+  fetchProducts()
+  fetchDetails()
+})
 
 const goBack = () => router.back()
-const formatCurrency = (v) => (v === null || v === undefined ? '' : Number(v).toLocaleString('vi-VN'))
+const formatCurrency = (v) =>
+  v === null || v === undefined ? '' : Number(v).toLocaleString('vi-VN')
 </script>
 
-
 <style scoped>
-.page-container { padding: 20px; background-color: #f5f7fb; min-height: 100vh; }
-.form-card { width: 100%; max-width: 1600px; margin: 0 auto; border-radius: 14px; overflow: hidden; }
-:deep(.el-card__header) { background: linear-gradient(90deg,#f8fafc,#eef2ff); }
-.card-header { text-align: left; }
-.card-header h1 { margin: 0; font-size: 22px; font-weight: 700; color: #111827; }
-.subtitle { margin: 4px 0 0; color: #6b7280; font-size: 13px; }
+.page-container {
+  padding: 20px;
+  background-color: #f5f7fb;
+  min-height: 100vh;
+}
+.form-card {
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+  border-radius: 14px;
+  overflow: hidden;
+}
+:deep(.el-card__header) {
+  background: linear-gradient(90deg, #f8fafc, #eef2ff);
+}
+.card-header {
+  text-align: left;
+}
+.card-header h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: #111827;
+}
+.subtitle {
+  margin: 4px 0 0;
+  color: #6b7280;
+  font-size: 13px;
+}
 
-.section-card { border-radius: 12px; }
-.section-title { font-weight: 600; color: #111827; display: flex; align-items: center; gap: 8px; }
-.section-title .muted { color: #6b7280; font-weight: 400; font-size: 12px; }
+.section-card {
+  border-radius: 12px;
+}
+.section-title {
+  font-weight: 600;
+  color: #111827;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.section-title .muted {
+  color: #6b7280;
+  font-weight: 400;
+  font-size: 12px;
+}
 
-.flex-row { display: flex; flex-wrap: wrap; }
+.flex-row {
+  display: flex;
+  flex-wrap: wrap;
+}
 
-:deep(.el-form-item) { margin-bottom: 14px; }
-:deep(.el-input__wrapper), :deep(.el-textarea__inner) { border-radius: 10px; }
+:deep(.el-form-item) {
+  margin-bottom: 14px;
+}
+:deep(.el-input__wrapper),
+:deep(.el-textarea__inner) {
+  border-radius: 10px;
+}
 
-.empty-header { display: inline-block; width: 12px; height: 12px; } /* che checkbox header */
+.empty-header {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+} /* che checkbox header */
 
-.wide-table :deep(.el-table__inner-wrapper) { border-radius: 8px; }
-:deep(.el-table) { --el-table-header-bg-color: #f8fafc; --el-table-tr-bg-color: #fff; }
-:deep(.el-table__header-wrapper) { position: sticky; top: 0; z-index: 2; }
-:deep(.el-table .cell) { line-height: 20px; }
+.wide-table :deep(.el-table__inner-wrapper) {
+  border-radius: 8px;
+}
+:deep(.el-table) {
+  --el-table-header-bg-color: #f8fafc;
+  --el-table-tr-bg-color: #fff;
+}
+:deep(.el-table__header-wrapper) {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+:deep(.el-table .cell) {
+  line-height: 20px;
+}
 
-.pagination-container { padding-top: 10px; display: flex; justify-content: center; }
+.pagination-container {
+  padding-top: 10px;
+  display: flex;
+  justify-content: center;
+}
 
 .footer-actions {
-  position: sticky; bottom: 0; z-index: 5;
-  display: flex; justify-content: space-between; align-items: center;
-  background: #fff; border-top: 1px solid #e5e7eb; padding: 12px 16px; margin-top: 16px;
-  border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #fff;
+  border-top: 1px solid #e5e7eb;
+  padding: 12px 16px;
+  margin-top: 16px;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
 }
-.footer-actions .left .el-tag { margin-right: 8px; }
+.footer-actions .left .el-tag {
+  margin-right: 8px;
+}
 </style>

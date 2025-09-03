@@ -183,5 +183,10 @@ public class ProductController {
         return ResponseEntity.ok(productService.getFavoritesByProductId(productId));
     }
 
+    @DeleteMapping("/delete-forever/{id}")
+    public ResponseEntity<String> deleteForeverProduct(@PathVariable Long id) {
+        productService.deleteProductV2(id);
+        return ResponseEntity.ok("Xóa thành công");
+    }
 
 }

@@ -20,6 +20,7 @@ public interface ProductService {
     ProductResponse restoreProduct(Long id);
 
     void deleteProduct(Long id);
+    void deleteProductV2(Long id);
 
     ProductResponse getProductById(Long id);
 

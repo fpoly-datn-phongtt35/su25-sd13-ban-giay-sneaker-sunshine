@@ -326,7 +326,7 @@ public class SaleOnlineController {
         return ResponseEntity.ok("Đã đặt địa chỉ mặc định thành công!");
     }
 
-    @DeleteMapping("/{customerId}/addresses/{addressId}")
+    @DeleteMapping("/customers/{customerId}/addresses/{addressId}")
     public ResponseEntity<Void> deleteAddress(
             @PathVariable Long customerId,
             @PathVariable Long addressId
@@ -401,6 +401,12 @@ public class SaleOnlineController {
     @GetMapping("/verify-invoice")
     public ResponseEntity<?> verifyInvoice(@RequestParam("code") String code) {
         return ResponseEntity.ok(invoiceService.findStatusByCode(code));
+    }
+
+    @GetMapping("/product-customer/{customerId}")
+    public ResponseEntity<CustomerResponse> getCustomerProduct(@PathVariable Long customerId) {
+        CustomerResponse response = customerService.getCustomerById(customerId);
+        return ResponseEntity.ok(response);
     }
 
 }

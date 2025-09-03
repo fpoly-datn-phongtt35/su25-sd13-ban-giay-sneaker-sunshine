@@ -17,7 +17,7 @@ const STATUS_KEYS = {
   FAILED: 'THAT_BAI',
   ORDER_CANCELLED: 'HUY_DON',
   TRANSACTION_CANCELLED: 'HUY_GIAO_DICH',
-  PENDING: 'CHO_XU_LY'
+  PENDING: 'CHO_XU_LY',
 }
 
 const STATUS_CONFIG = {
@@ -29,7 +29,8 @@ const STATUS_CONFIG = {
   },
   [STATUS_KEYS.FAILED]: {
     title: 'Thanh toán thất bại',
-    message: 'Đã có lỗi xảy ra trong quá trình thanh toán. Vui lòng kiểm tra lại thông tin hoặc thử lại sau.',
+    message:
+      'Đã có lỗi xảy ra trong quá trình thanh toán. Vui lòng kiểm tra lại thông tin hoặc thử lại sau.',
     icon: 'error',
   },
   [STATUS_KEYS.ORDER_CANCELLED]: {
@@ -52,7 +53,7 @@ const STATUS_CONFIG = {
     title: 'Đã xảy ra lỗi',
     message: 'Không thể kiểm tra trạng thái đơn hàng. Vui lòng liên hệ bộ phận hỗ trợ khách hàng.',
     icon: 'error',
-  }
+  },
 }
 
 // Computed property để lấy thông tin hiển thị (GIỮ NGUYÊN)
@@ -70,10 +71,10 @@ onMounted(async () => {
   }
   try {
     await axios.get('http://localhost:8080/api/payment/zalo/status-check', {
-      params: { appTransId: appTransId.value }
+      params: { appTransId: appTransId.value },
     })
     const res = await axios.get('http://localhost:8080/api/payment/zalo/invoice/status', {
-      params: { appTransId: appTransId.value }
+      params: { appTransId: appTransId.value },
     })
     orderStatus.value = res.data?.status
   } catch (err) {
@@ -100,11 +101,18 @@ onMounted(async () => {
         :sub-title="currentStatusInfo.message"
       >
         <template #icon>
-            <el-icon v-if="currentStatusInfo.icon === 'info'" :size="80" color="#409eff">
-                <InfoFilled />
-            </el-icon>
+          <el-icon v-if="currentStatusInfo.icon === 'info'" :size="80" color="#409eff">
+            <InfoFilled />
+          </el-icon>
         </template>
-        
+
+        <template #sub-title>
+          <p class="message">{{ currentStatusInfo.message }}</p>
+          <div v-if="appTransId" class="order-details">
+            <span>Mã giao dịch:</span>
+            <strong>{{ appTransId }}</strong>
+          </div>
+        </template>
 
         <template #extra>
           <div class="actions">
@@ -117,7 +125,11 @@ onMounted(async () => {
               </RouterLink>
             </template>
 
-            <template v-else-if="[STATUS_KEYS.FAILED, STATUS_KEYS.TRANSACTION_CANCELLED].includes(orderStatus)">
+            <template
+              v-else-if="
+                [STATUS_KEYS.FAILED, STATUS_KEYS.TRANSACTION_CANCELLED].includes(orderStatus)
+              "
+            >
               <RouterLink to="/gio-hang">
                 <el-button type="primary" size="large">Thử lại thanh toán</el-button>
               </RouterLink>
@@ -160,7 +172,7 @@ onMounted(async () => {
 
 /* Tùy chỉnh một chút cho các component của Element Plus nếu cần */
 .el-result {
-    padding: 40px 20px;
+  padding: 40px 20px;
 }
 
 .message {

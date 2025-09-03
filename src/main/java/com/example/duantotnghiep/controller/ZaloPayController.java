@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
@@ -44,6 +45,24 @@ public class ZaloPayController {
             return ResponseEntity.status(404).body(Map.of("message", "Không tìm thấy đơn hàng"));
         }
     }
+
+    @GetMapping("/invoice/shipcode/status")
+    public ResponseEntity<?> getInvoiceShipCodeStatus(@RequestParam String invoiceCode) {
+        Optional<Invoice> invoice = Optional.ofNullable(invoiceRepository.findByInvoiceCode(invoiceCode));
+        if (invoice.isPresent()) {
+            Map<String, Object> result = new HashMap<>();
+            result.put("invoiceCode", invoice.get().getInvoiceCode());
+            result.put("status", invoice.get().getStatus());
+            result.put("statusDetail", invoice.get().getStatusDetail());
+            result.put("isPaid", invoice.get().getIsPaid());
+            result.put("finalAmount", invoice.get().getFinalAmount());
+            result.put("deliveryAddress", invoice.get().getDeliveryAddress());
+            return ResponseEntity.ok(result);
+        } else {
+            return ResponseEntity.status(404).body(Map.of("message", "Không tìm thấy đơn hàng ShipCode"));
+        }
+    }
+
 
 //    @PostMapping("/callback")
 //    public ResponseEntity<String> zaloPayCallback(@RequestBody Map<String, Object> callbackData) {

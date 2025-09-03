@@ -1,388 +1,243 @@
 package com.example.duantotnghiep.service.impl;
 
 import com.example.duantotnghiep.dto.request.EmployeeReportRequest;
-import com.example.duantotnghiep.dto.request.StatisticFilterRequest;
+import com.example.duantotnghiep.dto.request.StatisticsDashboardRequest;
 import com.example.duantotnghiep.dto.response.*;
+import com.example.duantotnghiep.model.Invoice;
+import com.example.duantotnghiep.repository.InvoiceDetailRepository;
 import com.example.duantotnghiep.repository.InvoiceRepository;
 import com.example.duantotnghiep.service.StatisticService;
+import com.example.duantotnghiep.state.TrangThaiChiTiet;
 import com.example.duantotnghiep.state.TrangThaiTong;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.Year;
-import java.time.YearMonth;
 import java.time.ZoneId;
-import java.time.ZonedDateTime;
-import java.time.temporal.WeekFields;
+import java.time.format.DateTimeFormatter;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class StatisticServiceImpl implements StatisticService {
 
-    private final InvoiceRepository invoiceRepository;
+    private final InvoiceRepository invoiceRepo;
+    private final InvoiceDetailRepository detailRepo;
+
     private static final ZoneId ZONE_VN = ZoneId.of("Asia/Ho_Chi_Minh");
+    // Các trạng thái được tính doanh thu
+    private static final Set<TrangThaiTong> SUCCESS_SET =
+            Set.of(TrangThaiTong.DANG_XU_LY, TrangThaiTong.THANH_CONG);
+
+    // ===== Helpers =====
+    private static LocalDate parseYMD(String s) {
+        if (s == null || s.isBlank()) return null;
+        return LocalDate.parse(s, DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+    }
+
+    private static Date startOfDay(LocalDate d) {
+        return Date.from(d.atStartOfDay(ZONE_VN).toInstant());
+    }
+
+    private static Date endExclusive(LocalDate d) {
+        return Date.from(d.plusDays(1).atStartOfDay(ZONE_VN).toInstant());
+    }
+
+    private static BigDecimal nz(BigDecimal v) {
+        return v == null ? BigDecimal.ZERO : v;
+    }
 
     @Override
-    public StatisticDashboardResponse getDashboard(StatisticFilterRequest req) {
-        // ===== 0) Chuẩn hoá khoảng thời gian từ request =====
-        Range range = normalizeRangeFromRequest(req);
-        LocalDateTime start = range.start();
-        LocalDateTime end   = range.end(); // end-exclusive
+    public StatisticsDashboardResponse getDashboard(StatisticsDashboardRequest req) {
+        // ===== 1) Chuẩn hoá input =====
+        final int limit = (req.getLimit() != null && req.getLimit() > 0) ? req.getLimit() : 5;
+        final String groupBy = (req.getGroupBy() == null) ? "day" : req.getGroupBy();
 
-        // ===== 0.1) Nếu FE có groupBy mà thiếu range -> mặc định tháng hiện tại =====
-        String groupBy = safeGroupBy(req.getGroupBy());    // "day" | "month" | "year"
-        String metric  = safeMetric(req.getMetric());      // "revenue" | "quantity"
-        if ((start == null || end == null) && groupBy != null) {
-            YearMonth cur = YearMonth.now(ZONE_VN);
-            if (start == null) start = cur.atDay(1).atStartOfDay();
-            if (end   == null) end   = start.plusMonths(1); // end-exclusive
+        LocalDate startD = parseYMD(req.getStartDate());
+        LocalDate endD = parseYMD(req.getEndDate());
+        LocalDate today = LocalDate.now(ZONE_VN);
+
+        if (startD == null && endD == null) {
+            endD = today;
+            startD = endD.minusDays(29); // 30 ngày
+        } else if (startD != null && endD == null) {
+            endD = startD;
+        } else if (startD == null) {
+            startD = endD;
         }
 
-        // ===== 1) Nếu cần Top SP mà thiếu range -> mặc định tháng hiện tại =====
-        if (isTrue(req.getIncludeTopProducts()) && (start == null || end == null)) {
-            YearMonth cur = YearMonth.now(ZONE_VN);
-            if (start == null) start = cur.atDay(1).atStartOfDay();
-            if (end   == null) end   = start.plusMonths(1);
+        Date start = startOfDay(startD);
+        Date end = endExclusive(endD);
+
+        StatisticsDashboardResponse res = new StatisticsDashboardResponse();
+        res.setPeriodStart(start);
+        res.setPeriodEnd(end);
+
+        // ===== 2) Today revenue =====
+        if (Boolean.TRUE.equals(req.getIncludeTodayRevenue())) {
+            BigDecimal rev = invoiceRepo.sumRevenueBetweenSuccessSet(
+                    startOfDay(today), endExclusive(today), SUCCESS_SET);
+            res.setTodayRevenue(nz(rev));
         }
 
-        // ===== 2) Trạng thái thống kê =====
-        TrangThaiTong success = TrangThaiTong.THANH_CONG;
+        // ===== 3) Current periods: tuần/tháng hiện tại + tuần/tháng trước =====
+        if (Boolean.TRUE.equals(req.getIncludeCurrentPeriods())) {
+            // Tuần hiện tại: Mon..Sun
+            LocalDate weekStart = today.with(DayOfWeek.MONDAY);
+            LocalDate weekEndEx = weekStart.plusWeeks(1);
 
-        // ===== 3) MONTHLY =====
-        List<MonthlyRevenueResponse> monthly = null;
-        if (isTrue(req.getIncludeMonthly())) {
-            final int y = (req.getYear() != null)
-                    ? req.getYear()
-                    : (req.getPeriodYear() != null ? req.getPeriodYear() : Year.now(ZONE_VN).getValue());
+            BigDecimal weekRev = invoiceRepo.sumRevenueBetweenSuccessSet(
+                    startOfDay(weekStart), endExclusive(weekEndEx.minusDays(1)), SUCCESS_SET);
 
-            monthly = java.util.stream.IntStream.rangeClosed(1, 12)
-                    .mapToObj(m -> {
-                        LocalDateTime ms = LocalDate.of(y, m, 1).atStartOfDay();
-                        LocalDateTime me = ms.plusMonths(1);
-                        Long rev = invoiceRepository.sumRevenueBetween(ms, me, success);
-                        Long qty = invoiceRepository.sumItemsBetween(ms, me, success);
-                        return MonthlyRevenueResponse.builder()
-                                .month(m).year(y)
-                                .totalRevenue(nz(rev))
-                                .totalQuantity(nz(qty))
-                                .build();
-                    })
-                    .collect(Collectors.toList());
+            LocalDate prevWeekStart = weekStart.minusWeeks(1);
+            LocalDate prevWeekEndEx = weekStart;
+
+            BigDecimal prevWeekRev = invoiceRepo.sumRevenueBetweenSuccessSet(
+                    startOfDay(prevWeekStart), endExclusive(prevWeekEndEx.minusDays(1)), SUCCESS_SET);
+
+            // Tháng hiện tại
+            LocalDate mStart = today.withDayOfMonth(1);
+            LocalDate mEndEx = mStart.plusMonths(1);
+
+            BigDecimal monthRev = invoiceRepo.sumRevenueBetweenSuccessSet(
+                    startOfDay(mStart), endExclusive(mEndEx.minusDays(1)), SUCCESS_SET);
+
+            // Tháng trước
+            LocalDate pmStart = mStart.minusMonths(1);
+            LocalDate pmEndEx = mStart;
+
+            BigDecimal prevMonthRev = invoiceRepo.sumRevenueBetweenSuccessSet(
+                    startOfDay(pmStart), endExclusive(pmEndEx.minusDays(1)), SUCCESS_SET);
+
+            res.setCurrentPeriods(new CurrentPeriods(
+                    nz(weekRev), nz(prevWeekRev), nz(monthRev), nz(prevMonthRev)
+            ));
         }
 
-        // ===== 4) YEARLY =====
-        List<YearlyRevenueResponse> yearly = null;
-        if (isTrue(req.getIncludeYearly())) {
-            final int y = (req.getPeriodYear() != null) ? req.getPeriodYear()
-                    : (req.getYear() != null ? req.getYear() : Year.now(ZONE_VN).getValue());
-
-            LocalDateTime ys = LocalDate.of(y, 1, 1).atStartOfDay();
-            LocalDateTime ye = ys.plusYears(1);
-            Long totalRev = invoiceRepository.sumRevenueBetween(ys, ye, success);
-            Long totalQty = invoiceRepository.sumItemsBetween(ys, ye, success);
-
-            yearly = List.of(YearlyRevenueResponse.builder()
-                    .year(y)
-                    .totalRevenue(nz(totalRev))
-                    .totalQuantity(nz(totalQty))
-                    .build());
-        }
-
-        // ===== 5) ORDER TYPE =====
-        List<OrderTypeRevenueResponse> byOrderType = null;
-        if (isTrue(req.getIncludeOrderType())) {
-            byOrderType = invoiceRepository.getRevenueByOrderType(success, start, end).stream()
-                    .map(obj -> OrderTypeRevenueResponse.builder()
-                            .orderType((Integer) obj[0])
-                            .totalRevenue(toLong(obj[1]))
-                            .build())
-                    .collect(Collectors.toList());
-        }
-
-        // ===== 6) TOP PRODUCTS =====
-        List<TopProductResponse> topProducts = null;
-        if (isTrue(req.getIncludeTopProducts())) {
-            int limit = Objects.requireNonNullElse(req.getLimit(), 5);
-            Pageable pageable = PageRequest.of(0, limit);
-            topProducts = invoiceRepository.getTopSellingProducts(success, start, end, pageable).stream()
-                    .map(obj -> TopProductResponse.builder()
-                            .productId((Long) obj[0])
-                            .productName((String) obj[1])
-                            .totalQuantitySold(asLong(obj[2]))
-                            .build())
-                    .collect(Collectors.toList());
-        }
-
-        // ===== 7) STATUS COUNTS =====
-        List<InvoiceStatusStatisticResponse> statusStats = null;
-        if (isTrue(req.getIncludeStatus())) {
-            statusStats = invoiceRepository.countInvoicesByStatus(start, end).stream()
-                    .map(obj -> {
-                        var st = (TrangThaiTong) obj[0];
-                        Long total = asLong(obj[1]);
-                        return InvoiceStatusStatisticResponse.builder()
-                                .statusCode(st.getMa())
-                                .status(st.getMoTa())
-                                .totalInvoices(total)
-                                .build();
-                    })
-                    .collect(Collectors.toList());
-        }
-
-        // ===== 8) TODAY REVENUE =====
-        Long todayRevenue = null;
-        if (isTrue(req.getIncludeTodayRevenue())) {
-            LocalDate today = ZonedDateTime.now(ZONE_VN).toLocalDate();
-            LocalDateTime sod = today.atStartOfDay();
-            LocalDateTime eod = sod.plusDays(1);
-            todayRevenue = invoiceRepository.getTodayRevenue(sod, eod, success);
-        }
-
-        // ===== 9) WTD/MTD/QTD/YTD =====
-        CurrentPeriodRevenueResponse current = null;
-        if (isTrue(req.getIncludeCurrentPeriods())) {
-            current = computeCurrentPeriods(success);
-        }
-
-        // ===== 10) CHART AGG (theo groupBy)
-        List<StatisticDashboardResponse.ChartAggItem> chartAgg = null;
-        if (start != null && end != null) {
-            List<TimeAggRow> rows = switch (groupBy) {
-                case "day"   -> invoiceRepository.aggregateBy(success, start, end);
-                case "month" -> invoiceRepository.aggregateByMonth(success, start, end);
-                case "year"  -> invoiceRepository.aggregateByYear(success, start, end);
-                default      -> Collections.emptyList();
-            };
-            chartAgg = rows.stream()
-                    .map(r -> StatisticDashboardResponse.ChartAggItem.builder()
-                            .label(r.getLabel())
-                            .totalRevenue(nz(r.getTotalRevenue()))
-                            .totalQuantity(nz(r.getTotalQuantity()))
-                            .build())
-                    .collect(Collectors.toList());
-        }
-
-        // ===== 11) Build response =====
-        return StatisticDashboardResponse.builder()
-                .monthly(monthly)
-                .yearly(yearly)
-                .revenueByOrderType(byOrderType)
-                .topProducts(topProducts)
-                .invoiceStatusStats(statusStats)
-                .todayRevenue(todayRevenue)
-                .periodStart(start)
-                .periodEnd(end)
-                .currentPeriods(current)
-                .chartAgg(chartAgg)
-                .build();
-    }
-
-
-    /* ===================== CORE HELPERS ===================== */
-
-    private List<StatisticDashboardResponse.ChartAggItem> buildChartAgg(TrangThaiTong success,
-                                                                        LocalDateTime start,
-                                                                        LocalDateTime end,
-                                                                        String groupBy) {
-        // Nếu Repository dùng status code int/string thì chuyển đổi ở đây
-        int statusCode = success.getMa();
-
-        List<TimeAggRow> rows;
+        // ===== 4) chartAgg theo groupBy =====
+        List<AggregationRow> chartAgg;
         switch (groupBy) {
-            case "day"   -> rows = invoiceRepository.aggregateBy(TrangThaiTong.tuMa(statusCode), start, end);
-            case "month" -> rows = invoiceRepository.aggregateByMonth(TrangThaiTong.tuMa(statusCode), start, end);
-            case "year"  -> rows = invoiceRepository.aggregateByYear(TrangThaiTong.tuMa(statusCode), start, end);
-            default      -> rows = Collections.emptyList();
+            case "month" -> chartAgg = buildMonthlyAggregation(start, end);
+            case "year" -> chartAgg = buildYearlyAggregation(start, end);
+            default -> chartAgg = buildDailyAggregation(startD, endD);
+        }
+        res.setChartAgg(chartAgg);
+
+        // ===== 5) Monthly tổng hợp (nếu yêu cầu) =====
+        if (Boolean.TRUE.equals(req.getIncludeMonthly())) {
+            List<MonthlyRow> monthly = invoiceRepo.aggregateMonthlySet(start, end, SUCCESS_SET)
+                    .stream()
+                    .map(a -> new MonthlyRow(
+                            ((Number) a[0]).intValue(),       // year
+                            ((Number) a[1]).intValue(),       // month
+                            (BigDecimal) a[2],                // revenue
+                            ((Number) a[3]).longValue()       // quantity = count invoice
+                    )).toList();
+            res.setMonthly(monthly);
         }
 
-        return rows.stream()
-                .map(r -> StatisticDashboardResponse.ChartAggItem.builder()
-                        .label(r.getLabel())
-                        .totalRevenue(nz(r.getTotalRevenue()))
-                        .totalQuantity(nz(r.getTotalQuantity()))
-                        .build())
-                .collect(Collectors.toList());
-    }
-
-    private String safeGroupBy(String gb) {
-        if (gb == null) return "day";
-        String v = gb.trim().toLowerCase();
-        return (v.equals("day") || v.equals("month") || v.equals("year")) ? v : "day";
-    }
-
-    private String safeMetric(String m) {
-        if (m == null) return "revenue";
-        String v = m.trim().toLowerCase();
-        return (v.equals("revenue") || v.equals("quantity")) ? v : "revenue";
-    }
-
-    private Range normalizeRangeFromRequest(StatisticFilterRequest req) {
-        LocalDateTime start = req.getStartDateTime();
-        LocalDateTime end   = req.getEndDateTime();
-
-        if (start == null && req.getStartDate() != null) {
-            start = req.getStartDate().atStartOfDay();
-        }
-        if (end == null && req.getEndDate() != null) {
-            end = req.getEndDate().plusDays(1).atStartOfDay(); // end-exclusive
+        // ===== 6) Yearly tổng hợp (nếu yêu cầu) =====
+        if (Boolean.TRUE.equals(req.getIncludeYearly())) {
+            List<YearlyRow> yearly = invoiceRepo.aggregateYearlySet(start, end, SUCCESS_SET)
+                    .stream()
+                    .map(a -> new YearlyRow(
+                            ((Number) a[0]).intValue(),
+                            (BigDecimal) a[1],
+                            ((Number) a[2]).longValue()
+                    )).toList();
+            res.setYearly(yearly);
         }
 
-        // Nếu vẫn thiếu và có period -> tính tự động
-        if (start == null || end == null) {
-            String period = req.getPeriod();
-            if (period != null) {
-                switch (period.trim().toLowerCase()) {
-                    case "week" -> {
-                        Range r = resolveWeekRange(req.getWeek(), req.getPeriodYear());
-                        if (start == null) start = r.start();
-                        if (end   == null) end   = r.end();
-                    }
-                    case "quarter" -> {
-                        Range r = resolveQuarterRange(req.getQuarter(), req.getPeriodYear());
-                        if (start == null) start = r.start();
-                        if (end   == null) end   = r.end();
-                    }
-                    case "year" -> {
-                        Range r = resolveYearRange(req.getPeriodYear());
-                        if (start == null) start = r.start();
-                        if (end   == null) end   = r.end();
-                    }
-                    case "month" -> {
-                        // hỗ trợ month nếu bạn có field month trong request, nếu không sẽ lấy tháng hiện tại
-                        Range r = resolveMonthRange(req.getYear(), req.getPeriodYear(), null);
-                        if (start == null) start = r.start();
-                        if (end   == null) end   = r.end();
-                    }
-                    default -> { /* ignore */ }
-                }
-            }
+        // ===== 7) Donut theo TrangThaiTong (tất cả trạng thái) =====
+        if (Boolean.TRUE.equals(req.getIncludeStatus())) {
+            List<StatusStat> donut = invoiceRepo.countByStatus(start, end).stream()
+                    .map(a -> {
+                        TrangThaiTong st = (TrangThaiTong) a[0];
+                        long cnt = ((Number) a[1]).longValue();
+                        Integer code = (st == null) ? null : st.getMa();
+                        String name = (st == null) ? "Khác" : st.getMoTa();
+                        return new StatusStat(code, name, cnt);
+                    }).toList();
+            res.setInvoiceStatusStats(donut);
         }
 
-        // Nếu nhập ngược thì đổi
-        if (start != null && end != null && start.isAfter(end)) {
-            LocalDateTime t = start; start = end; end = t;
-        }
-        return new Range(start, end);
-    }
-
-    /** Tính WTD/MTD/QTD/YTD đến thời điểm hiện tại (end = now) – giữ nguyên code của bạn */
-    private CurrentPeriodRevenueResponse computeCurrentPeriods(TrangThaiTong status) {
-        LocalDateTime now = ZonedDateTime.now(ZONE_VN).toLocalDateTime();
-        LocalDate today = now.toLocalDate();
-
-        WeekFields wf = WeekFields.ISO;
-        LocalDate weekStartDate = today.with(wf.dayOfWeek(), 1);
-        LocalDateTime weekStart = weekStartDate.atStartOfDay();
-        LocalDateTime weekEndEx = weekStart.plusWeeks(1);
-
-        YearMonth ym = YearMonth.from(today);
-        LocalDateTime monthStart = ym.atDay(1).atStartOfDay();
-        LocalDateTime monthEndEx = monthStart.plusMonths(1);
-
-        int m = today.getMonthValue();
-        int q = (m - 1) / 3 + 1;
-        int firstMonth = (q - 1) * 3 + 1;
-        LocalDateTime quarterStart = LocalDate.of(today.getYear(), firstMonth, 1).atStartOfDay();
-        LocalDateTime quarterEndEx = quarterStart.plusMonths(3);
-
-        LocalDateTime yearStart = LocalDate.of(today.getYear(), 1, 1).atStartOfDay();
-        LocalDateTime yearEndEx = yearStart.plusYears(1);
-
-        Long weekRevenue    = invoiceRepository.sumRevenueBetween(weekStart,    now, status);
-        Long monthRevenue   = invoiceRepository.sumRevenueBetween(monthStart,   now, status);
-        Long quarterRevenue = invoiceRepository.sumRevenueBetween(quarterStart, now, status);
-        Long yearRevenue    = invoiceRepository.sumRevenueBetween(yearStart,    now, status);
-
-        return CurrentPeriodRevenueResponse.builder()
-                .weekRevenue(nz(weekRevenue))
-                .monthRevenue(nz(monthRevenue))
-                .quarterRevenue(nz(quarterRevenue))
-                .yearRevenue(nz(yearRevenue))
-                .weekStart(weekStart).weekEndExclusive(weekEndEx)
-                .monthStart(monthStart).monthEndExclusive(monthEndEx)
-                .quarterStart(quarterStart).quarterEndExclusive(quarterEndEx)
-                .yearStart(yearStart).yearEndExclusive(yearEndEx)
-                .build();
-    }
-
-    /* ===================== PERIOD HELPERS (giữ như cũ) ===================== */
-
-    private record Range(LocalDateTime start, LocalDateTime end) {}
-
-    private Range resolveWeekRange(Integer week, Integer periodYear) {
-        WeekFields wf = WeekFields.ISO;
-        int y = (periodYear != null) ? periodYear : Year.now(ZONE_VN).getValue();
-
-        if (week == null) {
-            LocalDate today = ZonedDateTime.now(ZONE_VN).toLocalDate();
-            LocalDate s = today.with(wf.dayOfWeek(), 1);
-            return new Range(s.atStartOfDay(), s.plusWeeks(1).atStartOfDay());
+        // ===== 8) Top sản phẩm bán chạy =====
+        if (Boolean.TRUE.equals(req.getIncludeTopProducts())) {
+            List<TopProductRow> tops = detailRepo.topProducts(start, end, SUCCESS_SET)
+                    .stream()
+                    .limit(limit)
+                    .map(a -> new TopProductRow(
+                            a[0] == null ? null : ((Number) a[0]).longValue(),
+                            (String) a[1],
+                            a[2] == null ? 0L : ((Number) a[2]).longValue()
+                    )).toList();
+            res.setTopProducts(tops);
         }
 
-        LocalDate s = LocalDate.of(y, 1, 4)
-                .with(wf.weekOfWeekBasedYear(), week)
-                .with(wf.dayOfWeek(), 1);
-        return new Range(s.atStartOfDay(), s.plusWeeks(1).atStartOfDay());
+        return res;
     }
 
-    private Range resolveQuarterRange(Integer quarter, Integer periodYear) {
-        LocalDate today = ZonedDateTime.now(ZONE_VN).toLocalDate();
-        int y = (periodYear != null) ? periodYear : today.getYear();
-        int q = (quarter != null && quarter >= 1 && quarter <= 4)
-                ? quarter
-                : ((today.getMonthValue() - 1) / 3 + 1);
-        int firstMonth = (q - 1) * 3 + 1;
-        LocalDateTime s = LocalDate.of(y, firstMonth, 1).atStartOfDay();
-        return new Range(s, s.plusMonths(3));
+    // ===== Aggregations =====
+
+    // Day-level: group tại Java (portable)
+    private List<AggregationRow> buildDailyAggregation(LocalDate startD, LocalDate endD) {
+        Date s = startOfDay(startD);
+        Date e = endExclusive(endD);
+
+        // Tập ngày (inclusive FE)
+        List<LocalDate> days = startD.datesUntil(endD.plusDays(1)).toList();
+
+        List<Invoice> invoices = invoiceRepo.findSuccessBetweenSet(s, e, SUCCESS_SET);
+
+        Map<LocalDate, List<Invoice>> byDay = invoices.stream().collect(Collectors.groupingBy(
+                inv -> inv.getCreatedDate().toInstant().atZone(ZONE_VN).toLocalDate()
+        ));
+
+        return days.stream().map(d -> {
+            List<Invoice> lst = byDay.getOrDefault(d, Collections.emptyList());
+            BigDecimal rev = lst.stream()
+                    .map(Invoice::getFinalAmount)
+                    .filter(Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            long qty = lst.size(); // nếu muốn "tổng SP bán": đổi sang SUM(InvoiceDetail.quantity)
+            return new AggregationRow(d.toString(), nz(rev), qty);
+        }).toList();
     }
 
-    private Range resolveYearRange(Integer periodYear) {
-        int y = (periodYear != null) ? periodYear : Year.now(ZONE_VN).getValue();
-        LocalDateTime s = LocalDate.of(y, 1, 1).atStartOfDay();
-        return new Range(s, s.plusYears(1));
+    private List<AggregationRow> buildMonthlyAggregation(Date start, Date end) {
+        return invoiceRepo.aggregateMonthlySet(start, end, SUCCESS_SET).stream()
+                .map(a -> {
+                    int y = ((Number) a[0]).intValue();
+                    int m = ((Number) a[1]).intValue();
+                    String label = String.format("%02d/%d", m, y);
+                    BigDecimal rev = (BigDecimal) a[2];
+                    long qty = ((Number) a[3]).longValue();
+                    return new AggregationRow(label, nz(rev), qty);
+                }).toList();
     }
 
-    private Range resolveMonthRange(Integer year, Integer periodYear, Integer month) {
-        int y = (year != null) ? year : (periodYear != null ? periodYear : Year.now(ZONE_VN).getValue());
-        int m = (month != null) ? month : ZonedDateTime.now(ZONE_VN).getMonthValue();
-        YearMonth ym = YearMonth.of(y, m);
-        LocalDateTime s = ym.atDay(1).atStartOfDay();
-        return new Range(s, s.plusMonths(1));
+    private List<AggregationRow> buildYearlyAggregation(Date start, Date end) {
+        return invoiceRepo.aggregateYearlySet(start, end, SUCCESS_SET).stream()
+                .map(a -> {
+                    int y = ((Number) a[0]).intValue();
+                    BigDecimal rev = (BigDecimal) a[1];
+                    long qty = ((Number) a[2]).longValue();
+                    return new AggregationRow(String.valueOf(y), nz(rev), qty);
+                }).toList();
     }
-
-    /* ===================== TYPE HELPERS ===================== */
-
-    private static boolean isTrue(Boolean b) { return Boolean.TRUE.equals(b); }
-
-    private static Long nz(Long v) { return v == null ? 0L : v; }
-
-    private static Long toLong(Object v) {
-        if (v == null) return 0L;
-        if (v instanceof BigDecimal bd) return bd.longValue();
-        if (v instanceof Number n) return n.longValue();
-        return Long.parseLong(v.toString());
-    }
-
-    private static Long asLong(Object v) {
-        if (v == null) return 0L;
-        if (v instanceof Number n) return n.longValue();
-        return Long.parseLong(v.toString());
-    }
-
 
     @Override
     public List<EmployeeReportDto> getEmployeeSalesReport(EmployeeReportRequest request) {
-        List<Object[]> rawResults = invoiceRepository.getEmployeeSalesReportNative(request.getEmployeeId(), request.getStartDate(), request.getEndDate());
+        List<Object[]> rawResults = invoiceRepo.getEmployeeSalesReportNative(request.getEmployeeId(), request.getStartDate(), request.getEndDate());
 
         return rawResults.stream().map(result -> {
             int i = 0;

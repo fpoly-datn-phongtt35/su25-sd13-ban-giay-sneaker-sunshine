@@ -2,6 +2,7 @@ package com.example.duantotnghiep.controller;
 
 import com.example.duantotnghiep.dto.request.EmployeeReportRequest;
 import com.example.duantotnghiep.dto.request.StatisticFilterRequest;
+import com.example.duantotnghiep.dto.request.StatisticsDashboardRequest;
 import com.example.duantotnghiep.dto.response.*;
 import com.example.duantotnghiep.service.InvoiceService;
 import com.example.duantotnghiep.service.StatisticService;
@@ -23,8 +24,10 @@ public class StatisticController {
     private final StatisticService statisticService;
 
     @PostMapping("/dashboard")
-    public ResponseEntity<StatisticDashboardResponse> getDashboard(@RequestBody StatisticFilterRequest request) {
-        return ResponseEntity.ok(statisticService.getDashboard(request));
+    public ResponseEntity<StatisticsDashboardResponse> dashboard(@RequestBody StatisticsDashboardRequest req) {
+        // Bảo toàn behavior đúng với FE (groupBy/metric/flags + startDate/endDate)
+        StatisticsDashboardResponse data = statisticService.getDashboard(req);
+        return ResponseEntity.ok(data);
     }
 
     @PostMapping("/employee-sales")

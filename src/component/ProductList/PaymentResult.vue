@@ -2,29 +2,29 @@
 import { onMounted, ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import axios from 'axios'
-// Import các icon cần thiết từ Element Plus
+// Import icon Element Plus
 import { InfoFilled } from '@element-plus/icons-vue'
 
-// --- BIẾN & TRẠNG THÁI (GIỮ NGUYÊN) ---
+// --- BIẾN & TRẠNG THÁI ---
 const route = useRoute()
 const isLoading = ref(true)
 const orderStatus = ref(null)
-const appTransId = ref(route.query.app_trans_id)
+const appTransId = ref(route.query.app_trans_id)     // cho thanh toán online
+const invoiceCode = ref(route.query.invoiceCode)     // cho shipcode
 
-// --- CẤU HÌNH TRẠNG THÁI (GIỮ NGUYÊN) ---
+// --- CẤU HÌNH TRẠNG THÁI ---
 const STATUS_KEYS = {
   SUCCESS: 'DANG_XU_LY',
   FAILED: 'THAT_BAI',
   ORDER_CANCELLED: 'HUY_DON',
   TRANSACTION_CANCELLED: 'HUY_GIAO_DICH',
-  PENDING: 'CHO_XU_LY'
+  PENDING: 'CHO_XU_LY',
 }
 
 const STATUS_CONFIG = {
   [STATUS_KEYS.SUCCESS]: {
     title: 'Thanh toán thành công!',
     message: 'Cảm ơn bạn đã mua hàng. Đơn hàng của bạn đang được chuẩn bị để giao đi sớm nhất.',
-    // icon của ElResult chấp nhận: 'success', 'warning', 'error', 'info'
     icon: 'success',
   },
   [STATUS_KEYS.FAILED]: {
@@ -45,37 +45,42 @@ const STATUS_CONFIG = {
   [STATUS_KEYS.PENDING]: {
     title: 'Đang chờ xử lý',
     message: 'Hệ thống đang xử lý giao dịch của bạn. Vui lòng chờ trong giây lát.',
-    // Map 'pending' của chúng ta sang 'info' của Element Plus
     icon: 'info',
   },
   defaultError: {
     title: 'Đã xảy ra lỗi',
     message: 'Không thể kiểm tra trạng thái đơn hàng. Vui lòng liên hệ bộ phận hỗ trợ khách hàng.',
     icon: 'error',
-  }
+  },
 }
 
-// Computed property để lấy thông tin hiển thị (GIỮ NGUYÊN)
+// --- HIỂN THỊ ---
 const currentStatusInfo = computed(() => {
-  if (isLoading.value) return {} // Trả về object rỗng để không lỗi
+  if (isLoading.value) return {}
   return STATUS_CONFIG[orderStatus.value] || STATUS_CONFIG.defaultError
 })
 
-// --- LOGIC XỬ LÝ (GIỮ NGUYÊN) ---
+// --- LOGIC ---
 onMounted(async () => {
-  if (!appTransId.value) {
-    orderStatus.value = 'ERROR_NO_ID'
-    isLoading.value = false
-    return
-  }
   try {
-    await axios.get('http://localhost:8080/api/payment/zalo/status-check', {
-      params: { appTransId: appTransId.value }
-    })
-    const res = await axios.get('http://localhost:8080/api/payment/zalo/invoice/status', {
-      params: { appTransId: appTransId.value }
-    })
-    orderStatus.value = res.data?.status
+    if (appTransId.value) {
+      // Thanh toán online (ZaloPay)
+      await axios.get('http://localhost:8080/api/payment/zalo/status-check', {
+        params: { appTransId: appTransId.value },
+      })
+      const res = await axios.get('http://localhost:8080/api/payment/zalo/invoice/status', {
+        params: { appTransId: appTransId.value },
+      })
+      orderStatus.value = res.data?.status
+    } else if (invoiceCode.value) {
+      // ShipCode
+      const res = await axios.get('http://localhost:8080/api/payment/zalo/invoice/shipcode/status', {
+        params: { invoiceCode: invoiceCode.value },
+      })
+      orderStatus.value = res.data?.status
+    } else {
+      orderStatus.value = 'ERROR_NO_ID'
+    }
   } catch (err) {
     console.error('❌ Lỗi khi kiểm tra trạng thái:', err)
     orderStatus.value = 'ERROR_API_CALL'
@@ -84,6 +89,7 @@ onMounted(async () => {
   }
 })
 </script>
+
 
 <template>
   <div class="payment-result-page">
@@ -100,11 +106,18 @@ onMounted(async () => {
         :sub-title="currentStatusInfo.message"
       >
         <template #icon>
-            <el-icon v-if="currentStatusInfo.icon === 'info'" :size="80" color="#409eff">
-                <InfoFilled />
-            </el-icon>
+          <el-icon v-if="currentStatusInfo.icon === 'info'" :size="80" color="#409eff">
+            <InfoFilled />
+          </el-icon>
         </template>
-        
+
+        <template #sub-title>
+          <p class="message">{{ currentStatusInfo.message }}</p>
+          <div v-if="appTransId" class="order-details">
+            <span>Mã giao dịch:</span>
+            <strong>{{ appTransId }}</strong>
+          </div>
+        </template>
 
         <template #extra>
           <div class="actions">
@@ -117,7 +130,11 @@ onMounted(async () => {
               </RouterLink>
             </template>
 
-            <template v-else-if="[STATUS_KEYS.FAILED, STATUS_KEYS.TRANSACTION_CANCELLED].includes(orderStatus)">
+            <template
+              v-else-if="
+                [STATUS_KEYS.FAILED, STATUS_KEYS.TRANSACTION_CANCELLED].includes(orderStatus)
+              "
+            >
               <RouterLink to="/gio-hang">
                 <el-button type="primary" size="large">Thử lại thanh toán</el-button>
               </RouterLink>
@@ -160,7 +177,7 @@ onMounted(async () => {
 
 /* Tùy chỉnh một chút cho các component của Element Plus nếu cần */
 .el-result {
-    padding: 40px 20px;
+  padding: 40px 20px;
 }
 
 .message {

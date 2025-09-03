@@ -51,7 +51,7 @@
                 @click.stop="openQuickViewModal(product)"
               />
 
-              <!-- ĐÃ BỔ SUNG: Badge ĐÃ BÁN (góc dưới phải) -->
+              <!-- Badge Đã bán -->
               <div class="product-card__sold-badge">
                 Đã bán: <strong>{{ soldCounts[product.id] ?? '...' }}</strong>
               </div>
@@ -87,7 +87,7 @@
                 />
               </div>
 
-              <!-- ĐÃ BỔ SUNG: Rating (trung bình & tổng lượt) -->
+              <!-- Rating trung bình & tổng lượt -->
               <div
                 class="rating-row"
                 v-if="ratingSummaries[product.id]"
@@ -181,7 +181,7 @@
                   v-model="quickViewQuantity"
                   :min="minQty"
                   :max="maxQty"
-                  :disabled="maxQty === 0"
+                  :disabled="maxQty === 0 || isAdding"
                 />
                 <span class="stock-info">(Còn lại: {{ selectedVariantStock }})</span>
               </template>
@@ -192,8 +192,23 @@
             </div>
 
             <div class="quick-view__actions">
-              <el-button class="add-to-cart-btn" @click="handleAddToCartInModal">Thêm vào giỏ</el-button>
-              <el-button class="buy-now-btn" @click="handleBuyNowInModal">Mua ngay</el-button>
+              <el-button
+                class="add-to-cart-btn"
+                :loading="isAdding"
+                :disabled="isAdding"
+                @click="handleAddToCartInModal"
+              >
+                Thêm vào giỏ
+              </el-button>
+
+              <el-button
+                class="buy-now-btn"
+                :loading="isAdding"
+                :disabled="isAdding"
+                @click="handleBuyNowInModal"
+              >
+                Mua ngay
+              </el-button>
             </div>
           </el-col>
         </el-row>
@@ -268,11 +283,11 @@ import { ElMessage } from 'element-plus'
 import { ShoppingCart, Star } from '@element-plus/icons-vue'
 import apiClient from '@/utils/axiosInstance'
 import { addToCart } from '@/utils/cart.js'
+import axios from 'axios'
 
 // ====== Banner images (thay bằng ảnh bạn) ======
 import banner1 from '@/img/1.jpg'
 import banner2 from '@/img/2.jpg'
-import axios from 'axios'
 
 /* =======================
  * State chung
@@ -392,7 +407,6 @@ const fetchFeaturedProducts = async () => {
   isLoading.value = true
   error.value = null
   try {
-    // Dùng apiClient để tận dụng baseURL "/api"
     const { data } = await apiClient.get('/online-sale/online-home')
     const unique = new Map((Array.isArray(data) ? data : []).map((it) => [it.id, it]))
     products.value = Array.from(unique.values()).map(normalizeProduct)
@@ -468,6 +482,7 @@ const quickViewSelectedColor = ref(null)
 const quickViewSelectedSize = ref(null)
 const quickViewQuantity = ref(1)
 const quickViewActiveImage = ref(PLACEHOLDER_IMG)
+const isAdding = ref(false) // CHỐNG BẤM NHIỀU LẦN
 
 const openQuickViewModal = (p) => {
   selectedProduct.value = p
@@ -565,68 +580,125 @@ const requiresSizeSelection = (sp) => {
   const named = new Set((sp.productDetails || []).map((d) => d.sizeName).filter(Boolean))
   return named.size > 0
 }
+
+/**
+ * handleAddToCartInModal:
+ * - async
+ * - có isAdding để chặn double click
+ * - verify productDetail trên server trước khi add
+ * - trả về true nếu thêm thành công
+ */
 const handleAddToCartInModal = async () => {
-  const sp = selectedProduct.value
-  if (!sp) return false
+  if (isAdding.value) return false
+  isAdding.value = true
 
-  if (requiresSizeSelection(sp) && !quickViewSelectedSize.value) {
-    ElMessage.warning('Vui lòng chọn kích thước sản phẩm trước khi thêm vào giỏ hàng.')
-    return false
-  }
-
-  const detail = findSelectedProductDetail()
-
-  const productDetailId = detail.id;
   try {
-  const res = await axios.get(`http://localhost:8080/api/online-sale/verify-pdDetail/${productDetailId}`)
-  console.log('res hihi: ',res)
-  const status = res?.data?.status;
-  const statusNum = Number(status)
-  if (!Number.isFinite(statusNum) || statusNum !== 1) {
-    ElMessage.error('Sản phẩm hiện không hợp lệ để mua (đã bị vô hiệu hóa hoặc không còn bán).')
-    return false
+    const sp = selectedProduct.value
+    if (!sp) {
+      ElMessage.error('Sản phẩm không hợp lệ.')
+      return false
+    }
+
+    // Nếu cần chọn size mà chưa chọn -> cảnh báo
+    if (requiresSizeSelection(sp) && !quickViewSelectedSize.value) {
+      ElMessage.warning('Vui lòng chọn kích thước sản phẩm trước khi thêm vào giỏ hàng.')
+      return false
+    }
+
+    const detail = findSelectedProductDetail()
+    if (!detail) {
+      ElMessage.error('Không tìm thấy chi tiết phù hợp. Vui lòng chọn lại màu và kích thước.')
+      return false
+    }
+
+    // Kiểm tra số lượng và giá trị hợp lệ trước khi gọi verify
+    if (quickViewQuantity.value <= 0) {
+      ElMessage.warning('Số lượng phải lớn hơn 0.')
+      return false
+    }
+
+    // Gọi API verify (server trả về status + quantity hoặc tương tự)
+    try {
+      const productDetailId = detail.id
+      if (!productDetailId) {
+        ElMessage.error('Chi tiết sản phẩm không hợp lệ.')
+        return false
+      }
+
+      // NOTE: chỉnh URL nếu backend bạn dùng khác
+      const res = await axios.get(`http://localhost:8080/api/online-sale/verify-pdDetail/${productDetailId}`)
+      let data = res?.data
+
+      // Nếu backend trả mảng hoặc object, chuẩn hoá
+      if (Array.isArray(data) && data.length > 0) data = data[0]
+
+      // Lấy các trường có thể có
+      const statusVal = data?.status ?? data?.active ?? data?.enabled
+      const qtyVal = Number(data?.quantity ?? detail.quantity ?? 0)
+
+      // Kiểm tra trạng thái: chấp nhận boolean true, number === 1, hoặc string 'active'...
+      let okStatus = false
+      if (typeof statusVal === 'boolean') okStatus = statusVal === true
+      else {
+        const n = Number(statusVal)
+        if (Number.isFinite(n)) okStatus = n === 1
+        else if (typeof statusVal === 'string') okStatus = ['active','enabled','available','true'].includes(statusVal.trim().toLowerCase())
+      }
+
+      if (!okStatus) {
+        ElMessage.error('Sản phẩm hiện không hợp lệ để mua (đã bị vô hiệu hóa hoặc ngưng bán).')
+        return false
+      }
+
+      if (!Number.isFinite(qtyVal) || qtyVal <= 0) {
+        ElMessage.warning(`Tồn kho không đủ (còn ${qtyVal}).`)
+        return false
+      }
+
+      if (quickViewQuantity.value > qtyVal) {
+        ElMessage.warning(`Số lượng yêu cầu (${quickViewQuantity.value}) vượt quá tồn kho (${qtyVal}).`)
+        return false
+      }
+    } catch (verifyErr) {
+      console.error('Lỗi khi kiểm tra trạng thái productDetail:', verifyErr)
+      ElMessage.error('Không thể kiểm tra trạng thái sản phẩm. Vui lòng thử lại sau.')
+      return false
+    }
+
+    // Nếu OK -> tạo item và addToCart
+    const price = Number(detail.discountedPrice) > 0 ? Number(detail.discountedPrice) : Number(detail.sellPrice)
+    const item = {
+      productDetailId: detail.id,
+      productId: sp.id,
+      productName: sp.productName,
+      image: quickViewActiveImage.value,
+      color: quickViewSelectedColor.value ? quickViewSelectedColor.value.colorName : 'N/A',
+      size: quickViewSelectedSize.value || 'N/A',
+      price,
+      quantity: quickViewQuantity.value,
+      maxQuantity: Number(detail.quantity || 0),
+      discountCampaignId: detail.discountCampaignId || null,
+      status: detail.status
+    }
+
+    addToCart(item)
+    ElMessage.success('Đã thêm vào giỏ hàng!')
+    quickViewVisible.value = false
+    return true
+  } finally {
+    isAdding.value = false
   }
-} catch (e) {
-  console.error('Lỗi khi kiểm tra trạng thái productDetail:', e)
-  ElMessage.error('Không thể kiểm tra trạng thái sản phẩm. Vui lòng thử lại sau.')
-  return false
 }
 
-  if (!detail) {
-    ElMessage.error('Không tìm thấy chi tiết phù hợp. Vui lòng chọn lại màu và kích thước.')
-    return false
+/**
+ * handleBuyNowInModal: await handleAddToCartInModal
+ */
+const handleBuyNowInModal = async () => {
+  if (isAdding.value) return
+  const ok = await handleAddToCartInModal()
+  if (ok) {
+    router.push('/cart')
   }
-
-  if (quickViewQuantity.value <= 0) {
-    ElMessage.warning('Số lượng phải lớn hơn 0.')
-    return false
-  }
-  if (quickViewQuantity.value > Number(detail.quantity || 0)) {
-    ElMessage.warning(`Tồn kho không đủ (còn ${detail.quantity}).`)
-    return false
-  }
-
-  const price = Number(detail.discountedPrice) > 0 ? Number(detail.discountedPrice) : Number(detail.sellPrice)
-  const item = {
-    productDetailId: detail.id,
-    productId: sp.id,
-    productName: sp.productName,
-    image: quickViewActiveImage.value,
-    color: quickViewSelectedColor.value ? quickViewSelectedColor.value.colorName : 'N/A',
-    size: quickViewSelectedSize.value || 'N/A',
-    price,
-    quantity: quickViewQuantity.value,
-    maxQuantity: Number(detail.quantity || 0),
-    discountCampaignId: detail.discountCampaignId || null,
-  }
-
-  addToCart(item)
-  ElMessage.success('Đã thêm vào giỏ hàng!')
-  quickViewVisible.value = false
-  return true
-}
-const handleBuyNowInModal = () => {
-  if (handleAddToCartInModal()) router.push('/cart')
 }
 
 /* =======================
@@ -755,7 +827,7 @@ onMounted(() => {
 
   --primary: #111111;
   --accent: #0ea5e9;
-  --danger: #ff0000; /* đỏ tươi cho % giảm */
+  --danger: #ff0000;
 }
 
 /* ========= Common ========= */
@@ -766,7 +838,7 @@ onMounted(() => {
 .banner-carousel{ max-width:100%; }
 .carousel-image{
   width:100%; height:auto; display:block;
-  object-fit:cover; /* giữ tỉ lệ ảnh, lấp đầy khung nếu có chiều cao cố định */
+  object-fit:cover;
 }
 
 /* ========= Collection ========= */
@@ -788,7 +860,7 @@ onMounted(() => {
 
 .product-card__image-wrapper{
   position:relative; width:100%;
-  aspect-ratio: 1/1; /* ảnh vuông, cân */
+  aspect-ratio: 1/1;
   background: var(--bg-soft);
   overflow:hidden; cursor:pointer;
 }
@@ -798,17 +870,13 @@ onMounted(() => {
 }
 .product-card:hover .product-card__image{ transform: scale(1.035); }
 
-/* Badge % giảm: đỏ tươi nền đặc, chữ trắng */
 .product-card__discount-badge{
   position:absolute; top:10px; left:10px;
   background-color:#ff0000 !important; color:#fff !important;
   border:0 !important; padding:4px 8px; border-radius:999px;
   font-size:12px; font-weight:600; z-index:2;
-  box-shadow:none !important; filter:none !important;
-  mix-blend-mode:normal !important; backdrop-filter:none !important; -webkit-backdrop-filter:none !important;
 }
 
-/* Quick view button */
 .product-card__quick-view-btn{
   position:absolute; top:12px; right:12px; z-index:2;
   background:rgba(255,255,255,.96)!important;
@@ -818,12 +886,10 @@ onMounted(() => {
 }
 .product-card:hover .product-card__quick-view-btn{ opacity:1; }
 
-/* Badge đã bán */
 .product-card__sold-badge{
   position:absolute; right:10px; bottom:10px; z-index:2;
   background: rgba(20,22,26,.75); color:#fff; font-weight:600;
   padding:6px 10px; border-radius:10px; font-size:12px; line-height:1;
-  backdrop-filter: blur(2px);
 }
 
 /* Info */
@@ -841,7 +907,6 @@ onMounted(() => {
 .original-price{ font-size:13px; color:#9aa0b4; text-decoration:line-through; font-weight:400; }
 .normal-price{ font-size:16px; font-weight:600; color:#000; }
 
-/* Color variants */
 .product-card__colors{ display:flex; gap:6px; height:14px; margin-top:10px; }
 .product-card__color-dot{
   width:14px; height:14px; border-radius:50%;
@@ -849,7 +914,6 @@ onMounted(() => {
 }
 .product-card__color-dot:hover{ transform: scale(1.12); box-shadow:0 2px 6px rgba(0,0,0,.12); }
 
-/* Rating */
 .rating-row{ margin-top:8px; display:flex; justify-content:space-between; align-items:center; }
 .rating-text{ font-size:12px; color:#666; white-space:nowrap; }
 
@@ -896,7 +960,6 @@ onMounted(() => {
 .buy-now-btn{ background:#000 !important; color:#fff !important; }
 .buy-now-btn:hover{ background:#333 !important; }
 
-/* ========= Misc ========= */
 .pre-order-text a:hover{ opacity:.85; }
 
 /* ========= Responsive ========= */
@@ -905,4 +968,3 @@ onMounted(() => {
   .collection-title{ font-size:24px; }
 }
 </style>
-

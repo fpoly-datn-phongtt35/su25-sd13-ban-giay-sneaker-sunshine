@@ -662,49 +662,95 @@ const handleSubmit = async () => {
     // ------------- Payment flow -------------
 if (paymentMethod.value === 1) {
   // ZaloPay
+// bên trong branch nếu (paymentMethod.value === 1) { ... }
+try {
+  const res = await axios.post('http://localhost:8080/api/payment/zalo/create', payload);
+    console.log('data invoice v2: ',res)
+  const zaloPay = res.data?.zaloPay;
+  const invoice = res.data?.invoiceData?.invoice || null;
+  console.log('data invoice: ',invoice?.invoiceCode)
+const code = invoice?.invoiceCode;
+if (!code) {
+  console.warn('Không có invoiceCode để verify');
+} else {
   try {
-    const res = await axios.post('http://localhost:8080/api/payment/zalo/create', payload);
-    const zaloPay = res.data?.zaloPay;
-    const invoice = res.data?.invoice || null;
-    const customerId = invoice?.customerId;
-    if (customerId) localStorage.setItem('userId', String(customerId));
-
-    if (zaloPay?.orderUrl && zaloPay?.appTransId) {
-      const pending = {
-        invoiceId: invoice?.id || null,
-        appTransId: zaloPay.appTransId,
-        amount: payload.amount
-      };
-
-      localStorage.setItem('appTransId', zaloPay.appTransId);
-      localStorage.setItem('pendingOrder', JSON.stringify(pending));
-
-      ElMessage.success('Đang mở ZaloPay ở tab mới. Sau khi thanh toán xong, quay lại trang này để xem kết quả.');
-
-      // MỞ ZALOPAY Ở TAB MỚI (khuyến nghị)
-      const newTab = window.open(zaloPay.orderUrl, '_blank');
-
-      if (!newTab) {
-        // Nếu bị block popup -> fallback: chuyển cùng tab (replace để không lưu lịch sử quay về checkout)
-        console.warn('window.open bị chặn, fallback sang redirect cùng tab');
-        window.location.replace(zaloPay.orderUrl);
-        return;
-      }
-
-      // Điều hướng tab gốc sang trang kết quả mà không thêm entry lịch sử (không cho Back quay về form)
-      if (typeof router !== 'undefined' && router && typeof router.replace === 'function') {
-        router.replace('/payment-result');
-      } else {
-        // fallback nếu không có router instance
-        window.location.replace('/payment-result');
-      }
-    } else {
-      ElMessage.error('Không nhận được URL thanh toán từ ZaloPay. Vui lòng thử lại.');
-    }
-  } catch (err) {
-    console.error('Lỗi khi khởi tạo thanh toán ZaloPay:', err);
-    ElMessage.error(err?.response?.data?.message || 'Lỗi khi khởi tạo thanh toán ZaloPay. Vui lòng thử lại.');
+    const res2 = await axios.get('http://localhost:8080/api/online-sale/verify-invoice', {
+      params: { code }
+    });
+    console.log('data invoice v4: ', res2.data);
+  } catch (error) {
+    console.error('verify-invoice error:', error?.response?.data || error);
   }
+}
+  const customerId = invoice?.customerId;
+  if (customerId) localStorage.setItem('userId', String(customerId));
+
+  if (zaloPay?.orderUrl && zaloPay?.appTransId) {
+    const pending = {
+      invoiceId: invoice?.id || null,
+      appTransId: zaloPay.appTransId,
+      amount: payload.amount
+    };
+
+    localStorage.setItem('appTransId', zaloPay.appTransId);
+    localStorage.setItem('pendingOrder', JSON.stringify(pending));
+
+    ElMessage.success('Đang mở ZaloPay ở tab mới. Sau khi thanh toán xong, tab này sẽ tự động đóng.');
+
+    // Thử mở popup
+    let newTab = null;
+    try { newTab = window.open(zaloPay.orderUrl, '_blank'); } catch (e) { newTab = null; }
+
+    // Nếu popup bị chặn -> fallback: mở cùng tab
+    if (!newTab) {
+      console.warn('Popup bị chặn, chuyển cùng tab');
+      window.location.replace(zaloPay.orderUrl);
+      return;
+    }
+
+    // Lắng nghe message từ popup (payment-result sẽ gửi message khi hoàn tất)
+    const messageHandler = (e) => {
+      // Bảo mật: kiểm tra origin (nếu bạn muốn chặt chẽ: e.origin === window.location.origin)
+      const data = e.data || {};
+      if (data && (data.status === 'paid' || data.status === 'failed' || data.status === 'cancel')) {
+        // đóng popup nếu còn mở
+        try { if (newTab && !newTab.closed) newTab.close(); } catch (err) { /* ignore */ }
+
+        window.removeEventListener('message', messageHandler);
+        // chuyển trang chính sang trang kết quả (không lưu lịch sử)
+        if (typeof router !== 'undefined' && router && typeof router.replace === 'function') {
+          router.replace('/payment-result');
+        } else {
+          window.location.replace('/payment-result');
+        }
+      }
+    };
+    window.addEventListener('message', messageHandler);
+
+    // watcher: nếu user đóng popup thủ công -> redirect về payment-result
+    const watcher = setInterval(() => {
+      try {
+        if (!newTab || newTab.closed) {
+          clearInterval(watcher);
+          window.removeEventListener('message', messageHandler);
+          if (typeof router !== 'undefined' && router && typeof router.replace === 'function') {
+            router.replace('/payment-result');
+          } else {
+            window.location.replace('/payment-result');
+          }
+        }
+      } catch (err) { /* ignore cross-origin check errors */ }
+    }, 1000);
+
+    // optional: sau khi mở popup, vẫn để tab gốc ở trạng thái hiện tại (hoặc show loading)
+    return;
+  } else {
+    ElMessage.error('Không nhận được URL thanh toán từ ZaloPay. Vui lòng thử lại.');
+  }
+} catch (err) {
+  console.error('Lỗi khi khởi tạo thanh toán ZaloPay:', err);
+  ElMessage.error(err?.response?.data?.message || 'Lỗi khi khởi tạo thanh toán ZaloPay. Vui lòng thử lại.');
+}
 }else {
       // COD flow
       try {

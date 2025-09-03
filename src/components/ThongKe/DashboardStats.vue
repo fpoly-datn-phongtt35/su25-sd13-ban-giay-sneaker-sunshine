@@ -5,29 +5,25 @@
       <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h2 class="text-xl md:text-2xl font-bold text-gray-800">Tổng quan bán hàng</h2>
 
-        <div class="flex items-center gap-2 bg-white border border-gray-200 rounded-2xl px-3 py-2">
-          <el-date-picker
-            v-model="dateRange"
-            type="daterange"
-            start-placeholder="Từ ngày"
-            end-placeholder="Đến ngày"
-            format="YYYY-MM-DD"
-            value-format="YYYY-MM-DD"
-            :unlink-panels="true"
-            size="small"
-            class="w-80"
-          />
-          <el-button type="primary" size="small" @click="refreshAll" :loading="loading">Áp dụng</el-button>
-          <el-button size="small" @click="resetAll" :disabled="loading">Đặt lại</el-button>
-        </div>
+<div class="flex items-center gap-2 bg-white border border-gray-200 rounded-2xl px-3 py-2">
+  <el-date-picker
+    v-model="dateRange"
+    type="daterange"
+    start-placeholder="Từ ngày"
+    end-placeholder="Đến ngày"
+    format="YYYY-MM-DD"
+    value-format="YYYY-MM-DD"
+    :unlink-panels="true"
+    size="small"
+    class="w-80"
+  />
+  <el-button type="primary" size="small" @click="refreshAll" :loading="loading">Áp dụng</el-button>
+  <el-button size="small" @click="resetAll" :disabled="loading">Đặt lại</el-button>
+  <el-button type="primary" size="small" @click="goToOrderStaff">
+    Thống kê đơn hàng theo nhân viên
+  </el-button>
+</div>
 
-        <el-col :span="24" class="mb-2">
-          <div class="flex justify-end">
-            <el-button type="primary" size="small" @click="goToOrderStaff">
-              Thống kê đơn hàng theo nhân viên
-            </el-button>
-          </div>
-        </el-col>
       </div>
 
       <!-- ===== KPI Cards ===== -->

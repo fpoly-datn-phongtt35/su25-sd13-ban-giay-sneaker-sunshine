@@ -5,13 +5,16 @@ import com.example.duantotnghiep.dto.response.RatingProductResponse;
 import com.example.duantotnghiep.model.Invoice;
 import com.example.duantotnghiep.model.InvoiceDetail;
 import com.example.duantotnghiep.model.ProductDetail;
+import com.example.duantotnghiep.state.TrangThaiTong;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.Collection;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public interface InvoiceDetailRepository extends JpaRepository<InvoiceDetail, Long> {
     List<InvoiceDetail> findByInvoiceId(Long invoiceId);
@@ -85,4 +88,19 @@ public interface InvoiceDetailRepository extends JpaRepository<InvoiceDetail, Lo
                   and d.productDetail.product.id = :productId
             """)
     Long countSoldQuantityByProductId(@Param("productId") Long productId);
+
+    @Query("""
+        SELECT pd.product.id, pd.product.productName, COALESCE(SUM(d.quantity), 0)
+        FROM InvoiceDetail d
+        JOIN d.invoice i
+        JOIN d.productDetail pd
+        WHERE i.status IN :successSet
+          AND i.createdDate >= :start AND i.createdDate < :end
+        GROUP BY pd.product.id, pd.product.productName
+        ORDER BY COALESCE(SUM(d.quantity), 0) DESC
+    """)
+    List<Object[]> topProducts(@Param("start") Date start,
+                               @Param("end") Date end,
+                               @Param("successSet") Set<TrangThaiTong> successSet);
+
 }

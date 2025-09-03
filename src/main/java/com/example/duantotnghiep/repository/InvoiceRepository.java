@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Repository
 public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
@@ -297,139 +298,65 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
     BigDecimal sumRevenueBetween(@Param("fromDate") Date fromDate,
                                  @Param("toDate") Date toDate);
 
-
-    // Doanh thu theo loại đơn (có thể kèm phạm vi thời gian)
-    @Query("""
-                select i.orderType as type, sum(i.totalAmount) as total
-                from Invoice i
-                where i.status = :status
-                  and (:start is null or i.createdDate >= :start)
-                  and (:end   is null or i.createdDate <  :end)
-                group by i.orderType
-                order by total desc
-            """)
-    List<Object[]> getRevenueByOrderType(
-            @Param("status") TrangThaiTong status,
-            @Param("start") LocalDateTime start,
-            @Param("end") LocalDateTime end
-    );
-
-
-    // Đếm số hóa đơn theo trạng thái trong phạm vi thời gian (nếu cần)
-    @Query("""
-                select i.status as st, count(i.id) as total
-                from Invoice i
-                where (:start is null or i.createdDate >= :start)
-                  and (:end   is null or i.createdDate <  :end)
-                group by i.status
-            """)
-    List<Object[]> countInvoicesByStatus(
-            @Param("start") LocalDateTime start,
-            @Param("end") LocalDateTime end
-    );
-
-    @Query("""
-                select coalesce(sum(i.totalAmount), 0)
-                from Invoice i
-                where i.status = :status
-                  and i.createdDate >= :start
-                  and i.createdDate <  :end
-            """)
-    Long sumRevenueBetween(@Param("start") LocalDateTime start,
-                           @Param("end") LocalDateTime end,
-                           @Param("status") TrangThaiTong status);
-
-    @Query("""
-                select coalesce(sum(d.quantity), 0)
-                from Invoice i
-                join i.invoiceDetails d
-                where i.status = :status
-                  and i.createdDate >= :start
-                  and i.createdDate <  :end
-            """)
-    Long sumItemsBetween(@Param("start") LocalDateTime start,
-                         @Param("end") LocalDateTime end,
-                         @Param("status") TrangThaiTong status);
-
-    @Query(value = """
-                select 
-                  DATE(i.created_date)              as d,
-                  coalesce(sum(i.total_amount), 0)  as revenue,
-                  coalesce(sum(idt.quantity), 0)    as qty
-                from invoice i
-                left join invoice_detail idt on idt.invoice_id = i.id
-                where i.status = :status
-                  and i.created_date >= :start
-                  and i.created_date <  :end
-                group by DATE(i.created_date)
-                order by DATE(i.created_date)
-            """, nativeQuery = true)
-    List<Object[]> aggregateDaily(@Param("status") TrangThaiTong status,
-                                  @Param("start") LocalDateTime start,
-                                  @Param("end") LocalDateTime end);
-
-    Optional<Invoice> findTopByCustomerIdAndStatusOrderByCreatedDateDesc(Long customerId, TrangThaiTong status);
-
-    // ===== GROUP BY DAY: label = yyyy-MM-dd =====
-    @Query("""
-        select 
-            FUNCTION('FORMAT', i.createdDate, 'yyyy-MM-dd') as label,
-            COALESCE(SUM(i.totalAmount), 0)                as totalRevenue,
-            COALESCE(SUM(COALESCE(d.quantity, 0)), 0)      as totalQuantity
-        from Invoice i
-        left join InvoiceDetail d on d.invoice.id = i.id
-        where i.status = :status
-          and i.createdDate >= :start
-          and i.createdDate <  :end
-        group by FUNCTION('FORMAT', i.createdDate, 'yyyy-MM-dd')
-        order by FUNCTION('FORMAT', i.createdDate, 'yyyy-MM-dd')
-    """)
-    List<TimeAggRow> aggregateBy(@Param("status") TrangThaiTong status,
-                                 @Param("start") LocalDateTime start,
-                                 @Param("end")   LocalDateTime end);
-
-    // ===== GROUP BY MONTH: label = MM/yyyy =====
-    @Query("""
-        select 
-            FUNCTION('FORMAT', i.createdDate, 'MM/yyyy')    as label,
-            COALESCE(SUM(i.totalAmount), 0)                as totalRevenue,
-            COALESCE(SUM(COALESCE(d.quantity, 0)), 0)      as totalQuantity
-        from Invoice i
-        left join InvoiceDetail d on d.invoice.id = i.id
-        where i.status = :status
-          and i.createdDate >= :start
-          and i.createdDate <  :end
-        group by FUNCTION('FORMAT', i.createdDate, 'MM/yyyy'),
-                 FUNCTION('YEAR',  i.createdDate),
-                 FUNCTION('MONTH', i.createdDate)
-        order by FUNCTION('YEAR',  i.createdDate),
-                 FUNCTION('MONTH', i.createdDate)
-    """)
-    List<TimeAggRow> aggregateByMonth(@Param("status") TrangThaiTong status,
-                                      @Param("start") LocalDateTime start,
-                                      @Param("end")   LocalDateTime end);
-
-    // ===== GROUP BY YEAR: label = yyyy =====
-    @Query("""
-        select 
-            FUNCTION('FORMAT', i.createdDate, 'yyyy')       as label,
-            COALESCE(SUM(i.totalAmount), 0)                as totalRevenue,
-            COALESCE(SUM(COALESCE(d.quantity, 0)), 0)      as totalQuantity
-        from Invoice i
-        left join InvoiceDetail d on d.invoice.id = i.id
-        where i.status = :status
-          and i.createdDate >= :start
-          and i.createdDate <  :end
-        group by FUNCTION('FORMAT', i.createdDate, 'yyyy'),
-                 FUNCTION('YEAR',  i.createdDate)
-        order by FUNCTION('YEAR',  i.createdDate)
-    """)
-    List<TimeAggRow> aggregateByYear(@Param("status") TrangThaiTong status,
-                                     @Param("start") LocalDateTime start,
-                                     @Param("end")   LocalDateTime end);
-
     @Query("select i.statusDetail from Invoice i where i.invoiceCode = :code ")
     Integer findStatusDetailByCode(String code);
+
+    @Query("""
+                SELECT COALESCE(SUM(i.finalAmount), 0)
+                FROM Invoice i
+                WHERE i.status IN :successSet
+                  AND i.createdDate >= :start AND i.createdDate < :end
+            """)
+    BigDecimal sumRevenueBetweenSuccessSet(@Param("start") Date start,
+                                           @Param("end") Date end,
+                                           @Param("successSet") Set<TrangThaiTong> successSet);
+
+    @Query("""
+                SELECT i
+                FROM Invoice i
+                WHERE i.status IN :successSet
+                  AND i.createdDate >= :start AND i.createdDate < :end
+            """)
+    List<Invoice> findSuccessBetweenSet(@Param("start") Date start,
+                                        @Param("end") Date end,
+                                        @Param("successSet") Set<TrangThaiTong> successSet);
+
+    @Query("""
+                SELECT FUNCTION('YEAR', i.createdDate), FUNCTION('MONTH', i.createdDate),
+                       COALESCE(SUM(i.finalAmount),0), COUNT(i)
+                FROM Invoice i
+                WHERE i.status IN :successSet
+                  AND i.createdDate >= :start AND i.createdDate < :end
+                GROUP BY FUNCTION('YEAR', i.createdDate), FUNCTION('MONTH', i.createdDate)
+                ORDER BY FUNCTION('YEAR', i.createdDate), FUNCTION('MONTH', i.createdDate)
+            """)
+    List<Object[]> aggregateMonthlySet(@Param("start") Date start,
+                                       @Param("end") Date end,
+                                       @Param("successSet") Set<TrangThaiTong> successSet);
+
+    @Query("""
+                SELECT FUNCTION('YEAR', i.createdDate),
+                       COALESCE(SUM(i.finalAmount),0), COUNT(i)
+                FROM Invoice i
+                WHERE i.status IN :successSet
+                  AND i.createdDate >= :start AND i.createdDate < :end
+                GROUP BY FUNCTION('YEAR', i.createdDate)
+                ORDER BY FUNCTION('YEAR', i.createdDate)
+            """)
+    List<Object[]> aggregateYearlySet(@Param("start") Date start,
+                                      @Param("end") Date end,
+                                      @Param("successSet") Set<TrangThaiTong> successSet);
+
+    // InvoiceRepository.java
+    @Query("""
+                SELECT i.status, COUNT(i)
+                FROM Invoice i
+                WHERE i.createdDate >= :start AND i.createdDate < :end
+                GROUP BY i.status
+            """)
+    List<Object[]> countByStatus(@Param("start") Date start,
+                                 @Param("end") Date end);
+
 }
 
 

@@ -213,13 +213,6 @@
           </el-col>
         </el-row>
 
-        <!-- Link đặt trước -->
-        <div class="pre-order-text" style="margin-top: 12px; color:#333">
-          Trường hợp hết hàng, bạn có thể đặt trước
-          <a href="#" @click.prevent="openPreOrderDialog" style="color: inherit; font-weight: 600; text-decoration: underline;">
-            click vào đây
-          </a>
-        </div>
       </div>
     </el-dialog>
 

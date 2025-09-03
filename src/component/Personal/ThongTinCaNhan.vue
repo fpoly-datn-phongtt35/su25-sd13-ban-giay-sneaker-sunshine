@@ -550,7 +550,7 @@ const confirmDeleteAddress = async (addressId) => {
       cancelButtonText: 'Hủy',
       type: 'warning'
     });
-    await apiClient.delete(`online-sale/customers/${customerId}/addresses/${addressId}`);
+    await apiClient.delete(`/online-sale/customers/${customerId}/addresses/${addressId}`);
     ElMessage.success('Xóa địa chỉ thành công!');
     fetchAddresses();
   } catch (err) {

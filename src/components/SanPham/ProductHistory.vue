@@ -50,11 +50,26 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="Hành động" width="120">
+        <el-table-column label="Hành động" width="180">
           <template #default="scope">
-            <el-button type="primary" size="small" @click="openRestoreDialog(scope.row)">
-              Khôi phục
-            </el-button>
+            <div class="actions-cell">
+              <el-button
+                type="primary"
+                size="small"
+                @click="openRestoreDialog(scope.row)"
+                class="mr-2"
+              >
+                Khôi phục
+              </el-button>
+
+              <el-button
+                type="danger"
+                size="small"
+                @click="openDeleteDialog(scope.row)"
+              >
+                Xóa
+              </el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -73,6 +88,7 @@
       </div>
     </el-card>
 
+    <!-- Restore Dialog -->
     <el-dialog
       title="Xác nhận khôi phục sản phẩm"
       v-model="isRestoreDialogVisible"
@@ -86,12 +102,26 @@
         <el-button type="danger" @click="isRestoreDialogVisible = false" round>Hủy</el-button>
       </template>
     </el-dialog>
+
+    <!-- Delete Dialog -->
+    <el-dialog
+      title="Xác nhận xóa sản phẩm"
+      v-model="isDeleteDialogVisible"
+      width="30%"
+      center
+      class="confirm-dialog"
+    >
+      <p class="text-danger">Hành động này sẽ xóa sản phẩm vĩnh viễn. Bạn có chắc chắn?</p>
+      <template #footer>
+        <el-button type="danger" @click="deleteProduct" round :loading="deleteLoading">Xóa vĩnh viễn</el-button>
+        <el-button @click="isDeleteDialogVisible = false" round>Hủy</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import axios from 'axios'
 import {
   ElMessage,
   ElTable,
@@ -105,6 +135,7 @@ import {
 } from 'element-plus'
 import { Back } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
+import apiClient from '../../utils/axiosInstance.js'
 
 const router = useRouter()
 
@@ -138,9 +169,15 @@ const page = ref(0)
 const size = ref(8)
 const totalElements = ref(0)
 const loading = ref(false)
+
+// Restore dialog state
 const isRestoreDialogVisible = ref(false)
 const currentProductId = ref(null)
-import apiClient from '../../utils/axiosInstance.js'
+
+// Delete dialog state
+const isDeleteDialogVisible = ref(false)
+const currentDeleteProductId = ref(null)
+const deleteLoading = ref(false)
 
 // --- Navigation Function ---
 const goBack = () => {
@@ -178,7 +215,12 @@ const openRestoreDialog = (product) => {
   isRestoreDialogVisible.value = true
 }
 
-// --- Save Product Logic ---
+const openDeleteDialog = (product) => {
+  currentDeleteProductId.value = product.id
+  isDeleteDialogVisible.value = true
+}
+
+// --- Save (Restore) Product Logic ---
 const saveProduct = async () => {
   try {
     await apiClient.put(
@@ -197,6 +239,30 @@ const saveProduct = async () => {
   } catch (error) {
     console.error('Lỗi khi khôi phục sản phẩm:', error)
     ElMessage.error('Không thể khôi phục sản phẩm. Vui lòng thử lại.')
+  }
+}
+
+const deleteProduct = async () => {
+  if (!currentDeleteProductId.value) return
+  deleteLoading.value = true
+  try {
+
+    await apiClient.delete(`/admin/products/delete-forever/${currentDeleteProductId.value}`, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+    ElMessage.success('Sản phẩm đã được xóa vĩnh viễn.')
+    isDeleteDialogVisible.value = false
+    currentDeleteProductId.value = null
+    fetchData()
+  } catch (error) {
+    console.error('Lỗi khi xóa sản phẩm:', error)
+    // Hiển thị message chi tiết nếu có lỗi từ server
+    const errMsg = error?.response?.data?.message || 'Không thể xóa sản phẩm. Vui lòng thử lại.'
+    ElMessage.error(errMsg)
+  } finally {
+    deleteLoading.value = false
   }
 }
 
@@ -267,5 +333,21 @@ onMounted(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
+}
+
+/* Style cho vùng button hành động */
+.actions-cell {
+  display: flex;
+  align-items: center;
+}
+
+/* Khoảng cách giữa nút */
+.actions-cell .mr-2 {
+  margin-right: 8px;
+}
+
+.text-danger {
+  color: #e53e3e;
+  font-weight: 500;
 }
 </style>

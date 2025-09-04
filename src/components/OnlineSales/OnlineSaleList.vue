@@ -144,7 +144,8 @@ const tabs = ref([
   { key: 'DANG_GIAO_HANG', label: 'Đang giao hàng', count: 0 },
   { key: 'GIAO_THANH_CONG', label: 'Giao hàng thành công', count: 0 },
   { key: 'GIAO_THAT_BAI', label: 'Giao hàng thất bại', count: 0 },
-  { key: 'HUY_DON', label: 'Đơn hàng hủy', count: 0 }
+  { key: 'HUY_DON', label: 'Đơn hàng hủy', count: 0 },
+  { key: 'YEU_CAU_HUY', label: 'Yêu cầu hủy đơn', count: 0 }
 ])
 
 const statusLabelToCode = (label) => {
@@ -160,6 +161,7 @@ const statusLabelToCode = (label) => {
     'GIAO_THAT_BAI': 5,
     'MAT_HANG': 6,
     'DA_HOAN_TIEN': 7,
+    'YEU_CAU_HUY': 9,
   }
   return map[label] ?? null
 }

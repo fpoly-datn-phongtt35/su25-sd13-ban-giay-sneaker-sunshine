@@ -390,7 +390,7 @@ const rules = ref({
   ],
   sellPrice: [
     { required: true, message: 'Vui lòng nhập giá bán', trigger: 'blur' },
-    { type: 'number', min: 0, message: 'Giá bán phải là số không âm', trigger: 'blur' }
+    { type: 'number', min: 1, message: 'Giá bán phải là số lớn hơn 0', trigger: 'blur' }
   ],
   description: [{ required: true, message: 'Vui lòng nhập mô tả sản phẩm', trigger: 'blur' }],
   selectedSizes: [

@@ -134,8 +134,8 @@
             <el-col :span="8">
               <el-form-item label="Loại đơn hàng" prop="orderType">
                 <el-select v-model="voucher.orderType" placeholder="Chọn loại">
-                  <el-option label="Tại quầy" :value="1" />
-                  <el-option label="Online" :value="0" />
+                  <el-option label="Tại quầy" :value="0" />
+                  <el-option label="Online" :value="1" />
                 </el-select>
               </el-form-item>
             </el-col>

@@ -73,13 +73,17 @@
       </el-table-column>
 
       <el-table-column label="Thao tác" width="120" align="center" fixed="right">
-        <template #default="scope">
-          <el-button-group>
-            <el-button :icon="View" type="primary" size="small" @click="viewInvoiceDetails(getField(scope.row, 'id'))" title="Xem chi tiết" />
-            <el-button :icon="Printer" type="success" size="small" @click="printInvoice(getField(scope.row, 'id'))" title="In hóa đơn" />
-          </el-button-group>
-        </template>
-      </el-table-column>
+  <template #default="scope">
+    <el-button-group>
+      <el-button :icon="View" type="primary" size="small"
+                 @click="viewInvoiceDetails(getField(scope.row, 'id'))" title="Xem chi tiết" />
+      <!-- Sửa ở đây: truyền scope.row -->
+      <el-button :icon="Printer" type="success" size="small"
+                 @click="printInvoice(scope.row)" title="In hóa đơn" />
+    </el-button-group>
+  </template>
+</el-table-column>
+
 
       <template #empty><p class="text-center text-muted m-4">Không có hóa đơn nào để hiển thị.</p></template>
     </el-table>
@@ -248,19 +252,52 @@ const viewInvoiceDetails = async (invoiceId) => {
   }
 }
 
-const printInvoice = (invoiceId) => {
+const printInvoice = (row) => {
+  const invoiceId = getField(row, 'id')
+  const orderType = getField(row, 'orderType') // 0: tại quầy, 1: online
+  const finalAmount = getField(row, 'finalAmount') || 0
+
   if (!invoiceId) return
+
+  // Chặn in nếu hóa đơn <= 0đ
+  if (finalAmount <= 0) {
+    ElMessage.warning('Hóa đơn có tổng tiền bằng 0đ, không thể in.')
+    return
+  }
+
   ElMessageBox.confirm('Bạn có chắc muốn in hóa đơn?', 'Xác nhận', {
-    confirmButtonText: 'Có, In ngay!', cancelButtonText: 'Hủy', type: 'warning'
-  }).then(() => {
-    apiClient.get(`/admin/invoices/${invoiceId}/export-id`, { responseType: 'blob' })
-      .then((response) => {
-        const file = new Blob([response.data], { type: 'application/pdf' })
-        const fileURL = URL.createObjectURL(file); window.open(fileURL)
-      })
-      .catch((error) => { console.error('Lỗi khi in hóa đơn:', error); ElMessage.error('Không thể in hóa đơn. Vui lòng thử lại.') })
-  }).catch(() => {})
+    confirmButtonText: 'Có, In ngay!',
+    cancelButtonText: 'Hủy',
+    type: 'warning'
+  })
+    .then(() => {
+      const path =
+        orderType === 1
+          ? `/admin/invoices/${invoiceId}/export-online`
+          : `/admin/invoices/${invoiceId}/export-id`
+
+      return apiClient.get(path, { responseType: 'blob' })
+    })
+    .then((response) => {
+      if (!response) return
+      const file = new Blob([response.data], { type: 'application/pdf' })
+      const url = URL.createObjectURL(file)
+      window.open(url)
+
+      // Nếu muốn auto download:
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `HoaDon-${invoiceId}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    })
+    .catch((err) => {
+      if (err === 'cancel') return
+      console.error('Lỗi khi in hóa đơn:', err?.response?.data || err)
+      ElMessage.error('Không thể in hóa đơn. Vui lòng thử lại.')
+    })
 }
+
 
 const handleExportCommand = (command) => {
   const url = '/admin/invoices/export-excel'

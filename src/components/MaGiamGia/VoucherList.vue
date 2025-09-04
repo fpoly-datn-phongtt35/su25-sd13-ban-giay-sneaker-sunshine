@@ -38,8 +38,8 @@
 
         <el-form-item>
           <el-select v-model="searchVoucher.orderType" placeholder="Loại đơn hàng" clearable class="w-48" @change="fetchVoucher(0)">
-            <el-option label="Tại quầy" :value="1" />
-            <el-option label="Online" :value="2" />
+            <el-option label="Tại quầy" :value="0" />
+            <el-option label="Online" :value="1" />
           </el-select>
         </el-form-item>
 
@@ -91,7 +91,7 @@
         <el-table-column
           prop="voucherCode"
           label="Mã"
-          :min-width="140"
+          :min-width="40"
           show-overflow-tooltip
         >
           <template #default="{ row }">
@@ -103,7 +103,7 @@
         <el-table-column
           prop="voucherName"
           label="Tên"
-          :min-width="220"
+          :min-width="30"
           show-overflow-tooltip
         >
           <template #default="{ row }">
@@ -114,7 +114,7 @@
         <!-- Giảm % -->
         <el-table-column
           label="Giảm (%)"
-          :min-width="100"
+          :min-width="30"
           align="center"
         >
           <template #default="{ row }">
@@ -128,7 +128,7 @@
         <!-- Tiền giảm -->
         <el-table-column
           label="Tiền giảm"
-          :min-width="120"
+          :min-width="20"
           align="right"
         >
           <template #default="{ row }">
@@ -139,7 +139,7 @@
         <!-- Tối thiểu / Tối đa -->
         <el-table-column
           label="Tối thiểu / Tối đa"
-          :min-width="170"
+          :min-width="40"
           align="right"
           class-name="col-minmax"
         >
@@ -152,7 +152,7 @@
         </el-table-column>
 
         <!-- Bắt đầu -->
-        <el-table-column
+        <!-- <el-table-column
           label="Bắt đầu"
           :min-width="160"
           class-name="col-datetime"
@@ -160,10 +160,10 @@
           <template #default="{ row }">
             <span class="mono">{{ formatDate(row.startDate) }}</span>
           </template>
-        </el-table-column>
+        </el-table-column> -->
 
         <!-- Kết thúc -->
-        <el-table-column
+        <!-- <el-table-column
           label="Kết thúc"
           :min-width="160"
           class-name="col-datetime"
@@ -171,17 +171,17 @@
           <template #default="{ row }">
             <span class="mono">{{ formatDate(row.endDate) }}</span>
           </template>
-        </el-table-column>
+        </el-table-column> -->
 
         <!-- Loại đơn -->
         <el-table-column
           label="Loại đơn"
-          :min-width="120"
+          :min-width="20"
           align="center"
         >
           <template #default="{ row }">
-            <el-tag :type="row.orderType === 1 ? 'success' : row.orderType === 2 ? 'info' : 'default'" effect="light">
-              {{ row.orderType === 1 ? 'Tại quầy' : row.orderType === 2 ? 'Online' : '-' }}
+            <el-tag :type="row.orderType === 0 ? 'success' : row.orderType === 1 ? 'info' : 'default'" effect="light">
+              {{ row.orderType === 0 ? 'Tại quầy' : row.orderType === 1 ? 'Online' : '-' }}
             </el-tag>
           </template>
         </el-table-column>
@@ -189,7 +189,7 @@
         <!-- Trạng thái -->
         <el-table-column
           label="Trạng thái"
-          :min-width="130"
+          :min-width="35"
           align="center"
         >
           <template #default="{ row }">
@@ -202,7 +202,7 @@
         <!-- Thao tác (rộng hơn) -->
         <el-table-column
           label="Thao tác"
-          :min-width="200"
+          :min-width="28"
           align="center"
           fixed="right"
           class-name="col-actions"

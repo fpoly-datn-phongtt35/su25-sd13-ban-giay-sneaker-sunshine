@@ -27,7 +27,7 @@
         <el-form-item>
           <el-input
             v-model.trim="key"
-            placeholder="Tìm theo mã / họ tên / email…"
+            placeholder="Tìm theo mã,họ tên,email"
             class="w-80 md:w-96"
             clearable
             :prefix-icon="Search"
@@ -293,12 +293,12 @@ const handleSizeChange = (size) => {
 }
 
 // ===== Utils =====
-const genderText = (g) => (g === 1 ? 'Nam' : g === 0 ? 'Nữ' : 'Khác')
-const genderType = (g) => (g === 1 ? 'success' : g === 0 ? 'danger' : 'info')
-const roleType = (r) => (r === 1 ? 'primary' : r === 0 ? 'warning' : 'info')
+const genderText = (g) => (g === 1 ? 'Nam' : g === 2 ? 'Nữ' : 'Khác')
+const genderType = (g) => (g === 1 ? 'success' : g === 2 ? 'danger' : 'info')
+const roleType = (r) => (r === 1 ? 'primary' : r === 2 ? 'warning' : 'info')
 const mapRole = (role) => {
   switch (role) {
-    case 0: return 'Nhân viên'
+    case 2: return 'Nhân viên'
     case 1: return 'Quản trị'
     default: return 'Khác'
   }

@@ -415,16 +415,29 @@ const validateBeforeSubmit = () => {
     ElMessage.warning('Giá trị % giảm không hợp lệ.')
     return false
   }
-  if (new Date(form.startDate) >= new Date(form.endDate)) {
+
+  const now = new Date()
+  const start = new Date(form.startDate)
+  const end = new Date(form.endDate)
+
+  // ❌ Không cho phép ngày bắt đầu nhỏ hơn ngày hiện tại
+  if (start < now) {
+    ElMessage.error('Ngày bắt đầu phải từ hôm nay trở đi.')
+    return false
+  }
+
+  if (start >= end) {
     ElMessage.error('Ngày bắt đầu phải trước ngày kết thúc.')
     return false
   }
+
   if (selectedProductIds.value.size === 0 && selectedDetailIds.value.size === 0) {
     ElMessage.warning('Hãy chọn ít nhất 1 Sản phẩm hoặc 1 SPCT.')
     return false
   }
   return true
 }
+
 
 const buildProductPayload = () =>
   Array.from(selectedProductIds.value).map((id) => ({ productId: id }))

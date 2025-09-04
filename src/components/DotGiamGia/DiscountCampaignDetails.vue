@@ -1,142 +1,148 @@
 <template>
   <el-container class="campaign-details-container">
-    <!-- Header / breadcrumb -->
     <el-header class="cd-header">
-      <div class="cd-header-left">
-        <el-button link @click="goBack">← Quay lại</el-button>
-        <h1 class="cd-title">Chi tiết đợt giảm giá</h1>
-      </div>
-      <div class="cd-header-right">
-        <el-tag v-if="campaign" :type="statusTagType(campaign.status)">
-          {{ statusText(campaign.status) }}
-        </el-tag>
-        <el-button type="primary" @click="refresh">Làm mới</el-button>
-      </div>
+      <el-page-header @back="goBack">
+        <template #title>Quay lại</template>
+        <template #content>
+          <span class="cd-title">Chi tiết Đợt giảm giá</span>
+        </template>
+        <template #extra>
+          <div class="cd-header-actions">
+            <el-tag v-if="campaign" :type="statusTagType(campaign.status)" effect="light" round>
+              {{ statusText(campaign.status) }}
+            </el-tag>
+            <el-button :icon="Refresh" @click="refresh" circle title="Làm mới" />
+          </div>
+        </template>
+      </el-page-header>
     </el-header>
 
-    <el-main>
-      <!-- Loading -->
-      <el-skeleton v-if="loading" animated :rows="6" />
+    <el-main class="cd-main">
+      <el-skeleton v-if="loading" :rows="10" animated />
 
-      <!-- Error -->
-      <el-alert v-else-if="error" :title="error" type="error" show-icon class="mb-4" />
+      <el-alert v-else-if="error" :title="error" type="error" show-icon :closable="false" class="mb-4" />
 
-      <!-- Content -->
       <div v-else-if="campaign">
-        <!-- Thông tin tổng quan -->
-        <el-card class="mb-4" shadow="never">
-          <template #header>
-            <div class="card-header">
-              <span>Thông tin đợt giảm giá</span>
-              <el-tag type="info">ID: {{ campaign.id }}</el-tag>
-            </div>
-          </template>
+        <el-row :gutter="20">
+          <el-col :lg="15" :md="24">
+            <el-card class="mb-4" shadow="never">
+              <template #header>
+                <div class="card-header">
+                  <span>Thông tin chung</span>
+                  <el-tag type="info" effect="plain">ID: {{ campaign.id }}</el-tag>
+                </div>
+              </template>
+              <el-descriptions :column="2" border>
+                <el-descriptions-item label="Tên đợt giảm giá" label-class-name="desc-label" :span="2">
+                  {{ campaign.name || '—' }}
+                </el-descriptions-item>
+                <el-descriptions-item label="Mã" label-class-name="desc-label">
+                  {{ campaign.campaignCode || '—' }}
+                </el-descriptions-item>
+                <el-descriptions-item label="Mức giảm" label-class-name="desc-label">
+                  <el-tag type="success">{{ campaign.discountPercentage ?? 0 }}%</el-tag>
+                </el-descriptions-item>
+                <el-descriptions-item label="Thời gian diễn ra" label-class-name="desc-label" :span="2">
+                  <el-icon><Calendar /></el-icon>
+                  <span class="ml-2">{{ formatDateTime(campaign.startDate) }} → {{ formatDateTime(campaign.endDate) }}</span>
+                </el-descriptions-item>
+                <el-descriptions-item label="Mô tả" label-class-name="desc-label" :span="2">
+                  {{ campaign.description || '—' }}
+                </el-descriptions-item>
+              </el-descriptions>
+            </el-card>
+          </el-col>
 
-          <el-descriptions :column="3" border>
-            <el-descriptions-item label="Tên">{{ campaign.name || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="Mã">{{ campaign.campaignCode || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="Giảm giá">
-              <el-tag type="success">{{ (campaign.discountPercentage ?? 0) }}%</el-tag>
-            </el-descriptions-item>
-
-            <el-descriptions-item label="Thời gian" :span="2">
-              {{ formatDateTime(campaign.startDate) }} → {{ formatDateTime(campaign.endDate) }}
-            </el-descriptions-item>
-            <el-descriptions-item label="Trạng thái">
-              <el-tag :type="statusTagType(campaign.status)">{{ statusText(campaign.status) }}</el-tag>
-            </el-descriptions-item>
-
-            <el-descriptions-item label="Mô tả" :span="3">
-              {{ campaign.description || '—' }}
-            </el-descriptions-item>
-          </el-descriptions>
-        </el-card>
-
-        <!-- Thống kê -->
-        <el-card v-if="stats" class="mb-4" shadow="never">
-          <template #header><div class="card-header">Thống kê</div></template>
-          <div class="stats-grid">
-            <div class="stat-item">
-              <div class="stat-label">Số hóa đơn</div>
-              <div class="stat-value">{{ stats.totalInvoices ?? '-' }}</div>
-            </div>
-            <div class="stat-item">
-              <div class="stat-label">Doanh thu sau giảm</div>
-              <div class="stat-value">
-                {{ stats.totalAfterDiscount != null ? formatCurrency(stats.totalAfterDiscount) : '-' }}
+          <el-col :lg="9" :md="24">
+            <el-card class="mb-4" shadow="never">
+              <template #header><div class="card-header">Thống kê</div></template>
+              <div v-if="stats" class="stats-grid">
+                <div class="stat-card">
+                  <div class="stat-card-icon bg-blue"><el-icon><Ticket /></el-icon></div>
+                  <div class="stat-card-info">
+                    <div class="stat-label">Số hóa đơn</div>
+                    <div class="stat-value">{{ stats.totalInvoices ?? 0 }}</div>
+                  </div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-card-icon bg-green"><el-icon><Money /></el-icon></div>
+                  <div class="stat-card-info">
+                    <div class="stat-label">Doanh thu sau giảm</div>
+                    <div class="stat-value">{{ formatCurrency(stats.totalAfterDiscount) }}</div>
+                  </div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-card-icon bg-purple"><el-icon><ShoppingBag /></el-icon></div>
+                  <div class="stat-card-info">
+                    <div class="stat-label">Sản phẩm bán ra</div>
+                    <div class="stat-value">{{ stats.totalProductsSold ?? 0 }}</div>
+                  </div>
+                </div>
+                <div class="stat-card">
+                   <div class="stat-card-icon bg-orange"><el-icon><Discount /></el-icon></div>
+                  <div class="stat-card-info">
+                    <div class="stat-label">Tỉ lệ giảm TB</div>
+                    <div class="stat-value">{{ stats.averageDiscountRate != null ? stats.averageDiscountRate + '%' : 'N/A' }}</div>
+                  </div>
+                </div>
               </div>
-            </div>
-            <div class="stat-item">
-              <div class="stat-label">Sản phẩm bán ra</div>
-              <div class="stat-value">{{ stats.totalProductsSold ?? '-' }}</div>
-            </div>
-            <div class="stat-item">
-              <div class="stat-label">Tỉ lệ giảm TB</div>
-              <div class="stat-value">
-                {{ stats.averageDiscountRate != null ? stats.averageDiscountRate + '%' : '-' }}
-              </div>
-            </div>
-          </div>
-        </el-card>
+              <el-empty v-else description="Chưa có dữ liệu thống kê" :image-size="80" />
+            </el-card>
+          </el-col>
+        </el-row>
 
-        <!-- Danh sách SP & SPCT -->
         <el-card shadow="never">
-          <template #header>
-            <div class="card-header">
-              <span>Dữ liệu đợt giảm giá</span>
-            </div>
-          </template>
-
+          <template #header><div class="card-header">Dữ liệu áp dụng</div></template>
           <el-tabs v-model="activeTab" class="cd-tabs">
-            <!-- TAB SẢN PHẨM -->
-            <el-tab-pane name="products" label="Sản phẩm">
+            <el-tab-pane name="products" label="Sản phẩm áp dụng">
               <div class="toolbar">
-         
+                <el-input
+                  v-model="kwProduct"
+                  placeholder="Tìm theo tên sản phẩm..."
+                  :prefix-icon="Search"
+                  clearable
+                  @input="applyProductFilter"
+                />
               </div>
 
-              <el-table
-                :data="pagedProducts"
-                border
-                stripe
-                highlight-current-row
-                :fit="true"
-                empty-text="Chưa có sản phẩm nào trong đợt này"
-              >
-                <el-table-column type="index" label="STT" width="70" align="center" />
+              <el-table :data="pagedProducts" border stripe v-loading="loading">
+                <template #empty><el-empty description="Không có sản phẩm nào" /></template>
+                <el-table-column type="index" label="#" width="60" align="center" />
                 <el-table-column prop="productId" label="Mã SP" width="120" />
-                <el-table-column prop="productName" label="Tên sản phẩm" min-width="240" show-overflow-tooltip />
+                <el-table-column prop="productName" label="Tên sản phẩm" min-width="250" show-overflow-tooltip />
+                <el-table-column label="Hành động" width="120" align="center">
+                  <template #default="{ row }">
+                    <el-button type="primary" link @click="goToProduct(row.productId)">Xem chi tiết</el-button>
+                  </template>
+                </el-table-column>
               </el-table>
 
               <div class="table-pagination">
                 <el-pagination
-                  background
-                  layout="total, prev, pager, next, sizes"
+                  background layout="total, sizes, prev, pager, next"
                   :total="filteredProducts.length"
-                  :current-page="prodPage"
-                  :page-size="prodPageSize"
-                  :page-sizes="[5, 10, 20, 50]"
-                  @current-change="(p)=>{ prodPage = p; }"
-                  @size-change="(s)=>{ prodPageSize = s; prodPage = 1; }"
+                  v-model:current-page="prodPage"
+                  v-model:page-size="prodPageSize"
+                  :page-sizes="[10, 20, 50, 100]"
                 />
               </div>
             </el-tab-pane>
 
-            <!-- TAB SẢN PHẨM CHI TIẾT -->
-            <el-tab-pane name="productDetails" label="Sản phẩm chi tiết">
-              <div class="toolbar">
-
+            <el-tab-pane name="productDetails" label="Sản phẩm chi tiết áp dụng">
+               <div class="toolbar">
+                <el-input
+                  v-model="kwDetail"
+                  placeholder="Tìm theo tên SP hoặc SKU..."
+                  :prefix-icon="Search"
+                  clearable
+                  @input="applyDetailFilter"
+                />
               </div>
 
-              <el-table
-                :data="pagedDetails"
-                border
-                stripe
-                highlight-current-row
-                :fit="true"
-                empty-text="Chưa có SPCT nào trong đợt này"
-              >
-                <el-table-column type="index" label="STT" width="70" align="center" />
-                <el-table-column prop="id" label="ID SPCT" width="120" />
+              <el-table :data="pagedDetails" border stripe v-loading="loading">
+                <template #empty><el-empty description="Không có sản phẩm chi tiết nào" /></template>
+                <el-table-column type="index" label="#" width="60" align="center" />
+                <el-table-column prop="id" label="ID SPCT" width="110" />
                 <el-table-column prop="productName" label="Tên sản phẩm" min-width="220" show-overflow-tooltip />
                 <el-table-column prop="sku" label="SKU / Mã biến thể" min-width="160" show-overflow-tooltip />
                 <el-table-column prop="colorName" label="Màu" width="110" />
@@ -146,26 +152,25 @@
                     {{ formatCurrency(row.sellPrice ?? row.price ?? 0) }}
                   </template>
                 </el-table-column>
-                <el-table-column label="Giảm (%)" width="110" align="center">
+                <el-table-column label="Giảm (%)" width="100" align="center">
                   <template #default="{ row }">
-                    {{ row.discountPercentage ?? campaign.discountPercentage ?? 0 }}%
+                    <el-tag type="warning" effect="light">
+                      {{ row.discountPercentage ?? campaign.discountPercentage ?? 0 }}%
+                    </el-tag>
                   </template>
                 </el-table-column>
-                <el-table-column label="Tồn kho" width="110" align="center">
-                  <template #default="{ row }">{{ row.quantity ?? '-' }}</template>
+                <el-table-column prop="quantity" label="Tồn kho" width="100" align="center">
+                   <template #default="{ row }">{{ row.quantity ?? 'N/A' }}</template>
                 </el-table-column>
               </el-table>
 
               <div class="table-pagination">
                 <el-pagination
-                  background
-                  layout="total, prev, pager, next, sizes"
+                  background layout="total, sizes, prev, pager, next"
                   :total="filteredDetails.length"
-                  :current-page="detailPage"
-                  :page-size="detailPageSize"
-                  :page-sizes="[5, 10, 20, 50]"
-                  @current-change="(p)=>{ detailPage = p; }"
-                  @size-change="(s)=>{ detailPageSize = s; detailPage = 1; }"
+                  v-model:current-page="detailPage"
+                  v-model:page-size="detailPageSize"
+                  :page-sizes="[10, 20, 50, 100]"
                 />
               </div>
             </el-tab-pane>
@@ -179,8 +184,8 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import axios from 'axios'
 import { ElMessage } from 'element-plus'
+import { Refresh, Search, Calendar, Ticket, Money, ShoppingBag, Discount } from '@element-plus/icons-vue'
 import apiClient from '@/utils/axiosInstance'
 
 const router = useRouter()
@@ -192,72 +197,53 @@ const loading = ref(true)
 const error = ref('')
 const activeTab = ref('products')
 
-/* =========================
-   SP – tìm kiếm & phân trang
-   ========================= */
+// SP – tìm kiếm & phân trang
 const kwProduct = ref('')
-let prodPage = ref(1)
-let prodPageSize = ref(10)
+const prodPage = ref(1)
+const prodPageSize = ref(10)
 
-/* =========================
-   SPCT – tìm kiếm & phân trang
-   ========================= */
+// SPCT – tìm kiếm & phân trang
 const kwDetail = ref('')
-let detailPage = ref(1)
-let detailPageSize = ref(10)
+const detailPage = ref(1)
+const detailPageSize = ref(10)
 
-/* ===== Helpers ===== */
+// Helpers
 const formatDateTime = (dateStr) => {
-  if (!dateStr) return ''
-  const safe = typeof dateStr === 'string' ? dateStr.replace(' ', 'T') : dateStr
-  const date = new Date(safe)
-  if (isNaN(date.getTime())) return String(dateStr)
-  return date.toLocaleString('vi-VN', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-    hour: '2-digit', minute: '2-digit'
+  if (!dateStr) return 'N/A'
+  const date = new Date(dateStr)
+  return isNaN(date.getTime()) ? dateStr : date.toLocaleString('vi-VN', {
+    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
   })
 }
 const formatCurrency = (val) => {
-  try { return Number(val ?? 0).toLocaleString('vi-VN') + ' đ' } catch { return '-' }
+  if (val == null) return '—'
+  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val)
 }
-const statusText = (s) => (s===0?'Sắp diễn ra':s===1?'Đang hoạt động':s===2?'Đã kết thúc':'Không xác định')
-const statusTagType = (s) => (s===0?'warning':s===1?'success':s===2?'info':'')
+const statusText = (s) => ({0: 'Sắp diễn ra', 1: 'Đang hoạt động', 2: 'Đã kết thúc'}[s] || 'Không xác định')
+const statusTagType = (s) => ({0: 'warning', 1: 'success', 2: 'info'}[s] || '')
 
-/* ===== Điều hướng / hành động ===== */
+// Điều hướng & hành động
 const goBack = () => router.back()
-const goToProduct = (productId) => { if (productId) router.push({ path: `/products/${productId}` }) }
-const goToDetail = (row) => {
-  // Nếu bạn có route riêng cho SPCT, điều hướng tại đây. Ví dụ:
-  // router.push({ path: `/product-details/${row.id}` })
-  ElMessage.info('Mở chi tiết SPCT (hãy gắn route thực tế của bạn).')
+const goToProduct = (productId) => {
+  if (productId) router.push({ path: `/admin/products/${productId}` })
 }
-const refresh = () => { loadCampaign(); loadStats() }
-const printItem = (type, row) => {
-  // Placeholder: thay bằng in report / modal tùy nhu cầu
-  window.print()
+const refresh = () => {
+  loadCampaign()
+  loadStats()
 }
 
-/* ===== Nguồn dữ liệu: ưu tiên từ campaign =====
-   BE của bạn có thể trả về:
-   campaign.products = [{ productId, productName, ... }]
-   campaign.productDetails = [{ id, sku, productName, colorName, sizeName, price/sellPrice, discountPercentage, quantity, ... }]
-*/
-const products = computed(() => {
-  if (!campaign.value) return []
-  const list = campaign.value.products || []
-  return Array.isArray(list) ? list : []
-})
-const productDetails = computed(() => {
-  if (!campaign.value) return []
-  const list = campaign.value.productDetails || campaign.value.details || []
-  return Array.isArray(list) ? list : []
-})
+// Nguồn dữ liệu
+const products = computed(() => campaign.value?.products || [])
+const productDetails = computed(() => campaign.value?.productDetails || campaign.value?.details || [])
 
-/* ===== Filter SP ===== */
+// Logic lọc và phân trang cho Sản phẩm
 const filteredProducts = computed(() => {
   const kw = kwProduct.value.trim().toLowerCase()
   if (!kw) return products.value
-  return products.value.filter(p => (p.productName || '').toLowerCase().includes(kw))
+  return products.value.filter(p =>
+    (p.productName || '').toLowerCase().includes(kw) ||
+    (p.productId || '').toString().toLowerCase().includes(kw)
+  )
 })
 const pagedProducts = computed(() => {
   const start = (prodPage.value - 1) * prodPageSize.value
@@ -265,13 +251,13 @@ const pagedProducts = computed(() => {
 })
 const applyProductFilter = () => { prodPage.value = 1 }
 
-/* ===== Filter SPCT ===== */
+// Logic lọc và phân trang cho SPCT
 const filteredDetails = computed(() => {
   const kw = kwDetail.value.trim().toLowerCase()
   if (!kw) return productDetails.value
   return productDetails.value.filter(d =>
-    ((d.productName || '').toLowerCase().includes(kw)) ||
-    ((d.sku || '').toLowerCase().includes(kw))
+    (d.productName || '').toLowerCase().includes(kw) ||
+    (d.sku || '').toLowerCase().includes(kw)
   )
 })
 const pagedDetails = computed(() => {
@@ -280,92 +266,175 @@ const pagedDetails = computed(() => {
 })
 const applyDetailFilter = () => { detailPage.value = 1 }
 
-/* ===== API ===== */
-const loadCampaign = async () => {
+
+// API calls
+const fetchData = async () => {
   loading.value = true
   error.value = ''
   try {
     const id = route.params.id
-    const res = await apiClient.get(`/admin/campaigns/${id}`)
-    campaign.value = res.data
-    // reset phân trang khi đổi dữ liệu
+    // Sử dụng Promise.allSettled để cả hai request chạy song song
+    const [campaignRes, statsRes] = await Promise.allSettled([
+      apiClient.get(`/admin/campaigns/${id}`),
+      apiClient.get(`/admin/campaigns/${id}/statistics`)
+    ])
+
+    if (campaignRes.status === 'fulfilled') {
+      campaign.value = campaignRes.value.data
+    } else {
+      console.error("Lỗi tải chiến dịch:", campaignRes.reason)
+      throw new Error('Không thể tải chi tiết đợt giảm giá.')
+    }
+
+    if (statsRes.status === 'fulfilled') {
+      stats.value = statsRes.value.data
+    } else {
+      console.warn("Lỗi tải thống kê:", statsRes.reason)
+      stats.value = null // Vẫn hiển thị trang dù thống kê lỗi
+    }
+
+    // reset phân trang
     prodPage.value = 1
     detailPage.value = 1
   } catch (e) {
-    console.error(e)
-    error.value = 'Không thể tải chi tiết đợt giảm giá.'
+    error.value = e.message
+    campaign.value = null // Xóa dữ liệu cũ nếu có lỗi
   } finally {
     loading.value = false
   }
 }
-const loadStats = async () => {
-  try {
-    const id = route.params.id
-    const res = await apiClient.get(`/admin/campaigns/${id}/statistics`)
-    stats.value = res.data
-  } catch {
-    stats.value = null
-  }
-}
 
-/* ===== Lifecycle ===== */
-onMounted(() => { loadCampaign(); loadStats() })
-watch(() => route.params.id, () => { refresh() })
+const loadCampaign = () => fetchData(); // Giữ hàm cũ để nút refresh hoạt động
+const loadStats = () => { /* Logic đã được gộp vào fetchData */ };
+
+onMounted(fetchData)
+watch(() => route.params.id, (newId) => {
+  if (newId) fetchData()
+})
 </script>
 
 <style scoped>
+.campaign-details-container {
+  background-color: #f7f8fa;
+}
+
 /* Header */
 .cd-header {
+  background-color: #fff;
+  padding: 0 20px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+}
+.cd-title {
+  font-size: 1.25rem; /* ~20px */
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+.cd-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+:deep(.el-page-header__content) {
+  width: 100%;
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  padding: 14px 0 10px;
-  border-bottom: 1px solid var(--el-border-color-lighter);
-  margin-bottom: 8px;
 }
-.cd-header-left { display: flex; align-items: center; gap: 10px; }
-.cd-title { margin: 0; font-size: 22px; font-weight: 700; }
+
+/* Main content */
+.cd-main {
+  padding: 20px;
+}
 
 /* Card header */
 .card-header {
-  display: flex; justify-content: space-between; align-items: center;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   font-weight: 600;
+  font-size: 16px;
 }
 
-/* Stats */
+/* Descriptions component styling */
+.desc-label {
+  font-weight: 500 !important;
+  min-width: 120px;
+}
+.el-descriptions__label {
+  font-weight: 500;
+}
+
+/* Thống kê */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(160px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
 }
-.stat-item {
-  padding: 12px;
+.stat-card {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  border-radius: 8px;
+  background-color: var(--el-bg-color-page);
   border: 1px solid var(--el-border-color-lighter);
-  border-radius: 10px;
-  background: var(--el-fill-color-blank);
 }
-.stat-label { font-size: 12px; color: var(--el-text-color-secondary); margin-bottom: 6px; }
-.stat-value { font-size: 18px; font-weight: 700; }
-@media (max-width: 1200px) { .stats-grid { grid-template-columns: repeat(2, minmax(160px, 1fr)); } }
-
-/* Tabs & toolbars */
-.cd-tabs { --el-tabs-header-height: 42px; }
-.toolbar { display: flex; justify-content: flex-end; padding-bottom: 10px; }
-
-/* Action buttons (giống style ảnh) */
-.action-group { display: inline-flex; border-radius: 8px; overflow: hidden; }
-.action-btn {
-  border: none !important; width: 40px; height: 34px;
-  display: inline-flex; align-items: center; justify-content: center; padding: 0;
+.stat-card-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 16px;
+  flex-shrink: 0;
 }
-.action-btn :deep(.el-icon) { color: #fff; font-size: 16px; }
-.action-btn.view { background: #3b82f6; }        /* blue-500 */
-.action-btn.view:hover { background: #2563eb; }  /* blue-600 */
-.action-btn.print { background: #22c55e; }       /* green-500 */
-.action-btn.print:hover { background: #16a34a; } /* green-600 */
+.stat-card-icon .el-icon {
+  font-size: 24px;
+  color: #fff;
+}
+.stat-card-info {
+  line-height: 1.4;
+}
+.stat-label {
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
+}
+.stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--el-text-color-primary);
+}
+/* Stat Icon Colors */
+.bg-blue { background-color: #409eff; }
+.bg-green { background-color: #67c23a; }
+.bg-purple { background-color: #9b59b6; }
+.bg-orange { background-color: #e6a23c; }
 
-.table-pagination { display: flex; justify-content: flex-end; padding-top: 12px; }
 
-/* Spacing helpers */
-.mb-4 { margin-bottom: 16px; }
+/* Tabs & Toolbar */
+.toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+.toolbar .el-input {
+  max-width: 300px;
+}
+
+/* Pagination */
+.table-pagination {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 16px;
+}
+
+/* Helpers */
+.mb-4 {
+  margin-bottom: 20px;
+}
+.ml-2 {
+  margin-left: 0.5rem;
+}
 </style>

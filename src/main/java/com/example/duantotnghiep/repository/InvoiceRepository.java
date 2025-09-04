@@ -5,9 +5,11 @@ import com.example.duantotnghiep.model.Customer;
 import com.example.duantotnghiep.model.Invoice;
 import com.example.duantotnghiep.state.TrangThaiChiTiet;
 import com.example.duantotnghiep.state.TrangThaiTong;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -299,10 +301,10 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
                                  @Param("toDate") Date toDate);
 
     @Query("select i.statusDetail from Invoice i where i.invoiceCode = :code ")
-    Integer findStatusDetailByCode(String code);
+    TrangThaiChiTiet findStatusDetailByCode(String code);
 
     @Query("""
-                SELECT COALESCE(SUM(i.finalAmount), 0)
+                SELECT COALESCE(SUM(i.finalAmount), 0)  
                 FROM Invoice i
                 WHERE i.status IN :successSet
                   AND i.createdDate >= :start AND i.createdDate < :end
@@ -365,6 +367,10 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
     """)
     List<Invoice> findAllByVoucherIdAndStatusAndUnpaid(@Param("voucherId") Long voucherId,
                                                        @Param("status") TrangThaiTong status);
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select i from Invoice i left join fetch i.invoiceDetails d left join fetch d.productDetail pd left join fetch pd.product where i.appTransId = :appTransId")
+    Optional<Invoice> findByAppTransIdForUpdate(@Param("appTransId") String appTransId);
+
 }
 
 

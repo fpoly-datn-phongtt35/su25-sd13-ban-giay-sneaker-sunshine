@@ -38,9 +38,9 @@ public class ZaloPayController {
 
     @GetMapping("/invoice/status")
     public ResponseEntity<?> getInvoiceStatus(@RequestParam String appTransId) {
-        Optional<Invoice> invoice = invoiceRepository.findByAppTransId(appTransId);
-        if (invoice.isPresent()) {
-            return ResponseEntity.ok(Map.of("status", invoice.get().getStatus()));
+        Invoice invoice = invoiceService.getInvoice(appTransId);
+        if (invoice != null) {
+            return ResponseEntity.ok(Map.of("status", invoice.getStatus()));
         } else {
             return ResponseEntity.status(404).body(Map.of("message", "Không tìm thấy đơn hàng"));
         }

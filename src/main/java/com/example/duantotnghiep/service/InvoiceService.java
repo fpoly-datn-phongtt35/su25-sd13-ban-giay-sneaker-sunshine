@@ -7,6 +7,7 @@ import com.example.duantotnghiep.dto.response.*;
 import com.example.duantotnghiep.model.Customer;
 import com.example.duantotnghiep.model.Invoice;
 import com.example.duantotnghiep.model.PromotionSuggestion;
+import com.example.duantotnghiep.state.TrangThaiChiTiet;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +17,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 
 public interface InvoiceService {
 
@@ -63,6 +65,8 @@ public interface InvoiceService {
     @Transactional
     InvoiceWithZaloPayResponse createInvoiceAndZaloPay(InvoiceRequest request) throws Exception;
 
+    Invoice getInvoice(String appTransId);
+
     InvoiceDisplayResponse createInvoiceShipCode(InvoiceRequest request);
 
     void updateInvoiceStatusByAppTransId(String appTransId, Integer status, Integer statusDetail,Boolean isPaid);
@@ -80,6 +84,6 @@ public interface InvoiceService {
 
     void checkAndGiftVoucher(Long customerId);
 
-    Integer findStatusByCode(String code);
+    TrangThaiChiTiet findStatusByCode(String code);
 
 }

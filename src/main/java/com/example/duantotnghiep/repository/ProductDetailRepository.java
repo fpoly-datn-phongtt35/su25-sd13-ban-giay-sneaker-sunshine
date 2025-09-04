@@ -1,9 +1,11 @@
 package com.example.duantotnghiep.repository;
 
 import com.example.duantotnghiep.model.ProductDetail;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -62,5 +64,10 @@ public interface ProductDetailRepository extends JpaRepository<ProductDetail,Lon
 
     @Query("SELECT pd FROM ProductDetail pd WHERE pd.id in :ids")
     List<ProductDetail> findByProductIds(@Param("ids") List<Long> ids);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select pd from ProductDetail pd join fetch pd.product where pd.id = :id")
+    Optional<ProductDetail> findByIdForUpdate(@Param("id") Long id);
+
 
 }

@@ -61,8 +61,10 @@ import org.springframework.data.domain.Sort;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.security.SecureRandom;
@@ -1953,7 +1955,7 @@ public class InvoiceServiceImpl implements InvoiceService {
     @Transactional
     @Override
     public InvoiceWithZaloPayResponse createInvoiceAndZaloPay(InvoiceRequest request) throws Exception {
-        // ===== 0) Validate đầu vào cơ bản =====
+        // ===== 0) Validate =====
         if (request == null || request.getCustomerInfo() == null || request.getItems() == null || request.getItems().isEmpty()) {
             throw new RuntimeException("Thiếu dữ liệu đơn hàng hoặc danh sách sản phẩm.");
         }
@@ -1983,12 +1985,13 @@ public class InvoiceServiceImpl implements InvoiceService {
             throw new RuntimeException("Thiếu thông tin khách hàng (cần có customerId hoặc phone).");
         }
 
-        // Blacklist
+        // Blacklist check
         if (Boolean.TRUE.equals(customer.getIsBlacklisted())) {
             LocalDateTime expiry = customer.getBlacklistExpiryDate();
             if (expiry == null || expiry.isAfter(LocalDateTime.now())) {
                 throw new RuntimeException("Khách hàng đang bị cấm mua hàng. Lý do: " + customer.getBlacklistReason());
             }
+            // Nếu blacklist đã hết hạn, bỏ flag
             customer.setIsBlacklisted(false);
             customer.setBlacklistReason(null);
             customer.setBlacklistExpiryDate(null);
@@ -2000,17 +2003,17 @@ public class InvoiceServiceImpl implements InvoiceService {
         String addressNew = (addr == null) ? null
                 : (addr.getHouseName() + " - " + addr.getWardName() + " - " + addr.getDistrictName() + " - " + addr.getProvinceName() + " - Việt Nam");
 
-        // ===== 3) HÓA ĐƠN =====
+        // ===== 3) HÓA ĐƠN (chưa lưu) =====
         Invoice invoice = new Invoice();
         invoice.setInvoiceCode("INV" + System.currentTimeMillis());
         invoice.setCustomer(customer);
         invoice.setCreatedDate(new Date());
         invoice.setUpdatedDate(new Date());
         invoice.setDescription(request.getDescription());
-        invoice.setOrderType(request.getOrderType());               // ví dụ: ONLINE
+        invoice.setOrderType(request.getOrderType()); // Ví dụ: ONLINE
         invoice.setIsPaid(false);
         invoice.setStatus(TrangThaiTong.DANG_XU_LY);
-        invoice.setStatusDetail(TrangThaiChiTiet.DANG_GIAO_DICH);   // Chờ khách thanh toán
+        invoice.setStatusDetail(TrangThaiChiTiet.DANG_GIAO_DICH); // Chờ khách thanh toán
         invoice.setDiscountAmount(Optional.ofNullable(request.getDiscountAmount()).orElse(BigDecimal.ZERO));
         invoice.setShippingFee(Optional.ofNullable(request.getShippingFee()).orElse(BigDecimal.ZERO));
         invoice.setDeliveryAddress(addressNew);
@@ -2024,40 +2027,39 @@ public class InvoiceServiceImpl implements InvoiceService {
             voucherRepository.findById(request.getVoucherId()).ifPresent(invoice::setVoucher);
         }
 
-        // ===== 4) ÁP ĐỢT GIẢM GIÁ VÀ LẬP HDCT =====
+        // ===== 4) TÍNH TOÁN & TẠO HDCT (chỉ kiểm tra tồn kho, KHÔNG trừ kho) =====
         final BigDecimal ONE_HUNDRED = new BigDecimal("100");
         List<DiscountCampaign> activeCampaigns = discountCampaignRepository.findActiveCampaigns(LocalDateTime.now());
 
         BigDecimal total = BigDecimal.ZERO;
         List<InvoiceDetail> details = new ArrayList<>();
-        Set<ProductDetail> productDetailsToUpdate = new HashSet<>();
-        Set<Product> productsToUpdate = new HashSet<>();
 
         for (CartItemRequest item : request.getItems()) {
-            // --- Lấy PD & kiểm tồn ---
+            // Lấy ProductDetail
             ProductDetail pd = productDetailRepository.findById(item.getProductDetailId())
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm chi tiết ID: " + item.getProductDetailId()));
 
+            // Kiểm tra tồn kho (chi tiết)
             if (item.getQuantity() > pd.getQuantity()) {
                 throw new RuntimeException("Số lượng vượt quá tồn kho chi tiết sản phẩm: " + item.getProductDetailId());
             }
-            pd.setQuantity(pd.getQuantity() - item.getQuantity());
-            productDetailsToUpdate.add(pd);
 
+            // Kiểm tra tồn kho tổng (Product)
             Product product = pd.getProduct();
             int stock = Optional.ofNullable(product.getQuantity()).orElse(0);
             if (item.getQuantity() > stock) {
                 throw new RuntimeException("Tồn kho tổng không đủ cho sản phẩm: " + product.getId());
             }
-            product.setQuantity(stock - item.getQuantity());
-            productsToUpdate.add(product);
 
-            // --- Giá gốc từ DB ---
+            // Giá gốc lấy từ pd (nếu null dùng product)
             BigDecimal sellPrice = Optional.ofNullable(pd.getSellPrice())
                     .orElse(Optional.ofNullable(product.getSellPrice()).orElse(BigDecimal.ZERO));
 
-            // --- Tìm % giảm tốt nhất ---
-            // Ưu tiên % riêng ở link ProductDetail (nếu null thì dùng % campaign)
+            // --- Tìm % giảm tốt nhất từ các campaign đang hoạt động ---
+            Long bestCampaignId = null;
+            BigDecimal bestPercent = BigDecimal.ZERO;
+
+            // 1) ưu tiên link ProductDetail trong campaign
             Optional<AbstractMap.SimpleEntry<Long, BigDecimal>> pdBest = activeCampaigns.stream()
                     .filter(c -> c.getProductDetails() != null)
                     .flatMap(c -> c.getProductDetails().stream()
@@ -2066,11 +2068,10 @@ public class InvoiceServiceImpl implements InvoiceService {
                                     c.getId(),
                                     link.getDiscountPercentage() != null ? link.getDiscountPercentage()
                                             : Optional.ofNullable(c.getDiscountPercentage()).orElse(BigDecimal.ZERO)
-                            ))
-                    )
+                            )))
                     .max(Comparator.comparing(e -> e.getValue(), Comparator.nullsFirst(BigDecimal::compareTo)));
 
-            // Fallback: % theo Product (nếu có % riêng ở link Product thì bạn có thể thay thế bên dưới)
+            // 2) fallback: % theo Product
             Optional<AbstractMap.SimpleEntry<Long, BigDecimal>> pBest = activeCampaigns.stream()
                     .filter(c -> c.getProducts() != null)
                     .flatMap(c -> c.getProducts().stream()
@@ -2078,12 +2079,8 @@ public class InvoiceServiceImpl implements InvoiceService {
                             .map(link -> new AbstractMap.SimpleEntry<>(
                                     c.getId(),
                                     Optional.ofNullable(c.getDiscountPercentage()).orElse(BigDecimal.ZERO)
-                            ))
-                    )
+                            )))
                     .max(Comparator.comparing(e -> e.getValue(), Comparator.nullsFirst(BigDecimal::compareTo)));
-
-            Long bestCampaignId = null;
-            BigDecimal bestPercent = BigDecimal.ZERO;
 
             if (pdBest.isPresent()) {
                 bestCampaignId = pdBest.get().getKey();
@@ -2093,7 +2090,7 @@ public class InvoiceServiceImpl implements InvoiceService {
                 bestPercent = pBest.get().getValue();
             }
 
-            // Nếu FE chỉ định campaign cụ thể và campaign đó áp dụng được -> ép dùng
+            // 3) Nếu FE ép campaign cụ thể, và campaign đó áp dụng cho PD/Product -> dùng campaign đó
             if (item.getDiscountCampaignId() != null) {
                 Optional<DiscountCampaign> chosenOpt = activeCampaigns.stream()
                         .filter(c -> c.getId().equals(item.getDiscountCampaignId()))
@@ -2124,23 +2121,23 @@ public class InvoiceServiceImpl implements InvoiceService {
 
             if (bestPercent == null) bestPercent = BigDecimal.ZERO;
 
-            // --- Tính giá sau giảm ---
             BigDecimal discountedPrice = (bestPercent.compareTo(BigDecimal.ZERO) > 0)
                     ? sellPrice.multiply(ONE_HUNDRED.subtract(bestPercent)).divide(ONE_HUNDRED, 2, RoundingMode.HALF_UP)
                     : sellPrice.setScale(2, RoundingMode.HALF_UP);
 
-            // ===== Tạo HDCT =====
             InvoiceDetail detail = new InvoiceDetail();
             detail.setInvoice(invoice);
             detail.setProductDetail(pd);
             detail.setQuantity(item.getQuantity());
             detail.setCreatedDate(LocalDateTime.now());
-            detail.setStatus(1); // đang hoạt động
+            detail.setStatus(1);
             detail.setInvoiceCodeDetail("INV-DTL-" + UUID.randomUUID().toString().substring(0, 8));
 
             detail.setSellPrice(sellPrice);
             detail.setDiscountedPrice(discountedPrice);
-            detail.setDiscountPercentage(bestPercent.intValue());
+            // Lưu phần trăm làm int (làm tròn nửa trên)
+            detail.setDiscountPercentage(bestPercent.setScale(0, RoundingMode.HALF_UP).intValue());
+
             if (bestCampaignId != null) {
                 discountCampaignRepository.findById(bestCampaignId).ifPresent(detail::setDiscountCampaign);
             }
@@ -2158,12 +2155,8 @@ public class InvoiceServiceImpl implements InvoiceService {
         );
         invoice.setInvoiceDetails(details);
 
-        // ===== 5) LƯU HOÁ ĐƠN + CẬP NHẬT KHO =====
         Invoice saved = invoiceRepository.save(invoice);
-        productDetailRepository.saveAll(productDetailsToUpdate);
-        productRepository.saveAll(productsToUpdate);
 
-        // ===== 6) TẠO LỆNH ZALOPAY (PENDING) =====
         String appTransId = new SimpleDateFormat("yyMMdd").format(new Date()) + "_" + saved.getId();
         ZaloPayResponse zaloPayResponse = zaloPayService.createZaloPayOrder(
                 saved.getPhone(),
@@ -2175,23 +2168,113 @@ public class InvoiceServiceImpl implements InvoiceService {
         // Lưu appTransId vào HĐ
         saved.setAppTransId(appTransId);
         saved.setUpdatedDate(new Date());
-        invoiceRepository.save(saved);
+        saved = invoiceRepository.save(saved);
 
-//        // Lưu giao dịch ở trạng thái PENDING
-//        InvoiceTransaction txn = new InvoiceTransaction();
-//        txn.setTransactionCode("GD-" + UUID.randomUUID().toString().substring(0, 8));
-//        txn.setInvoice(saved);
-//        txn.setAmount(saved.getFinalAmount());
-//        txn.setPaymentStatus(0); // 0 = PENDING
-//        txn.setPaymentMethod("ZaloPay");
-//        txn.setTransactionType("Thanh toán trước");
-//        txn.setNote("Đang chờ khách thanh toán qua ZaloPay");
-//        txn.setPaymentTime(new Date());
-//        invoiceTransactionRepository.save(txn);
 
-        // Trả về cho FE: Thông tin hóa đơn + thông tin tạo lệnh ZaloPay (url/qr)
         InvoiceDisplayResponse display = invoiceMapper.toInvoiceDisplayResponse(saved, saved.getInvoiceDetails());
         return new InvoiceWithZaloPayResponse(display, zaloPayResponse);
+    }
+
+
+    @Transactional
+    @Override
+    public Invoice getInvoice(String appTransId) {
+        if (appTransId == null || appTransId.trim().isEmpty()) {
+            throw new IllegalArgumentException("appTransId không được phép null/empty");
+        }
+
+        Invoice invoice = invoiceRepository.findByAppTransId(appTransId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy hóa đơn với appTransId: " + appTransId));
+
+        // Idempotency: chỉ xử lý khi đang chờ xử lý
+        if (invoice.getStatusDetail() != TrangThaiChiTiet.CHO_XU_LY) {
+            // Đã xử lý trước đó hoặc ở trạng thái khác -> trả về nguyên vẹn
+            return invoice;
+        }
+
+        List<InvoiceDetail> details = invoice.getInvoiceDetails();
+        if (details == null || details.isEmpty()) {
+            // Không có detail -> mark lỗi / hủy theo nghiệp vụ
+            invoice.setStatus(TrangThaiTong.HUY_GIAO_DICH);
+            invoice.setStatusDetail(TrangThaiChiTiet.HUY_GIAO_DICH);
+            invoice.setUpdatedDate(new Date());
+            invoiceRepository.save(invoice);
+            throw new RuntimeException("Invoice không có chi tiết để trừ kho (appTransId=" + appTransId + ")");
+        }
+
+        List<ProductDetail> pdToSave = new ArrayList<>();
+        List<Product> pToSave = new ArrayList<>();
+
+        // Duyệt và lock từng ProductDetail / Product trước khi trừ
+        for (InvoiceDetail detail : details) {
+            if (detail.getProductDetail() == null || detail.getProductDetail().getId() == null) {
+                invoice.setStatus(TrangThaiTong.HUY_GIAO_DICH);
+                invoice.setStatusDetail(TrangThaiChiTiet.HUY_GIAO_DICH);
+                invoice.setUpdatedDate(new Date());
+                invoiceRepository.save(invoice);
+                throw new RuntimeException("InvoiceDetail thiếu productDetail (invoiceId=" + invoice.getId() + ")");
+            }
+
+            Long pdId = detail.getProductDetail().getId();
+
+            // lock productDetail (SELECT ... FOR UPDATE)
+            ProductDetail pd = productDetailRepository.findByIdForUpdate(pdId)
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy ProductDetail khi confirm: " + pdId));
+
+            int availPd = Optional.ofNullable(pd.getQuantity()).orElse(0);
+            if (detail.getQuantity() > availPd) {
+                // cập nhật trạng thái invoice, persist, rồi báo lỗi
+                invoice.setStatus(TrangThaiTong.HUY_GIAO_DICH);
+                invoice.setStatusDetail(TrangThaiChiTiet.HUY_GIAO_DICH);
+                invoice.setUpdatedDate(new Date());
+                invoiceRepository.save(invoice);
+                throw new RuntimeException("Tồn kho chi tiết không đủ cho sản phẩm pdId=" + pdId);
+            }
+            pd.setQuantity(availPd - detail.getQuantity());
+            pdToSave.add(pd);
+
+            // lock product tổng (nếu bạn quản stock ở Product)
+            Long productId = pd.getProduct() == null ? null : pd.getProduct().getId();
+            if (productId == null) {
+                invoice.setStatus(TrangThaiTong.HUY_GIAO_DICH);
+                invoice.setStatusDetail(TrangThaiChiTiet.HUY_GIAO_DICH);
+                invoice.setUpdatedDate(new Date());
+                invoiceRepository.save(invoice);
+                throw new RuntimeException("Product liên kết với ProductDetail không hợp lệ (pdId=" + pdId + ")");
+            }
+
+            Product p = productRepository.findByIdProduct(productId)
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy Product id=" + productId));
+
+            int availP = Optional.ofNullable(p.getQuantity()).orElse(0);
+            if (detail.getQuantity() > availP) {
+                invoice.setStatus(TrangThaiTong.HUY_GIAO_DICH);
+                invoice.setStatusDetail(TrangThaiChiTiet.HUY_GIAO_DICH);
+                invoice.setUpdatedDate(new Date());
+                invoiceRepository.save(invoice);
+                throw new RuntimeException("Tồn kho tổng không đủ cho productId=" + productId);
+            }
+            p.setQuantity(availP - detail.getQuantity());
+            pToSave.add(p);
+        }
+
+        // Lưu cập nhật kho (vẫn trong transaction)
+        productDetailRepository.saveAll(pdToSave);
+        productRepository.saveAll(pToSave);
+
+        // Cập nhật invoice: đã thanh toán/đã trừ kho
+        invoice.setIsPaid(true);
+        invoice.setStatusDetail(TrangThaiChiTiet.DANG_GIAO_DICH); // hoặc enum bạn muốn
+        invoice.setUpdatedDate(new Date());
+        Invoice saved = invoiceRepository.save(invoice);
+
+        return saved;
+    }
+
+
+    @Transactional
+    public void handleZaloPayCallback(String appTransId) {
+
     }
 
     @Transactional
@@ -2233,7 +2316,6 @@ public class InvoiceServiceImpl implements InvoiceService {
         }  else {
             log.warn(" Đơn {} chưa thanh toán (status={})", appTransId, bcTransStatus);
         }
-
     }
 
     private static final int MONEY_SCALE = 0; // VND
@@ -2399,7 +2481,7 @@ public class InvoiceServiceImpl implements InvoiceService {
     }
 
     @Override
-    public Integer findStatusByCode(String code) {
+    public TrangThaiChiTiet findStatusByCode(String code) {
         return invoiceRepository.findStatusDetailByCode(code);
     }
 

@@ -164,12 +164,6 @@
         <el-form-item label="Lý do hủy đơn">
           <el-input type="textarea" v-model="cancelNote" placeholder="Nhập lý do hủy..." rows="3" />
         </el-form-item>
-        <el-form-item v-if="invoice && invoice.isPaid" label="Phương thức hoàn tiền">
-          <el-select v-model="selectedPaymentMethod" placeholder="Chọn phương thức hoàn tiền">
-            <el-option label="Tiền mặt" value="TIEN_MAT" />
-            <el-option label="ZaloPay" value="ZALOPAY" />
-          </el-select>
-        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="cancelDialogVisible = false">Hủy</el-button>
@@ -518,10 +512,6 @@ const cancelOrder = async () => {
       ElMessage.warning('Vui lòng nhập lý do hủy đơn!')
       return
     }
-    if (invoice.value && invoice.value.isPaid && !selectedPaymentMethod.value) {
-      ElMessage.warning('Vui lòng chọn phương thức hoàn tiền!')
-      return
-    }
 
     await apiClient.put(`/online-sale/huy-don-va-hoan-tien`, null, {
       params: {
@@ -529,6 +519,7 @@ const cancelOrder = async () => {
         statusDetail: 'HUY_DON',
         note: cancelNote.value,
         paymentMethod: selectedPaymentMethod.value,
+        request: invoice.value.isPaid ? 1 : null,
         isPaid: invoice.value.isPaid
       }
     })

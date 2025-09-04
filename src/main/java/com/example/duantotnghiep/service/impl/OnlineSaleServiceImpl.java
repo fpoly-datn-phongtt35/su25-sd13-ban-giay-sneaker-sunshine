@@ -307,19 +307,8 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
 
     @Override
     public InvoiceOnlineResponse getOrderByCustomer(Long invoiceId) {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
 
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng với username: " + username));
-
-        System.out.println("user: "+user.getCustomer().getCustomerName());
-
-        Customer customer = user.getCustomer();
-        if (customer == null) {
-            throw new RuntimeException("Người dùng không phải là nhân viên.");
-        }
-
-        InvoiceOnlineResponse response = invoiceRepository2.getOrder2(invoiceId,customer.getId());
+        InvoiceOnlineResponse response = invoiceRepository2.getOrder(invoiceId);
         if(response == null){
             return null;
         }
@@ -402,7 +391,6 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
         Invoice invoice = invoiceRepository.findById(invoiceId)
                 .orElseThrow(() -> new RuntimeException("Ko thấy hóa đơn với id: " + invoiceId));
 
-        // chỉ set trực tiếp, không cần copy
         invoice.setPhone(phone);
         invoiceRepository.save(invoice);
     }

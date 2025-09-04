@@ -85,5 +85,6 @@ public interface InvoiceService {
     void checkAndGiftVoucher(Long customerId);
 
     TrangThaiChiTiet findStatusByCode(String code);
+    Integer findDiscountCampianByCode(String code);
 
 }

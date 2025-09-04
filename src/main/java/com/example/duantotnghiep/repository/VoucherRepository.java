@@ -3,6 +3,7 @@ package com.example.duantotnghiep.repository;
 import com.example.duantotnghiep.dto.response.VoucherStatusDTO;
 import com.example.duantotnghiep.model.Voucher;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -186,5 +187,18 @@ public interface VoucherRepository extends JpaRepository<Voucher, Long> {
             select v from Voucher v where v.id in :ids and v.status = 1
             """)
     List<Voucher> getVoucherByIds(@Param("ids") List<Long> ids);
+
+    @Query("select v.status from Voucher v where v.voucherCode = :code")
+    Integer getVoucherStatus(@Param("code") String code);
+
+    @Modifying(clearAutomatically = true)
+    @Query("update Voucher v set v.status = 1 " +
+            "where v.status = 2 and v.startDate <= :now and v.endDate > :now")
+    int activatePendingVouchers(@Param("now") LocalDateTime now);
+
+    @Modifying(clearAutomatically = true)
+    @Query("update Voucher v set v.status = 0 " +
+            "where v.status = 2 and v.endDate < :now")
+    int expirePendingVouchers(@Param("now") LocalDateTime now);
 
 }

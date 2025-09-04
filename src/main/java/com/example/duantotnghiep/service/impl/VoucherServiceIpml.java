@@ -13,6 +13,7 @@ import com.example.duantotnghiep.model.ProductCategory;
 import com.example.duantotnghiep.model.Voucher;
 import com.example.duantotnghiep.repository.*;
 import com.example.duantotnghiep.service.VoucherService;
+import com.example.duantotnghiep.state.TrangThaiTong;
 import com.example.duantotnghiep.xuatExcel.VoucherExportExcel;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -53,6 +54,7 @@ public class VoucherServiceIpml implements VoucherService {
     private final CustomerRepository customerRepository;
     private final ProductCategoryRepository productCategoryRepository;
     private final VoucherNativeRepository voucherNativeRepository;
+    private final InvoiceServiceImpl invoiceServiceImpl;
 
     public List<VoucherResponse> getValidVouchers() {
         LocalDateTime now = LocalDateTime.now();
@@ -237,17 +239,35 @@ public class VoucherServiceIpml implements VoucherService {
     }
 
     @Override
+    @Transactional
     public void deteleVoucherById(Long id) {
-        Optional<Voucher> optionalVoucher = voucherRepository.findById(id);
-        if (optionalVoucher.isPresent()) {
-            Voucher voucher = optionalVoucher.get();
-            voucher.setStatus(0); // Set status = 0 để đánh dấu là đã xóa
-            voucherRepository.save(voucher);
-        } else {
-            throw new EntityNotFoundException("Không tìm thấy voucher với ID: " + id);
+        Voucher voucher = voucherRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy voucher với ID: " + id));
+
+        // Nếu đã tắt rồi thì báo luôn
+        if (Objects.equals(voucher.getStatus(), 0)) {
+            throw new IllegalStateException("Voucher này đã bị xoá trước đó.");
+        }
+
+        voucher.setStatus(0); // soft-delete
+        voucher.setUpdatedBy("system");
+        voucher.setUpdatedDate(LocalDateTime.now());
+        voucherRepository.save(voucher);
+
+        // Tìm các hóa đơn đang xử lý và chưa thanh toán còn tham chiếu voucher này
+        List<Invoice> affected = invoiceRepository
+                .findAllByVoucherIdAndStatusAndUnpaid(id, TrangThaiTong.DANG_XU_LY);
+
+        for (Invoice inv : affected) {
+            inv.setVoucher(null);                 // gỡ voucher
+            inv.setUpdatedBy("system");
+            inv.setUpdatedDate(Date.from(LocalDateTime.now().atZone(ZoneId.systemDefault()).toInstant()));
+            invoiceRepository.save(inv);
+
+            // Tính lại tổng tiền (đã không còn giảm theo voucher)
+            invoiceServiceImpl.updateInvoiceTotal(inv);
         }
     }
-
 
     @Override
     public PaginationDTO<VoucherResponse> phanTrangHienThi(VoucherSearchRequest request, Pageable pageable) {

@@ -357,6 +357,14 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
     List<Object[]> countByStatus(@Param("start") Date start,
                                  @Param("end") Date end);
 
+    @Query("""
+        select i from Invoice i
+        where i.voucher.id = :voucherId
+          and i.status = :status
+          and (i.isPaid = false or i.isPaid is null)
+    """)
+    List<Invoice> findAllByVoucherIdAndStatusAndUnpaid(@Param("voucherId") Long voucherId,
+                                                       @Param("status") TrangThaiTong status);
 }
 
 

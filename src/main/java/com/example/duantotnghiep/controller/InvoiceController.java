@@ -9,6 +9,7 @@ import com.example.duantotnghiep.repository.InvoiceDetailRepository;
 import com.example.duantotnghiep.service.InvoiceService;
 import com.example.duantotnghiep.service.impl.ExcelExportService;
 import com.example.duantotnghiep.service.impl.InvoiceExportService;
+import com.example.duantotnghiep.service.impl.InvoiceExportServiceOnline;
 import com.example.duantotnghiep.service.impl.InvoiceQRService;
 import com.lowagie.text.DocumentException;
 import jakarta.servlet.http.HttpServletResponse;
@@ -46,6 +47,7 @@ public class InvoiceController {
     private final InvoiceDetailRepository invoiceDetailRepository;
     private final ExcelExportService excelExportService;
     private final InvoiceQRService invoiceQRService;
+    private final InvoiceExportServiceOnline invoiceExportServiceOnline;
 
     @GetMapping
     public ResponseEntity<Page<InvoiceDisplayResponse>> getInvoiceDisplays(
@@ -100,6 +102,26 @@ public class InvoiceController {
         List<InvoiceDetail> details = invoiceDetailRepository.findByInvoiceId(invoice.getId());
         invoiceExportService.exportInvoice(response, invoice, details);
     }
+
+    @GetMapping("/{id}/export-online")
+    public void exportInvoiceOnlineById(
+            @PathVariable Long id,
+            HttpServletResponse response) throws IOException, DocumentException {
+
+        // Lấy invoice theo id
+        Invoice invoice = invoiceService.findById(id);
+        if (invoice == null) {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND, "Invoice not found");
+            return;
+        }
+
+        // Lấy chi tiết hóa đơn
+        List<InvoiceDetail> details = invoiceDetailRepository.findByInvoiceId(invoice.getId());
+
+        // Gọi service in hóa đơn online
+        invoiceExportServiceOnline.exportInvoiceOnline(response, invoice, details);
+    }
+
 
     @GetMapping("/{id}/export-id")
     public void exportInvoiceById(

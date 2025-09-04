@@ -1,5 +1,7 @@
 package com.example.duantotnghiep.service.impl;
 
+import com.example.duantotnghiep.Exception.DiscountCampaignInvalidException;
+import com.example.duantotnghiep.Exception.VoucherInvalidException;
 import com.example.duantotnghiep.dto.PaymentSummary;
 import com.example.duantotnghiep.dto.request.AddressRequest;
 import com.example.duantotnghiep.dto.request.CartItemRequest;
@@ -46,6 +48,7 @@ import com.example.duantotnghiep.service.VoucherService;
 import com.example.duantotnghiep.state.CustomerTier;
 import com.example.duantotnghiep.state.TrangThaiChiTiet;
 import com.example.duantotnghiep.state.TrangThaiTong;
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.json.JSONObject;
@@ -64,6 +67,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.security.SecureRandom;
 import java.text.SimpleDateFormat;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -97,6 +101,7 @@ public class InvoiceServiceImpl implements InvoiceService {
     private final PasswordEncoder passwordEncoder;
     private final AccountEmailService accountEmailService;
     private final ProductCategoryRepository productCategoryRepository;
+    private static final ZoneId ZONE_VN = ZoneId.of("Asia/Ho_Chi_Minh");
 
     @Transactional
     @Override
@@ -136,18 +141,16 @@ public class InvoiceServiceImpl implements InvoiceService {
         final LocalDateTime now = LocalDateTime.now();
         final String username = currentUsername();
 
-        // Lấy tất cả campaign "active theo thời gian" rồi lọc tiếp trạng thái = 1
         final List<DiscountCampaign> activeCandidates = Optional
                 .ofNullable(discountCampaignRepository.findActiveCampaigns(now))
                 .orElseGet(Collections::emptyList)
                 .stream()
                 .filter(c -> c != null
-                        && Objects.equals(c.getStatus(), 1) // chỉ lấy campaign bật
+                        && Objects.equals(c.getStatus(), 1)
                         && (c.getStartDate() == null || !now.isBefore(c.getStartDate()))
                         && (c.getEndDate()   == null || !now.isAfter(c.getEndDate())))
                 .toList();
 
-        // Helper: campaign có áp cho đúng PD / Product?
         final java.util.function.BiPredicate<DiscountCampaign, Long> appliesToPd = (c, pdId) ->
                 pdId != null
                         && c.getProductDetails() != null
@@ -162,8 +165,10 @@ public class InvoiceServiceImpl implements InvoiceService {
                         l != null && l.getProduct() != null
                                 && Objects.equals(l.getProduct().getId(), productId));
 
-        // Lấy các dòng còn hiệu lực
         final List<InvoiceDetail> details = invoiceDetailRepository.findByInvoiceAndStatus(invoice, 1);
+
+        boolean anyCampaignDetached = false;
+        List<String> affectedProducts = new ArrayList<>();
 
         for (InvoiceDetail d : details) {
             if (d == null || d.getProductDetail() == null) continue;
@@ -172,21 +177,23 @@ public class InvoiceServiceImpl implements InvoiceService {
             Long pdId = pd.getId();
             Long productId = (pd.getProduct() != null) ? pd.getProduct().getId() : null;
 
-            // Giá gốc (bảo vệ null, âm)
+            // Giá gốc
             BigDecimal basePrice = money(d.getSellPrice());
             if (basePrice.compareTo(BigDecimal.ZERO) < 0) basePrice = BigDecimal.ZERO;
 
             int finalPercent = 0;
             DiscountCampaign chosen = null;
 
-            // 1) Nếu dòng đã gắn campaign → chỉ dùng khi campaign đang hoạt động & thật sự áp cho PD/Product này
-            DiscountCampaign lineDc = d.getDiscountCampaign();
+            // Ghi nhận campaign trước đó trên dòng
+            DiscountCampaign oldCampaign = d.getDiscountCampaign();
+
+            // 1) Nếu dòng đã gắn campaign → chỉ dùng khi campaign đang hoạt động & đúng đối tượng
+            DiscountCampaign lineDc = oldCampaign;
             if (lineDc != null
                     && Objects.equals(lineDc.getStatus(), 1)
                     && (lineDc.getStartDate() == null || !now.isBefore(lineDc.getStartDate()))
                     && (lineDc.getEndDate() == null   || !now.isAfter(lineDc.getEndDate()))) {
 
-                // Ưu tiên % theo SPCT
                 BigDecimal pctPd = Optional.ofNullable(lineDc.getProductDetails()).orElseGet(Collections::emptyList)
                         .stream()
                         .filter(l -> l.getProductDetail() != null && Objects.equals(l.getProductDetail().getId(), pdId))
@@ -199,7 +206,6 @@ public class InvoiceServiceImpl implements InvoiceService {
                     finalPercent = clampPercent(pctPd.setScale(0, RM).intValue());
                     chosen = lineDc;
                 } else if (appliesToProduct.test(lineDc, productId) && lineDc.getDiscountPercentage() != null) {
-                    // Nếu không có % ở SPCT, chỉ dùng % default khi PRODUCT thuộc campaign
                     finalPercent = clampPercent(lineDc.getDiscountPercentage().setScale(0, RM).intValue());
                     chosen = lineDc;
                 }
@@ -207,7 +213,6 @@ public class InvoiceServiceImpl implements InvoiceService {
 
             // 2) Nếu chưa có %, tự tìm best trong danh sách activeCandidates
             if (finalPercent == 0) {
-                // 2a) Best theo SPCT
                 Optional<Map.Entry<DiscountCampaign, BigDecimal>> bestPd = activeCandidates.stream()
                         .filter(c -> appliesToPd.test(c, pdId))
                         .flatMap(c -> c.getProductDetails().stream()
@@ -226,7 +231,6 @@ public class InvoiceServiceImpl implements InvoiceService {
                     BigDecimal bp = Optional.ofNullable(bestPd.get().getValue()).orElse(BigDecimal.ZERO);
                     finalPercent = clampPercent(bp.setScale(0, RM).intValue());
                 } else {
-                    // 2b) Fallback theo Product (chỉ campaign có chứa product này)
                     Optional<Map.Entry<DiscountCampaign, BigDecimal>> bestP = activeCandidates.stream()
                             .filter(c -> appliesToProduct.test(c, productId))
                             .map(c -> Map.entry(c, Optional.ofNullable(c.getDiscountPercentage()).orElse(BigDecimal.ZERO)))
@@ -240,14 +244,22 @@ public class InvoiceServiceImpl implements InvoiceService {
                 }
             }
 
-            // 3) Không có campaign áp dụng → xoá liên kết campaign ở dòng
+            // 3) Áp/huỷ campaign tại dòng
             if (finalPercent == 0) {
+                // Không có campaign áp dụng
+                if (oldCampaign != null) {
+                    // Trước đây có, giờ không còn → gỡ và báo
+                    anyCampaignDetached = true;
+                    String name = (pd.getProduct() != null && pd.getProduct().getProductName() != null)
+                            ? pd.getProduct().getProductName() : "Sản phẩm";
+                    affectedProducts.add(name);
+                }
                 d.setDiscountCampaign(null);
             } else {
                 d.setDiscountCampaign(chosen);
             }
 
-            // 4) Tính giá sau giảm & cập nhật dòng
+            // 4) Tính giá sau giảm
             BigDecimal discountAmt = basePrice.multiply(BigDecimal.valueOf(finalPercent))
                     .divide(BigDecimal.valueOf(100), MONEY_SCALE, RM);
             BigDecimal discounted = money(basePrice.subtract(discountAmt));
@@ -261,15 +273,20 @@ public class InvoiceServiceImpl implements InvoiceService {
 
             invoiceDetailRepository.save(d);
         }
+
+        // Nếu có ít nhất 1 dòng bị gỡ campaign → ném exception để FE bắn toast
+        if (anyCampaignDetached) {
+            throw DiscountCampaignInvalidException.removed(affectedProducts);
+        }
     }
 
     @Transactional
     public void updateInvoiceTotal(Invoice invoice) {
         List<InvoiceDetail> details = invoiceDetailRepository.findByInvoiceAndStatus(invoice, 1);
 
-        BigDecimal totalAmount = BigDecimal.ZERO;          // tổng gốc
-        BigDecimal productDiscount = BigDecimal.ZERO;      // giảm theo sản phẩm
-        BigDecimal subtotalAfterProduct = BigDecimal.ZERO; // sau giảm sản phẩm
+        BigDecimal totalAmount = BigDecimal.ZERO;
+        BigDecimal productDiscount = BigDecimal.ZERO;
+        BigDecimal subtotalAfterProduct = BigDecimal.ZERO;
 
         for (InvoiceDetail d : details) {
             BigDecimal qty = BigDecimal.valueOf(d.getQuantity());
@@ -281,9 +298,23 @@ public class InvoiceServiceImpl implements InvoiceService {
             subtotalAfterProduct = subtotalAfterProduct.add(discounted);
         }
 
+        // === Re-validate voucher mỗi lần tính ===
+        LocalDateTime now = LocalDateTime.now();
+        Voucher v = invoice.getVoucher();
+
+        VoucherValidity validity = getVoucherValidity(v, now); // helper dưới
+        boolean voucherJustDetached = false;
+
+        if (v != null && validity != VoucherValidity.VALID) {
+            // gỡ voucher ra khỏi hóa đơn
+            invoice.setVoucher(null);
+            v = null;
+            voucherJustDetached = true;
+        }
+
         BigDecimal voucherDiscount = BigDecimal.ZERO;
-        if (invoice.getVoucher() != null) {
-            voucherDiscount = calculateVoucherDiscountForAmount(subtotalAfterProduct, invoice.getVoucher());
+        if (v != null) {
+            voucherDiscount = calculateVoucherDiscountForAmount(subtotalAfterProduct, v);
             if (voucherDiscount.compareTo(subtotalAfterProduct) > 0) voucherDiscount = subtotalAfterProduct;
         }
 
@@ -295,9 +326,37 @@ public class InvoiceServiceImpl implements InvoiceService {
         invoice.setTotalAmount(money(totalAmount));
         invoice.setDiscountAmount(money(totalDiscount));
         invoice.setFinalAmount(money(finalAmount));
-        invoice.setUpdatedDate(new Date());
+        invoice.setUpdatedDate(new Date());              // entity Invoice dùng Date → giữ nguyên
         invoice.setUpdatedBy(currentUsername());
         invoiceRepository.save(invoice);
+
+        // === BẮN THÔNG BÁO cho POS nếu vừa gỡ voucher ===
+        if (voucherJustDetached) {
+            switch (validity) {
+                case REMOVED_OR_DISABLED -> { throw VoucherInvalidException.removed(); }
+                case EXPIRED -> { throw VoucherInvalidException.expired(); }
+                case NOT_YET_ACTIVE -> { throw VoucherInvalidException.notYetActive(); }
+                default -> { throw new VoucherInvalidException("VOUCHER_INVALID",
+                        "Voucher không còn hợp lệ, hệ thống đã tự bỏ voucher khỏi hoá đơn."); }
+            }
+        }
+    }
+
+    private enum VoucherValidity { VALID, REMOVED_OR_DISABLED, NOT_YET_ACTIVE, EXPIRED }
+
+    private VoucherValidity getVoucherValidity(Voucher v, LocalDateTime now) {
+        if (v == null) return VoucherValidity.VALID; // không có voucher -> coi như hợp lệ (không báo)
+        Integer status = v.getStatus();
+        if (status == null || status != 1) return VoucherValidity.REMOVED_OR_DISABLED;
+
+        // --- thời gian hiệu lực ---
+        LocalDateTime start = v.getStartDate(); // sửa đúng kiểu field của bạn
+        LocalDateTime end   = v.getEndDate();
+
+        if (start != null && now.isBefore(start)) return VoucherValidity.NOT_YET_ACTIVE;
+        if (end != null && now.isAfter(end))     return VoucherValidity.EXPIRED;
+
+        return VoucherValidity.VALID;
     }
 
     private BigDecimal calculateVoucherDiscountForAmount(BigDecimal base, Voucher voucher) {
@@ -503,8 +562,14 @@ public class InvoiceServiceImpl implements InvoiceService {
     public void checkout(Long invoiceId) {
         Invoice invoice = invoiceRepository.findById(invoiceId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy hóa đơn với ID: " + invoiceId));
-        if (invoice.getStatus() != TrangThaiTong.DANG_XU_LY)
+
+        if (invoice.getStatus() != TrangThaiTong.DANG_XU_LY) {
             throw new RuntimeException("Chỉ checkout khi hóa đơn đang xử lý");
+        }
+
+        // 0) Validate voucher (nếu có)
+        Instant nowInstant = Instant.now();
+        validateVoucherIfAny(invoice, nowInstant);
 
         // 1) Re-calc giá/giảm
         applyDiscountToInvoiceDetails(invoice);
@@ -556,6 +621,28 @@ public class InvoiceServiceImpl implements InvoiceService {
 
         // 5) (Tuỳ) Tặng voucher khuyến khích sau đơn
         handleAutoPromoVoucher(invoice, username, now);
+    }
+
+    private void validateVoucherIfAny(Invoice invoice, Instant now) {
+        Voucher v = invoice.getVoucher();
+        if (v == null) return;
+
+        Integer status = v.getStatus();
+        if (status == null || status != 1) {
+            throw new RuntimeException("Voucher không tồn tại.");
+        }
+
+        LocalDateTime start = v.getStartDate(); // LocalDateTime
+        LocalDateTime end   = v.getEndDate();   // LocalDateTime
+
+        ZoneId zone = ZoneId.systemDefault();
+
+        if (start != null && now.isBefore(start.atZone(zone).toInstant())) {
+            throw new RuntimeException("Voucher chưa đến thời gian áp dụng.");
+        }
+        if (end != null && now.isAfter(end.atZone(zone).toInstant())) {
+            throw new RuntimeException("Voucher đã hết hạn.");
+        }
     }
 
     private void handleAutoPromoVoucher(Invoice invoice, String username, LocalDateTime now) {

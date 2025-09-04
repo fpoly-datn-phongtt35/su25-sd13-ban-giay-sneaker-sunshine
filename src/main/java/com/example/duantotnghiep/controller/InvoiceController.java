@@ -11,6 +11,7 @@ import com.example.duantotnghiep.service.impl.ExcelExportService;
 import com.example.duantotnghiep.service.impl.InvoiceExportService;
 import com.example.duantotnghiep.service.impl.InvoiceExportServiceOnline;
 import com.example.duantotnghiep.service.impl.InvoiceQRService;
+import com.example.duantotnghiep.state.TrangThaiChiTiet;
 import com.lowagie.text.DocumentException;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -115,13 +116,20 @@ public class InvoiceController {
             return;
         }
 
+        // Chỉ cho phép in nếu là hóa đơn online và ở trạng thái ĐÃ XỬ LÝ
+        if (invoice.getOrderType() == 1
+                && invoice.getStatusDetail() != TrangThaiChiTiet.DA_XU_LY) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST,
+                    "Chỉ hóa đơn online ở trạng thái ĐÃ XỬ LÝ mới được in");
+            return;
+        }
+
         // Lấy chi tiết hóa đơn
         List<InvoiceDetail> details = invoiceDetailRepository.findByInvoiceId(invoice.getId());
 
         // Gọi service in hóa đơn online
         invoiceExportServiceOnline.exportInvoiceOnline(response, invoice, details);
     }
-
 
     @GetMapping("/{id}/export-id")
     public void exportInvoiceById(

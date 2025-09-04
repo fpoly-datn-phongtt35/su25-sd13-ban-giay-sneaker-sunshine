@@ -51,6 +51,8 @@ public class SecurityConfig {
 
                         .requestMatchers("/api/admin/campaigns/**").hasRole("ADMIN")
 
+                        .requestMatchers("/api/admin/vouchers/**").hasRole("ADMIN")
+
                         // CHỈ ADMIN được phép vào các API admin khác
                         .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "STAFF")
 

@@ -258,8 +258,8 @@ const formatDate = (val) => val ? dayjs(val).format('DD/MM/YYYY HH:mm:ss') : ''
 
 
 onMounted(() => {
-  fetchStatusCounts()
-  search()
+    fetchStatusCounts()
+    search()
 })
 </script>
 

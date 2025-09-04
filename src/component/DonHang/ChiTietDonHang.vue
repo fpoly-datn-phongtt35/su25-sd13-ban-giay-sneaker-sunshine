@@ -201,6 +201,7 @@ const mainSteps = [
   { key: 'CHO_GIAO_HANG', label: 'Chờ giao hàng' },
   { key: 'DANG_GIAO_HANG', label: 'Đang giao hàng' },
   { key: 'GIAO_THANH_CONG', label: 'Giao thành công' },
+
 ]
 const mainStepKeys = mainSteps.map(s => s.key)
 
@@ -392,11 +393,11 @@ const submitPhoneUpdate = async () => {
   }
 
   try {
-    // Đổi endpoint theo BE của bạn nếu khác
-    await apiClient.put('/admin/online-sales/update-phone', {
-      invoiceId,
-      phone
-    })
+    await apiClient.put(
+  '/online-sale/update-phone',
+  null,
+  { params: { invoiceId, phone } }
+)
     ElMessage.success('Cập nhật số điện thoại thành công!')
     phoneDialogVisible.value = false
     fetchInvoice()
@@ -516,7 +517,7 @@ const cancelOrder = async () => {
     await apiClient.put(`/online-sale/huy-don-va-hoan-tien`, null, {
       params: {
         invoiceId,
-        statusDetail: 'HUY_DON',
+        statusDetail: invoice.value.isPaid ? 'YEU_CAU_HUY' : 'HUY_DON',
         note: cancelNote.value,
         paymentMethod: selectedPaymentMethod.value,
         request: invoice.value.isPaid ? 1 : null,

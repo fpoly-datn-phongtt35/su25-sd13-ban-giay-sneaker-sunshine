@@ -292,7 +292,7 @@ const showScrollTopButton = ref(false)
 /* ================= NAV ================= */
 const navLinks = [
   { path: '/', label: 'TRANG CHỦ' },
-  { path: '/gioi-thieu', label: 'GIỚI THIỆU' },
+  // { path: '/gioi-thieu', label: 'GIỚI THIỆU' },
   { path: '/collections', label: 'SẢN PHẨM' },
   { path: '/san-pham-uu-dai', label: 'ƯU ĐÃI', isSale: true },
   { path: '/', label: 'THƯƠNG HIỆU' },

@@ -370,7 +370,7 @@ public class SaleOnlineController {
         return ResponseEntity.ok(customerService.update(addressId, request));
     }
 
-    @PutMapping("/{id}")
+    @PutMapping("/customers/{id}")
     public ResponseEntity<CustomerResponse> updateCustomer(@PathVariable Long id, @RequestBody CustomerRequest request) {
         CustomerResponse response = customerService.updateCustomer(id, request);
         return ResponseEntity.ok(response);

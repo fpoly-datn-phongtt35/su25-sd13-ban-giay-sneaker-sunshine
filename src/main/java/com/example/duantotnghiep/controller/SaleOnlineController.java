@@ -40,6 +40,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/online-sale")
@@ -406,6 +407,22 @@ public class SaleOnlineController {
     @GetMapping("/product-customer/{customerId}")
     public ResponseEntity<CustomerResponse> getCustomerProduct(@PathVariable Long customerId) {
         CustomerResponse response = customerService.getCustomerById(customerId);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/voucher/by-customer/{customerId}")
+    public ResponseEntity<List<VoucherResponse>> getVouchersByCustomer(
+            @PathVariable Long customerId,
+            @RequestParam(required = false) Integer orderType,
+            @RequestParam(required = false) Set<Long> productIds,
+            @RequestParam(required = false) Set<Long> categoryIds
+    ) {
+        List<VoucherResponse> response = voucherService.getVouchersByCustomer(
+                customerId,
+                orderType,
+                productIds,
+                categoryIds
+        );
         return ResponseEntity.ok(response);
     }
 

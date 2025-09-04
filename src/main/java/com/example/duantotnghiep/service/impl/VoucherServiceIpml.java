@@ -175,11 +175,20 @@ public class VoucherServiceIpml implements VoucherService {
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy danh mục")));
         }
 
+        // Gán minOrderToReceive (nếu có)
+        voucher.setMinOrderToReceive(voucherRequest.getMinOrderToReceive());
+
+        // Luôn set status = 1 khi thêm mới
+        voucher.setStatus(1);
+
         voucher.setVoucherCode(generateVoucherCode());
         voucher.setCreatedDate(LocalDateTime.now());
         voucher.setCreatedBy("admin");
+
         return voucherMapper.toDto(voucherRepository.save(voucher));
     }
+
+
 
     @Override
     public VoucherResponse capNhat(Long id, VoucherRequest voucherRequest) {

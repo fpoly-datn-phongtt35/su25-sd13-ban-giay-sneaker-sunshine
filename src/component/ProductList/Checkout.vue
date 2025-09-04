@@ -478,39 +478,46 @@ const onWardChange = async () => {
 }
 
 const productDetailIds = ref(null);
-const disable = ref(false);
-
 const handleSubmit = async () => {
-  try {
-    // Validate form
-    await formRef.value.validate();
-  } catch (err) {
-    ElMessage.warning('Vui lòng điền đầy đủ thông tin giao hàng.');
-    return;
+  // helper để dừng sớm, show message và nhảy tới finally
+  const failEarly = (msg, type = 'error') => {
+    if (type === 'warning') ElMessage.warning(msg)
+    else if (type === 'success') ElMessage.success(msg)
+    else ElMessage.error(msg)
+    throw { __isAbort: true }
   }
 
-  if(isSubmitting.value  === true){
-    ElMessage.warning('Không thể thanh toán');
-    return;
+  // validate
+  try {
+    await formRef.value.validate()
+  } catch (err) {
+    ElMessage.warning('Vui lòng điền đầy đủ thông tin giao hàng.')
+    return
+  }
+
+  if (isSubmitting.value === true) {
+    ElMessage.warning('Không thể thanh toán')
+    return
   }
 
   if (!cartItems.value.length) {
-    ElMessage.warning('Giỏ hàng trống.');
-    router.push('/');
-    return;
+    ElMessage.warning('Giỏ hàng trống.')
+    router.push('/')
+    return
   }
 
-  isSubmitting.value = true;
-  const loadingInstance = ElLoading.service({ fullscreen: true, text: 'Đang đặt hàng...' });
-
+  isSubmitting.value = true
+  let loadingInstance = null
   try {
+    loadingInstance = ElLoading.service({ fullscreen: true, text: 'Đang đặt hàng...' })
+
     // ------------- Chuẩn hóa items -------------
     const itemsPayload = cartItems.value.map(it => {
-      const unitPrice = unitPriceOf(it);
-      const quantity = toInt(it.quantity || 0);
-      const sellPrice = toInt(it.sellPrice ?? it.price ?? unitPrice);
-      const discounted = (it.discountedPrice != null) ? toInt(it.discountedPrice) : null;
-      const lineTotal = unitPrice * quantity;
+      const unitPrice = unitPriceOf(it)
+      const quantity = toInt(it.quantity || 0)
+      const sellPrice = toInt(it.sellPrice ?? it.price ?? unitPrice)
+      const discounted = (it.discountedPrice != null) ? toInt(it.discountedPrice) : null
+      const lineTotal = unitPrice * quantity
       return {
         productDetailId: it.productDetailId,
         productName: it.productName || it.name || null,
@@ -521,112 +528,103 @@ const handleSubmit = async () => {
         discountPercentage: Number(it.discountPercentage || 0),
         discountCampaignId: it.discountCampaignId || null,
         lineTotal,
-      };
-    });
+      }
+    })
 
     // IDs để gọi verify
-    productDetailIds.value = itemsPayload.map(x => x.productDetailId);
+    productDetailIds.value = itemsPayload.map(x => x.productDetailId)
 
     // ------------- VERIFY: status + tồn kho (field `quantity` ở backend) -------------
     try {
-      const idsParam = Array.isArray(productDetailIds.value) ? productDetailIds.value.join(',') : productDetailIds.value;
-      const res = await axios.get(`http://localhost:8080/api/online-sale/verify-list-pdDetail/${idsParam}`);
-      let payload = res.data;
+      const idsParam = Array.isArray(productDetailIds.value) ? productDetailIds.value.join(',') : productDetailIds.value
+      const res = await axios.get(`http://localhost:8080/api/online-sale/verify-list-pdDetail/${idsParam}`)
+      let payload = res.data
       if (typeof payload === 'string') {
-        try { payload = JSON.parse(payload); } catch (e) { /* ignore parse error */ }
+        try { payload = JSON.parse(payload) } catch (e) { /* ignore parse error */ }
       }
 
       if (!Array.isArray(payload) || payload.length === 0) {
-        ElMessage.error('Không có dữ liệu xác thực sản phẩm từ server.');
-        return;
+        failEarly('Không có dữ liệu xác thực sản phẩm từ server.')
       }
 
-      const getStatus = (p) => p?.status ?? p?.active ?? p?.isAvailable ?? p?.enabled;
-      // CHỈ SỬ DỤNG 'quantity' LÀ TỒN KHO (theo yêu cầu)
-      const getAvailable = (p) => p?.quantity ?? null;
+      const getStatus = (p) => p?.status ?? p?.active ?? p?.isAvailable ?? p?.enabled
+      const getAvailable = (p) => p?.quantity ?? null
 
-      // map by id
-      const byId = new Map();
+      const byId = new Map()
       payload.forEach(p => {
-        const id = p?.id ?? p?.productDetailId ?? p?.product_detail_id ?? null;
-        if (id != null) byId.set(String(id), p);
-      });
+        const id = p?.id ?? p?.productDetailId ?? p?.product_detail_id ?? null
+        if (id != null) byId.set(String(id), p)
+      })
 
-      const invalidItems = [];
-
+      const invalidItems = []
       for (const item of itemsPayload) {
-        const idStr = String(item.productDetailId);
-        const serverItem = byId.get(idStr);
-        const displayName = item.productName || (serverItem && (serverItem.productName || serverItem.name)) || idStr;
+        const idStr = String(item.productDetailId)
+        const serverItem = byId.get(idStr)
+        const displayName = item.productName || (serverItem && (serverItem.productName || serverItem.name)) || idStr
 
         if (!serverItem) {
-          invalidItems.push({ id: idStr, name: displayName, reason: 'Không tìm thấy sản phẩm trên server' });
-          continue;
+          invalidItems.push({ id: idStr, name: displayName, reason: 'Không tìm thấy sản phẩm trên server' })
+          continue
         }
 
-        // kiểm tra quantity request > 0
         if (!Number.isFinite(item.quantity) || item.quantity <= 0) {
-          invalidItems.push({ id: idStr, name: displayName, reason: 'Số lượng phải > 0' });
-          continue;
+          invalidItems.push({ id: idStr, name: displayName, reason: 'Số lượng phải > 0' })
+          continue
         }
 
-        // kiểm tra status (chấp nhận numeric=1 / boolean true / string active)
-        const s = getStatus(serverItem);
-        let okStatus = false;
-        if (typeof s === 'boolean') okStatus = s === true;
+        const s = getStatus(serverItem)
+        let okStatus = false
+        if (typeof s === 'boolean') okStatus = s === true
         else {
-          const n = Number(s);
-          if (Number.isFinite(n)) okStatus = n === 1;
+          const n = Number(s)
+          if (Number.isFinite(n)) okStatus = n === 1
           else if (typeof s === 'string') {
-            const t = s.trim().toLowerCase();
-            okStatus = ['active', 'enabled', 'available', 'true', '1'].includes(t);
+            const t = s.trim().toLowerCase()
+            okStatus = ['active', 'enabled', 'available', 'true', '1'].includes(t)
           }
         }
         if (!okStatus) {
-          invalidItems.push({ id: idStr, name: displayName, reason: 'Sản phẩm không hợp lệ (status)' });
-          continue;
+          invalidItems.push({ id: idStr, name: displayName, reason: 'Sản phẩm không hợp lệ (status)' })
+          continue
         }
 
-        // CHECK tồn kho dùng field `quantity`
-        const availRaw = getAvailable(serverItem);
+        const availRaw = getAvailable(serverItem)
         if (availRaw == null) {
-          invalidItems.push({ id: idStr, name: displayName, reason: 'Backend không trả thông tin tồn kho (quantity)' });
-          continue;
+          invalidItems.push({ id: idStr, name: displayName, reason: 'Backend không trả thông tin tồn kho (quantity)' })
+          continue
         }
 
-        const availNum = Number(availRaw);
+        const availNum = Number(availRaw)
         if (!Number.isFinite(availNum)) {
-          invalidItems.push({ id: idStr, name: displayName, reason: `Tồn kho trả về không hợp lệ: ${availRaw}` });
-          continue;
+          invalidItems.push({ id: idStr, name: displayName, reason: `Tồn kho trả về không hợp lệ: ${availRaw}` })
+          continue
         }
 
         if (availNum <= 0) {
-          invalidItems.push({ id: idStr, name: displayName, reason: `Sản phẩm đã hết hàng (tồn kho = ${availNum})` });
-          continue;
+          invalidItems.push({ id: idStr, name: displayName, reason: `Sản phẩm đã hết hàng (tồn kho = ${availNum})` })
+          continue
         }
 
         if (item.quantity > availNum) {
-          invalidItems.push({ id: idStr, name: displayName, reason: `Số lượng yêu cầu (${item.quantity}) vượt quá tồn kho (${availNum})` });
-          continue;
+          invalidItems.push({ id: idStr, name: displayName, reason: `Số lượng yêu cầu (${item.quantity}) vượt quá tồn kho (${availNum})` })
+          continue
         }
       } // end for
 
       if (invalidItems.length > 0) {
-        const details = invalidItems.map(i => `${i.name || i.id}: ${i.reason}`).join('; ');
-        ElMessage.error(`Có sản phẩm không hợp lệ: ${details}`);
-        return;
+        const details = invalidItems.map(i => `${i.name || i.id}: ${i.reason}`).join('; ')
+        failEarly(`Có sản phẩm không hợp lệ: ${details}`)
       }
     } catch (verifyErr) {
-      console.error('Lỗi khi kiểm tra trạng thái productDetail:', verifyErr);
-      ElMessage.error('Không thể kiểm tra trạng thái sản phẩm. Vui lòng thử lại sau.');
-      return;
+      console.error('Lỗi khi kiểm tra trạng thái productDetail:', verifyErr)
+      failEarly('Không thể kiểm tra trạng thái sản phẩm. Vui lòng thử lại sau.')
     }
 
     // ------------- Tính tiền và build payload -------------
-    const itemsSubtotal = itemsPayload.reduce((s, x) => s + (x.lineTotal ?? (x.unitPrice * x.quantity)), 0);
-    const expectedTotal = Math.max(0, toInt(itemsSubtotal) - toInt(discountAmount.value) + toInt(shippingFee.value));
-    finalTotal.value = expectedTotal;
-    paymentAmount.value = expectedTotal;
+    const itemsSubtotal = itemsPayload.reduce((s, x) => s + (x.lineTotal ?? (x.unitPrice * x.quantity)), 0)
+    const expectedTotal = Math.max(0, toInt(itemsSubtotal) - toInt(discountAmount.value) + toInt(shippingFee.value))
+    finalTotal.value = expectedTotal
+    paymentAmount.value = expectedTotal
 
     const payload = {
       customerInfo: {
@@ -634,7 +632,7 @@ const handleSubmit = async () => {
         address: {
           ...form.value.address,
           provinceName: provinces.value.find(p => p.ProvinceID === form.value.address.provinceCode)?.ProvinceName || '',
-          districtName: districts.value.find(d => d.DistrictID === form.value.address.districtCode)?.DistrictName || '',
+          districtName: districts.value.find(d => d.DistrictID === form.value.address.address?.districtCode ?? form.value.address.districtCode)?.DistrictName || '',
           wardName: wards.value.find(w => w.WardCode === form.value.address.wardCode)?.WardName || '',
         }
       },
@@ -642,7 +640,7 @@ const handleSubmit = async () => {
       orderTotal: toInt(orderTotal.value),
       discountAmount: toInt(discountAmount.value),
       shippingFee: toInt(shippingFee.value),
-      amount: toInt(paymentAmount.value), // BE dùng trường này gửi ZaloPay
+      amount: toInt(paymentAmount.value),
       amountBreakdown: {
         itemsSubtotal: toInt(itemsSubtotal),
         orderTotal: toInt(orderTotal.value),
@@ -655,144 +653,166 @@ const handleSubmit = async () => {
       orderType: 1,
       status: 1,
       employeeId: null,
-    };
+    }
+
+    // ---------- CHECK VOUCHER (nếu có) ----------
+    if (payload.voucherCode) {
+      try {
+        const res = await axios.post('http://localhost:8080/api/online-sale/get-code-voucher', payload)
+        // expecting 1 = ok
+        if (res.data !== 1) {
+          failEarly('Voucher không tồn tại hoặc đã bị xóa')
+        }
+      } catch (err) {
+        console.error('Lỗi kiểm tra voucher:', err)
+        // nếu lỗi khi gọi voucher, dừng lại để tránh tạo đơn sai
+        failEarly('Lỗi khi kiểm tra voucher. Vui lòng thử lại.')
+      }
+    }
 
     // ------------- Payment flow -------------
     if (paymentMethod.value === 1) {
       // ZaloPay
-      // bên trong branch nếu (paymentMethod.value === 1) { ... }
       try {
-        const res = await axios.post('http://localhost:8080/api/payment/zalo/create', payload);
-        console.log('data invoice v2: ',res)
-        const zaloPay = res.data?.zaloPay;
-        const invoice = res.data?.invoiceData?.invoice || null;
-        console.log('data invoice: ',invoice?.invoiceCode)
-        const code = invoice?.invoiceCode;
-        if (!code) {
-          console.warn('Không có invoiceCode để verify');
-        } else {
-          try {
-            const res2 = await axios.get('http://localhost:8080/api/online-sale/verify-invoice', {
-              params: { code }
-            });
+        const res = await axios.post('http://localhost:8080/api/payment/zalo/create', payload)
+        console.log('data invoice v2: ', res)
+        const zaloPay = res.data?.zaloPay
+        const invoice = res.data?.invoiceData?.invoice || null
+        const code = invoice?.invoiceCode
 
-            if(res2.data === "DANG_GIAO_DICH"){
-              isSubmitting.value = true;
-              console.log('sta: ',isSubmitting.value)
+        if (code) {
+          try {
+            const res2 = await axios.get('http://localhost:8080/api/online-sale/verify-invoice-status', { params: { code } })
+            if (res2.data === 2) {
+              // nếu 2 -> dừng ngay, không mở ZaloPay, không chuyển trang
+              failEarly('Đợt giảm giá không tồn tại hoặc đã xóa')
             }
-            console.log('data invoice v4: ', res2.data);
-          } catch (error) {
-            console.error('verify-invoice error:', error?.response?.data || error);
+            console.log('verify-invoice-status: ', res2.data)
+          } catch (err) {
+            console.error('verify-invoice error:', err?.response?.data || err)
+            // Nếu verify lỗi, dừng luôn (an toàn hơn)
+            failEarly('Không thể kiểm tra trạng thái hoá đơn. Vui lòng thử lại.')
           }
+        } else {
+          console.warn('Không có invoiceCode để verify')
         }
-        const customerId = invoice?.customerId;
-        if (customerId) localStorage.setItem('userId', String(customerId));
+
+        const customerId = invoice?.customerId
+        if (customerId) localStorage.setItem('userId', String(customerId))
 
         if (zaloPay?.orderUrl && zaloPay?.appTransId) {
-          const pending = {
-            invoiceId: invoice?.id || null,
-            appTransId: zaloPay.appTransId,
-            amount: payload.amount
-          };
+          const pending = { invoiceId: invoice?.id || null, appTransId: zaloPay.appTransId, amount: payload.amount }
+          localStorage.setItem('appTransId', zaloPay.appTransId)
+          localStorage.setItem('pendingOrder', JSON.stringify(pending))
 
-          localStorage.setItem('appTransId', zaloPay.appTransId);
-          localStorage.setItem('pendingOrder', JSON.stringify(pending));
-
-          ElMessage.success('Đang mở ZaloPay ở tab mới. Sau khi thanh toán xong, tab này sẽ tự động đóng.');
+          ElMessage.success('Đang mở ZaloPay ở tab mới. Sau khi thanh toán xong, tab này sẽ tự động đóng.')
 
           // Thử mở popup
-          let newTab = null;
-          try { newTab = window.open(zaloPay.orderUrl, '_blank'); } catch (e) { newTab = null; }
+          let newTab = null
+          try { newTab = window.open(zaloPay.orderUrl, '_blank') } catch (e) { newTab = null }
 
-          // Nếu popup bị chặn -> fallback: mở cùng tab
           if (!newTab) {
-            console.warn('Popup bị chặn, chuyển cùng tab');
-            window.location.replace(zaloPay.orderUrl);
-            return;
+            console.warn('Popup bị chặn, chuyển cùng tab')
+            window.location.replace(zaloPay.orderUrl)
+            return
           }
 
-          // Lắng nghe message từ popup (payment-result sẽ gửi message khi hoàn tất)
+          // Lắng nghe message từ popup
           const messageHandler = (e) => {
-            // Bảo mật: kiểm tra origin (nếu bạn muốn chặt chẽ: e.origin === window.location.origin)
-            const data = e.data || {};
+            const data = e.data || {}
             if (data && (data.status === 'paid' || data.status === 'failed' || data.status === 'cancel')) {
-              // đóng popup nếu còn mở
-              try { if (newTab && !newTab.closed) newTab.close(); } catch (err) { /* ignore */ }
-
-              window.removeEventListener('message', messageHandler);
-              // chuyển trang chính sang trang kết quả (không lưu lịch sử)
+              try { if (newTab && !newTab.closed) newTab.close() } catch (err) { /* ignore */ }
+              window.removeEventListener('message', messageHandler)
               if (typeof router !== 'undefined' && router && typeof router.replace === 'function') {
-                router.replace('/payment-result');
+                router.replace('/payment-result')
               } else {
-                window.location.replace('/payment-result');
+                window.location.replace('/payment-result')
               }
             }
-          };
-          window.addEventListener('message', messageHandler);
+          }
+          window.addEventListener('message', messageHandler)
 
-          // watcher: nếu user đóng popup thủ công -> redirect về payment-result
           const watcher = setInterval(() => {
             try {
               if (!newTab || newTab.closed) {
-                clearInterval(watcher);
-                window.removeEventListener('message', messageHandler);
+                clearInterval(watcher)
+                window.removeEventListener('message', messageHandler)
                 if (typeof router !== 'undefined' && router && typeof router.replace === 'function') {
-                  router.replace('/payment-result');
+                  router.replace('/payment-result')
                 } else {
-                  window.location.replace('/payment-result');
+                  window.location.replace('/payment-result')
                 }
               }
             } catch (err) { /* ignore cross-origin check errors */ }
-          }, 1000);
+          }, 1000)
 
-          // optional: sau khi mở popup, vẫn để tab gốc ở trạng thái hiện tại (hoặc show loading)
-          return;
+          // done — trả về để chờ popup xử lý (finally sẽ chạy để dọn dẹp)
+          return
         } else {
-          ElMessage.error('Không nhận được URL thanh toán từ ZaloPay. Vui lòng thử lại.');
+          failEarly('Không nhận được URL thanh toán từ ZaloPay. Vui lòng thử lại.')
         }
       } catch (err) {
-        console.error('Lỗi khi khởi tạo thanh toán ZaloPay:', err);
-        ElMessage.error(err?.response?.data?.message || 'Lỗi khi khởi tạo thanh toán ZaloPay. Vui lòng thử lại.');
+        console.error('Lỗi khi khởi tạo thanh toán ZaloPay:', err)
+        failEarly(err?.response?.data?.message || 'Lỗi khi khởi tạo thanh toán ZaloPay. Vui lòng thử lại.')
       }
     } else {
-      // COD flow (CHỈ THÊM bắn status theo invoiceCode khi chuyển trang)
+      // COD flow
       try {
-        const res = await axios.post('http://localhost:8080/api/online-sale/checkout', payload);
+        const res = await axios.post('http://localhost:8080/api/online-sale/checkout', payload)
+        console.log('res là: ', res)
 
-        const customerId = res.data?.invoice?.customerId;
-        if (customerId) localStorage.setItem('userId', String(customerId));
+        const customerId = res.data?.invoice?.customerId
+        if (customerId) localStorage.setItem('userId', String(customerId))
 
-        // Lấy invoiceCode để trang payment-result tự check trạng thái ShipCode
         const invoiceCode =
           res.data?.invoice?.invoiceCode ??
           res.data?.invoiceCode ??
           res.data?.data?.invoiceCode ??
-          null;
+          null
 
-        clearCart();
-        cartItems.value = [];
-        ElMessage.success('Đặt hàng thành công! Đơn hàng sẽ sớm được giao.');
-
-        // 👉 Bắn status qua query nếu có invoiceCode
         if (invoiceCode) {
-          router.push({ path: '/payment-result', query: { invoiceCode } });
+          // verify invoice status (same rule)
+          try {
+            const res2 = await axios.get('http://localhost:8080/api/online-sale/verify-invoice-status', { params: { code: invoiceCode } })
+            if (res2.data === 2) {
+              failEarly('Đợt giảm giá không tồn tại hoặc đã xóa')
+            }
+            console.log('verify-invoice-status (COD): ', res2.data)
+          } catch (err) {
+            console.error('verify-invoice error (COD):', err?.response?.data || err)
+            failEarly('Không thể kiểm tra trạng thái hoá đơn. Vui lòng thử lại.')
+          }
         } else {
-          router.push('/payment-result');
+          console.warn('Không có invoiceCode để verify (COD)')
         }
+
+        clearCart()
+        cartItems.value = []
+        ElMessage.success('Đặt hàng thành công! Đơn hàng sẽ sớm được giao.')
+
+        if (invoiceCode) router.push({ path: '/payment-result', query: { invoiceCode } })
+        else router.push('/payment-result')
+        return
       } catch (codErr) {
-        console.error('Lỗi khi checkout COD:', codErr);
-        ElMessage.error(codErr?.response?.data?.message || 'Lỗi khi đặt hàng COD. Vui lòng thử lại.');
+        console.error('Lỗi khi checkout COD:', codErr)
+        failEarly(codErr?.response?.data?.message || 'Lỗi khi đặt hàng COD. Vui lòng thử lại.')
       }
     }
-
   } catch (err) {
-    console.error('Lỗi đặt hàng:', err);
-    ElMessage.error(err?.response?.data?.message || 'Đặt hàng thất bại, vui lòng thử lại.');
+    // Nếu là abort do failEarly thì không show lỗi generic
+    if (err && err.__isAbort) {
+      // already shown message in failEarly
+    } else {
+      console.error('Lỗi đặt hàng:', err)
+      ElMessage.error(err?.response?.data?.message || 'Đặt hàng thất bại, vui lòng thử lại.')
+    }
   } finally {
-    isSubmitting.value = false;
-    try { loadingInstance.close(); } catch (e) { /* ignore */ }
+    isSubmitting.value = false
+    try { if (loadingInstance) loadingInstance.close() } catch (e) { /* ignore */ }
   }
-};
+}
+
+
 
 // ===== watchers
 watch([orderTotal, shippingFee, appliedVoucher], () => { recalcFinal() }, { immediate: true })

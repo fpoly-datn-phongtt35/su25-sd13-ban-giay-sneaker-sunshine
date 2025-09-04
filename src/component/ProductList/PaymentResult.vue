@@ -111,13 +111,13 @@ onMounted(async () => {
           </el-icon>
         </template>
 
-        <template #sub-title>
+        <!-- <template #sub-title>
           <p class="message">{{ currentStatusInfo.message }}</p>
           <div v-if="appTransId" class="order-details">
             <span>Mã giao dịch:</span>
             <strong>{{ appTransId }}</strong>
           </div>
-        </template>
+        </template> -->
 
         <template #extra>
           <div class="actions">

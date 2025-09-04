@@ -52,6 +52,7 @@ import { ref, onMounted } from 'vue'
 import apiClient from '@/utils/axiosInstance'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, RefreshRight, CirclePlus } from '@element-plus/icons-vue'
+const loading = ref(false)
 const soles = ref([])
 const form = ref({ id: null, name: '' }) // 'name' for the form input
 const isEditing = ref(false)

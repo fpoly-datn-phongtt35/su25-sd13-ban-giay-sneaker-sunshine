@@ -15,7 +15,8 @@ public enum TrangThaiChiTiet {
     GIAO_THAT_BAI(5, "Giao hàng thất bại"),
     MAT_HANG(6, "Mất hàng"),
     DA_HOAN_TIEN(7, "Đã hoàn tiền"),
-    DA_HOAN_THANH(8, "Đã hoàn thành");
+    DA_HOAN_THANH(8, "Đã hoàn thành"),
+    YEU_CAU_HOAN(9,"Yêu cầu hoàn");
 
     private final int ma;
     private final String moTa;

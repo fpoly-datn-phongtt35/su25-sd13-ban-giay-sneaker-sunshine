@@ -266,6 +266,7 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
                 WHEN 3 THEN 'DANG_GIAO_HANG'
                 WHEN 4 THEN 'GIAO_THANH_CONG'
                 WHEN 5 THEN 'GIAO_THAT_BAI'
+                WHEN 9 THEN 'YEU_CAU_HUY'
                 WHEN -2 THEN 'HUY_DON'
             END AS statusDetail,
             COUNT(*) AS countInvoice
@@ -285,6 +286,7 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
             WHEN 3 THEN 'DANG_GIAO_HANG'
             WHEN 4 THEN 'GIAO_THANH_CONG'
             WHEN 5 THEN 'GIAO_THAT_BAI'
+            WHEN 9 THEN 'YEU_CAU_HOAN'
             WHEN -2 THEN 'HUY_DON'
         END AS statusDetail,
         COUNT(*) AS countInvoice
@@ -392,6 +394,8 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select i from Invoice i left join fetch i.invoiceDetails d left join fetch d.productDetail pd left join fetch pd.product where i.appTransId = :appTransId")
     Optional<Invoice> findByAppTransIdForUpdate(@Param("appTransId") String appTransId);
+
+
 
 }
 

@@ -359,6 +359,14 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
     List<Object[]> countByStatus(@Param("start") Date start,
                                  @Param("end") Date end);
 
+    @Query("""
+        select i from Invoice i
+        where i.voucher.id = :voucherId
+          and i.status = :status
+          and (i.isPaid = false or i.isPaid is null)
+    """)
+    List<Invoice> findAllByVoucherIdAndStatusAndUnpaid(@Param("voucherId") Long voucherId,
+                                                       @Param("status") TrangThaiTong status);
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select i from Invoice i left join fetch i.invoiceDetails d left join fetch d.productDetail pd left join fetch pd.product where i.appTransId = :appTransId")
     Optional<Invoice> findByAppTransIdForUpdate(@Param("appTransId") String appTransId);

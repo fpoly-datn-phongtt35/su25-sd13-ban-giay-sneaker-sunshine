@@ -40,12 +40,69 @@ import java.util.concurrent.TimeoutException;
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(DiscountCampaignInvalidException.class)
+    public ResponseEntity<Map<String, Object>> handleCampaignInvalid(
+            DiscountCampaignInvalidException ex,
+            WebRequest request) {
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("code", ex.getCode()); // "CAMPAIGN_REMOVED"
+        body.put("message", ex.getMessage());
+        if (ex.getProductNames() != null && !ex.getProductNames().isEmpty()) {
+            body.put("products", ex.getProductNames());
+        }
+        body.put("path", pathOf(request));
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body); // 409
+    }
+
+
     // ===== Helpers =====
     private String pathOf(WebRequest request) {
         if (request instanceof ServletWebRequest swr) {
             return swr.getRequest().getRequestURI();
         }
         return "";
+    }
+
+    // =========================================================
+    // ===============  VOUCHER: HANDLERS MỚI  =================
+    // =========================================================
+
+    /**
+     * 1) Voucher đang áp dụng đã bị xoá/tắt/hết hạn trong lúc tính tiền ở POS
+     *    Service ném VoucherInvalidException → trả 409 + {code, message}
+     */
+    @ExceptionHandler(VoucherInvalidException.class)
+    public ResponseEntity<Map<String, Object>> handleVoucherInvalid(VoucherInvalidException ex, WebRequest request) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("code", "VOUCHER_REMOVED");
+        body.put("message", ex.getMessage() != null
+                ? ex.getMessage()
+                : "Voucher đang áp dụng đã bị xoá/tắt hoặc hết hạn, hệ thống đã tự bỏ voucher khỏi hoá đơn.");
+        body.put("path", pathOf(request));
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body); // 409
+    }
+
+    /**
+     * 2) Xoá voucher lần 2 ở Admin
+     *    Service ném IllegalStateException("Voucher này đã bị xoá trước đó.")
+     *    → trả 409 + {code, message}
+     */
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<Map<String, Object>> handleIllegalState(IllegalStateException ex, WebRequest request) {
+        String msg = ex.getMessage();
+        if (msg != null && msg.contains("đã bị xoá trước đó")) {
+            Map<String, Object> body = new HashMap<>();
+            body.put("code", "VOUCHER_ALREADY_DELETED");
+            body.put("message", msg);
+            body.put("path", pathOf(request));
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(body); // 409
+        }
+        // Không phải case voucher → để handler RuntimeException chung xử lý
+        Map<String, Object> fallback = new HashMap<>();
+        fallback.put("message", msg != null ? msg : "Trạng thái không hợp lệ");
+        fallback.put("path", pathOf(request));
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(fallback);
     }
 
     @ExceptionHandler(RuntimeException.class)

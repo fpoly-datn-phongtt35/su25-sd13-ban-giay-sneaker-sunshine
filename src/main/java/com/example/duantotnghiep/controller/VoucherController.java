@@ -84,14 +84,19 @@ public class VoucherController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<String> deleteVoucher(@PathVariable Long id) {
+    public ResponseEntity<?> deleteVoucher(@PathVariable Long id) {
         try {
             voucherService.deteleVoucherById(id);
-            return ResponseEntity.ok("Xóa voucher thành công (status = 0)");
+            return ResponseEntity.ok("Đã vô hiệu hoá voucher và cập nhật các hoá đơn đang dùng.");
         } catch (EntityNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (IllegalStateException e) {
+            // Voucher đã bị xoá trước đó
+            return ResponseEntity.badRequest().body("Voucher này đã bị xoá trước đó.");
+            // hoặc: return ResponseEntity.status(HttpStatus.CONFLICT).body("Voucher này đã bị xoá trước đó.");
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi khi xóa voucher");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Lỗi khi vô hiệu hoá voucher");
         }
     }
 

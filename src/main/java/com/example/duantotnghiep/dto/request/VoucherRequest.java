@@ -38,4 +38,7 @@ public class VoucherRequest {
     private Integer voucherType;
     private Long productId;
     private Long categoryId;
+
+    private BigDecimal minOrderToReceive;
+
 }

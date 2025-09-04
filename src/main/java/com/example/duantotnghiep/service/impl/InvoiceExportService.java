@@ -56,8 +56,7 @@ public class InvoiceExportService {
         storeName.setAlignment(Element.ALIGN_CENTER);
         document.add(storeName);
 
-        document.add(new Paragraph("ĐC: Cầu Giấy, Hà Nội", fontNormal));
-        document.add(new Paragraph("Mã số: 0105458483 - 0907.123.321", fontNormal));
+        document.add(new Paragraph("ĐC: 25/106/15 Phú Minh Bắc Từ Liêm Hà Nội", fontNormal));
         document.add(Chunk.NEWLINE);
 
         // Tiêu đề hóa đơn

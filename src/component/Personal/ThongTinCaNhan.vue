@@ -375,7 +375,6 @@ const updateCustomer = async () => {
       dateOfBirth: form.value.dateOfBirth ? form.value.dateOfBirth.toISOString() : null
     });
     ElMessage.success('Cập nhật khách hàng thành công!');
-    router.push('/collections');
   } catch (err) {
     console.error('Lỗi khi cập nhật khách hàng:', err);
     ElMessage.error('Lỗi khi cập nhật khách hàng!');

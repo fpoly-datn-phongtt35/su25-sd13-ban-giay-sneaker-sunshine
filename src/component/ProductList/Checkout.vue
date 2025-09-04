@@ -486,6 +486,7 @@ const onWardChange = async () => {
 }
 
 const productDetailIds = ref(null);
+const disable = ref(false);
 
 const handleSubmit = async () => {
   try {
@@ -493,6 +494,11 @@ const handleSubmit = async () => {
     await formRef.value.validate();
   } catch (err) {
     ElMessage.warning('Vui lòng điền đầy đủ thông tin giao hàng.');
+    return;
+  }
+
+  if(isSubmitting.value  === true){
+    ElMessage.warning('Không thể thanh toán');
     return;
   }
 
@@ -677,6 +683,11 @@ const handleSubmit = async () => {
             const res2 = await axios.get('http://localhost:8080/api/online-sale/verify-invoice', {
               params: { code }
             });
+
+            if(res2.data === "DANG_GIAO_DICH"){
+              isSubmitting.value = true;
+              console.log('sta: ',isSubmitting.value)
+            }
             console.log('data invoice v4: ', res2.data);
           } catch (error) {
             console.error('verify-invoice error:', error?.response?.data || error);

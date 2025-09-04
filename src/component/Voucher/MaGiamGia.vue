@@ -72,7 +72,7 @@ const fetchVouchers = async () => {
   }
 
   try {
-    const res = await axios.get(`http://localhost:8080/api/admin/vouchers/by-customer/${customerId}`)
+    const res = await axios.get(`http://localhost:8080/api/online-sale/by-customer/${customerId}`)
     vouchers.value = res.data
   } catch (err) {
     ElMessage.error('Không thể tải danh sách voucher.')

@@ -17,6 +17,9 @@ public interface VoucherHistoryRepository extends JpaRepository<VoucherHistory, 
     @Query("SELECT vh FROM VoucherHistory vh WHERE vh.customer.id = :customerId")
     List<VoucherHistory> findByCustomerId(@Param("customerId") Long customerId);
 
+    @Query("select vh from VoucherHistory vh where vh.voucher.voucherCode = :code and vh.customer.id = :customerId")
+    Optional<VoucherHistory> findByKhachHang(@Param("code") String code, @Param("customerId") Long customerId);
+
     List<VoucherHistory> findByCustomerIdAndStatus(Long customerId, Integer status);
 
     // Trả về nhiều lịch sử voucher nếu có

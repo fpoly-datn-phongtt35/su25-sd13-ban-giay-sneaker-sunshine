@@ -42,6 +42,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+
 @RestController
 @RequestMapping("/api/online-sale")
 @RequiredArgsConstructor
@@ -315,7 +316,7 @@ public class SaleOnlineController {
             @RequestParam String voucherCode,
             @RequestParam BigDecimal orderTotal
     ) {
-        Voucher voucher = voucherService.validateVoucher(customerId, voucherCode, orderTotal);
+        Voucher voucher = voucherService.validateVoucherV2(customerId, voucherCode, orderTotal);
         return voucherMapper.toDto(voucher);
     }
 
@@ -410,7 +411,8 @@ public class SaleOnlineController {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/voucher/by-customer/{customerId}")
+
+    @GetMapping("/by-customer/{customerId}")
     public ResponseEntity<List<VoucherResponse>> getVouchersByCustomer(
             @PathVariable Long customerId,
             @RequestParam(required = false) Integer orderType,

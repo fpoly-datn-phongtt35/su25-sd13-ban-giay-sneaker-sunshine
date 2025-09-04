@@ -380,7 +380,19 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
 
     @Override
     public List<StatusCountDTO> getCountByStatus() {
-        List<Object[]> results = invoiceRepository.countInvoicesByStatusNative();
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        System.out.println("user: "+username);
+
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng với username: " + username));
+
+        System.out.println("user: "+user.getCustomer().getCustomerName());
+
+        Customer customer = user.getCustomer();
+        if (customer == null) {
+            throw new RuntimeException("Người dùng không phải là nhân viên.");
+        }
+        List<Object[]> results = invoiceRepository.countInvoicesByStatusNative(customer.getId());
         List<StatusCountDTO> list = new ArrayList<>();
 
         for (Object[] row : results) {

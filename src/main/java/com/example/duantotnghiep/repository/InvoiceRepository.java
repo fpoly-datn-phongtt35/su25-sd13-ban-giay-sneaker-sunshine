@@ -258,22 +258,24 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
             @Param("endDate") Date endDate);
 
     @Query(value = """
-            SELECT
-                CASE status_detail
-                    WHEN 0 THEN 'CHO_XU_LY'
-                    WHEN 1 THEN 'DA_XU_LY'
-                    WHEN 2 THEN 'CHO_GIAO_HANG'
-                    WHEN 3 THEN 'DANG_GIAO_HANG'
-                    WHEN 4 THEN 'GIAO_THANH_CONG'
-                    WHEN 5 THEN 'GIAO_THAT_BAI'
-                    WHEN -2 THEN 'HUY_DON'
-                END AS statusDetail,
-                COUNT(*) AS countInvoice
-            FROM invoice
-            WHERE order_type = 1
-            GROUP BY status_detail
-            """, nativeQuery = true)
-    List<Object[]> countInvoicesByStatusNative();
+        SELECT
+            CASE status_detail
+                WHEN 0 THEN 'CHO_XU_LY'
+                WHEN 1 THEN 'DA_XU_LY'
+                WHEN 2 THEN 'CHO_GIAO_HANG'
+                WHEN 3 THEN 'DANG_GIAO_HANG'
+                WHEN 4 THEN 'GIAO_THANH_CONG'
+                WHEN 5 THEN 'GIAO_THAT_BAI'
+                WHEN -2 THEN 'HUY_DON'
+            END AS statusDetail,
+            COUNT(*) AS countInvoice
+        FROM invoice
+        WHERE order_type = 1
+          AND customer_id = :customerId
+        GROUP BY status_detail
+        """, nativeQuery = true)
+    List<Object[]> countInvoicesByStatusNative(@Param("customerId") Long customerId);
+
 
     int countByCustomerAndStatusDetailAndUpdatedDateAfter(
             Customer customer,

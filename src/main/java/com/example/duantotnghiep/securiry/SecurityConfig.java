@@ -35,6 +35,8 @@ public class SecurityConfig {
 
                         .requestMatchers("/api/online-sale/**").permitAll()
 
+                        .requestMatchers("/api/payment/zalo/**").permitAll()
+
                         // ADMIN và STAFF có thể truy cập counter-sales
                         .requestMatchers("/api/admin/counter-sales/**").hasAnyRole("ADMIN", "STAFF")
 

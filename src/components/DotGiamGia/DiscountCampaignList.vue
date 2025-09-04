@@ -273,6 +273,13 @@ const fetchOrSearch = async () => {
     size.value = meta?.size ?? params.size
   } catch (err) {
     console.error('Lỗi khi tải đợt giảm giá:', err?.response?.data || err)
+
+    // ===== THÊM NHÁNH 403 giống fetchCustomers =====
+    if (err?.response?.status === 403) {
+      router.push('/error')
+      return
+    }
+
     ElMessage.error('Không thể tải danh sách đợt giảm giá.')
     campaigns.value = []
     totalPages.value = 0
@@ -281,6 +288,7 @@ const fetchOrSearch = async () => {
     loading.value = false
   }
 }
+
 
 const changeStatus = async (row) => {
   const id = getField(row, 'id')

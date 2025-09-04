@@ -346,14 +346,23 @@ const fetchVoucher = async (newPage = 0) => {
     await nextTick()
     computeTableHeight()
   } catch (error) {
-    console.error('Lỗi tải danh sách voucher:', error)
-    ElMessage.error(`Tải danh sách voucher thất bại: ${error.message}`)
+    console.error('Lỗi tải danh sách voucher:', error?.response?.data || error)
+
+    // ===== THÊM NHÁNH 403 giống fetchCustomers =====
+    if (error?.response?.status === 403) {
+      router.push('/error')
+      return
+    }
+
+    ElMessage.error(`Tải danh sách voucher thất bại: ${error?.message || 'Vui lòng thử lại sau.'}`)
     vouchers.value = []
     totalElements.value = 0
+    // page giữ nguyên theo newPage để đồng bộ UI
   } finally {
     loading.value = false
   }
 }
+
 
 /* selection & pagination */
 const handleSelectionChange = (val) => {

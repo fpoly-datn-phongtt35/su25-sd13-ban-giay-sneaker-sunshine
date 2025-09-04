@@ -404,6 +404,19 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
     }
 
     @Override
+    public List<StatusCountDTO> getCountByStatusV2() {
+        List<Object[]> results = invoiceRepository.countInvoicesByStatusNativeV2();
+        List<StatusCountDTO> list = new ArrayList<>();
+
+        for (Object[] row : results) {
+            String status = (String) row[0];
+            Integer count = ((Number) row[1]).intValue();
+            list.add(new StatusCountDTO(status, count));
+        }
+        return list;
+    }
+
+    @Override
     public BigDecimal getRevenue(String type) {
         Date now = new Date();
         Calendar calendar = Calendar.getInstance();

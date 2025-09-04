@@ -22,6 +22,17 @@
   <el-button type="primary" size="small" @click="goToOrderStaff">
     Thống kê đơn hàng theo nhân viên
   </el-button>
+    <el-button
+    type="success"
+    size="small"
+    plain
+    :loading="exporting"
+    :disabled="loading || exporting"
+    @click="exportExcel"
+  >
+    Xuất Excel
+  </el-button>
+
 </div>
 
       </div>
@@ -157,6 +168,9 @@ import Chart from 'chart.js/auto'
 import apiClient from '@/utils/axiosInstance'
 import { useRouter } from 'vue-router'
 const router = useRouter()
+const exporting = ref(false)
+const error = ref(null)
+
 
 /* =================== STATE =================== */
 const loading = ref(true)
@@ -179,6 +193,52 @@ const dash = ref({
   periodStart: null,
   periodEnd: null
 })
+
+const exportExcel = async () => {
+  try {
+    exporting.value = true
+    // Dùng lại body hiện có để khớp service backend
+    const body = {
+      ...buildBody(),
+      // Khi xuất excel nên lấy đủ các phần, bật topProducts nếu BE hỗ trợ
+      includeTopProducts: true,
+    }
+
+    // ĐÚNG với controller bạn đã đưa:
+    // @RequestMapping("/api/statistics")
+    // @PostMapping("/dashboard/export-excel")
+    // -> URL: /api/statistics/dashboard/export-excel
+    const res = await apiClient.post('/admin/statistics/dashboard/export-excel', body, {
+      responseType: 'blob'
+    })
+
+    // Tải file
+    const blob = new Blob([res.data], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')
+    a.download = `dashboard_stat_${ts}.xlsx`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    window.URL.revokeObjectURL(url)
+  } catch (e) {
+    console.error('Xuất Excel thất bại:', e)
+    if (e?.response?.status === 403) {
+      router.push('/error')
+    } else {
+      // Tận dụng alert error sẵn có của bạn
+      // (giữ nguyên biến error hiện có)
+      error.value = e?.message || 'Không thể xuất Excel'
+    }
+  } finally {
+    exporting.value = false
+  }
+}
+
 
 /* =================== HELPERS =================== */
 const pad = n => String(n ?? 0).padStart(2,'0')

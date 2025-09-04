@@ -158,12 +158,6 @@
 
     <!-- VOUCHER DIALOG -->
     <el-dialog v-model="voucherDialog.visible" width="900px" :close-on-click-modal="false">
-      <template #header>
-        <div class="flex items-center justify-between w-full">
-          <span class="font-bold text-base">Voucher của bạn</span>
-          <el-input v-model="voucherDialog.search" placeholder="Tìm theo mã hoặc tên voucher" clearable style="width:260px" @input="filterVouchers" />
-        </div>
-      </template>
 
       <div v-if="voucherDialog.loading" class="text-center py-6 text-gray-500">Đang tải voucher...</div>
 
@@ -285,10 +279,8 @@ const rules = {
 // ===== helpers
 const toInt = (n) => Math.round(Number(n || 0))
 
-// Lấy đơn giá thanh toán nhất quán
 const unitPriceOf = (it) => toInt(it.discountedPrice ?? it.sellPrice ?? it.price ?? 0)
 
-// orderTotal luôn dựa trên unitPrice
 const orderTotal = computed(() =>
   cartItems.value.reduce((s, it) => {
     const price = unitPriceOf(it)
@@ -383,7 +375,7 @@ const openVoucherDialog = async () => {
       voucherDialog.value.loading = false
       return
     }
-    const res = await axios.get(`http://localhost:8080/api/admin/vouchers/by-customer/${customerId}`)
+    const res = await axios.get(`http://localhost:8080/api/online-sale/by-customer/${customerId}`)
     vouchers.value = Array.isArray(res.data) ? res.data : (res.data?.data || [])
     voucherDialog.value.filtered = [...vouchers.value]
   } catch (err) {

@@ -545,7 +545,7 @@ const cancelOrder = async () => {
 /* ===== Fetch invoice ===== */
 const fetchInvoice = async () => {
   try {
-    const res = await apiClient.get(`/admin/online-sales/get-order-customer-detail`, {
+    const res = await apiClient.get(`/online-sale/get-order-customer-detail`, {
       params: { invoiceId }
     })
     invoice.value = res.data

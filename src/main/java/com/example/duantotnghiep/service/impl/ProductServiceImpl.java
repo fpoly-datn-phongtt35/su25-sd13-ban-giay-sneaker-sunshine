@@ -456,6 +456,28 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    public void deleteProductV2(Long id) {
+        Product product = productRepository.findByStatusRemoved(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm: " + id));
+
+        // set status cho product
+        product.setStatus(3);
+        product.setUpdatedDate(new Date());
+        product.setUpdatedBy("admin");
+
+        // set status cho toàn bộ productDetail của product
+        if (product.getProductDetails() != null && !product.getProductDetails().isEmpty()) {
+            product.getProductDetails().forEach(detail -> {
+                detail.setStatus(3);
+                detail.setUpdatedDate(new Date());
+                detail.setUpdatedBy("admin");
+            });
+        }
+
+        productRepository.save(product); // cascade sẽ update luôn productDetail nếu đã map cascade
+    }
+
+    @Override
     public ProductResponse getProductById(Long id) {
         // 1) Lấy product + chi tiết
         Product product = productRepository.findByIdWithProductDetails(id)

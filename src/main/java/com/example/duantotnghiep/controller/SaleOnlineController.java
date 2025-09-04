@@ -36,10 +36,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @RestController
 @RequestMapping("/api/online-sale")
@@ -314,7 +311,7 @@ public class SaleOnlineController {
             @RequestParam String voucherCode,
             @RequestParam BigDecimal orderTotal
     ) {
-        Voucher voucher = voucherService.validateVoucher(customerId, voucherCode, orderTotal);
+        Voucher voucher = voucherService.validateVoucherV2(customerId, voucherCode, orderTotal);
         return voucherMapper.toDto(voucher);
     }
 
@@ -406,6 +403,22 @@ public class SaleOnlineController {
     @GetMapping("/product-customer/{customerId}")
     public ResponseEntity<CustomerResponse> getCustomerProduct(@PathVariable Long customerId) {
         CustomerResponse response = customerService.getCustomerById(customerId);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/by-customer/{customerId}")
+    public ResponseEntity<List<VoucherResponse>> getVouchersByCustomer(
+            @PathVariable Long customerId,
+            @RequestParam(required = false) Integer orderType,
+            @RequestParam(required = false) Set<Long> productIds,
+            @RequestParam(required = false) Set<Long> categoryIds
+    ) {
+        List<VoucherResponse> response = voucherService.getVouchersByCustomer(
+                customerId,
+                orderType,
+                productIds,
+                categoryIds
+        );
         return ResponseEntity.ok(response);
     }
 

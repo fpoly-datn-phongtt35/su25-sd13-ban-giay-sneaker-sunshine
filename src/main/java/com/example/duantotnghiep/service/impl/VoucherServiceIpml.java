@@ -308,6 +308,33 @@ public class VoucherServiceIpml implements VoucherService {
         return voucher;
     }
 
+    @Override
+    public Voucher validateVoucherV2(Long customerId, String voucherCode, BigDecimal orderTotal) {
+        Voucher voucher = voucherRepository.findAvailableByCustomerIdAndCode(customerId, voucherCode)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy voucher hợp lệ"));
+
+        LocalDateTime now = LocalDateTime.now();
+
+        if ((voucher.getStartDate() != null && voucher.getStartDate().isAfter(now)) ||
+                (voucher.getEndDate() != null && voucher.getEndDate().isBefore(now))) {
+            throw new RuntimeException("Voucher đã hết hạn hoặc chưa đến thời gian sử dụng");
+        }
+
+        if (voucher.getQuantity() != null && voucher.getQuantity() <= 0) {
+            throw new RuntimeException("Voucher đã hết lượt sử dụng");
+        }
+
+        if (voucher.getMinOrderValue() != null && orderTotal.compareTo(voucher.getMinOrderValue()) < 0) {
+            throw new RuntimeException("Đơn hàng chưa đạt giá trị tối thiểu để áp dụng voucher");
+        }
+
+        if (voucher.getStatus() == null || voucher.getStatus() != 1) {
+            throw new RuntimeException("Voucher đang không hoạt động");
+        }
+
+        return voucher;
+    }
+
 
     @Transactional(readOnly = true)
     public Voucher findBestVoucherForCustomer(Long invoiceId, BigDecimal orderTotal) {
@@ -411,9 +438,9 @@ public class VoucherServiceIpml implements VoucherService {
     @Override
     public List<VoucherResponse> getVouchersByCustomer(
             Long customerId,
-            Integer orderType,                // 0: quầy, 1: online, null: không lọc
-            Set<Long> productIds,             // có thể null/rỗng
-            Set<Long> categoryIds             // có thể null/rỗng
+            Integer orderType,
+            Set<Long> productIds,
+            Set<Long> categoryIds
     ) {
         if (customerId == null) {
             return Collections.emptyList();
@@ -424,23 +451,33 @@ public class VoucherServiceIpml implements VoucherService {
         boolean hasProductIds  = productIds != null && !productIds.isEmpty();
         boolean hasCategoryIds = categoryIds != null && !categoryIds.isEmpty();
 
-        boolean useProducts   = hasProductIds;   // chỉ lọc theo sản phẩm khi có productIds
-        boolean useCategories = hasCategoryIds;  // chỉ lọc theo danh mục khi có categoryIds
+        // Quyết định dùng product hay category (giữ logic của bạn: ưu tiên product khi có)
+        int useProducts   = hasProductIds ? 1 : 0;
+        int useCategories = (!hasProductIds && hasCategoryIds) ? 1 : 0;
 
-        // Gọi query đã sửa: (v.customer IS NULL OR v.customer.id = :customerId)
-        List<Voucher> vouchers = voucherRepository.findValidVouchers(
-                now,
+        int hasP = hasProductIds ? 1 : 0;
+        int hasC = hasCategoryIds ? 1 : 0;
+
+        // Nếu rỗng, truyền placeholder tránh IN (null). Vì hasP/hasC = 0, clause OR :hasProductIds = 0 sẽ true.
+        Set<Long> safeProductIds  = hasProductIds ? productIds : Collections.singleton(-1L);
+        Set<Long> safeCategoryIds = hasCategoryIds ? categoryIds : Collections.singleton(-1L);
+
+        // Convert now -> Timestamp for SQL Server
+        LocalDateTime nowTs = LocalDateTime.now();
+
+        List<Voucher> vouchers = voucherRepository.findValidVouchersV2Native(
+                nowTs,
                 customerId,
                 orderType,
                 useProducts,
                 useCategories,
-                hasProductIds,
-                hasCategoryIds,
-                hasProductIds ? productIds : Collections.emptySet(),
-                hasCategoryIds ? categoryIds : Collections.emptySet()
+                hasP,
+                hasC,
+                safeProductIds,
+                safeCategoryIds
         );
 
-        // Loại voucher đã dùng bởi khách này (status=1) — có thể tuỳ dự án
+        // Lấy voucher đã dùng (status = 1)
         Set<Long> usedVoucherIds = Optional.ofNullable(
                         voucherHistoryRepository.findByCustomerIdAndStatus(customerId, 1)
                 ).orElseGet(Collections::emptyList).stream()
@@ -452,11 +489,11 @@ public class VoucherServiceIpml implements VoucherService {
         List<Voucher> available = vouchers.stream()
                 .filter(v -> v != null && v.getId() != null && !usedVoucherIds.contains(v.getId()))
                 .filter(v -> v.getQuantity() == null || v.getQuantity() > 0)
-                .toList();
+                .collect(Collectors.toList());
 
         return available.stream()
                 .map(voucherMapper::toDto)
-                .toList();
+                .collect(Collectors.toList());
     }
 
 

@@ -1815,6 +1815,9 @@ public class InvoiceServiceImpl implements InvoiceService {
 
             // ===== 5) LƯU HÓA ĐƠN =====
             Invoice savedInvoice = invoiceRepository.save(invoice);
+            LocalDateTime now = LocalDateTime.now();
+            markVoucherUsedIfAny(savedInvoice,now);
+
 
             // ===== 6) GIAO DỊCH COD =====
             InvoiceTransaction transaction = new InvoiceTransaction();
@@ -1903,7 +1906,7 @@ public class InvoiceServiceImpl implements InvoiceService {
             customer.setBlacklistReason(warningMsg);
         }
 
-        // ⛔ Cấm nếu hủy từ 5 đơn trở lên (vừa mới chạm ngưỡng)
+        //  Cấm nếu hủy từ 5 đơn trở lên (vừa mới chạm ngưỡng)
         if (totalCancelled >= 5 && previousCancelCount < 5) {
             customer.setIsBlacklisted(true);
             customer.setBlacklistReason("Đã hủy ≥ 5 đơn hàng");
@@ -2264,10 +2267,12 @@ public class InvoiceServiceImpl implements InvoiceService {
 
         // Cập nhật invoice: đã thanh toán/đã trừ kho
         invoice.setIsPaid(true);
-        invoice.setStatusDetail(TrangThaiChiTiet.DANG_GIAO_DICH); // hoặc enum bạn muốn
+        invoice.setStatusDetail(TrangThaiChiTiet.CHO_XU_LY);
         invoice.setUpdatedDate(new Date());
         Invoice saved = invoiceRepository.save(invoice);
 
+        LocalDateTime now = LocalDateTime.now();
+        markVoucherUsedIfAny(saved,now);
         return saved;
     }
 

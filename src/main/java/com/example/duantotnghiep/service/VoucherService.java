@@ -33,6 +33,7 @@ public interface VoucherService {
     PaginationDTO<VoucherResponse> phanTrangHienThi(VoucherSearchRequest request, Pageable pageable);
 
     Voucher validateVoucher(Long customerId, String voucherCode, BigDecimal orderTotal);
+    Voucher validateVoucherV2(Long customerId, String voucherCode, BigDecimal orderTotal);
 
     Voucher findBestVoucherForCustomer(Long customerId, BigDecimal orderTotal);
 

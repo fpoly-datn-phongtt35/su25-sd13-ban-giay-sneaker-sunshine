@@ -27,7 +27,7 @@ public interface VoucherRepository extends JpaRepository<Voucher, Long> {
       AND (v.quantity IS NULL OR v.quantity > 0)
       AND :now BETWEEN v.startDate AND v.endDate
       AND (:orderType IS NULL OR v.orderType = :orderType)
-      AND (v.customer IS NULL OR v.customer.id = :customerId)
+      AND (v.customer IS NULL or v.customer.id = :customerId)
       AND (
             (:useProducts = true AND (
                  v.product IS NULL
@@ -60,7 +60,44 @@ public interface VoucherRepository extends JpaRepository<Voucher, Long> {
             @Param("categoryIds") Set<Long> categoryIds
     );
 
-
+    @Query(value = """
+        SELECT *
+        FROM voucher v
+        WHERE v.status = 1
+          AND (v.quantity IS NULL OR v.quantity > 0)
+          AND :now BETWEEN v.start_date AND v.end_date
+          AND (:orderType IS NULL OR v.order_type = :orderType)
+          AND (:customerId IS NULL OR v.customer_id IS NULL OR v.customer_id = :customerId)
+          AND (
+               ( :useProducts = 1 AND (
+                     v.product_id IS NULL
+                     OR :hasProductIds = 0
+                     OR v.product_id IN (:productIds)
+                 )
+               )
+            OR ( :useProducts = 0 AND :useCategories = 1 AND (
+                     v.category_id IS NULL
+                     OR :hasCategoryIds = 0
+                     OR v.category_id IN (:categoryIds)
+                 )
+               )
+            OR ( :useProducts = 0 AND :useCategories = 0
+                 AND v.product_id IS NULL AND v.category_id IS NULL
+               )
+          )
+        ORDER BY v.created_date DESC
+        """, nativeQuery = true)
+    List<Voucher> findValidVouchersV2Native(
+            @Param("now") LocalDateTime now,
+            @Param("customerId") Long customerId,
+            @Param("orderType") Integer orderType,
+            @Param("useProducts") Integer useProducts,      // 1 or 0
+            @Param("useCategories") Integer useCategories,  // 1 or 0
+            @Param("hasProductIds") Integer hasProductIds,  // 1 or 0
+            @Param("hasCategoryIds") Integer hasCategoryIds,// 1 or 0
+            @Param("productIds") Set<Long> productIds,
+            @Param("categoryIds") Set<Long> categoryIds
+    );
 
     @Query("""
             SELECT v
@@ -90,9 +127,26 @@ public interface VoucherRepository extends JpaRepository<Voucher, Long> {
             FROM Voucher v
             WHERE v.voucherCode = :voucherCode
               AND (v.customer IS NULL OR v.customer.id = :customerId)
+             and v.orderType = 1
             """)
     Optional<Voucher> findByCustomerIdOrGlobalVoucherCode(@Param("customerId") Long customerId,
                                                           @Param("voucherCode") String voucherCode);
+
+    @Query("""
+    SELECT v
+    FROM Voucher v
+    WHERE v.voucherCode = :voucherCode
+      AND (v.customer IS NULL OR v.customer.id = :customerId)
+      AND v.orderType = 1
+      AND NOT EXISTS (
+          SELECT 1 FROM VoucherHistory vh
+          WHERE vh.voucher.id = v.id
+            AND vh.customer.id = :customerId
+      )
+""")
+    Optional<Voucher> findAvailableByCustomerIdAndCode(@Param("customerId") Long customerId,
+                                                       @Param("voucherCode") String voucherCode);
+
 
 
     List<Voucher> findByCustomer_Id(Long customerId);

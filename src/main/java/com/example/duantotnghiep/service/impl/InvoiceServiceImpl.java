@@ -2506,6 +2506,11 @@ public class InvoiceServiceImpl implements InvoiceService {
         return invoiceRepository.findStatusDetailByCode(code);
     }
 
+    @Override
+    public Integer findDiscountCampianByCode(String code) {
+        Integer status = invoiceRepository.getDiscountCampaignStatus(code);
+        return status;
+    }
 
     private boolean hasVoucher(Long customerId, int amount) {
         return voucherRepository.existsByCustomerIdAndDiscountAmount(customerId, amount);

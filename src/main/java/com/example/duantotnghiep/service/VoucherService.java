@@ -49,4 +49,5 @@ public interface VoucherService {
     void exportVoucherToExcelByIds(List<Long> voucherIds, OutputStream outputStream) throws IOException;
     VoucherStatusDTO getVoucherStatsForToday(Long voucherId);
 
+    Integer getStatus(String code);
 }

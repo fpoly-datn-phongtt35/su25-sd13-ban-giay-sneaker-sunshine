@@ -395,6 +395,15 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
     @Query("select i from Invoice i left join fetch i.invoiceDetails d left join fetch d.productDetail pd left join fetch pd.product where i.appTransId = :appTransId")
     Optional<Invoice> findByAppTransIdForUpdate(@Param("appTransId") String appTransId);
 
+    @Query("""
+select dc.status
+from Invoice i
+left join i.invoiceDetails id
+left join id.discountCampaign dc
+where i.invoiceCode = :code
+""")
+    Integer getDiscountCampaignStatus(@Param("code") String code);
+
 
 
 }

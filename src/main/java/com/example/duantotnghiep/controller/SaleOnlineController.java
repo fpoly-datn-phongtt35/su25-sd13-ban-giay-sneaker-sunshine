@@ -400,6 +400,11 @@ public class SaleOnlineController {
         return ResponseEntity.ok(invoiceService.findStatusByCode(code));
     }
 
+    @GetMapping("/verify-invoice-status")
+    public ResponseEntity<?> verifyInvoiceV2(@RequestParam("code") String code) {
+        return ResponseEntity.ok(invoiceService.findDiscountCampianByCode(code));
+    }
+
     @GetMapping("/product-customer/{customerId}")
     public ResponseEntity<CustomerResponse> getCustomerProduct(@PathVariable Long customerId) {
         CustomerResponse response = customerService.getCustomerById(customerId);
@@ -463,6 +468,12 @@ public class SaleOnlineController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Đã xảy ra lỗi máy chủ");
         }
+    }
+
+    @GetMapping("/get-code-voucher")
+    public ResponseEntity<?> getVoucher(@RequestParam("code") String code){
+        Integer s = voucherService.getStatus(code);
+        return ResponseEntity.ok(s);
     }
 
 }

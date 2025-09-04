@@ -90,6 +90,9 @@ public class Invoice {
     @Column(name = "delivered_at")
     private Date deliveredAt;
 
+    @Column(name = "request")
+    private Integer request;
+
     @Column(name = "delivery_address")
     private String deliveryAddress;
 

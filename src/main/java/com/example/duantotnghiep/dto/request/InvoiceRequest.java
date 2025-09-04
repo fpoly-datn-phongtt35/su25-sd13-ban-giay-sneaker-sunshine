@@ -30,6 +30,7 @@ public class InvoiceRequest {
     private Date deliveredAt;
     private Long discountCampaignId;
     private String voucherCode;
+    private Integer request;
 
 }
 

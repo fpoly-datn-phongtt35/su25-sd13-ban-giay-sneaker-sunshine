@@ -12,6 +12,7 @@ import com.example.duantotnghiep.state.TrangThaiChiTiet;
 import com.example.duantotnghiep.state.TrangThaiTong;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.BeanUtils;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -212,7 +213,7 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
         Invoice invoice = invoiceRepository.findPaidInvoiceById(invoiceId, isPaid)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
 
-        huyDonClient(invoiceId, nextKey); //
+        huyDonClient(invoiceId, nextKey);
 
         List<InvoiceDetail> invoiceDetails = invoiceDetailRepository.findByInvoiceId(invoiceId);
         for (InvoiceDetail detail : invoiceDetails) {
@@ -392,13 +393,19 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
     }
 
     @Override
+    @Transactional
     public void updateSDT(Long invoiceId, String phone) {
+        if (invoiceId == null) {
+            throw new IllegalArgumentException("invoiceId không được null.");
+        }
+
         Invoice invoice = invoiceRepository.findById(invoiceId)
                 .orElseThrow(() -> new RuntimeException("Ko thấy hóa đơn với id: " + invoiceId));
+
+        // chỉ set trực tiếp, không cần copy
         invoice.setPhone(phone);
         invoiceRepository.save(invoice);
     }
-
     @Override
     public List<StatusCountDTO> getCountByStatus() {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();

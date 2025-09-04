@@ -428,4 +428,41 @@ public class SaleOnlineController {
         return ResponseEntity.ok(response);
     }
 
+    @PutMapping("/update-phone")
+    public ResponseEntity<String> capNhatsdt(
+            @RequestParam("invoiceId") Long invoiceId,
+            @RequestParam("phone") String phone
+    ) {
+        onlineSaleService.updateSDT(invoiceId,phone);
+        return ResponseEntity.ok("Cập nhật địa chỉ giao hàng thành công.");
+    }
+
+    @PutMapping("/update-address")
+    public ResponseEntity<String> capNhatDiaChiV2(
+            @RequestBody UpdateAddress request
+    ) {
+        onlineSaleService.updateAddressShipping(request);
+        return ResponseEntity.ok("Cập nhật địa chỉ giao hàng thành công.");
+    }
+
+    @PutMapping("/customer/huy-don-va-hoan-tien")
+    public ResponseEntity<?> huyDonVaHoanTien(
+            @RequestParam Long invoiceId,
+            @RequestParam String statusDetail,
+            @RequestParam String note,
+            @RequestParam(required = false) String paymentMethod,
+            @RequestParam(required = false) String tradeCode,
+            @RequestParam(required = false) String bankName,
+            @RequestParam Boolean isPaid
+    ) {
+        try {
+            onlineSaleService.huyDonVaHoanTienEmployee(invoiceId, statusDetail, note, paymentMethod,isPaid,tradeCode,bankName);
+            return ResponseEntity.ok("Hủy đơn và hoàn tiền thành công");
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body("Lỗi: " + e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Đã xảy ra lỗi máy chủ");
+        }
+    }
+
 }

@@ -127,12 +127,12 @@ public class OnlineSalesController {
     }
 
     @PutMapping("/update-phone")
-    public ResponseEntity<String> capNhatDiaChi(
+    public ResponseEntity<String> capNhatSDT(
             @RequestParam("invoiceId") Long invoiceId,
             @RequestParam("phone") String phone
     ) {
         onlineSaleService.updateSDT(invoiceId,phone);
-        return ResponseEntity.ok("Cập nhật địa chỉ giao hàng thành công.");
+        return ResponseEntity.ok("Cập nhật sdt thành công.");
     }
 
     @GetMapping("/get-revenue")

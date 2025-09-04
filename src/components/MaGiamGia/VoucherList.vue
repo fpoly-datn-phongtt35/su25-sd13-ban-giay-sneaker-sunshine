@@ -151,28 +151,6 @@
           </template>
         </el-table-column>
 
-        <!-- Bắt đầu -->
-        <!-- <el-table-column
-          label="Bắt đầu"
-          :min-width="160"
-          class-name="col-datetime"
-        >
-          <template #default="{ row }">
-            <span class="mono">{{ formatDate(row.startDate) }}</span>
-          </template>
-        </el-table-column> -->
-
-        <!-- Kết thúc -->
-        <!-- <el-table-column
-          label="Kết thúc"
-          :min-width="160"
-          class-name="col-datetime"
-        >
-          <template #default="{ row }">
-            <span class="mono">{{ formatDate(row.endDate) }}</span>
-          </template>
-        </el-table-column> -->
-
         <!-- Loại đơn -->
         <el-table-column
           label="Loại đơn"

@@ -29,6 +29,7 @@ public class InvoiceRequest {
     private TrangThaiChiTiet statusDetail;
     private Date deliveredAt;
     private Long discountCampaignId;
+    private String voucherCode;
 
 }
 

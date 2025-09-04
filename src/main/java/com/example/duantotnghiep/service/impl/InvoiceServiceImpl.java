@@ -1276,7 +1276,6 @@ public class InvoiceServiceImpl implements InvoiceService {
         Customer customer = invoice.getCustomer();
         if (voucher == null || customer == null) return;
 
-        // ✅ Double-check: KH đã dùng mã này trước đó?
         boolean usedElsewhere = voucherHistoryRepository
                 .existsByVoucherAndCustomerAndStatusAndInvoiceNot(voucher, customer, 1, invoice);
         if (usedElsewhere) {
@@ -1667,8 +1666,8 @@ public class InvoiceServiceImpl implements InvoiceService {
             if (request.getEmployeeId() != null) {
                 employeeRepository.findById(request.getEmployeeId()).ifPresent(invoice::setEmployee);
             }
-            if (request.getVoucherId() != null) {
-                voucherRepository.findById(request.getVoucherId()).ifPresent(invoice::setVoucher);
+            if (request.getVoucherCode() != null) {
+                voucherRepository.findByVoucherCode(request.getVoucherCode()).ifPresent(invoice::setVoucher);
             }
 
             // ===== 4) SẢN PHẨM + GIẢM GIÁ (INLINE, ƯU TIÊN % Ở SPCT) =====
@@ -1817,7 +1816,6 @@ public class InvoiceServiceImpl implements InvoiceService {
             Invoice savedInvoice = invoiceRepository.save(invoice);
             LocalDateTime now = LocalDateTime.now();
             markVoucherUsedIfAny(savedInvoice,now);
-
 
             // ===== 6) GIAO DỊCH COD =====
             InvoiceTransaction transaction = new InvoiceTransaction();
@@ -2150,6 +2148,8 @@ public class InvoiceServiceImpl implements InvoiceService {
             details.add(detail);
         }
 
+        Voucher v = voucherRepository.findByVoucherCode(request.getVoucherCode()).orElseThrow(() -> new RuntimeException("Looxi ko thaya voucher"));
+        invoice.setVoucher(v);
         invoice.setTotalAmount(total);
         invoice.setFinalAmount(
                 total
@@ -2191,7 +2191,6 @@ public class InvoiceServiceImpl implements InvoiceService {
 
         // Idempotency: chỉ xử lý khi đang chờ xử lý
         if (invoice.getStatusDetail() != TrangThaiChiTiet.CHO_XU_LY) {
-            // Đã xử lý trước đó hoặc ở trạng thái khác -> trả về nguyên vẹn
             return invoice;
         }
 
@@ -2261,7 +2260,6 @@ public class InvoiceServiceImpl implements InvoiceService {
             pToSave.add(p);
         }
 
-        // Lưu cập nhật kho (vẫn trong transaction)
         productDetailRepository.saveAll(pdToSave);
         productRepository.saveAll(pToSave);
 

@@ -32,6 +32,7 @@ public interface OnlineSaleService {
     void updateSDT(Long invoiceId,String phone);
 
     List<StatusCountDTO> getCountByStatus();
+    List<StatusCountDTO> getCountByStatusV2();
 
     BigDecimal getRevenue(String type);
 

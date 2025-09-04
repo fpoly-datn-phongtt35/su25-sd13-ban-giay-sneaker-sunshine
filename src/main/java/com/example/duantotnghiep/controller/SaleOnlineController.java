@@ -428,4 +428,10 @@ public class SaleOnlineController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/get-order-customer-detail")
+    public ResponseEntity<InvoiceOnlineResponse> getOrderCustomerOnline(@RequestParam("invoiceId") Long invoiceId){
+        InvoiceOnlineResponse response = onlineSaleService.getOrderByCustomer(invoiceId);
+        return ResponseEntity.ok(response);
+    }
+
 }

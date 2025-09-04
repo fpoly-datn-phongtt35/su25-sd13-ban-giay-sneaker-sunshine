@@ -96,7 +96,7 @@ public class OnlineSalesController {
 
     @GetMapping("/count-by-status")
     public ResponseEntity<List<StatusCountDTO>> getCountByStatus() {
-        return ResponseEntity.ok(onlineSaleService.getCountByStatus());
+        return ResponseEntity.ok(onlineSaleService.getCountByStatusV2());
     }
 
     @GetMapping("/get-order-customer")

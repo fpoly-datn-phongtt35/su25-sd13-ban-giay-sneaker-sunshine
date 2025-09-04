@@ -454,7 +454,7 @@ public class InvoiceServiceImpl implements InvoiceService {
                     userRepository.save(newUser);
 
 //                     Nếu bạn chưa tạo listener, có thể gọi trực tiếp service đã @Async:
-                     accountEmailService.sendAccountCreatedEmail(emailLc, normalizedName, newUser.getUsername(), rawPassword);
+                    accountEmailService.sendAccountCreatedEmail(emailLc, normalizedName, newUser.getUsername(), rawPassword);
                 });
             } else {
                 User u = userOpt.get();
@@ -2538,4 +2538,3 @@ public class InvoiceServiceImpl implements InvoiceService {
         return invoiceDetailRepository.countSoldQuantityByProductId(productId);
     }
 }
-

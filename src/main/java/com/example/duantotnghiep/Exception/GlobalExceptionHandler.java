@@ -40,22 +40,6 @@ import java.util.concurrent.TimeoutException;
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(DiscountCampaignInvalidException.class)
-    public ResponseEntity<Map<String, Object>> handleCampaignInvalid(
-            DiscountCampaignInvalidException ex,
-            WebRequest request) {
-
-        Map<String, Object> body = new HashMap<>();
-        body.put("code", ex.getCode()); // "CAMPAIGN_REMOVED"
-        body.put("message", ex.getMessage());
-        if (ex.getProductNames() != null && !ex.getProductNames().isEmpty()) {
-            body.put("products", ex.getProductNames());
-        }
-        body.put("path", pathOf(request));
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(body); // 409
-    }
-
-
     // ===== Helpers =====
     private String pathOf(WebRequest request) {
         if (request instanceof ServletWebRequest swr) {

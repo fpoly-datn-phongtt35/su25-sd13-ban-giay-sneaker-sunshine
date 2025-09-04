@@ -208,13 +208,12 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
 
     @Override
     @Transactional
-    public void huyDonVaHoanTienClient(Long invoiceId, String nextKey, String note, String paymentMenthod, Boolean isPaid) {
+    public void huyDonVaHoanTienClient(Long invoiceId, String nextKey, String note, Integer request, Boolean isPaid) {
         Invoice invoice = invoiceRepository.findPaidInvoiceById(invoiceId, isPaid)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
 
-        huyDonClient(invoiceId, nextKey); // ✅ Gọi hàm hủy đơn
+        huyDonClient(invoiceId, nextKey); //
 
-        // Cập nhật lại kho cho từng sản phẩm
         List<InvoiceDetail> invoiceDetails = invoiceDetailRepository.findByInvoiceId(invoiceId);
         for (InvoiceDetail detail : invoiceDetails) {
             ProductDetail productDetail = detail.getProductDetail();
@@ -229,18 +228,18 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
             productRepository.save(product);
         }
 
-        // ✅ Ghi nhận giao dịch hoàn tiền
+        //  Ghi nhận giao dịch hoàn tiền
         InvoiceTransaction invoiceTransaction = new InvoiceTransaction();
         invoiceTransaction.setTransactionCode("GD-" + UUID.randomUUID().toString().substring(0, 8));
         invoiceTransaction.setInvoice(invoice);
         invoiceTransaction.setAmount(invoice.getFinalAmount());
         invoiceTransaction.setPaymentStatus(2);
-        invoiceTransaction.setPaymentMethod(paymentMenthod);
-        invoiceTransaction.setTransactionType("Hoàn tiền");
+        invoiceTransaction.setTransactionType("Yêu cầu hoàn tiền");
         invoiceTransaction.setNote(note);
         invoiceTransaction.setPaymentTime(new Date());
         invoiceTransactionRepository.save(invoiceTransaction);
 
+        invoice.setRequest(request);
         invoiceRepository.save(invoice);
     }
 
@@ -347,6 +346,28 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
         }
 
         List<InvoiceOnlineResponse> response = invoiceRepository2.getOrder3(customer.getId(),status);
+        if(response == null){
+            return null;
+        }
+        return response;
+    }
+
+    @Override
+    public List<InvoiceOnlineResponse> getOrderByCustomer3(Integer status) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        System.out.println("user: "+username);
+
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng với username: " + username));
+
+        System.out.println("user: "+user.getCustomer().getCustomerName());
+
+        Customer customer = user.getCustomer();
+        if (customer == null) {
+            throw new RuntimeException("Người dùng không phải là nhân viên.");
+        }
+
+        List<InvoiceOnlineResponse> response = invoiceRepository2.getOrder4(customer.getId(),status);
         if(response == null){
             return null;
         }

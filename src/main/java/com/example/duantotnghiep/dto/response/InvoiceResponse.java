@@ -27,6 +27,8 @@ public class InvoiceResponse {
     Date updatedDate;
     String createdBy;
     String updatedBy;
+    private Integer request;
+
 
     private String customerName;
 

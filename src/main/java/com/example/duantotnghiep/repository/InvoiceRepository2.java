@@ -66,6 +66,18 @@ public class InvoiceRepository2 {
                 .toList();
     }
 
+    public List<InvoiceOnlineResponse> getOrder4(Long customerId,Integer statusDetail) {
+        String sql = BASE_SELECT + " WHERE i.customer_id = :customerId and i.status_detail = :statusDetail and i.order_type = 1 ";
+        List<Object[]> rows = entityManager.createNativeQuery(sql)
+                .setParameter("customerId", customerId)
+                .setParameter("statusDetail",statusDetail)
+                .getResultList();
+
+        return rows.stream()
+                .map(this::mapRowToInvoice)
+                .toList();
+    }
+
     // Mapping helper
     private InvoiceOnlineResponse mapRowToInvoice(Object[] row) {
         if (row == null || row.length < 17) {

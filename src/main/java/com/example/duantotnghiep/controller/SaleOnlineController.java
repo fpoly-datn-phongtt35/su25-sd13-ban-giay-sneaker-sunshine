@@ -133,11 +133,11 @@ public class SaleOnlineController {
             @RequestParam Long invoiceId,
             @RequestParam String statusDetail,
             @RequestParam String note,
-            @RequestParam(required = false) String paymentMethod,
+            @RequestParam(required = false) Integer request,
             @RequestParam Boolean isPaid
     ) {
         try {
-            onlineSaleService.huyDonVaHoanTienClient(invoiceId, statusDetail, note, paymentMethod,isPaid);
+            onlineSaleService.huyDonVaHoanTienClient(invoiceId, statusDetail, note, request,isPaid);
             return ResponseEntity.ok("Hủy đơn và hoàn tiền thành công");
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body("Lỗi: " + e.getMessage());
@@ -386,7 +386,7 @@ public class SaleOnlineController {
     @GetMapping("/get-order-customer-v2")
     public ResponseEntity<List<InvoiceOnlineResponse>> getOrderCustomerOnline2(@RequestParam("statusDetail") Integer statusDetail){
         System.out.println("status: "+statusDetail);
-        List<InvoiceOnlineResponse> response = onlineSaleService.getOrderByCustomer2(statusDetail);
+        List<InvoiceOnlineResponse> response = onlineSaleService.getOrderByCustomer3(statusDetail);
         return ResponseEntity.ok(response);
     }
 

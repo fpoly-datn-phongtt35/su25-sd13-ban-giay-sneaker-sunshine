@@ -2002,7 +2002,13 @@ public class InvoiceServiceImpl implements InvoiceService {
         // ===== 2) ĐỊA CHỈ GIAO HÀNG =====
         AddressRequest addr = request.getCustomerInfo().getAddress();
         String addressNew = (addr == null) ? null
-                : (addr.getHouseName() + " - " + addr.getWardName() + " - " + addr.getDistrictName() + " - " + addr.getProvinceName() + " - Việt Nam");
+                : String.join(" - ",
+                Optional.ofNullable(addr.getHouseName()).orElse(""),
+                Optional.ofNullable(addr.getWardName()).orElse(""),
+                Optional.ofNullable(addr.getDistrictName()).orElse(""),
+                Optional.ofNullable(addr.getProvinceName()).orElse(""),
+                "Việt Nam"
+        ).replaceAll("( - )+", " - ").replaceAll("^\\s*-\\s*", "").replaceAll("\\s*-\\s*$", "");
 
         // ===== 3) HÓA ĐƠN (chưa lưu) =====
         Invoice invoice = new Invoice();
@@ -2024,9 +2030,16 @@ public class InvoiceServiceImpl implements InvoiceService {
         if (request.getEmployeeId() != null) {
             employeeRepository.findById(request.getEmployeeId()).ifPresent(invoice::setEmployee);
         }
+
+        // ==== Voucher: CHỈ set khi voucher tìm thấy (không tạo new Voucher() tránh TransientObjectException) ====
         if (request.getVoucherId() != null) {
             voucherRepository.findById(request.getVoucherId()).ifPresent(invoice::setVoucher);
+        } else if (request.getVoucherCode() != null && !request.getVoucherCode().isBlank()) {
+            // nếu frontend gửi voucherCode thay vì id -> tìm theo code và set nếu có
+            voucherRepository.findByVoucherCode(request.getVoucherCode())
+                    .ifPresent(invoice::setVoucher);
         }
+        // Lưu ý: nếu muốn validate voucher (status, quantity, time window, minOrderValue...) -> kiểm tra ở đây và throw nếu không hợp lệ.
 
         // ===== 4) TÍNH TOÁN & TẠO HDCT (chỉ kiểm tra tồn kho, KHÔNG trừ kho) =====
         final BigDecimal ONE_HUNDRED = new BigDecimal("100");
@@ -2041,7 +2054,7 @@ public class InvoiceServiceImpl implements InvoiceService {
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm chi tiết ID: " + item.getProductDetailId()));
 
             // Kiểm tra tồn kho (chi tiết)
-            if (item.getQuantity() > pd.getQuantity()) {
+            if (item.getQuantity() > Optional.ofNullable(pd.getQuantity()).orElse(0)) {
                 throw new RuntimeException("Số lượng vượt quá tồn kho chi tiết sản phẩm: " + item.getProductDetailId());
             }
 
@@ -2127,7 +2140,7 @@ public class InvoiceServiceImpl implements InvoiceService {
                     : sellPrice.setScale(2, RoundingMode.HALF_UP);
 
             InvoiceDetail detail = new InvoiceDetail();
-            detail.setInvoice(invoice);
+            detail.setInvoice(invoice); // invoice chưa save nhưng sẽ được cascade nếu mapping đúng
             detail.setProductDetail(pd);
             detail.setQuantity(item.getQuantity());
             detail.setCreatedDate(LocalDateTime.now());
@@ -2148,18 +2161,23 @@ public class InvoiceServiceImpl implements InvoiceService {
             details.add(detail);
         }
 
-        Voucher v = voucherRepository.findByVoucherCode(request.getVoucherCode()).orElseThrow(() -> new RuntimeException("Looxi ko thaya voucher"));
-        invoice.setVoucher(v);
+        // ===== Voucher xử lý: CHỈ set nếu voucher đã được load (managed) =====
+        // (đoạn này đã được set phía trên vào invoice nếu có tìm thấy)
+        // Nếu bạn cần validate voucher (số lượng, thời hạn, giá trị tối thiểu ...) -> làm tiếp ở đây.
+
         invoice.setTotalAmount(total);
         invoice.setFinalAmount(
                 total
                         .subtract(Optional.ofNullable(invoice.getDiscountAmount()).orElse(BigDecimal.ZERO))
                         .add(Optional.ofNullable(invoice.getShippingFee()).orElse(BigDecimal.ZERO))
         );
+        // Gán danh sách details vào invoice (chi tiết đã set invoice reference)
         invoice.setInvoiceDetails(details);
 
+        // Lưu invoice (với cascade invoiceDetails nếu mapping đúng)
         Invoice saved = invoiceRepository.save(invoice);
 
+        // Tạo appTransId dựa trên id saved
         String appTransId = new SimpleDateFormat("yyMMdd").format(new Date()) + "_" + saved.getId();
         ZaloPayResponse zaloPayResponse = zaloPayService.createZaloPayOrder(
                 saved.getPhone(),
@@ -2168,15 +2186,15 @@ public class InvoiceServiceImpl implements InvoiceService {
                 appTransId
         );
 
-        // Lưu appTransId vào HĐ
+        // Lưu lại appTransId vào HĐ
         saved.setAppTransId(appTransId);
         saved.setUpdatedDate(new Date());
         saved = invoiceRepository.save(saved);
 
-
         InvoiceDisplayResponse display = invoiceMapper.toInvoiceDisplayResponse(saved, saved.getInvoiceDetails());
         return new InvoiceWithZaloPayResponse(display, zaloPayResponse);
     }
+
 
 
     @Transactional

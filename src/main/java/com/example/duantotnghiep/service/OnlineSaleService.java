@@ -17,7 +17,7 @@ public interface OnlineSaleService {
     void huyDonClient(Long invoiceId, String nextKey);
     InvoiceOnlineResponse getOrder(Long invoiceId);
 
-    void huyDonVaHoanTienClient(Long invoiceId,String nextKey,String note,String paymentMenthod,Boolean isPaid);
+    void huyDonVaHoanTienClient(Long invoiceId,String nextKey,String note,Integer request,Boolean isPaid);
     void huyDonVaHoanTienEmployee(Long invoiceId,String nextKey,String note,String paymentMenthod,Boolean isPaid,String tradeCode,String bankName);
     void giaoHangThatBaiVaHoanTien(Long invoiceId, String nextKey, String note, String paymentMenthod, Boolean isPaid, String tradeCode,String bankName);
     List<StatusCountResponse> getCountByStatusDetail();
@@ -25,6 +25,7 @@ public interface OnlineSaleService {
     InvoiceOnlineResponse getOrderByCustomer(Long invoiceId);
 
     List<InvoiceOnlineResponse> getOrderByCustomer2(Integer status);
+    List<InvoiceOnlineResponse> getOrderByCustomer3(Integer status);
 
     List<OrderStatusHistoryResponse> getOrderStatusHistory(Long invoiceId);
 

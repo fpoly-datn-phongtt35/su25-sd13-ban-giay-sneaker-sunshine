@@ -648,42 +648,40 @@ public class InvoiceServiceImpl implements InvoiceService {
     }
 
     private void handleAutoPromoVoucher(Invoice invoice, String username, LocalDateTime now) {
-        // Không tặng nếu không có khách hoặc tổng tiền null
+        // Điều kiện tiên quyết
         if (invoice == null || invoice.getCustomer() == null || invoice.getTotalAmount() == null) return;
+
+        // ✅ Chỉ tặng khi trạng thái tổng = THANH_CONG
+        if (invoice.getStatus() != TrangThaiTong.THANH_CONG) return;
 
         BigDecimal totalAmount = invoice.getTotalAmount();
         Long customerId = invoice.getCustomer().getId();
 
-        // Lấy các voucher đang hoạt động + còn trong thời hạn
+        // Lấy các voucher đang hoạt động + còn hạn + có minOrderToReceive
         List<Voucher> activePromos = voucherRepository.findByStatus(1).stream()
                 .filter(v -> {
                     LocalDateTime start = v.getStartDate();
-                    LocalDateTime end = v.getEndDate();
+                    LocalDateTime end   = v.getEndDate();
                     boolean timeOk = (start == null || !now.isBefore(start)) &&
-                            (end == null || !now.isAfter(end));
-                    // Điều kiện MỚI: chỉ xét các voucher có cấu hình minOrderToReceive != null
-                    boolean hasReceiveThreshold = v.getMinOrderToReceive() != null;
-                    return timeOk && hasReceiveThreshold;
+                            (end   == null || !now.isAfter(end));
+                    return timeOk && v.getMinOrderToReceive() != null;
                 })
                 .collect(Collectors.toList());
 
-        // Chọn voucher phù hợp nhất theo minOrderToReceive (ưu tiên ngưỡng cao nhất thỏa điều kiện)
+        // Chọn ngưỡng cao nhất thỏa điều kiện
         Voucher matchedPromo = activePromos.stream()
                 .filter(v -> totalAmount.compareTo(v.getMinOrderToReceive()) >= 0)
-                .sorted((v1, v2) -> v2.getMinOrderToReceive().compareTo(v1.getMinOrderToReceive())) // giảm dần
+                .sorted((v1, v2) -> v2.getMinOrderToReceive().compareTo(v1.getMinOrderToReceive()))
                 .findFirst()
                 .orElse(null);
 
-        // Không có voucher phù hợp => không tặng
         if (matchedPromo == null) return;
 
         int discountAmount = matchedPromo.getDiscountAmount() != null ? matchedPromo.getDiscountAmount() : 0;
 
-        // Tránh tặng trùng (theo tiêu chí hiện tại của bạn)
+        // Tránh tặng trùng
         boolean alreadyGiven = voucherRepository.existsByCustomerIdAndVoucherNameAndDiscountAmount(
-                customerId,
-                matchedPromo.getVoucherName(),
-                discountAmount
+                customerId, matchedPromo.getVoucherName(), discountAmount
         );
         if (alreadyGiven) return;
 
@@ -694,7 +692,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         newVoucher.setVoucherName(matchedPromo.getVoucherName());
         newVoucher.setDiscountAmount(discountAmount);
 
-        // Copy điều kiện ÁP DỤNG của voucher tặng (nếu không muốn yêu cầu tối thiểu khi áp dụng, set = BigDecimal.ZERO)
+        // Điều kiện áp dụng (copy, có thể chỉnh về ZERO nếu muốn không yêu cầu tối thiểu)
         newVoucher.setDiscountPercentage(
                 matchedPromo.getDiscountPercentage() != null ? matchedPromo.getDiscountPercentage() : BigDecimal.ZERO
         );
@@ -705,19 +703,19 @@ public class InvoiceServiceImpl implements InvoiceService {
                 matchedPromo.getMaxDiscountValue() != null ? matchedPromo.getMaxDiscountValue() : BigDecimal.ZERO
         );
 
-        // Thời hạn voucher tặng: 30 ngày kể từ lúc phát (giữ logic cũ)
+        // Hạn dùng 30 ngày
         newVoucher.setStartDate(now);
         newVoucher.setEndDate(now.plusDays(30));
         newVoucher.setStatus(1);
         newVoucher.setCreatedDate(now);
         newVoucher.setCreatedBy(username != null ? username : "SYSTEM");
         newVoucher.setQuantity(1);
-        newVoucher.setVoucherType(0); // loại: tặng
-        newVoucher.setOrderType(1);   // tuỳ định nghĩa của bạn
+        newVoucher.setVoucherType(0); // loại tặng
+        newVoucher.setOrderType(1);   // tùy quy ước (online?)
 
         voucherRepository.save(newVoucher);
 
-        // Gửi email thông báo (nếu có)
+        // Gửi email
         String email = invoice.getCustomer().getEmail();
         if (email != null && !email.isEmpty()) {
             voucherEmailService.sendVoucherNotificationEmail(
@@ -1837,6 +1835,7 @@ public class InvoiceServiceImpl implements InvoiceService {
 
             // ===== 9) TRẢ VỀ =====
             return invoiceMapper.toInvoiceDisplayResponse(savedInvoice, savedInvoice.getInvoiceDetails());
+
 
         } catch (Exception e) {
             e.printStackTrace();

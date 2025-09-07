@@ -8,6 +8,7 @@ import com.example.duantotnghiep.repository.*;
 import com.example.duantotnghiep.service.CustomerService;
 import com.example.duantotnghiep.service.InvoiceService;
 import com.example.duantotnghiep.service.OnlineSaleService;
+import com.example.duantotnghiep.service.VoucherEmailService;
 import com.example.duantotnghiep.state.TrangThaiChiTiet;
 import com.example.duantotnghiep.state.TrangThaiTong;
 import jakarta.transaction.Transactional;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -34,6 +36,8 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
     private final ProductDetailRepository  productDetailRepository;
     private final ProductRepository productRepository;
     private final InvoiceService invoiceService;
+    private final VoucherRepository voucherRepository;
+    private final VoucherEmailService voucherEmailService;
 
     @Override
     public void chuyenTrangThai(Long invoiceId,String nextKey) {
@@ -86,7 +90,9 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
             if (nextStatus == TrangThaiChiTiet.CHO_GIAO_HANG ||  nextStatus == TrangThaiChiTiet.DANG_GIAO_HANG || nextStatus == TrangThaiChiTiet.DA_XU_LY || nextStatus == TrangThaiChiTiet.CHO_XU_LY) {
                 invoice.setStatus(TrangThaiTong.DANG_XU_LY);
             }
-            invoiceRepository.save(invoice);
+
+            Invoice s = invoiceRepository.save(invoice);
+            handleAutoPromoVoucher(s, username, LocalDateTime.now());
             OrderStatusHistory history = new OrderStatusHistory();
             history.setInvoice(invoice);
             history.setEmployee(employee);
@@ -96,6 +102,90 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
             historyRepository.save(history);
         }
     }
+
+    private void handleAutoPromoVoucher(Invoice invoice, String username, LocalDateTime now) {
+        // Điều kiện tiên quyết
+        if (invoice == null || invoice.getCustomer() == null || invoice.getTotalAmount() == null) return;
+
+        // ✅ Chỉ tặng khi trạng thái tổng = THANH_CONG
+        if (invoice.getStatus() != TrangThaiTong.THANH_CONG) return;
+
+        BigDecimal totalAmount = invoice.getTotalAmount();
+        Long customerId = invoice.getCustomer().getId();
+
+        // Lấy các voucher đang hoạt động + còn hạn + có minOrderToReceive
+        List<Voucher> activePromos = voucherRepository.findByStatus(1).stream()
+                .filter(v -> {
+                    LocalDateTime start = v.getStartDate();
+                    LocalDateTime end   = v.getEndDate();
+                    boolean timeOk = (start == null || !now.isBefore(start)) &&
+                            (end   == null || !now.isAfter(end));
+                    return timeOk && v.getMinOrderToReceive() != null;
+                })
+                .collect(Collectors.toList());
+
+        // Chọn ngưỡng cao nhất thỏa điều kiện
+        Voucher matchedPromo = activePromos.stream()
+                .filter(v -> totalAmount.compareTo(v.getMinOrderToReceive()) >= 0)
+                .sorted((v1, v2) -> v2.getMinOrderToReceive().compareTo(v1.getMinOrderToReceive()))
+                .findFirst()
+                .orElse(null);
+
+        if (matchedPromo == null) return;
+
+        int discountAmount = matchedPromo.getDiscountAmount() != null ? matchedPromo.getDiscountAmount() : 0;
+
+        // Tránh tặng trùng
+        boolean alreadyGiven = voucherRepository.existsByCustomerIdAndVoucherNameAndDiscountAmount(
+                customerId, matchedPromo.getVoucherName(), discountAmount
+        );
+        if (alreadyGiven) return;
+
+        // Tạo voucher tặng
+        Voucher newVoucher = new Voucher();
+        newVoucher.setCustomer(invoice.getCustomer());
+        newVoucher.setVoucherCode("VOUCHER-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+        newVoucher.setVoucherName(matchedPromo.getVoucherName());
+        newVoucher.setDiscountAmount(discountAmount);
+
+        // Điều kiện áp dụng (copy, có thể chỉnh về ZERO nếu muốn không yêu cầu tối thiểu)
+        newVoucher.setDiscountPercentage(
+                matchedPromo.getDiscountPercentage() != null ? matchedPromo.getDiscountPercentage() : BigDecimal.ZERO
+        );
+        newVoucher.setMinOrderValue(
+                matchedPromo.getMinOrderValue() != null ? matchedPromo.getMinOrderValue() : BigDecimal.ZERO
+        );
+        newVoucher.setMaxDiscountValue(
+                matchedPromo.getMaxDiscountValue() != null ? matchedPromo.getMaxDiscountValue() : BigDecimal.ZERO
+        );
+
+        // Hạn dùng 30 ngày
+        newVoucher.setStartDate(now);
+        newVoucher.setEndDate(now.plusDays(30));
+        newVoucher.setStatus(1);
+        newVoucher.setCreatedDate(now);
+        newVoucher.setCreatedBy(username != null ? username : "SYSTEM");
+        newVoucher.setQuantity(1);
+        newVoucher.setVoucherType(0); // loại tặng
+        newVoucher.setOrderType(1);   // tùy quy ước (online?)
+
+        voucherRepository.save(newVoucher);
+
+        // Gửi email
+        String email = invoice.getCustomer().getEmail();
+        if (email != null && !email.isEmpty()) {
+            voucherEmailService.sendVoucherNotificationEmail(
+                    email,
+                    invoice.getCustomer().getCustomerName(),
+                    totalAmount,
+                    BigDecimal.valueOf(discountAmount),
+                    newVoucher.getDiscountPercentage(),
+                    newVoucher.getVoucherCode(),
+                    newVoucher.getEndDate().toLocalDate()
+            );
+        }
+    }
+
 
     @Override
     @Transactional

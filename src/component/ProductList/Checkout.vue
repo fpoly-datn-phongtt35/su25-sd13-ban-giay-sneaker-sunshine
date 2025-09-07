@@ -758,6 +758,7 @@ const handleSubmit = async () => {
     } else {
       // COD flow
       try {
+        console.log('Checkout COD, payload: ', payload);
         const res = await axios.post('http://localhost:8080/api/online-sale/checkout', payload)
         console.log('res là: ', res)
 

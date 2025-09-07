@@ -1,44 +1,109 @@
 <template>
-  <div class="p-4 full-screen">
-    <el-button type="primary" icon="el-icon-arrow-left" @click="goBack" class="mb-4">
+  <div class="page">
+    <!-- Back -->
+    <el-button type="primary" plain @click="goBack" class="mb-3">
+      <el-icon><ArrowLeft /></el-icon>
       Quay lại
     </el-button>
 
-    <el-card>
-      <h3>Tiến trình đơn hàng</h3>
+    <el-card shadow="never" class="card">
+      <!-- Header actions -->
+      <div class="header">
+        <h3 class="title">
+          <el-icon class="title-icon"><List /></el-icon>
+          Tiến trình đơn hàng
+        </h3>
 
-      <!-- Hủy -->
-      <el-steps
-        v-if="['HUY_DON','HUY_GIAO_DICH'].includes(invoice.statusDetail)"
-        :active="0"
-        align-center
-        finish-status="error"
-      >
-        <el-step :title="'Đã hủy'" status="error" />
-      </el-steps>
+        <div class="actions">
+          <el-button
+            v-if="canAdvance"
+            type="success"
+            @click="confirmAdvance"
+            :loading="loadingAdvance"
+          >
+            <el-icon><ArrowRightBold /></el-icon>
+            Trạng thái tiếp theo
+          </el-button>
 
-      <!-- Bình thường -->
-      <el-steps
-        v-else
-        :active="getActiveStep(invoice.statusDetail)"
-        finish-status="success"
-        align-center
-      >
-        <el-step v-for="step in mainSteps" :key="step.key" :title="step.label" />
-      </el-steps>
+          <el-button
+            v-if="canRevert"
+            type="warning"
+            plain
+            @click="confirmRevert"
+            :loading="loadingRevert"
+          >
+            <el-icon><Back /></el-icon>
+            Quay lại
+          </el-button>
 
-      <div class="mt-4 flex flex-wrap gap-2">
-        <el-tooltip v-if="!canCancel" content="Đơn đã đến giai đoạn không thể hủy" placement="top">
-          <span>
-            <el-button type="danger" :disabled="true">Hủy đơn hàng</el-button>
-          </span>
-        </el-tooltip>
-        <el-button v-else type="danger" @click="showCancelDialog">Hủy đơn hàng</el-button>
+          <el-tooltip v-if="!canCancel" content="Đơn đã đến giai đoạn không thể hủy" placement="top">
+            <span><el-button type="danger" disabled>Hủy đơn</el-button></span>
+          </el-tooltip>
+          <el-button v-else type="danger" @click="showCancelDialog" :loading="loadingCancel">
+            <el-icon><Delete /></el-icon>
+            Hủy đơn
+          </el-button>
+
+          <el-button
+            v-if="invoice.statusDetail === 'DANG_GIAO_HANG'"
+            type="danger"
+            plain
+            @click="showFailDialog"
+            :loading="loadingFail"
+          >
+            <el-icon><CloseBold /></el-icon>
+            Giao thất bại
+          </el-button>
+
+          <!-- Nút xác nhận yêu cầu hủy (hiện khi YEU_CAU_NGHI) -->
+          <el-button
+            v-if="invoice.statusDetail === 'YEU_CAU_HOAN'"
+            type="danger"
+            plain
+            @click="showApproveCancelDialog"
+            :loading="loadingApproveCancel"
+          >
+            <el-icon><Delete /></el-icon>
+            Xác nhận yêu cầu hủy
+          </el-button>
+
+          <el-button @click="showActionHistoryDialog" plain>
+            <el-icon><Clock /></el-icon>
+            Lịch sử tác động
+          </el-button>
+        </div>
+      </div>
+
+      <!-- Steps -->
+      <div class="mt-2">
+        <!-- Trạng thái đặc biệt -->
+        <el-steps
+          v-if="['HUY_DON','GIAO_THAT_BAI'].includes(invoice.statusDetail)"
+          :active="0"
+          align-center
+          finish-status="error"
+        >
+          <el-step :title="invoice.statusDetail === 'HUY_DON' ? 'Đã hủy' : 'Giao hàng thất bại'" status="error" />
+        </el-steps>
+
+        <!-- Quy trình chính -->
+        <el-steps
+          v-else
+          :active="getActiveStep(invoice.statusDetail)"
+          finish-status="success"
+          align-center
+        >
+          <el-step v-for="s in MAIN_STEPS" :key="s.key" :title="s.label" />
+        </el-steps>
       </div>
 
       <el-divider />
 
-      <h2>Thông tin đơn hàng</h2>
+      <!-- Thông tin đơn -->
+      <h3 class="title mb-2">
+        <el-icon class="title-icon"><Tickets /></el-icon>
+        Thông tin đơn hàng
+      </h3>
 
       <el-skeleton :loading="loadingInvoice" animated>
         <template #template>
@@ -48,164 +113,363 @@
         </template>
 
         <template #default>
-          <p><strong>Mã hóa đơn:</strong> {{ invoice.invoiceCode || '—' }}</p>
-          <p><strong>Khách hàng:</strong> {{ invoice.customerName || '—' }}</p>
+          <el-descriptions :column="1" border class="desc">
+            <el-descriptions-item label="Mã hóa đơn">{{ invoice.invoiceCode || '—' }}</el-descriptions-item>
+            <el-descriptions-item label="Khách hàng">{{ invoice.customerName || '—' }}</el-descriptions-item>
 
-          <p class="flex items-center gap-2">
-            <strong>Số điện thoại:</strong> {{ invoice.phone || '—' }}
-            <el-button
-              v-if="canEditContact"
-              type="primary"
-              size="small"
-              class="ml-2"
-              @click="openPhoneDialog"
-            >Cập nhật</el-button>
-          </p>
+            <el-descriptions-item label="Số điện thoại">
+              <div class="row-inline">
+                <span>{{ invoice.phone || '—' }}</span>
+                <el-tooltip
+                  v-if="!canEditContactAddress"
+                  content="Không thể sửa sau khi đã sang giai đoạn giao hàng / đã hủy / thất bại"
+                  placement="top"
+                >
+                  <span><el-button size="small" text disabled>Sửa</el-button></span>
+                </el-tooltip>
+                <el-button
+                  v-else
+                  size="small"
+                  @click="openPhoneDialog"
+                  type="primary"
+                >
+                  <el-icon><EditPen /></el-icon>
+                  Sửa
+                </el-button>
+              </div>
+            </el-descriptions-item>
 
-          <p><strong>Ngày tạo:</strong> {{ formatDate(invoice.createdDate) }}</p>
-          <p><strong>Tổng tiền:</strong> {{ formatCurrency(invoice.totalAmount) }}</p>
-          <p><strong>Giảm giá:</strong> {{ formatCurrency(invoice.discountAmount) }}</p>
-          <p><strong>Phí vận chuyển:</strong> {{ formatCurrency(invoice.shippingFee) }}</p>
-          <p><strong>Thành tiền:</strong> {{ formatCurrency(invoice.finalAmount) }}</p>
+            <el-descriptions-item label="Ngày tạo">{{ formatDate(invoice.createdDate) }}</el-descriptions-item>
+            <el-descriptions-item label="Tổng tiền">{{ formatCurrency(invoice.totalAmount) }}</el-descriptions-item>
+            <el-descriptions-item label="Giảm giá">{{ formatCurrency(invoice.discountAmount) }}</el-descriptions-item>
 
-          <p class="flex items-center gap-2">
-            <strong>Địa chỉ giao hàng:</strong> {{ invoice.deliveryAddress || '—' }}
-            <el-button
-              v-if="canEditContact"
-              type="primary"
-              size="small"
-              class="ml-2"
-              @click="openAddressDialog"
-            >Cập nhật</el-button>
-          </p>
+            <el-descriptions-item label="Địa chỉ giao hàng">
+              <div class="row-inline">
+                <span>{{ invoice.deliveryAddress || '—' }}</span>
+                <el-tooltip
+                  v-if="!canEditContactAddress"
+                  content="Không thể sửa sau khi đã sang giai đoạn giao hàng / đã hủy / thất bại"
+                  placement="top"
+                >
+                  <span><el-button size="small" text disabled>Sửa</el-button></span>
+                </el-tooltip>
+                <el-button
+                  v-else
+                  size="small"
+                  @click="openAddressDialog"
+                  type="primary"
+                >
+                  <el-icon><EditPen /></el-icon>
+                  Sửa
+                </el-button>
+              </div>
+            </el-descriptions-item>
+
+            <el-descriptions-item label="Phí vận chuyển">{{ formatCurrency(invoice.shippingFee) }}</el-descriptions-item>
+            <el-descriptions-item label="Thành tiền">
+              <el-tag type="success" effect="light">{{ formatCurrency(invoice.finalAmount) }}</el-tag>
+            </el-descriptions-item>
+          </el-descriptions>
         </template>
       </el-skeleton>
 
+      <!-- Dialog: Xác nhận yêu cầu hủy (admin nhập phương thức hoàn tiền + mã giao dịch) -->
+      <el-dialog
+        title="Xác nhận yêu cầu hủy"
+        v-model="approveCancelDialogVisible"
+        width="520px"
+        :close-on-click-modal="false"
+      >
+        <el-form label-position="top">
+          <el-form-item label="Ghi chú (tùy chọn)">
+            <el-input type="textarea" v-model="approveCancelNote" placeholder="Ghi chú cho hành động xác nhận..." rows="2" maxlength="500" />
+          </el-form-item>
+
+          <el-form-item label="Phương thức hoàn tiền" required>
+            <el-select v-model="approvePaymentMethod" placeholder="Chọn phương thức hoàn tiền">
+              <el-option label="ZaloPay" value="ZALO_PAY" />
+              <el-option label="Ngân hàng khác" value="NGAN_HANG_KHAC" />
+            </el-select>
+          </el-form-item>
+
+          <el-form-item label="Mã giao dịch" required>
+            <el-input v-model.trim="approveTransactionCode" placeholder="Nhập mã giao dịch / mã hoàn tiền" clearable />
+          </el-form-item>
+
+          <el-form-item v-if="approvePaymentMethod === 'NGAN_HANG_KHAC'" label="Tên ngân hàng" required>
+            <el-input v-model.trim="approveBankName" placeholder="Nhập tên ngân hàng nhận hoàn tiền" clearable />
+          </el-form-item>
+        </el-form>
+
+        <template #footer>
+          <el-button @click="approveCancelDialogVisible = false">Hủy</el-button>
+          <el-button type="danger" @click="submitApproveCancel" :loading="loadingApproveCancel">Xác nhận</el-button>
+        </template>
+      </el-dialog>
+
       <el-divider />
 
-      <h3>Lịch sử thanh toán</h3>
-      <el-table :data="invoice.invoiceTransactionResponses || []" border stripe>
+      <!-- Lịch sử thanh toán -->
+      <h3 class="title mb-2">
+        <el-icon class="title-icon"><CreditCard /></el-icon>
+        Lịch sử thanh toán
+      </h3>
+      <el-table
+        :data="invoice.invoiceTransactionResponses || []"
+        border
+        stripe
+        empty-text="Không có giao dịch"
+      >
         <el-table-column label="STT" width="70" type="index" />
-        <el-table-column prop="transactionCode" label="Mã giao dịch" />
-        <el-table-column prop="transactionType" label="Loại giao dịch" />
-        <el-table-column prop="paymentMethod" label="PT Thanh toán" />
+        <el-table-column prop="transactionCode" label="Mã giao dịch" min-width="160" />
+        <el-table-column prop="transactionType" label="Loại giao dịch" min-width="140" />
+        <el-table-column prop="paymentMethod" label="PT Thanh toán" min-width="140" />
         <el-table-column prop="paymentTime" label="Thời gian" width="180">
-          <template #default="scope">
-            {{ formatDate(scope.row.paymentTime) }}
-          </template>
+          <template #default="{ row }">{{ formatDate(row?.paymentTime) }}</template>
         </el-table-column>
-        <el-table-column prop="transactionNote" label="Ghi chú" />
+        <el-table-column prop="transactionNote" label="Ghi chú" min-width="180" />
       </el-table>
 
       <el-divider />
 
-      <h3>Sản phẩm đã mua</h3>
-      <el-table :data="invoice.invoiceDetailResponses || []" border stripe>
+      <!-- Sản phẩm đã mua -->
+      <h3 class="title mb-2">
+        <el-icon class="title-icon"><ShoppingCart /></el-icon>
+        Sản phẩm đã mua
+      </h3>
+      <el-table
+        :data="invoice.invoiceDetailResponses || []"
+        border
+        stripe
+        empty-text="Không có sản phẩm"
+      >
         <el-table-column label="STT" width="70" type="index" />
-        <el-table-column prop="productDetailName" label="Tên sản phẩm" />
-        <el-table-column prop="sizeName" label="Kích thước" />
-        <el-table-column prop="colorName" label="Màu sắc" />
-        <el-table-column prop="quantity" label="Số lượng" />
+        <el-table-column prop="productDetailName" label="Tên sản phẩm" min-width="220" show-overflow-tooltip />
+        <el-table-column prop="sizeName" label="Kích thước" width="120" />
+        <el-table-column prop="colorName" label="Màu sắc" width="120" />
+        <el-table-column prop="quantity" label="Số lượng" width="120" align="center" />
+        <el-table-column label="Giá" min-width="180" align="right">
+          <template #default="{ row }">
+            <div class="price">
+              <span v-if="row.sellPrice !== row.discountedPrice" class="old">
+                {{ formatCurrency(row.sellPrice) }}
+              </span>
+              <span class="new" :class="{ danger: row.discountedPrice < row.sellPrice }">
+                {{ formatCurrency(row.discountedPrice) }}
+              </span>
+            </div>
+          </template>
+        </el-table-column>
       </el-table>
     </el-card>
 
-    <!-- Hủy đơn -->
-    <el-dialog title="Lý do hủy đơn hàng" v-model="cancelDialogVisible" width="400px">
-      <el-form label-position="top">
-        <el-form-item label="Lý do hủy đơn">
-          <el-input type="textarea" v-model="cancelNote" placeholder="Nhập lý do hủy..." rows="3" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="cancelDialogVisible = false">Hủy</el-button>
-        <el-button type="danger" @click="cancelOrder">Xác nhận hủy đơn</el-button>
-      </template>
-    </el-dialog>
-
-    <!-- Dialogs: phone & address kept (same structure as before) -->
-    <!-- Phone dialog -->
-    <el-dialog v-model="phoneDialogVisible" title="Cập nhật số điện thoại" width="420px" :close-on-click-modal="false">
+    <!-- Dialog: cập nhật SĐT -->
+    <el-dialog
+      v-model="phoneDialogVisible"
+      title="Cập nhật số điện thoại"
+      width="420px"
+      :close-on-click-modal="false"
+    >
       <el-form label-position="top">
         <el-form-item label="Số điện thoại mới">
-          <el-input v-model.trim="phoneForm.phone" placeholder="Nhập số điện thoại" maxlength="20" />
+          <el-input
+            v-model.trim="phoneForm.phone"
+            placeholder="Nhập số điện thoại"
+            maxlength="20"
+            clearable
+          />
         </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="phoneDialogVisible = false">Hủy</el-button>
-        <el-button type="primary" @click="submitPhoneUpdate">Cập nhật</el-button>
+        <el-button type="primary" @click="submitPhoneUpdate" :loading="savingPhone">
+          Cập nhật
+        </el-button>
       </template>
     </el-dialog>
 
-    <!-- Address dialog -->
-    <el-dialog v-model="addressDialogVisible" title="Cập nhật địa chỉ giao hàng" width="600px" :close-on-click-modal="false">
-      <div class="flex gap-4 mb-4 flex-wrap">
-        <el-select
-          v-model="addressForm.provinceCode"
-          placeholder="Chọn tỉnh/thành"
-          class="flex-1 min-w-[180px]"
-          filterable
-          @change="handleProvinceChangeForAddress"
-        >
-          <el-option v-for="p in provinces" :key="p.ProvinceID" :label="p.ProvinceName" :value="p.ProvinceID" />
-        </el-select>
+    <!-- Dialog: cập nhật địa chỉ -->
+    <el-dialog
+      v-model="addressDialogVisible"
+      title="Cập nhật địa chỉ giao hàng"
+      width="640px"
+      :close-on-click-modal="false"
+    >
+      <el-form :model="addressForm" label-position="top" :disabled="loadingRegions">
+        <el-row :gutter="10" class="mb-2">
+          <el-col :xs="24" :md="8">
+            <el-form-item label="Tỉnh/Thành">
+              <el-select
+                v-model="addressForm.provinceCode"
+                placeholder="Chọn tỉnh/thành"
+                filterable
+                class="w-full"
+                clearable
+                :loading="loadingRegions"
+                @change="handleProvinceChangeForAddress"
+              >
+                <el-option
+                  v-for="p in provinces"
+                  :key="p.ProvinceID"
+                  :label="p.ProvinceName"
+                  :value="p.ProvinceID"
+                />
+              </el-select>
+            </el-form-item>
+          </el-col>
 
-        <el-select
-          v-model="addressForm.districtCode"
-          placeholder="Chọn quận/huyện"
-          class="flex-1 min-w-[180px]"
-          filterable
-          @change="handleDistrictChangeForAddress"
-          :disabled="!addressForm.provinceCode"
-        >
-          <el-option v-for="d in districts" :key="d.DistrictID" :label="d.DistrictName" :value="d.DistrictID" />
-        </el-select>
+          <el-col :xs="24" :md="8">
+            <el-form-item label="Quận/Huyện">
+              <el-select
+                v-model="addressForm.districtCode"
+                placeholder="Chọn quận/huyện"
+                filterable
+                class="w-full"
+                clearable
+                :disabled="!addressForm.provinceCode"
+                :loading="loadingRegions"
+                @change="handleDistrictChangeForAddress"
+              >
+                <el-option
+                  v-for="d in districts"
+                  :key="d.DistrictID"
+                  :label="d.DistrictName"
+                  :value="d.DistrictID"
+                />
+              </el-select>
+            </el-form-item>
+          </el-col>
 
-        <el-select
-          v-model="addressForm.wardCode"
-          placeholder="Chọn phường/xã"
-          class="flex-1 min-w-[180px]"
-          filterable
-          @change="handleWardChangeForAddress"
-          :disabled="!addressForm.districtCode"
-        >
-          <el-option v-for="w in wards" :key="w.WardCode" :label="w.WardName" :value="w.WardCode" />
-        </el-select>
-      </div>
+          <el-col :xs="24" :md="8">
+            <el-form-item label="Phường/Xã">
+              <el-select
+                v-model="addressForm.wardCode"
+                placeholder="Chọn phường/xã"
+                filterable
+                class="w-full"
+                clearable
+                :disabled="!addressForm.districtCode"
+                :loading="loadingRegions"
+                @change="handleWardChangeForAddress"
+              >
+                <el-option
+                  v-for="w in wards"
+                  :key="w.WardCode"
+                  :label="w.WardName"
+                  :value="w.WardCode"
+                />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
 
-      <div class="mb-4">
-        <el-input v-model="addressForm.houseNumber" placeholder="Số nhà, tên đường" />
-      </div>
+        <el-form-item label="Số nhà, tên đường">
+          <el-input v-model="addressForm.houseNumber" placeholder="Nhập số nhà, tên đường" clearable />
+        </el-form-item>
 
-      <!-- Hiển thị phí ship & thành tiền dự kiến -->
-      <div class="mt-2">
         <el-alert
-          v-if="calculatingFee"
-          title="Đang tính phí vận chuyển..."
-          type="info"
-          show-icon
-          class="mb-2"
-        />
-        <el-alert
-          v-else-if="shippingFee !== null"
+          v-if="shippingFee !== null"
           :title="`Phí vận chuyển dự kiến: ${formatCurrency(shippingFee)}`"
           type="success"
           show-icon
-          class="mb-2"
+          class="mt-2"
         />
-        <el-alert
-          v-if="shippingFee !== null"
-          :title="`Thành tiền dự kiến: ${formatCurrency(previewFinalAmount)}`"
-          type="info"
-          show-icon
-        />
-      </div>
+      </el-form>
 
-      <div class="text-right">
+      <template #footer>
         <el-button @click="addressDialogVisible = false">Đóng</el-button>
-        <el-button type="primary" @click="submitAddressUpdate">Cập nhật</el-button>
-      </div>
+        <el-button type="primary" @click="submitAddressUpdate" :loading="savingAddress">
+          Cập nhật
+        </el-button>
+      </template>
     </el-dialog>
 
+    <!-- Dialog: hủy đơn -->
+    <el-dialog title="Hủy đơn hàng" v-model="cancelDialogVisible" width="480px">
+      <el-form label-position="top">
+        <el-form-item label="Lý do hủy đơn">
+          <el-input
+            type="textarea"
+            v-model="cancelNote"
+            placeholder="Nhập lý do hủy đơn..."
+            rows="3"
+            maxlength="500"
+            show-word-limit
+          />
+        </el-form-item>
+
+        <template v-if="isPaid">
+          <el-form-item label="Phương thức hoàn tiền">
+            <el-select v-model="selectedPaymentMethod" placeholder="Chọn phương thức hoàn tiền" class="w-full">
+              <el-option label="ZaloPay" value="ZALO_PAY" />
+              <el-option label="Ngân hàng khác" value="NGAN_HANG_KHAC" />
+            </el-select>
+          </el-form-item>
+
+          <el-form-item v-if="selectedPaymentMethod === 'NGAN_HANG_KHAC'" label="Tên ngân hàng">
+            <el-input v-model="bankName" placeholder="Nhập tên ngân hàng" />
+          </el-form-item>
+
+          <el-form-item label="Mã giao dịch">
+            <el-input v-model="transactionCode" placeholder="Nhập mã giao dịch" />
+          </el-form-item>
+        </template>
+      </el-form>
+
+      <template #footer>
+        <el-button @click="cancelDialogVisible = false">Hủy</el-button>
+        <el-button type="danger" @click="cancelOrder" :loading="loadingCancel">Xác nhận hủy đơn</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- Dialog: giao hàng thất bại -->
+    <el-dialog title="Giao hàng thất bại" v-model="failDialogVisible" width="480px">
+      <el-form label-position="top">
+        <el-form-item label="Lý do giao hàng thất bại">
+          <el-input
+            type="textarea"
+            v-model="failNote"
+            placeholder="Nhập lý do giao hàng thất bại..."
+            rows="3"
+            maxlength="500"
+            show-word-limit
+          />
+        </el-form-item>
+
+        <el-form-item v-if="isPaid" label="Phương thức thanh toán">
+          <el-select v-model="selectedPaymentMethod" placeholder="Chọn phương thức thanh toán" class="w-full">
+            <el-option label="Tiền mặt" value="TIEN_MAT" />
+            <el-option label="ZaloPay" value="ZALO_PAY" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <el-button @click="failDialogVisible = false">Hủy</el-button>
+        <el-button type="danger" @click="markAsFailedDelivery" :loading="loadingFail">Xác nhận</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- Dialog: lịch sử tác động -->
+    <el-dialog title="Lịch sử tác động đơn hàng" v-model="actionHistoryDialogVisible" width="820px">
+      <el-table :data="actionHistory" border stripe empty-text="Chưa có lịch sử">
+        <el-table-column label="STT" width="70" type="index" />
+        <el-table-column prop="oldStatus" label="Trạng thái cũ" min-width="160">
+          <template #default="{ row }">{{ getStatusLabelFromInt(row.oldStatus) }}</template>
+        </el-table-column>
+        <el-table-column prop="newStatus" label="Trạng thái mới" min-width="160">
+          <template #default="{ row }">{{ getStatusLabelFromInt(row.newStatus) }}</template>
+        </el-table-column>
+        <el-table-column prop="changedAt" label="Thời gian" width="180">
+          <template #default="{ row }">{{ formatDate(row.changedAt) }}</template>
+        </el-table-column>
+        <el-table-column prop="note" label="Ghi chú" min-width="200" />
+        <el-table-column prop="employeeName" label="Người thực hiện" min-width="160" />
+      </el-table>
+      <template #footer>
+        <el-button @click="actionHistoryDialogVisible = false">Đóng</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -213,88 +477,375 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import apiClient from '@/utils/axiosInstance'
-import { ElMessage } from 'element-plus'
 import axios from 'axios'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import {
+  ArrowLeft, List, Tickets, CreditCard, ShoppingCart, EditPen, Delete,
+  ArrowRightBold, Back, CloseBold, Clock
+} from '@element-plus/icons-vue'
 
-/* ===== Router & invoiceId (robust) ===== */
+/* ===== Router & base ===== */
 const route = useRoute()
 const router = useRouter()
+const invoiceId = route.params.invoiceId
 
-// Hỗ trợ route params: /path/:invoiceId hoặc /path/:id hoặc ?invoiceId=...
-const invoiceId = (route.params.invoiceId ?? route.params.id ?? route.query.invoiceId) || null
-
-/* ===== State ===== */
-const invoice = ref({})
+/* ===== UI loading states ===== */
 const loadingInvoice = ref(false)
+const loadingAdvance = ref(false)
+const loadingRevert = ref(false)
+const loadingCancel = ref(false)
+const loadingFail = ref(false)
+const savingPhone = ref(false)
+const savingAddress = ref(false)
+const loadingRegions = ref(false)
+const loadingApproveCancel = ref(false)
 
-/* Dialogs */
+/* ===== Data ===== */
+const invoice = ref({})
+const isPaid = ref(false)
+
+/* ===== Steps & permissions ===== */
+const MAIN_STEPS = [
+  { key: 'CHO_XU_LY', label: 'Chờ xác nhận' },
+  { key: 'DA_XU_LY', label: 'Đã xác nhận' },
+  { key: 'CHO_GIAO_HANG', label: 'Chờ giao hàng' },
+  { key: 'DANG_GIAO_HANG', label: 'Đang giao hàng' },
+  { key: 'GIAO_THANH_CONG', label: 'Giao thành công' },
+]
+const STEP_KEYS = MAIN_STEPS.map(s => s.key)
+const DELIVERY_PHASE = 'DANG_GIAO_HANG'
+
+const getActiveStep = (statusKey) => {
+  const idx = STEP_KEYS.indexOf(statusKey)
+  return idx >= 0 ? idx : 0
+}
+
+const isCanceledOrFailed = computed(() =>
+  ['HUY_DON', 'GIAO_THAT_BAI'].includes(invoice.value?.statusDetail)
+)
+
+const isCancelRequested = computed(() => invoice.value?.statusDetail === 'YEU_CAU_NGHI')
+
+const isBeforeDeliveryPhase = computed(() => {
+  const s = invoice.value?.statusDetail
+  if (!s || !STEP_KEYS.includes(s)) return false
+  return STEP_KEYS.indexOf(s) < STEP_KEYS.indexOf(DELIVERY_PHASE)
+})
+
+const canEditContactAddress = computed(() => isBeforeDeliveryPhase.value && !isCanceledOrFailed.value && !isCancelRequested.value)
+
+const canAdvance = computed(() => {
+  if (isCancelRequested.value) return false
+  const s = invoice.value?.statusDetail
+  return STEP_KEYS.includes(s) && s !== 'GIAO_THANH_CONG' && !isCanceledOrFailed.value
+})
+
+const canRevert = computed(() => {
+  if (isCancelRequested.value) return false
+  const s = invoice.value?.statusDetail
+  const idx = STEP_KEYS.indexOf(s)
+  return idx > 0 && idx < STEP_KEYS.indexOf(DELIVERY_PHASE) && STEP_KEYS.includes(s)
+})
+
+const canCancel = computed(() => {
+  if (isCancelRequested.value) return false
+  const s = invoice.value?.statusDetail
+  return STEP_KEYS.includes(s) && STEP_KEYS.indexOf(s) < STEP_KEYS.indexOf(DELIVERY_PHASE)
+})
+
+/* ===== API: load invoice ===== */
+const fetchInvoice = async () => {
+  loadingInvoice.value = true
+  try {
+    const res = await apiClient.get('/admin/online-sales/get-order', { params: { invoiceId } })
+    invoice.value = res.data || {}
+    isPaid.value = Boolean(res.data?.isPaid)
+  } catch (err) {
+    ElMessage.error('Lỗi tải đơn hàng')
+    console.error(err)
+  } finally {
+    loadingInvoice.value = false
+  }
+}
+
+const goBack = () => router.back()
+
+/* ===== Chuyển / Lùi trạng thái ===== */
+const confirmAdvance = async () => {
+  try {
+    await ElMessageBox.confirm('Bạn có chắc muốn chuyển sang trạng thái tiếp theo?', 'Xác nhận', { type: 'warning' })
+    await advanceStatus()
+  } catch { /* cancel */ }
+}
+const advanceStatus = async () => {
+  const currentKey = invoice.value?.statusDetail
+  const currentIndex = STEP_KEYS.indexOf(currentKey)
+  const nextKey = STEP_KEYS[currentIndex + 1]
+  if (!nextKey) return ElMessage.info('Không có trạng thái tiếp theo để chuyển.')
+  try {
+    loadingAdvance.value = true
+    await apiClient.put('/admin/online-sales/chuyen-trang-thai', null, {
+      params: { invoiceId, statusDetail: nextKey }
+    })
+    ElMessage.success('Chuyển trạng thái thành công!')
+    fetchInvoice()
+  } catch (err) {
+    ElMessage.error('Lỗi chuyển trạng thái')
+    console.error(err)
+  } finally {
+    loadingAdvance.value = false
+  }
+}
+
+const confirmRevert = async () => {
+  try {
+    await ElMessageBox.confirm('Bạn có chắc muốn quay lại trạng thái trước?', 'Xác nhận', { type: 'warning' })
+    await revertStatus()
+  } catch { /* cancel */ }
+}
+const revertStatus = async () => {
+  const currentKey = invoice.value?.statusDetail
+  const currentIndex = STEP_KEYS.indexOf(currentKey)
+  const prevKey = STEP_KEYS[currentIndex - 1]
+  if (!prevKey) return ElMessage.info('Không có trạng thái trước đó để quay lại.')
+  try {
+    loadingRevert.value = true
+    await apiClient.put('/admin/online-sales/chuyen-trang-thai', null, {
+      params: { invoiceId, statusDetail: prevKey }
+    })
+    ElMessage.success('Quay lại trạng thái trước thành công!')
+    fetchInvoice()
+  } catch (err) {
+    ElMessage.error('Lỗi quay lại trạng thái')
+    console.error(err)
+  } finally {
+    loadingRevert.value = false
+  }
+}
+
+/* ===== Hủy đơn ===== */
 const cancelDialogVisible = ref(false)
 const cancelNote = ref('')
-const selectedPaymentMethod = ref('TIEN_MAT')
+const selectedPaymentMethod = ref('')
+const transactionCode = ref('')
+const bankName = ref('')
 
+const showCancelDialog = () => {
+  cancelNote.value = ''
+  selectedPaymentMethod.value = ''
+  transactionCode.value = ''
+  bankName.value = ''
+  cancelDialogVisible.value = true
+}
+
+const cancelOrder = async () => {
+  try {
+    if (!cancelNote.value.trim()) return ElMessage.warning('Vui lòng nhập lý do hủy đơn!')
+    if (isPaid.value && !selectedPaymentMethod.value) return ElMessage.warning('Vui lòng chọn phương thức hoàn tiền!')
+    loadingCancel.value = true
+
+    await apiClient.put('/admin/online-sales/huy-don-va-hoan-tien', null, {
+      params: {
+        invoiceId,
+        statusDetail: 'HUY_DON',
+        note: cancelNote.value,
+        paymentMethod: selectedPaymentMethod.value || '',
+        tradeCode: transactionCode.value || '',
+        bankName: bankName.value || '',
+        isPaid: isPaid.value
+      }
+    })
+    ElMessage.success('Hủy đơn hàng và hoàn tiền thành công!')
+    cancelDialogVisible.value = false
+    fetchInvoice()
+  } catch (err) {
+    ElMessage.error('Lỗi hủy đơn hàng')
+    console.error(err)
+  } finally {
+    loadingCancel.value = false
+  }
+}
+
+/* ===== Approve cancel request (admin) ===== */
+const approveCancelDialogVisible = ref(false)
+const approveCancelNote = ref('')
+const approvePaymentMethod = ref('')
+const approveTransactionCode = ref('')
+const approveBankName = ref('')
+
+const showApproveCancelDialog = () => {
+  // reset form
+  approveCancelNote.value = ''
+  approvePaymentMethod.value = ''
+  approveTransactionCode.value = ''
+  approveBankName.value = ''
+  approveCancelDialogVisible.value = true
+}
+
+const submitApproveCancel = async () => {
+  // validate: bắt nhập phương thức & mã giao dịch luôn
+  if (!approvePaymentMethod.value) {
+    return ElMessage.warning('Vui lòng chọn phương thức hoàn tiền.')
+  }
+  if (!approveTransactionCode.value || !approveTransactionCode.value.trim()) {
+    return ElMessage.warning('Vui lòng nhập mã giao dịch.')
+  }
+  if (approvePaymentMethod.value === 'NGAN_HANG_KHAC' && !approveBankName.value.trim()) {
+    return ElMessage.warning('Vui lòng nhập tên ngân hàng.')
+  }
+
+  try {
+    await ElMessageBox.confirm(
+      'Xác nhận: hành động này sẽ hủy đơn và thực hiện hoàn tiền theo thông tin bạn nhập. Tiếp tục?',
+      'Xác nhận hành động',
+      { type: 'warning' }
+    )
+
+    loadingApproveCancel.value = true
+
+    // Gọi endpoint hủy + hoàn tiền
+    await apiClient.put('/admin/online-sales/huy-don-va-hoan-tien', null, {
+      params: {
+        invoiceId,
+        statusDetail: 'HUY_DON',
+        note: approveCancelNote.value || 'Xác nhận yêu cầu hủy',
+        paymentMethod: approvePaymentMethod.value,
+        tradeCode: approveTransactionCode.value,
+        bankName: approveBankName.value || '',
+        isPaid: Boolean(invoice.value?.isPaid)
+      }
+    })
+
+    ElMessage.success('Đã xác nhận yêu cầu hủy và tiến hành hoàn tiền.')
+    approveCancelDialogVisible.value = false
+    fetchInvoice()
+  } catch (err) {
+    if (err && err !== 'cancel') {
+      ElMessage.error('Lỗi khi xác nhận yêu cầu hủy.')
+      console.error(err)
+    }
+  } finally {
+    loadingApproveCancel.value = false
+  }
+}
+
+/* ===== Giao hàng thất bại ===== */
+const failDialogVisible = ref(false)
+const failNote = ref('')
+
+const showFailDialog = () => {
+  failNote.value = ''
+  selectedPaymentMethod.value = ''
+  failDialogVisible.value = true
+}
+
+const markAsFailedDelivery = async () => {
+  try {
+    if (!failNote.value.trim()) return ElMessage.warning('Vui lòng nhập lý do giao hàng thất bại!')
+    if (isPaid.value && !selectedPaymentMethod.value) return ElMessage.warning('Vui lòng chọn phương thức thanh toán!')
+    loadingFail.value = true
+
+    await apiClient.put('/admin/online-sales/failed-shipping', null, {
+      params: {
+        invoiceId,
+        statusDetail: 'GIAO_THAT_BAI',
+        note: failNote.value,
+        paymentMethod: isPaid.value ? selectedPaymentMethod.value : 'UNKNOWN',
+      }
+    })
+    ElMessage.success('Cập nhật trạng thái giao hàng thất bại thành công!')
+    failDialogVisible.value = false
+    fetchInvoice()
+  } catch (err) {
+    ElMessage.error('Lỗi cập nhật trạng thái thất bại')
+    console.error(err)
+  } finally {
+    loadingFail.value = false
+  }
+}
+
+/* ===== Lịch sử tác động ===== */
+const actionHistoryDialogVisible = ref(false)
+const actionHistory = ref([])
+
+const showActionHistoryDialog = async () => {
+  try {
+    const res = await apiClient.get('/admin/online-sales/get-order-history', { params: { invoiceId } })
+    actionHistory.value = res.data || []
+    actionHistoryDialogVisible.value = true
+  } catch (err) {
+    ElMessage.error('Lỗi tải lịch sử tác động')
+    console.error(err)
+  }
+}
+
+const getStatusLabelFromInt = (statusInt) => {
+  if (statusInt === -1) return 'Đã hủy'
+  if (typeof statusInt === 'number' && statusInt >= 0 && statusInt < MAIN_STEPS.length) {
+    return MAIN_STEPS[statusInt].label
+  }
+  return `Không xác định (${statusInt})`
+}
+
+/* ===== SĐT ===== */
 const phoneDialogVisible = ref(false)
 const phoneForm = ref({ phone: '' })
+const VN_PHONE_REGEX = /^(0|\+84)\d{9,10}$/
 
+const openPhoneDialog = () => {
+  if (!canEditContactAddress.value)
+    return ElMessage.warning('Không thể sửa thông tin sau khi đã sang giai đoạn giao hàng.')
+  phoneForm.value.phone = String(invoice.value?.phone || '')
+  phoneDialogVisible.value = true
+}
+
+const submitPhoneUpdate = async () => {
+  if (!canEditContactAddress.value) {
+    phoneDialogVisible.value = false
+    return ElMessage.warning('Không thể sửa thông tin sau khi đã sang giai đoạn giao hàng.')
+  }
+  const phone = (phoneForm.value.phone || '').replace(/\s+/g, '')
+  if (!phone) return ElMessage.warning('Vui lòng nhập số điện thoại.')
+  if (!VN_PHONE_REGEX.test(phone)) return ElMessage.warning('Số điện thoại không hợp lệ.')
+
+  try {
+    savingPhone.value = true
+    await apiClient.put('/admin/online-sales/update-phone', null, {
+      params: { invoiceId, phone: phone }
+    })
+    ElMessage.success('Cập nhật số điện thoại thành công!')
+    phoneDialogVisible.value = false
+    fetchInvoice()
+  } catch (err) {
+    ElMessage.error('Lỗi cập nhật số điện thoại!')
+    console.error(err)
+  } finally {
+    savingPhone.value = false
+  }
+}
+
+/* ===== Địa chỉ & GHN ===== */
 const addressDialogVisible = ref(false)
 const provinces = ref([])
 const districts = ref([])
 const wards = ref([])
 const addressForm = ref({
   houseNumber: '',
-  provinceCode: null,
-  provinceName: '',
-  districtCode: null,
-  districtName: '',
-  wardCode: null,
-  wardName: '',
+  provinceCode: null, provinceName: '',
+  districtCode: null, districtName: '',
+  wardCode: null, wardName: '',
 })
+const shippingFee = ref(null)
 
-/* Steps */
-const mainSteps = [
-  { key: 'CHO_XU_LY', label: 'Chờ xử lý' },
-  { key: 'DA_XU_LY', label: 'Đã xử lý' },
-  { key: 'CHO_GIAO_HANG', label: 'Chờ giao hàng' },
-  { key: 'DANG_GIAO_HANG', label: 'Đang giao hàng' },
-  { key: 'GIAO_THANH_CONG', label: 'Giao thành công' },
-]
-const mainStepKeys = mainSteps.map(s => s.key)
-const LOCKED_STATUSES = new Set(['DANG_GIAO_HANG', 'GIAO_THANH_CONG', 'HUY_DON', 'HUY_GIAO_DICH'])
-
-const getActiveStep = (statusKey) => {
-  const idx = mainStepKeys.indexOf(statusKey || '')
-  return idx >= 0 ? idx : 0
-}
-
-const canEditContact = computed(() => {
-  const s = invoice.value?.statusDetail
-  if (!s || LOCKED_STATUSES.has(s)) return false
-  const idx = mainStepKeys.indexOf(s)
-  const lockFromIdx = mainStepKeys.indexOf('DANG_GIAO_HANG')
-  return idx >= 0 && idx < lockFromIdx
-})
-
-const canCancel = computed(() => {
-  const s = invoice.value?.statusDetail
-  if (!s) return false
-  if (['GIAO_THANH_CONG', 'HUY_DON', 'HUY_GIAO_DICH'].includes(s)) return false
-  const idx = mainStepKeys.indexOf(s)
-  const lockFromIdx = mainStepKeys.indexOf('DANG_GIAO_HANG')
-  return idx >= 0 && idx < lockFromIdx
-})
-
-/* ===== GHN config ===== */
-const GHN_TOKEN = '847c9bb7-6e42-11ee-a59f-a260851ba65c' // thay bằng token của bạn
+// Thay bằng token của bạn nếu cần
+const GHN_TOKEN = '847c9bb7-6e42-11ee-a59f-a260851ba65c'
+const GHN_TOKEN_FEE = '741f1c91-4f42-11f0-8cf5-d2552bfd31d8'
 const FROM_DISTRICT_ID = 1483
 const FROM_WARD_CODE = '21108'
 const SHOP_ID = 5851480
-const TOKEN_FEE = '741f1c91-4f42-11f0-8cf5-d2552bfd31d8'
 
-/* Shipping fee */
-const shippingFee = ref(null)
-const calculatingFee = ref(false)
-
-/* ===== Load provinces/districts/wards ===== */
 const loadProvincesForAddress = async () => {
+  loadingRegions.value = true
   try {
     const res = await axios.post(
       'https://online-gateway.ghn.vn/shiip/public-api/master-data/province',
@@ -302,9 +853,10 @@ const loadProvincesForAddress = async () => {
       { headers: { Token: GHN_TOKEN } }
     )
     provinces.value = res.data.data || []
-  } catch (err) {
-    console.error(err)
+  } catch {
     ElMessage.error('Không thể tải danh sách tỉnh/thành phố.')
+  } finally {
+    loadingRegions.value = false
   }
 }
 
@@ -316,15 +868,18 @@ const loadDistrictsForAddress = async () => {
   districts.value = []
   wards.value = []
   if (!addressForm.value.provinceCode) return
+
+  loadingRegions.value = true
   try {
     const res = await axios.get(
       'https://online-gateway.ghn.vn/shiip/public-api/master-data/district',
       { headers: { Token: GHN_TOKEN }, params: { province_id: addressForm.value.provinceCode } }
     )
     districts.value = res.data.data || []
-  } catch (err) {
-    console.error(err)
+  } catch {
     ElMessage.error('Không thể tải danh sách quận/huyện.')
+  } finally {
+    loadingRegions.value = false
   }
 }
 
@@ -333,54 +888,53 @@ const loadWardsForAddress = async () => {
   addressForm.value.wardName = ''
   wards.value = []
   if (!addressForm.value.districtCode) return
+
+  loadingRegions.value = true
   try {
     const res = await axios.get(
       'https://online-gateway.ghn.vn/shiip/public-api/master-data/ward',
       { headers: { Token: GHN_TOKEN }, params: { district_id: addressForm.value.districtCode } }
     )
     wards.value = res.data.data || []
-  } catch (err) {
-    console.error(err)
+  } catch {
     ElMessage.error('Không thể tải danh sách phường/xã.')
+  } finally {
+    loadingRegions.value = false
   }
 }
 
 const handleProvinceChangeForAddress = () => {
-  const selected = provinces.value.find(p => p.ProvinceID === addressForm.value.provinceCode)
-  addressForm.value.provinceName = selected?.ProvinceName || ''
+  const sel = provinces.value.find(p => p.ProvinceID === addressForm.value.provinceCode)
+  addressForm.value.provinceName = sel?.ProvinceName || ''
   loadDistrictsForAddress()
-  shippingFee.value = null
 }
 
 const handleDistrictChangeForAddress = () => {
-  const selected = districts.value.find(d => d.DistrictID === addressForm.value.districtCode)
-  addressForm.value.districtName = selected?.DistrictName || ''
+  const sel = districts.value.find(d => d.DistrictID === addressForm.value.districtCode)
+  addressForm.value.districtName = sel?.DistrictName || ''
   loadWardsForAddress()
-  shippingFee.value = null
 }
 
 const handleWardChangeForAddress = async () => {
-  const selected = wards.value.find(w => w.WardCode === addressForm.value.wardCode)
-  addressForm.value.wardName = selected?.WardName || ''
-
-  if (addressForm.value.districtCode && addressForm.value.wardCode) {
-    const fee = await calculateShippingFee()
-    shippingFee.value = fee
-  }
+  const sel = wards.value.find(w => w.WardCode === addressForm.value.wardCode)
+  addressForm.value.wardName = sel?.WardName || ''
+  // Tính thử phí để hiển thị (có thể bỏ nếu muốn tính chỉ khi cập nhật)
+  const fee = await calculateShippingFee()
+  shippingFee.value = fee
 }
 
-/* ===== Calculate shipping fee ===== */
 const calculateShippingFee = async () => {
   if (!addressForm.value.districtCode || !addressForm.value.wardCode) {
     ElMessage.warning('Vui lòng chọn đầy đủ Tỉnh/Thành, Quận/Huyện, Phường/Xã')
     return 0
   }
-
-  calculatingFee.value = true
   try {
-    const totalWeight = (invoice.value?.invoiceDetailResponses || []).reduce(
-      (sum, item) => sum + (item.weight || 200) * (item.quantity || 1), 0
-    )
+    const details = Array.isArray(invoice.value.invoiceDetailResponses) ? invoice.value.invoiceDetailResponses : []
+    const totalWeight = details.reduce((sum, it) => {
+      const w = Number(it?.weight ?? 200)
+      const q = Number(it?.quantity ?? 1)
+      return sum + w * q
+    }, 0)
 
     const res = await axios.post(
       'https://online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/fee',
@@ -390,43 +944,26 @@ const calculateShippingFee = async () => {
         to_district_id: addressForm.value.districtCode,
         to_ward_code: addressForm.value.wardCode,
         weight: Math.max(totalWeight, 100),
-        insurance_value: Number(invoice.value?.totalAmount || 0),
+        insurance_value: Number(invoice.value.totalAmount || 0),
         service_type_id: 2,
       },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          Token: TOKEN_FEE,
-          ShopId: SHOP_ID,
-        },
-      }
+      { headers: { 'Content-Type': 'application/json', Token: GHN_TOKEN_FEE, ShopId: SHOP_ID } }
     )
-
-    const fee = Number(res.data?.data?.total || 0)
-    shippingFee.value = fee
-    return fee
+    return Number(res?.data?.data?.total ?? 0)
   } catch (err) {
     console.error('❌ Lỗi tính phí ship:', err)
     ElMessage.error('Không thể tính phí vận chuyển. Vui lòng thử lại.')
     return 0
-  } finally {
-    calculatingFee.value = false
   }
 }
 
-/* ===== Open dialogs (phone/address) ===== */
-const openPhoneDialog = () => {
-  if (!canEditContact.value) return
-  phoneForm.value.phone = String(invoice.value?.phone || '')
-  phoneDialogVisible.value = true
-}
-
 const openAddressDialog = async () => {
-  if (!canEditContact.value) return
+  if (!canEditContactAddress.value)
+    return ElMessage.warning('Không thể sửa địa chỉ sau khi đã sang giai đoạn giao hàng.')
   addressDialogVisible.value = true
-  await loadProvincesForAddress()
+  shippingFee.value = null
 
-  // reset
+  // Reset
   addressForm.value = {
     houseNumber: '',
     provinceCode: null, provinceName: '',
@@ -435,210 +972,105 @@ const openAddressDialog = async () => {
   }
   districts.value = []
   wards.value = []
-  shippingFee.value = null
 
-  const currentAddress = invoice.value?.deliveryAddress || ''
-  const parts = currentAddress.split(' - ').map(s => s.trim())
+  await loadProvincesForAddress()
+
+  // Parse địa chỉ hiện tại
+  const current = invoice.value?.deliveryAddress || ''
+  const parts = current.split(' - ').map(s => s.trim())
   if (parts.length >= 4) {
     addressForm.value.houseNumber = parts[0]
     const [wardName, districtName, provinceName] = [parts[1], parts[2], parts[3]]
 
-    const foundProvince = provinces.value.find(p => p.ProvinceName === provinceName)
-    if (foundProvince) {
-      addressForm.value.provinceCode = foundProvince.ProvinceID
-      addressForm.value.provinceName = foundProvince.ProvinceName
+    const p = provinces.value.find(x => x.ProvinceName === provinceName)
+    if (p) {
+      addressForm.value.provinceCode = p.ProvinceID
+      addressForm.value.provinceName = p.ProvinceName
       await loadDistrictsForAddress()
 
-      const foundDistrict = districts.value.find(d => d.DistrictName === districtName)
-      if (foundDistrict) {
-        addressForm.value.districtCode = foundDistrict.DistrictID
-        addressForm.value.districtName = foundDistrict.DistrictName
+      const d = districts.value.find(x => x.DistrictName === districtName)
+      if (d) {
+        addressForm.value.districtCode = d.DistrictID
+        addressForm.value.districtName = d.DistrictName
         await loadWardsForAddress()
 
-        const foundWard = wards.value.find(w => w.WardName === wardName)
-        if (foundWard) {
-          addressForm.value.wardCode = foundWard.WardCode
-          addressForm.value.wardName = foundWard.WardName
-          const fee = await calculateShippingFee()
-          shippingFee.value = fee
+        const w = wards.value.find(x => x.WardName === wardName)
+        if (w) {
+          addressForm.value.wardCode = w.WardCode
+          addressForm.value.wardName = w.WardName
         }
       }
     }
   }
 }
 
-/* ===== Submit phone update ===== */
-const VN_PHONE_REGEX = /^(0|\+84)(\d){9,10}$/
-
-const submitPhoneUpdate = async () => {
-  if (!canEditContact.value) {
-    ElMessage.warning('Đơn đã ở trạng thái không cho phép chỉnh sửa số điện thoại.')
-    return
-  }
-  const phone = (phoneForm.value.phone || '').trim()
-  if (!phone) {
-    ElMessage.warning('Vui lòng nhập số điện thoại.')
-    return
-  }
-  if (!VN_PHONE_REGEX.test(phone.replace(/\s+/g, ''))) {
-    ElMessage.warning('Số điện thoại không hợp lệ.')
-    return
-  }
-
-  try {
-    await apiClient.put('/admin/online-sales/update-phone', null, {
-      params: { invoiceId: String(invoiceId), phone: phone }
-    })
-    ElMessage.success('Cập nhật số điện thoại thành công!')
-    phoneDialogVisible.value = false
-    await fetchInvoice()
-  } catch (err) {
-    console.error('Lỗi cập nhật số điện thoại:', err)
-    const msg = err?.response?.data?.message || 'Lỗi cập nhật số điện thoại!'
-    ElMessage.error(msg)
-  }
-}
-
-/* ===== Submit address update ===== */
 const submitAddressUpdate = async () => {
-  if (!canEditContact.value) {
-    ElMessage.warning('Đơn đã ở trạng thái không cho phép chỉnh sửa địa chỉ.')
-    return
+  if (!canEditContactAddress.value) {
+    addressDialogVisible.value = false
+    return ElMessage.warning('Không thể sửa địa chỉ sau khi đã sang giai đoạn giao hàng.')
   }
-
   const { houseNumber, provinceName, districtName, wardName } = addressForm.value
   if (!houseNumber || !provinceName || !districtName || !wardName) {
-    ElMessage.warning('Vui lòng nhập đầy đủ địa chỉ.')
-    return
+    return ElMessage.warning('Vui lòng nhập đầy đủ thông tin địa chỉ.')
   }
-
-  let newShippingFee = shippingFee.value
-  if (newShippingFee === null || newShippingFee === undefined) {
-    newShippingFee = await calculateShippingFee()
-  }
-
-  const totalAmount = Number(invoice.value.totalAmount) || 0
-  const discountAmount = Number(invoice.value.discountAmount) || 0
-  const finalAmount = totalAmount + Number(newShippingFee) - discountAmount
 
   try {
+    savingAddress.value = true
+    const fee = await calculateShippingFee()
+
+    const fullAddress = `${houseNumber} - ${wardName} - ${districtName} - ${provinceName}`
+    const totalAmount = Number(invoice.value.totalAmount) || 0
+    const discountAmount = Number(invoice.value.discountAmount) || 0
+    const finalAmount = totalAmount + fee - discountAmount
+
     await apiClient.put('/admin/online-sales/update-address', {
-      invoiceId: String(invoiceId),
-      newAddress: `${houseNumber} - ${wardName} - ${districtName} - ${provinceName}`,
-      shippingFee: Number(newShippingFee),
-      finalAmount: finalAmount
+      invoiceId,
+      newAddress: fullAddress,
+      shippingFee: fee,
+      finalAmount
     })
     ElMessage.success('Cập nhật địa chỉ thành công!')
     addressDialogVisible.value = false
-    await fetchInvoice()
+    fetchInvoice()
   } catch (err) {
-    console.error('Lỗi cập nhật địa chỉ:', err)
-    const msg = err?.response?.data?.message || 'Lỗi cập nhật địa chỉ!'
-    ElMessage.error(msg)
-  }
-}
-
-/* ===== Cancel order ===== */
-const showCancelDialog = () => {
-  if (!canCancel.value) {
-    ElMessage.warning('Đơn đã ở trạng thái không thể hủy.')
-    return
-  }
-  cancelNote.value = ''
-  selectedPaymentMethod.value = 'TIEN_MAT'
-  cancelDialogVisible.value = true
-}
-
-const cancelOrder = async () => {
-  try {
-    if (!canCancel.value) {
-      ElMessage.warning('Đơn đã ở trạng thái không thể hủy.')
-      return
-    }
-    if (!cancelNote.value.trim()) {
-      ElMessage.warning('Vui lòng nhập lý do hủy đơn!')
-      return
-    }
-
-    await apiClient.put('/admin/online-sales/huy-don-va-hoan-tien', null, {
-      params: {
-        invoiceId: String(invoiceId),
-        statusDetail: invoice.value.isPaid ? 'YEU_CAU_HUY' : 'HUY_DON',
-        note: cancelNote.value,
-        paymentMethod: selectedPaymentMethod.value,
-        request: invoice.value.isPaid ? 1 : null,
-        isPaid: invoice.value.isPaid
-      }
-    })
-
-    ElMessage.success('Hủy đơn hàng và hoàn tiền thành công!')
-    cancelDialogVisible.value = false
-    await fetchInvoice()
-  } catch (err) {
-    console.error('Lỗi hủy đơn hàng:', err)
-    const msg = err?.response?.data?.message || 'Lỗi hủy đơn hàng.'
-    ElMessage.error(msg)
-  }
-}
-
-/* ===== Fetch invoice (robust) ===== */
-const fetchInvoice = async () => {
-  if (!invoiceId) {
-    ElMessage.error('Không tìm thấy invoiceId trong route. Vui lòng kiểm tra URL.')
-    console.error('fetchInvoice aborted, missing invoiceId:', route.params, route.query)
-    return
-  }
-
-  loadingInvoice.value = true
-  try {
-    const res = await apiClient.get('/admin/online-sales/get-order-customer-detail', {
-      params: { invoiceId: String(invoiceId) }
-    })
-
-    // backend có thể trả thẳng object hoặc wrapper { data: ... }
-    invoice.value = res.data?.data ?? res.data ?? {}
-
-  } catch (err) {
-    console.error('fetchInvoice error:', err)
-    if (err?.response) {
-      const serverMsg = err.response.data?.message || JSON.stringify(err.response.data)
-      ElMessage.error(`Lỗi khi tải thông tin đơn hàng: ${serverMsg}`)
-    } else if (err?.request) {
-      ElMessage.error('Không nhận được phản hồi từ server. Vui lòng kiểm tra kết nối.')
-    } else {
-      ElMessage.error('Lỗi khi tải thông tin đơn hàng.')
-    }
+    ElMessage.error('Lỗi cập nhật địa chỉ!')
+    console.error(err)
   } finally {
-    loadingInvoice.value = false
+    savingAddress.value = false
   }
 }
 
-/* ===== Utils ===== */
-const formatDate = (dateStr) => dateStr ? new Date(dateStr).toLocaleString('vi-VN') : ''
-const formatCurrency = (val) => `${Number(val || 0).toLocaleString('vi-VN')} ₫`
-const goBack = () => router.back()
+/* ===== Helpers ===== */
+const formatDate = (v) => (v ? new Date(v).toLocaleString('vi-VN') : '—')
+const formatCurrency = (n) => `${Number(n || 0).toLocaleString('vi-VN')} ₫`
 
-const previewFinalAmount = computed(() => {
-  const total = Number(invoice.value.totalAmount || 0)
-  const discount = Number(invoice.value.discountAmount || 0)
-  const fee = Number(shippingFee.value || 0)
-  return total + fee - discount
-})
-
-onMounted(() => {
-  fetchInvoice()
-})
+/* ===== Lifecycle ===== */
+onMounted(fetchInvoice)
 </script>
 
 <style scoped>
-.full-screen { max-width: 100%; }
-.mt-4 { margin-top: 20px; }
-.el-card { max-width: 100%; margin: auto; }
-.el-dialog {
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+.page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 16px;
 }
-.el-dialog__header { padding-bottom: 10px; border-bottom: 1px solid #eee; }
-.el-dialog__title { font-size: 1.25rem; font-weight: 600; color: #333; }
-.el-form-item__label { font-size: 0.95rem; font-weight: 500; color: #555; }
+.card { border-radius: 14px; }
+.header {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+}
+.title { display: flex; align-items: center; gap: 8px; margin: 0; font-weight: 700; }
+.title-icon { color: var(--el-color-primary); }
+.actions { display: flex; align-items: center; gap: 8px; }
+
+.desc :deep(.el-descriptions__label) {
+  width: 220px;
+  font-weight: 600;
+  color: var(--el-text-color-regular);
+}
+.desc :deep(.el-descriptions__cell) { padding: 10px 12px; }
+
+.row-inline { display: flex; align-items: center; gap: 10px; }
+.price { display: flex; gap: 8px; justify-content: flex-end; align-items: baseline; }
+.price .old { text-decoration: line-through; color: var(--el-text-color-placeholder); }
+.price .new.danger { color: var(--el-color-danger); font-weight: 700; }
 </style>

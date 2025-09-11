@@ -1,6 +1,6 @@
 <template>
   <div class="ssn-wrap">
-    <!-- Sticky Top Bar -->
+    <!-- Topbar -->
     <div class="ssn-topbar">
       <div class="left">
         <el-button link type="primary" @click="goBack">
@@ -10,6 +10,7 @@
         <span class="divider"></span>
         <h2 class="title">Cập nhật Sản phẩm</h2>
       </div>
+
       <div class="right">
         <el-button @click="openConfirmDialog" type="success" round size="large">
           Cập nhật
@@ -95,13 +96,16 @@
                   </el-form-item>
 
                   <el-form-item label="Giá bán mặc định" prop="sellPrice">
-                    <el-input
-                      type="number"
-                      v-model.number="updateProduct.sellPrice"
-                      placeholder="0"
-                      clearable
-                      :min="0"
-                    />
+                    <div class="flex items-center gap-3">
+                      <el-input
+                        type="number"
+                        v-model.number="updateProduct.sellPrice"
+                        placeholder="0"
+                        clearable
+                        :min="0"
+                        style="max-width:220px"
+                      />
+                    </div>
                   </el-form-item>
                 </div>
               </div>
@@ -118,13 +122,13 @@
                   class="w-full"
                 />
                 <div class="chips" v-if="updateProduct.categoryIds?.length">
-                  <span class="chip" v-for="c in updateProduct.categoryIds" :key="c.id">
-                    {{ c.categoryName }}
+                  <span class="chip" v-for="c in updateProduct.categoryIds" :key="typeof c === 'object' ? c.id : c">
+                    {{ typeof c === 'object' ? c.categoryName : getCategoryName(c) }}
                   </span>
                 </div>
               </el-form-item>
 
-              <el-form-item label="Mô tả">
+              <el-form-item label="Mô tả" prop="description">
                 <el-input
                   v-model="updateProduct.description"
                   type="textarea"
@@ -180,13 +184,13 @@
 
               <div class="variants">
                 <el-empty
-                  v-if="!productDetails?.length"
+                  v-if="!productDetails.length"
                   description="Chọn Size và Màu để tạo biến thể"
                 />
                 <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <el-card
                     v-for="(detail, index) in productDetails"
-                    :key="index"
+                    :key="detail.sizeId + '-' + detail.colorId"
                     shadow="hover"
                     class="variant-card"
                   >
@@ -194,26 +198,15 @@
                       <span class="badge">{{ detail.sizeName }}</span>
                       <span class="sep">×</span>
                       <span class="badge badge-blue">{{ detail.colorName }}</span>
+                      <span class="price-badge">{{ formatCurrency(updateProduct.sellPrice) }}</span>
                     </div>
                     <div class="grid grid-cols-2 gap-3 mt-3">
+                      <!-- Giá bán chi tiết đã bỏ input, hiển thị giá chung ở trên -->
                       <el-form-item
-                        label="Giá bán"
-                        :prop="'productDetails.' + index + '.sellPrice'"
-                        :rules="rules.productDetailSellPrice"
-                      >
-                        <el-input
-                          type="number"
-                          v-model.number="detail.sellPrice"
-                          :min="0"
-                          clearable
-                          :disabled="true"
-                        />
-                      </el-form-item>
-                      <el-form-item
-                        label="Số lượng"
                         :prop="'productDetails.' + index + '.quantity'"
                         :rules="rules.productDetailQuantity"
                       >
+                        <label class="form-label">Số lượng</label>
                         <el-input type="number" v-model.number="detail.quantity" :min="0" clearable />
                       </el-form-item>
                     </div>
@@ -222,7 +215,7 @@
               </div>
             </el-card>
 
-            <!-- Confirm -->
+            <!-- Confirm Summary -->
             <el-card shadow="never" class="ssn-card">
               <template #header>
                 <div class="card-header">
@@ -232,10 +225,10 @@
               <div class="flex items-center justify-between">
                 <div class="meta">
                   <div class="meta-line">
-                    Tổng biến thể: <b>{{ productDetails?.length || 0 }}</b>
+                    Tổng biến thể: <b>{{ productDetails.length || 0 }}</b>
                   </div>
                   <div class="meta-line">
-                    Tổng số lượng: <b>{{ productDetails.reduce((s, d) => s + Number(d.quantity || 0), 0) }}</b>
+                    Tổng số lượng: <b>{{ totalQuantity }}</b>
                   </div>
                 </div>
                 <el-button type="success" size="large" @click="openConfirmDialog">
@@ -291,7 +284,7 @@
                 </el-upload>
               </div>
 
-              <!-- trigger validate ẩn -->
+              <!-- hidden prop for validation trigger -->
               <el-form-item v-if="updateProduct.selectedColors.length > 0" prop="images">
                 <div style="display:none;"></div>
               </el-form-item>
@@ -322,7 +315,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, reactive, onMounted, watch, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import Multiselect from 'vue-multiselect'
 import 'vue-multiselect/dist/vue-multiselect.css'
@@ -334,7 +327,7 @@ import apiClient from '@/utils/axiosInstance'
 const router = useRouter()
 const route = useRoute()
 
-/* Refs */
+/* Refs & state */
 const productForm = ref(null)
 const brandList = ref([])
 const materialList = ref([])
@@ -345,12 +338,13 @@ const soleList = ref([])
 const supplierList = ref([])
 const styleList = ref([])
 const isModalVisible = ref(false)
-const colorImages = ref({})
+const colorImages = ref({}) // { colorId: [{ name, url, file, isOld, id }] }
 const deletedImageIds = ref([])
 const oldColorIds = ref([])
-const productDetails = ref([])
+const productDetails = ref([]) // array of { id, sizeId, colorId, sizeName, colorName, quantity }
 
-const updateProduct = ref({
+/* Reactive product model */
+const updateProduct = reactive({
   categoryIds: [],
   productName: '',
   materialId: null,
@@ -367,8 +361,21 @@ const updateProduct = ref({
   selectedColors: []
 })
 
-/* Validation rules */
-const rules = ref({
+/* Computed total quantity */
+const totalQuantity = computed(() =>
+  productDetails.value.reduce((s, d) => s + Number(d.quantity || 0), 0)
+)
+
+/* Notification helpers */
+const showSuccess = (message) => {
+  ElNotification({ title: 'Thành công', message, type: 'success', duration: 3000, position: 'top-right' })
+}
+const showError = (message) => {
+  ElNotification({ title: 'Lỗi', message, type: 'error', duration: 3000, position: 'top-right' })
+}
+
+/* Validation rules (note: productDetailSellPrice removed since sellPrice is global) */
+const rules = {
   categoryIds: [
     {
       required: true,
@@ -412,7 +419,7 @@ const rules = ref({
   images: [
     {
       validator: (rule, value, cb) => {
-        for (const colorId of updateProduct.value.selectedColors) {
+        for (const colorId of updateProduct.selectedColors) {
           const files = colorImages.value[colorId]
           if (!files || files.length === 0) {
             cb(new Error(`Vui lòng tải lên ít nhất một ảnh cho màu ${getColorName(colorId)}`))
@@ -424,49 +431,23 @@ const rules = ref({
       trigger: 'change'
     }
   ],
-  productDetailSellPrice: [
-    { type: 'number', min: 0, message: 'Giá bán phải là số không âm', trigger: 'blur' }
-  ],
   productDetailQuantity: [
     { type: 'number', min: 0, message: 'Số lượng phải là số không âm', trigger: 'blur' }
   ]
-})
-
-/* Notify helpers */
-const showSuccess = (message) => {
-  ElNotification({ title: 'Thành công', message, type: 'success', duration: 3000, position: 'top-right' })
-}
-const showError = (message) => {
-  ElNotification({ title: 'Lỗi', message, type: 'error', duration: 3000, position: 'top-right' })
 }
 
-/* Actions */
-const openConfirmDialog = () => {
-  productForm.value.validate((valid) => {
-    if (valid) {
-      const invalidDetails = productDetails.value.some(d =>
-        d.quantity === null || d.quantity === undefined || d.quantity < 0 ||
-        d.sellPrice === null || d.sellPrice === undefined || d.sellPrice < 0
-      )
-      if (invalidDetails) return showError('Vui lòng nhập đầy đủ giá bán và số lượng (không âm) cho tất cả biến thể!')
+/* Helper to get names */
+const getColorName = (colorId) => colorList.value.find(c => c.id === colorId)?.colorName || 'Không xác định'
+const getCategoryName = (id) => categoryList.value.find(c => c.id === id)?.categoryName || ''
 
-      const totalQuantity = productDetails.value.reduce((s, d) => s + Number(d.quantity), 0)
-      if (totalQuantity <= 0) return showError('Tổng số lượng của các biến thể phải lớn hơn 0!')
-
-      isModalVisible.value = true
-    } else {
-      showError('Vui lòng điền đầy đủ các trường bắt buộc hoặc sửa lỗi!')
-      setTimeout(() => {
-        const isError = document.querySelector('.is-error')
-        if (isError) isError.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      }, 100)
-    }
-  })
+/* Format currency */
+const formatCurrency = (v) => {
+  if (v == null) return '0 ₫'
+  const n = Number(v) || 0
+  return n.toLocaleString('vi-VN') + ' ₫'
 }
-const closeModal = () => { isModalVisible.value = false }
-const goBack = () => { router.push('/product') }
 
-/* API fetchers */
+/* Fetchers */
 const fetchCategories = async () => {
   try { categoryList.value = (await apiClient.get('/admin/categories/hien-thi')).data }
   catch (e) { console.error(e); showError('Lỗi lấy danh mục sản phẩm!') }
@@ -503,29 +484,27 @@ const fetchSizesAndColors = async () => {
     console.error(e); showError('Lỗi lấy kích thước hoặc màu sắc!')
   }
 }
-const getColorName = (colorId) => colorList.value.find(c => c.id === colorId)?.colorName || 'Không xác định'
 
 /* Load product detail */
 const fetchProduct = async () => {
   const id = route.params.id
   try {
     const product = (await apiClient.get(`/admin/products/${id}`)).data
-    updateProduct.value = {
-      categoryIds: product.categories?.map(c => ({ id: c.id, categoryName: c.categoryName })) || [],
-      productName: product.productName || '',
-      materialId: product.materialId || null,
-      styleId: product.styleId || null,
-      supplierId: product.supplierId || null,
-      genderId: product.genderId ? product.genderId.toString() : null,
-      soleId: product.soleId || null,
-      brandId: product.brandId || null,
-      originPrice: product.originPrice || null,
-      weight: product.weight || null,
-      sellPrice: product.sellPrice || null,
-      description: product.description || '',
-      selectedSizes: [...new Set(product.productDetails?.map(d => d.sizeId) || [])],
-      selectedColors: [...new Set(product.productDetails?.map(d => d.colorId) || [])]
-    }
+    // map categories to objects if necessary
+    updateProduct.categoryIds = product.categories?.map(c => ({ id: c.id, categoryName: c.categoryName })) || []
+    updateProduct.productName = product.productName || ''
+    updateProduct.materialId = product.materialId || null
+    updateProduct.styleId = product.styleId || null
+    updateProduct.supplierId = product.supplierId || null
+    updateProduct.genderId = product.genderId ? product.genderId.toString() : null
+    updateProduct.soleId = product.soleId || null
+    updateProduct.brandId = product.brandId || null
+    updateProduct.originPrice = product.originPrice || null
+    updateProduct.weight = product.weight || null
+    updateProduct.sellPrice = product.sellPrice || null
+    updateProduct.description = product.description || ''
+    updateProduct.selectedSizes = [...new Set(product.productDetails?.map(d => d.sizeId) || [])]
+    updateProduct.selectedColors = [...new Set(product.productDetails?.map(d => d.colorId) || [])]
 
     productDetails.value = product.productDetails?.map(d => ({
       id: d.id,
@@ -533,10 +512,10 @@ const fetchProduct = async () => {
       colorId: d.colorId,
       sizeName: d.sizeName,
       colorName: d.colorName,
-      sellPrice: d.sellPrice,
       quantity: d.quantity
     })) || []
 
+    // images
     colorImages.value = {}
     product.productImages?.forEach(img => {
       if (img.status === '1') {
@@ -557,16 +536,18 @@ const fetchProduct = async () => {
   }
 }
 
-/* Variants generator */
+/* Generate productDetails from selectedSizes x selectedColors while preserving existing entries */
 const generateProductDetails = () => {
-  const existed = [...productDetails.value]
+  const existed = [...productDetails.value] // shallow copy
   const out = []
 
-  for (const sizeId of updateProduct.value.selectedSizes) {
-    for (const colorId of updateProduct.value.selectedColors) {
+  for (const sizeId of updateProduct.selectedSizes) {
+    for (const colorId of updateProduct.selectedColors) {
       const size = sizeList.value.find(s => s.id === sizeId)
       const color = colorList.value.find(c => c.id === colorId)
       const old = existed.find(d => d.sizeId === sizeId && d.colorId === colorId)
+
+      const baseQty = old?.quantity != null ? old.quantity : 0
 
       out.push({
         id: old?.id || null,
@@ -574,8 +555,7 @@ const generateProductDetails = () => {
         colorId,
         sizeName: size?.sizeName || '',
         colorName: color?.colorName || '',
-        sellPrice: old ? old.sellPrice : (updateProduct.value.sellPrice || 0),
-        quantity: old ? old.quantity : 0
+        quantity: baseQty
       })
     }
   }
@@ -583,8 +563,16 @@ const generateProductDetails = () => {
 }
 
 /* Watchers */
-watch(() => updateProduct.value.selectedColors, (newColors, oldColors) => {
-  const removed = oldColors.filter(cid => !newColors.includes(cid))
+
+// khi sellPrice thay đổi -> luôn cập nhật giá biến thể trong payload khi save (displayed via formatCurrency)
+watch(() => updateProduct.sellPrice, (val) => {
+  // nothing to update on productDetails objects because we removed per-variant price,
+  // but keep this watcher in case you want to enforce something later
+})
+
+// when removing a color, mark its images for deletion and remember old color
+watch(() => updateProduct.selectedColors, (newColors, oldColors) => {
+  const removed = oldColors?.filter(cid => !newColors.includes(cid)) || []
   removed.forEach(cid => {
     if (!oldColorIds.value.includes(cid)) oldColorIds.value.push(cid)
     if (colorImages.value[cid]) {
@@ -598,15 +586,8 @@ watch(() => updateProduct.value.selectedColors, (newColors, oldColors) => {
   productForm.value?.validateField('images')
 }, { deep: true })
 
-watch(() => updateProduct.value.selectedSizes, () => generateProductDetails())
-
-watch(() => updateProduct.value.sellPrice, (val) => {
-  if (typeof val === 'number' && val >= 0) {
-    productDetails.value.forEach(d => {
-      if (d.sellPrice === 0 || d.sellPrice === null || d.sellPrice === undefined) d.sellPrice = val
-    })
-  }
-})
+// when sizes change -> regenerate details
+watch(() => updateProduct.selectedSizes, () => generateProductDetails())
 
 /* Upload handlers */
 const handleFileChange = (file, fileList, colorId) => {
@@ -639,7 +620,6 @@ const handleFileChange = (file, fileList, colorId) => {
     return
   }
 
-  if (!colorImages.value[colorId]) colorImages.value[colorId] = []
   colorImages.value[colorId] = fileList.map(item => ({
     name: item.name,
     url: item.url || (item.raw ? URL.createObjectURL(item.raw) : ''),
@@ -664,50 +644,93 @@ const handleFileRemove = (file, fileList, colorId) => {
 }
 const handlePreview = (file) => window.open(file.url, '_blank')
 
-/* Save */
+/* Dialog controls */
+const openConfirmDialog = () => {
+  // validate form + custom checks for productDetails
+  productForm.value.validate(async (valid) => {
+    if (valid) {
+      // validate each variant has quantity non-negative
+      for (const d of productDetails.value) {
+        if (d.quantity === null || d.quantity === undefined || d.quantity < 0) {
+          showError('Vui lòng nhập số lượng hợp lệ cho tất cả biến thể (>= 0).')
+          return
+        }
+      }
+      const totalQty = productDetails.value.reduce((s, d) => s + Number(d.quantity || 0), 0)
+      if (totalQty <= 0) {
+        showError('Tổng số lượng của các biến thể phải lớn hơn 0!')
+        return
+      }
+      // validate images presence
+      for (const colorId of updateProduct.selectedColors) {
+        if (!colorImages.value[colorId] || colorImages.value[colorId].length === 0) {
+          showError(`Vui lòng tải lên ít nhất 1 ảnh cho màu ${getColorName(colorId)}`)
+          return
+        }
+      }
+
+      isModalVisible.value = true
+    } else {
+      showError('Vui lòng điền đầy đủ các trường bắt buộc hoặc sửa lỗi!')
+      setTimeout(() => {
+        const el = document.querySelector('.is-error')
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 100)
+    }
+  })
+}
+const closeModal = () => { isModalVisible.value = false }
+const goBack = () => { router.push('/product') }
+
+/* Save handler */
 const saveProduct = async () => {
   try {
-    const mergedDetails = []
-    productDetails.value.forEach(d => {
-      const keep = updateProduct.value.selectedSizes.includes(d.sizeId) &&
-                   updateProduct.value.selectedColors.includes(d.colorId)
-      if (keep) mergedDetails.push({ ...d })
-    })
+    // prepare merged details (only keep combos currently selected)
+    const mergedDetails = productDetails.value.filter(d =>
+      updateProduct.selectedSizes.includes(d.sizeId) && updateProduct.selectedColors.includes(d.colorId)
+    )
 
     const formData = new FormData()
-    formData.append('productName', updateProduct.value.productName || '')
-    formData.append('materialId', updateProduct.value.materialId || '')
-    formData.append('supplierId', updateProduct.value.supplierId || '')
-    formData.append('brandId', updateProduct.value.brandId || '')
-    formData.append('soleId', updateProduct.value.soleId || '')
-    formData.append('styleId', updateProduct.value.styleId || '')
-    formData.append('genderId', updateProduct.value.genderId || '')
-    formData.append('weight', updateProduct.value.weight || 0)
-    formData.append('originPrice', updateProduct.value.originPrice || 0)
-    formData.append('sellPrice', updateProduct.value.sellPrice || 0)
-    formData.append('quantity', mergedDetails.reduce((s, d) => s + Number(d.quantity), 0))
-    formData.append('description', updateProduct.value.description || '')
+    formData.append('productName', updateProduct.productName || '')
+    formData.append('materialId', updateProduct.materialId || '')
+    formData.append('supplierId', updateProduct.supplierId || '')
+    formData.append('brandId', updateProduct.brandId || '')
+    formData.append('soleId', updateProduct.soleId || '')
+    formData.append('styleId', updateProduct.styleId || '')
+    formData.append('genderId', updateProduct.genderId || '')
+    formData.append('weight', updateProduct.weight ?? 0)
+    formData.append('originPrice', updateProduct.originPrice ?? 0)
+    // sellPrice is global and will be used as the price for each product detail on server
+    formData.append('sellPrice', updateProduct.sellPrice ?? 0)
+    formData.append('quantity', mergedDetails.reduce((s, d) => s + Number(d.quantity || 0), 0))
+    formData.append('description', updateProduct.description || '')
 
-    updateProduct.value.categoryIds.forEach((cat, idx) => {
+    // categories (support object list or primitive ids)
+    updateProduct.categoryIds.forEach((cat, idx) => {
       const id = typeof cat === 'object' ? cat.id : cat
       formData.append(`categoryIds[${idx}]`, id)
     })
 
+    // product details: send id, sizeId, colorId, quantity
     mergedDetails.forEach((d, idx) => {
       if (d.id) formData.append(`productDetails[${idx}].id`, d.id)
       formData.append(`productDetails[${idx}].sizeId`, d.sizeId)
       formData.append(`productDetails[${idx}].colorId`, d.colorId)
-      formData.append(`productDetails[${idx}].sellPrice`, d.sellPrice)
-      formData.append(`productDetails[${idx}].quantity`, d.quantity)
+      // we still send sellPrice for compatibility (server may expect it) — use global price
+      formData.append(`productDetails[${idx}].sellPrice`, updateProduct.sellPrice ?? 0)
+      formData.append(`productDetails[${idx}].quantity`, d.quantity ?? 0)
     })
 
+    // deleted images (existing image ids user removed)
     if (deletedImageIds.value.length > 0) {
       deletedImageIds.value.forEach((id, idx) => formData.append(`oldImageIds[${idx}]`, id))
     }
+    // removed old color ids
     if (oldColorIds.value.length > 0) {
       oldColorIds.value.forEach((id, idx) => formData.append(`removedColorIds[${idx}]`, id))
     }
 
+    // append new images grouped with colorId
     let imageIndex = 0
     Object.entries(colorImages.value).forEach(([colorId, files]) => {
       files.filter(f => f.file && !f.isOld).forEach(f => {
@@ -723,31 +746,30 @@ const saveProduct = async () => {
     showSuccess('Cập nhật sản phẩm thành công!')
     isModalVisible.value = false
 
-    updateProduct.value = {
-      categoryIds: [],
-      productName: '',
-      materialId: null,
-      styleId: null,
-      supplierId: null,
-      genderId: null,
-      soleId: null,
-      brandId: null,
-      originPrice: null,
-      weight: null,
-      sellPrice: null,
-      description: '',
-      selectedSizes: [],
-      selectedColors: []
-    }
+    // reset local state then redirect
+    updateProduct.productName = ''
+    updateProduct.categoryIds = []
+    updateProduct.materialId = null
+    updateProduct.styleId = null
+    updateProduct.supplierId = null
+    updateProduct.genderId = null
+    updateProduct.soleId = null
+    updateProduct.brandId = null
+    updateProduct.originPrice = null
+    updateProduct.weight = null
+    updateProduct.sellPrice = null
+    updateProduct.description = ''
+    updateProduct.selectedSizes = []
+    updateProduct.selectedColors = []
     colorImages.value = {}
     productDetails.value = []
     deletedImageIds.value = []
     oldColorIds.value = []
 
-    setTimeout(() => router.push('/product'), 1200)
+    setTimeout(() => router.push('/product'), 900)
   } catch (e) {
     console.error('Error updating product:', e)
-    const msg = e.response?.data?.error || 'Đã xảy ra lỗi khi cập nhật sản phẩm.'
+    const msg = e.response?.data?.error || e.response?.data?.message || 'Đã xảy ra lỗi khi cập nhật sản phẩm.'
     showError(msg)
     isModalVisible.value = false
   }
@@ -816,11 +838,21 @@ onMounted(() => {
 .check-item :deep(.el-checkbox__label) { color: #334155; }
 
 /* Variant cards */
-.variant-card { border-radius: 12px; border: 1px solid #eef2ff; }
+.variant-card { border-radius: 12px; border: 1px solid #eef2ff; padding: 12px; }
 .variant-head { display: flex; align-items: center; gap: 8px; }
 .badge { background: #f1f5f9; color: #0f172a; font-weight: 700; font-size: 12px; padding: 4px 8px; border-radius: 8px; }
 .badge-blue { background: #e8f1ff; color: #1d4ed8; }
 .sep { color: #94a3b8; }
+.price-badge {
+  margin-left: 8px;
+  background: #fff7ed;
+  border: 1px solid #ffedd5;
+  color: #92400e;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-size: 12px;
+}
 
 /* Images by color */
 .color-heading { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
@@ -839,7 +871,7 @@ onMounted(() => {
 :deep(.el-select .el-input__wrapper),
 :deep(.el-textarea__inner) { border-radius: 10px !important; }
 
-/* Minimal grid helpers (no Tailwind needed) */
+/* Minimal grid helpers */
 .grid { display: grid; }
 .grid-cols-1 { grid-template-columns: repeat(1,minmax(0,1fr)); }
 .grid-cols-2 { grid-template-columns: repeat(2,minmax(0,1fr)); }
@@ -854,4 +886,5 @@ onMounted(() => {
 .ml-1 { margin-left: .25rem; }
 .flex { display: flex; } .items-center { align-items: center; } .justify-between { justify-content: space-between; }
 .space-y-6 > * + * { margin-top: 1.5rem; }
+.form-label { display:block; font-weight:600; margin-bottom:6px; color:#334155; }
 </style>

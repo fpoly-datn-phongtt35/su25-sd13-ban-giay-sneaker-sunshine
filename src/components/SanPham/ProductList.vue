@@ -30,7 +30,6 @@
         </div>
       </template>
 
-      <!-- NEW: filter row with left (inputs) and right (buttons) -->
       <div class="filter-row">
         <div class="filter-left">
           <el-form :model="filters" :inline="true" size="small" class="filter-inline" @submit.prevent>
@@ -64,13 +63,18 @@
               </el-select>
             </el-form-item>
 
-            <el-form-item label="Giá" class="w-64 price-form-item">
-              <div class="price-range">
-                <el-input-number v-model="filters.priceMin" :min="0" :step="1000" :precision="0" placeholder="Min" />
-                <span class="sep">—</span>
-                <el-input-number v-model="filters.priceMax" :min="0" :step="1000" :precision="0" placeholder="Max" />
-              </div>
+            <el-form-item label="Chất liệu">
+              <el-select v-model="filters.materialId" clearable filterable placeholder="Chọn">
+                <el-option v-for="m in materialList" :key="m.id" :label="m.materialName" :value="m.id" />
+              </el-select>
             </el-form-item>
+
+            <el-form-item label="Loại đế">
+              <el-select v-model="filters.soleId" clearable filterable placeholder="Chọn">
+                <el-option v-for="s in soleList" :key="s.id" :label="s.soleName" :value="s.id" />
+              </el-select>
+            </el-form-item>
+
           </el-form>
         </div>
 
@@ -84,17 +88,6 @@
       <el-collapse-transition>
         <div v-show="showAdvanced" class="advanced">
           <el-form :model="filters" label-position="top" size="small" class="advanced-grid">
-            <el-form-item label="Chất liệu">
-              <el-select v-model="filters.materialId" clearable filterable placeholder="Chọn">
-                <el-option v-for="m in materialList" :key="m.id" :label="m.materialName" :value="m.id" />
-              </el-select>
-            </el-form-item>
-
-            <el-form-item label="Loại đế">
-              <el-select v-model="filters.soleId" clearable filterable placeholder="Chọn">
-                <el-option v-for="s in soleList" :key="s.id" :label="s.soleName" :value="s.id" />
-              </el-select>
-            </el-form-item>
 
             <el-form-item label="Cổ giày">
               <el-select v-model="filters.styleId" clearable filterable placeholder="Chọn">
@@ -135,12 +128,10 @@
       </el-collapse-transition>
     </el-card>
 
-    <!-- Summary -->
     <div class="summary">
       Đã chọn: <b>{{ selectedIds.size }}</b> / Tổng: <b>{{ totalElements }}</b> sản phẩm
     </div>
 
-    <!-- Table -->
     <el-card shadow="never">
       <el-table
         ref="tableRef"
@@ -168,15 +159,22 @@
 
         <el-table-column label="Giá bán" min-width="180">
           <template #default="{ row }">
-            <template v-if="(row.discountPercentage || 0) > 0 && row.discountedPrice < row.sellPrice">
-              <span class="line-through mr-2 text-muted">{{ formatCurrency(row.sellPrice) }}</span>
-              <span class="price-sale">{{ formatCurrency(row.discountedPrice) }}</span>
+            <template v-if="hasEffectiveDiscountInDetails(row)">
+      <span class="line-through mr-2 text-muted">
+        {{ formatCurrency(getMinPricesFromDetails(row).minOriginal) }}
+      </span>
+              <span class="price-sale">
+        {{ formatCurrency(getMinPricesFromDetails(row).minDiscounted) }}
+      </span>
             </template>
             <template v-else>
-              <span class="price">{{ formatCurrency(row.sellPrice) }}</span>
+      <span class="price">
+        {{ formatCurrency(getMinPricesFromDetails(row).minOriginal) }}
+      </span>
             </template>
           </template>
         </el-table-column>
+
 
         <el-table-column prop="quantity" label="Số lượng" width="110">
           <template #default="{ row }">
@@ -222,8 +220,6 @@
 </template>
 
 <script setup lang="ts">
-// (script phần giữ nguyên như file trước — chỉ cut ngắn để tránh lặp lại)
-// Dán nguyên phần script từ file trước (đã working) сюда:
 import { ref, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -396,6 +392,7 @@ const fetchProduct = async () => {
 
     const res = await apiClient.post('/admin/products/search', payload)
     productList.value = res.data.data || []
+    console.log('data: ',productList.value)
     totalElements.value = res.data.pagination?.totalElements || 0
     totalPages.value = res.data.pagination?.totalPages || 0
 
@@ -524,6 +521,53 @@ const formatCurrency = (val: number) => {
   if (val == null) return '0 ₫'
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', minimumFractionDigits: 0 }).format(val)
 }
+
+// Trả về { minOriginal: Number, minDiscounted: Number|null }
+// CHÚ Ý: chỉ lấy từ row.productDetails
+function getMinPricesFromDetails(row) {
+  const details = Array.isArray(row?.productDetails) ? row.productDetails : []
+  if (!details.length) {
+    // nếu không có chi tiết, fallback về row.sellPrice / row.discountedPrice nếu muốn
+    const orig = Number(row?.sellPrice) || 0
+    const disc = (row?.discountedPrice != null && Number(row.discountedPrice) < orig)
+      ? Number(row.discountedPrice)
+      : null
+    return { minOriginal: orig, minDiscounted: disc }
+  }
+
+  let minOriginal = Number.POSITIVE_INFINITY
+  let minDiscounted = Number.POSITIVE_INFINITY
+
+  for (const d of details) {
+    const sp = Number(d?.sellPrice)
+    if (!isNaN(sp)) minOriginal = Math.min(minOriginal, sp)
+
+    // 1) ưu tiên discountedPrice nếu có
+    let dp = null
+    if (d?.discountedPrice != null && d.discountedPrice !== '') {
+      dp = Number(d.discountedPrice)
+    } else if (d?.discountPercentage != null && !isNaN(Number(d.discountPercentage)) && !isNaN(sp)) {
+      // 2) fallback: tính từ discountPercentage
+      const pct = Number(d.discountPercentage)
+      dp = Math.round(sp * (100 - pct) / 100)
+    }
+
+    if (dp != null && !isNaN(dp) && !isNaN(sp) && dp < sp) {
+      minDiscounted = Math.min(minDiscounted, dp)
+    }
+  }
+
+  if (minOriginal === Number.POSITIVE_INFINITY) minOriginal = 0
+  if (minDiscounted === Number.POSITIVE_INFINITY) minDiscounted = null
+
+  return { minOriginal, minDiscounted }
+}
+
+function hasEffectiveDiscountInDetails(row) {
+  const { minOriginal, minDiscounted } = getMinPricesFromDetails(row)
+  return minDiscounted != null && minDiscounted < minOriginal
+}
+
 
 /* ===== Init ===== */
 onMounted(() => {

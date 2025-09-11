@@ -19,7 +19,6 @@
         <el-descriptions-item label="Chất liệu">{{ product.materialName || 'Không có' }}</el-descriptions-item>
         <el-descriptions-item label="Cổ giày">{{ product.styleName || 'Không có' }}</el-descriptions-item>
         <el-descriptions-item label="Giới tính">{{ product.genderName || 'Không có' }}</el-descriptions-item>
-        <el-descriptions-item label="Giá bán">{{ formatCurrency(product.sellPrice) }}</el-descriptions-item>
         <el-descriptions-item label="Số lượng tồn kho">{{ product.quantity ?? 0 }}</el-descriptions-item>
         <el-descriptions-item label="Trạng thái">{{ product.status === 1 ? 'Hoạt động' : 'Ngừng hoạt động' }}</el-descriptions-item>
         <el-descriptions-item label="Mô tả">{{ product.description || 'Không có' }}</el-descriptions-item>
@@ -44,9 +43,26 @@
       >
         <el-table-column prop="sizeName" label="Size" width="150" align="center" />
         <el-table-column prop="colorName" label="Màu sắc" width="150" align="center" />
-        <el-table-column label="Giá bán" width="150" align="center">
-          <template #default="{ row }">{{ formatCurrency(row.sellPrice) }}</template>
+        <el-table-column label="Giá bán" min-width="220">
+          <template #default="{ row }">
+            <div class="price-cell">
+              <!-- Trường hợp có giảm giá thực tế (có % và giá giảm nhỏ hơn giá bán) -->
+              <template v-if="(row.discountPercentage || 0) > 0 && row.discountedPrice < row.sellPrice">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <span class="line-through">{{ formatCurrency(row.sellPrice) }}</span>
+                  <span class="price-sale">{{ formatCurrency(row.discountedPrice) }}</span>
+                  <span class="discount-badge">-{{ Number(row.discountPercentage).toFixed(0) }}%</span>
+                </div>
+              </template>
+
+              <!-- Trường hợp không giảm giá -->
+              <template v-else>
+                <span class="price">{{ formatCurrency(row.sellPrice) }}</span>
+              </template>
+            </div>
+          </template>
         </el-table-column>
+
         <el-table-column prop="quantity" label="Số lượng" width="120" align="center" />
         <el-table-column label="Trạng thái" width="150" align="center">
           <template #default="{ row }">{{ row.status === 1 ? 'Hoạt động' : 'Ngừng hoạt động' }}</template>
@@ -89,7 +105,6 @@
       </div>
     </el-dialog>
 
-    <!-- Dialog Đánh giá -->
     <el-dialog v-model="reviewsDialogVisible" title="Đánh giá sản phẩm" width="600px">
       <el-empty v-if="productReviews.length === 0" description="Chưa có đánh giá nào." />
       <el-table v-else :data="productReviews" border style="width: 100%">
@@ -269,6 +284,7 @@ async function fetchProduct(id) {
   try {
     const { data } = await apiClient.get(`/admin/products/${id}`)
     product.value = data
+    console.log('data: ',product.value)
   } catch (e) {
     console.error('Lỗi fetch product:', e)
     error.value = true
@@ -295,4 +311,17 @@ onBeforeUnmount(() => {
 <style scoped>
 .box-card { max-width: 1200px; margin: 20px auto; }
 .card-header { display: flex; justify-content: space-between; align-items: center; }
+.price-cell { display: flex; align-items: center; }
+.line-through { text-decoration: line-through; color: #8a8a8a; margin-right: 6px; }
+.price-sale { color: #d03050; font-weight: 700; }
+.price { font-weight: 700; }
+.discount-badge {
+  background: #fff0f2;
+  color: #d03050;
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-weight: 700;
+  font-size: 12px;
+}
+
 </style>

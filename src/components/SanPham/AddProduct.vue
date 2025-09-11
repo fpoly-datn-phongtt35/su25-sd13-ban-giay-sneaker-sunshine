@@ -107,7 +107,7 @@
         </el-col>
       </el-row>
 
-      <!-- Trọng lượng + Giá bán -->
+      <!-- Trọng lượng + Giá bán chung -->
       <el-row :gutter="16">
         <el-col :xs="24" :sm="12">
           <el-form-item label="Cân nặng (gram)" :error="errors.weight">
@@ -124,16 +124,22 @@
           </el-form-item>
         </el-col>
         <el-col :xs="24" :sm="12">
-          <el-form-item label="Giá bán" :error="errors.sellPrice">
-            <el-input-number
-              v-model="newProduct.sellPrice"
-              :min="1"
-              :step="1000"
-              style="width:100%"
-              @change="onSellPriceChange"
-              @blur="onSellPriceBlur"
-            />
-            <div class="note">Giá bán áp dụng cho tất cả biến thể; phải lớn hơn 0.</div>
+          <el-form-item label="Giá bán (áp dụng cho tất cả biến thể)" :error="errors.sellPrice">
+            <div class="price-row">
+              <el-input-number
+                v-model="newProduct.sellPrice"
+                :min="1"
+                :step="1000"
+                style="width:100%"
+                @change="onSellPriceChange"
+                @blur="onSellPriceBlur"
+              />
+              <!-- Hiển thị dạng đã format -->
+              <div class="formatted-price" v-if="formattedSellPrice">
+                {{ formattedSellPrice }}
+              </div>
+            </div>
+            <div class="note">Giao diện không cho chỉnh giá từng biến thể — tất cả biến thể sẽ dùng giá này khi lưu.</div>
           </el-form-item>
         </el-col>
       </el-row>
@@ -148,8 +154,16 @@
         />
       </el-form-item>
 
-      <!-- Kích thước -->
-      <el-form-item label="Kích thước" :error="errors.selectedSizes">
+      <!-- Kích thước: có nút thêm nhanh -->
+      <el-form-item :error="errors.selectedSizes">
+        <template #label>
+          <div class="label-with-btn">
+            <span>Kích thước</span>
+            <el-button size="small" type="primary" plain icon>
+              <el-icon @click.stop="openAddSizeDialog"><Plus /></el-icon>
+            </el-button>
+          </div>
+        </template>
         <el-checkbox-group v-model="selectedSizes" @change="generateProductDetails">
           <el-space wrap>
             <el-checkbox
@@ -161,8 +175,16 @@
         </el-checkbox-group>
       </el-form-item>
 
-      <!-- Màu sắc -->
-      <el-form-item label="Màu sắc" :error="errors.selectedColors">
+      <!-- Màu sắc: có nút thêm nhanh -->
+      <el-form-item :error="errors.selectedColors">
+        <template #label>
+          <div class="label-with-btn">
+            <span>Màu sắc</span>
+            <el-button size="small" type="primary" plain icon>
+              <el-icon @click.stop="openAddColorDialog"><Plus /></el-icon>
+            </el-button>
+          </div>
+        </template>
         <el-checkbox-group v-model="selectedColors" @change="generateProductDetails">
           <el-space wrap>
             <el-checkbox
@@ -215,7 +237,6 @@
         </el-row>
       </div>
 
-      <!-- Bảng chi tiết biến thể (không có giá bán chi tiết) -->
       <div v-if="productDetails.length > 0" class="block">
         <div v-if="errors.productDetails" class="el-form-item__error mb-8">{{ errors.productDetails }}</div>
 
@@ -255,11 +276,37 @@
         <el-button type="primary" @click="saveProduct">Xác nhận</el-button>
       </template>
     </el-dialog>
+
+    <!-- Dialog thêm Kích thước nhanh -->
+    <el-dialog v-model="isAddSizeDialog" title="Thêm kích thước" width="420px" @close="resetAddSize">
+      <el-form>
+        <el-form-item label="Tên kích thước">
+          <el-input v-model="newSizeName" placeholder="Ví dụ: 39, M, L..." />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="closeAddSizeDialog">Hủy</el-button>
+        <el-button type="primary" @click="addSize" :loading="addingSize">Thêm</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- Dialog thêm Màu sắc nhanh -->
+    <el-dialog v-model="isAddColorDialog" title="Thêm màu sắc" width="420px" @close="resetAddColor">
+      <el-form>
+        <el-form-item label="Tên màu">
+          <el-input v-model="newColorName" placeholder="Ví dụ: Đen, Trắng, Red..." />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="closeAddColorDialog">Hủy</el-button>
+        <el-button type="primary" @click="addColor" :loading="addingColor">Thêm</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElNotification } from 'element-plus'
 import { ArrowLeft, Plus } from '@element-plus/icons-vue'
@@ -281,6 +328,14 @@ const styleList = ref([])
 
 // UI states
 const isModalVisible = ref(false)
+
+// Quick-add dialogs
+const isAddSizeDialog = ref(false)
+const isAddColorDialog = ref(false)
+const newSizeName = ref('')
+const newColorName = ref('')
+const addingSize = ref(false)
+const addingColor = ref(false)
 
 // Images by colorId
 const colorImages = ref({}) // { [colorId]: [{name,url,file,uid}] }
@@ -304,7 +359,7 @@ const newProduct = ref({
   brandId: null,
   originPrice: null,
   weight: null,
-  sellPrice: null,
+  sellPrice: null, // giá bán chung cho tất cả biến thể (số)
   description: '',
 })
 
@@ -317,7 +372,16 @@ const notify = (message, type = 'success') => {
 }
 const getColorName = (colorId) => colorList.value.find(c => c.id === colorId)?.colorName || 'Không xác định'
 
-// ---------- Validation helpers ----------
+// ---------- Price formatting helper ----------
+const formatVND = (value) => {
+  const n = Number(value)
+  if (!Number.isFinite(n)) return ''
+  return `${new Intl.NumberFormat('vi-VN').format(Math.trunc(n))} VND`
+}
+const formattedSellPrice = computed(() => {
+  return newProduct.value.sellPrice ? formatVND(newProduct.value.sellPrice) : ''
+})
+
 const isPositiveNumber = (v) => {
   const n = Number(v)
   return Number.isFinite(n) && n > 0
@@ -377,7 +441,6 @@ const validateAll = () => {
   return Object.keys(errors.value).length === 0
 }
 
-// ---------- Input sanitizers & event handlers ----------
 const onWeightChange = (val) => {
   if (val === null || val === undefined || val === '') {
     newProduct.value.weight = null
@@ -406,7 +469,8 @@ const onSellPriceChange = (val) => {
   }
   const n = Number(val)
   if (!Number.isFinite(n) || n <= 0) {
-    // will be caught by validateAll on blur/save
+  } else {
+    newProduct.value.sellPrice = Math.trunc(n)
   }
   if (errors.value.sellPrice) delete errors.value.sellPrice
 }
@@ -436,16 +500,18 @@ const onQuantityChange = (val, row, index) => {
   }
 }
 
-// ---------- Generate product details ----------
 const generateProductDetails = () => {
   const next = []
-  for (const sizeId of selectedSizes.value) {
-    for (const colorId of selectedColors.value) {
-      const size = sizeList.value.find(s => s.id === sizeId)
-      const color = colorList.value.find(c => c.id === colorId)
-      const existed = productDetails.value.find(d => d.sizeId === sizeId && d.colorId === colorId)
+  const sIds = selectedSizes.value.map(x => Number(x))
+  const cIds = selectedColors.value.map(x => Number(x))
+
+  for (const sizeId of sIds) {
+    for (const colorId of cIds) {
+      const size = sizeList.value.find(s => Number(s.id) === Number(sizeId))
+      const color = colorList.value.find(c => Number(c.id) === Number(colorId))
+      const existed = productDetails.value.find(d => Number(d.sizeId) === Number(sizeId) && Number(d.colorId) === Number(colorId))
       if (existed) {
-        next.push(existed)
+        next.push({ ...existed })
       } else {
         next.push({
           sizeId,
@@ -457,19 +523,19 @@ const generateProductDetails = () => {
       }
     }
   }
-  next.sort((a, b) => (a.sizeId - b.sizeId) || (a.colorId - b.colorId))
+  next.sort((a, b) => (Number(a.sizeId) - Number(b.sizeId)) || (Number(a.colorId) - Number(b.colorId)))
   productDetails.value = next
 }
 
-// upload handlers
 const handleFileChange = (file, fileList, colorId) => {
   const max = 5 * 1024 * 1024
-  if (file.size > max) {
+  const size = file.raw?.size ?? file.size ?? 0
+  if (size > max) {
     notify(`Ảnh ${file.name} vượt quá 5MB!`, 'error')
     fileList.splice(fileList.indexOf(file), 1)
     return
   }
-  const dup = (colorImages.value[colorId] || []).some(f => f.name === file.name && f.file?.size === file.size)
+  const dup = (colorImages.value[colorId] || []).some(f => f.name === file.name && (f.file?.size === size))
   if (dup) {
     notify(`Ảnh ${file.name} đã được chọn cho màu này!`, 'error')
     fileList.splice(fileList.indexOf(file), 1)
@@ -480,7 +546,7 @@ const handleFileChange = (file, fileList, colorId) => {
     name: file.name,
     url: file.url || (file.raw ? URL.createObjectURL(file.raw) : ''),
     file: file.raw || null,
-    uid: file.uid,
+    uid: file.uid || file.name + '_' + Date.now(),
   }
   if (!colorImages.value[colorId]) colorImages.value[colorId] = []
   colorImages.value[colorId].push(f)
@@ -494,7 +560,7 @@ const handleFileRemove = (file, fileList, colorId) => {
     name: item.name,
     url: item.url || (item.raw ? URL.createObjectURL(item.raw) : ''),
     file: item.raw || null,
-    uid: item.uid,
+    uid: item.uid || item.name + '_' + Date.now(),
   }))
   colorImages.value = { ...colorImages.value }
 }
@@ -503,7 +569,6 @@ const handlePreview = (file) => {
   if (file.url) window.open(file.url, '_blank')
 }
 
-// ---------- Save ----------
 const openConfirmDialog = () => {
   if (!validateAll()) {
     notify('Vui lòng điền đầy đủ và chính xác các trường bắt buộc.', 'error')
@@ -550,7 +615,8 @@ const saveProduct = async () => {
     formData.append('genderId', newProduct.value.genderId || '')
     formData.append('weight', newProduct.value.weight || 0)
     formData.append('originPrice', newProduct.value.originPrice || 0)
-    formData.append('sellPrice', newProduct.value.sellPrice || 0) // single price for all variants
+
+    formData.append('sellPrice', newProduct.value.sellPrice ?? 0)
     formData.append('quantity', totalQty)
     formData.append('description', newProduct.value.description || '')
 
@@ -560,8 +626,8 @@ const saveProduct = async () => {
     productDetails.value.forEach((d, i) => {
       formData.append(`productDetails[${i}].sizeId`, d.sizeId)
       formData.append(`productDetails[${i}].colorId`, d.colorId)
-      // backend sẽ dùng sellPrice chung đã gửi phía trên
       formData.append(`productDetails[${i}].quantity`, d.quantity)
+      formData.append(`productDetails[${i}].sellPrice`, newProduct.value.sellPrice ?? 0)
     })
 
     let imgIdx = 0
@@ -577,7 +643,7 @@ const saveProduct = async () => {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
 
-    notify('Thêm sản phẩm thành công!')
+    notify(`Thêm sản phẩm thành công! Giá: ${formattedSellPrice.value}`, 'success')
     isModalVisible.value = false
 
     // reset
@@ -604,9 +670,75 @@ const saveProduct = async () => {
     setTimeout(() => router.push('/product'), 800)
   } catch (e) {
     console.error('Lỗi thêm sản phẩm:', e)
-    const m = e.response?.data?.error || 'Đã xảy ra lỗi khi thêm sản phẩm.'
+    const m = e.response?.data?.error || e.response?.data?.message || 'Đã xảy ra lỗi khi thêm sản phẩm.'
     notify(m, 'error')
     isModalVisible.value = false
+  }
+}
+
+const openAddSizeDialog = () => {
+  newSizeName.value = ''
+  isAddSizeDialog.value = true
+}
+const closeAddSizeDialog = () => { isAddSizeDialog.value = false }
+const resetAddSize = () => { newSizeName.value = '' }
+
+const openAddColorDialog = () => {
+  newColorName.value = ''
+  isAddColorDialog.value = true
+}
+const closeAddColorDialog = () => { isAddColorDialog.value = false }
+const resetAddColor = () => { newColorName.value = '' }
+
+const addSize = async () => {
+  const name = (newSizeName.value || '').trim()
+  if (!name) {
+    notify('Vui lòng nhập tên kích thước.', 'error')
+    return
+  }
+  addingSize.value = true
+  try {
+    const res = await apiClient.post('/admin/size', null, {
+      params: { name: name }
+    });
+    const created = res?.data || { id: `tmp-size-${Date.now()}`, sizeName: name }
+    sizeList.value.push(created)
+    const newId = created.id
+    if (!selectedSizes.value.includes(newId)) selectedSizes.value.push(newId)
+    generateProductDetails()
+    notify('Thêm kích thước thành công.')
+    closeAddSizeDialog()
+  } catch (err) {
+    console.error('Lỗi tạo kích thước:', err)
+    notify('Lỗi khi tạo kích thước. Vui lòng thử lại.', 'error')
+  } finally {
+    addingSize.value = false
+  }
+}
+
+const addColor = async () => {
+  const name = (newColorName.value || '').trim()
+  if (!name) {
+    notify('Vui lòng nhập tên màu sắc.', 'error')
+    return
+  }
+  addingColor.value = true
+  try {
+    const res = await apiClient.post('/admin/color', null, {
+      params: { name: name }
+    });
+    const created = res?.data || { id: `tmp-color-${Date.now()}`, colorName: name }
+    colorList.value.push(created)
+    const newId = created.id
+    if (!selectedColors.value.includes(newId)) selectedColors.value.push(newId)
+    generateProductDetails()
+    notify('Thêm màu sắc thành công.')
+    closeAddColorDialog()
+  } catch (err) {
+    console.error('Lỗi tạo màu sắc:', err)
+    notify('Lỗi khi tạo màu sắc. Vui lòng thử lại.', 'error')
+  } finally {
+    addingColor.value = false
   }
 }
 
@@ -714,6 +846,38 @@ onMounted(() => {
   margin-top: 16px;
 }
 .note { font-size: 12px; color: #666; margin-top: 6px; }
+
+/* price display */
+.price-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.formatted-price {
+  min-width: 160px;
+  font-weight: 600;
+  color: #333;
+  background: #f5f7fa;
+  border-radius: 6px;
+  padding: 8px 10px;
+  text-align: center;
+}
+
+/* label + add button */
+.label-with-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.label-with-btn el-button {
+  padding: 2px;
+}
+
+/* dialogs inputs fullwidth */
+.el-dialog .el-input {
+  width: 100%;
+}
+
 .is-invalid :deep(.el-input__wrapper),
 .is-invalid :deep(.el-input-number__decrease),
 .is-invalid :deep(.el-input-number__increase) {

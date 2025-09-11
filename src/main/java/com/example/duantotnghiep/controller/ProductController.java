@@ -59,11 +59,24 @@ public class ProductController {
     @GetMapping("/details")
     public ResponseEntity<Page<ProductDetailResponse>> pageProductDetails(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(name = "productIds", required = false) List<Long> productIds
     ) {
-        return ResponseEntity.ok(productService.pageProductDetails(page, size));
+        return ResponseEntity.ok(productService.pageProductDetails(page, size, productIds));
     }
 
+    @GetMapping("/{productId}/details")
+    public ResponseEntity<Page<ProductDetailResponse>> searchDetailsByDetailIds(
+            @RequestParam(name = "detailIds", required = false) List<Long> detailIds,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) Long colorId,
+            @RequestParam(required = false) Long brandId
+    ) {
+        return ResponseEntity.ok(
+                productService.searchProductDetailsByDetailIds(page, size, detailIds, colorId, brandId)
+        );
+    }
 
     @GetMapping("/product-detail/{idProduct}")
     public ResponseEntity<List<ProductDetailResponse>> getProductDetailById(@PathVariable Long idProduct) {

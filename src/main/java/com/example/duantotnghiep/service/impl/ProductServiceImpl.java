@@ -530,9 +530,29 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public Page<ProductDetailResponse> pageProductDetails(int page, int size) {
-        Pageable pageable = PageRequest.of(page, size); // không sort => để FE tự sort nếu muốn
-        Page<ProductDetail> pdPage = productDetailRepository.pageAllActive(pageable);
+    public Page<ProductDetailResponse> searchProductDetailsByDetailIds(
+            int page, int size, List<Long> detailIds, Long colorId, Long brandId) {
+
+        Pageable pageable = PageRequest.of(page, size);
+
+        // Tránh lỗi IN () : nếu list rỗng => trả về trang rỗng
+        if (detailIds != null && detailIds.isEmpty()) {
+            return Page.empty(pageable);
+        }
+
+        Page<ProductDetail> pdPage =
+                productDetailRepository.pageByDetailIds(detailIds, colorId, brandId, pageable);
+
+        return pdPage.map(productDetailMapper::toResponse);
+    }
+
+    @Override
+    public Page<ProductDetailResponse> pageProductDetails(int page, int size, List<Long> productIds) {
+        Pageable pageable = PageRequest.of(page, size);
+
+        List<Long> normalizedIds = (productIds == null || productIds.isEmpty()) ? null : productIds;
+
+        Page<ProductDetail> pdPage = productDetailRepository.pageAllActive(normalizedIds, pageable);
         return pdPage.map(productDetailMapper::toResponse);
     }
 

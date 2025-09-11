@@ -24,7 +24,11 @@ public interface ProductService {
 
     ProductResponse getProductById(Long id);
 
-    Page<ProductDetailResponse> pageProductDetails(int page, int size);
+
+    Page<ProductDetailResponse> searchProductDetailsByDetailIds(
+            int page, int size, List<Long> detailIds, Long colorId, Long brandId);
+
+    Page<ProductDetailResponse> pageProductDetails(int page, int size, List<Long> productIds);
 
     List<ProductDetailResponse> getProductDetailById(Long productId);
 

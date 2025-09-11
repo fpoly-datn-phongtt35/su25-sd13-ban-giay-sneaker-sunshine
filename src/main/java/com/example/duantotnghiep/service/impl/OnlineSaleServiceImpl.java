@@ -13,6 +13,7 @@ import com.example.duantotnghiep.state.TrangThaiChiTiet;
 import com.example.duantotnghiep.state.TrangThaiTong;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -26,6 +27,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class OnlineSaleServiceImpl implements OnlineSaleService {
     private final InvoiceRepository invoiceRepository;
     private final OrderStatusHistoryRepository historyRepository;
@@ -38,68 +40,103 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
     private final InvoiceService invoiceService;
     private final VoucherRepository voucherRepository;
     private final VoucherEmailService voucherEmailService;
+    private final InvoiceEmailService invoiceEmailService;
+    private final InvoiceEmailServiceStatus invoiceEmailServiceStatus;
 
+    @Transactional
     @Override
-    public void chuyenTrangThai(Long invoiceId,String nextKey) {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-
+    public void chuyenTrangThai(Long invoiceId, String nextKey) {
+        // 1) Lấy user & employee
+        final String username = SecurityContextHolder.getContext().getAuthentication().getName();
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng với username: " + username));
 
         Employee employee = user.getEmployee();
-        if (employee == null) {
-            throw new RuntimeException("Người dùng không phải là nhân viên.");
+        if (employee == null || employee.getId() == null) {
+            throw new RuntimeException("Người dùng không phải là nhân viên hoặc thiếu ID nhân viên.");
         }
 
+        // 2) Lấy invoice
         Invoice invoice = invoiceRepository.findById(invoiceId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
 
-        invoice.setEmployee(employee);
-        if(employee.getId() == null ){
-            throw new RuntimeException("ko lấy đc nhân viên.");
+        // 3) Check đang được xử lý bởi nhân viên khác
+        Boolean lockedByAnother = historyRepository.isProcessedByAnotherEmployee(invoiceId, employee.getId());
+        if (Boolean.TRUE.equals(lockedByAnother)) {
+            throw new RuntimeException("Đơn hàng đang được xử lý bởi nhân viên khác.");
         }
 
-        Boolean exists = historyRepository.isProcessedByAnotherEmployee(invoiceId, employee.getId());
-        if(exists) {
-            throw new RuntimeException("Đơn hàng đang được xử lý bởi nhân viên khác.");
-        }else{
-            TrangThaiChiTiet currentStatus = invoice.getStatusDetail();
+        // 4) Resolve trạng thái tiếp theo
+        TrangThaiChiTiet nextStatus;
+        try {
+            nextStatus = TrangThaiChiTiet.valueOf(nextKey);
+        } catch (IllegalArgumentException ex) {
+            throw new RuntimeException("Trạng thái tiếp theo không hợp lệ: " + nextKey);
+        }
 
-            TrangThaiChiTiet nextStatus;
-            try {
-                nextStatus = TrangThaiChiTiet.valueOf(nextKey);
-            } catch (IllegalArgumentException e) {
-                throw new RuntimeException("Trạng thái tiếp theo không hợp lệ: " + nextKey);
-            }
+        TrangThaiChiTiet currentStatus = invoice.getStatusDetail();
+        if (currentStatus == nextStatus) {
+            throw new RuntimeException("Trạng thái mới trùng với trạng thái hiện tại.");
+        }
 
-            if (currentStatus == nextStatus) {
-                throw new RuntimeException("Trạng thái mới trùng với trạng thái hiện tại.");
-            }
+        // 5) Gán nhân viên phụ trách cho đơn
+        invoice.setEmployee(employee);
 
-            invoice.setStatusDetail(nextStatus);
-            if (nextStatus == TrangThaiChiTiet.HUY_DON) {
-                invoice.setStatus(TrangThaiTong.DA_HUY); // hoặc HUY, DA_HUY,... tùy định nghĩa
-            }
+        // 6) Cập nhật các thuộc tính theo trạng thái
+        switch (nextStatus) {
+            case HUY_DON:
+                invoice.setStatusDetail(nextStatus);
+                invoice.setStatus(TrangThaiTong.DA_HUY);
+                break;
 
-            if (nextStatus == TrangThaiChiTiet.GIAO_THANH_CONG) {
+            case GIAO_THANH_CONG:
+                invoice.setStatusDetail(nextStatus);
                 invoice.setDeliveredAt(new Date());
                 invoice.setStatus(TrangThaiTong.THANH_CONG);
-            }
+                break;
 
-
-            if (nextStatus == TrangThaiChiTiet.CHO_GIAO_HANG ||  nextStatus == TrangThaiChiTiet.DANG_GIAO_HANG || nextStatus == TrangThaiChiTiet.DA_XU_LY || nextStatus == TrangThaiChiTiet.CHO_XU_LY) {
+            // Các trạng thái “đang xử lý”
+            case CHO_GIAO_HANG:
+            case DANG_GIAO_HANG:
+            case DA_XU_LY:
+            case CHO_XU_LY:
+                invoice.setStatusDetail(nextStatus);
                 invoice.setStatus(TrangThaiTong.DANG_XU_LY);
-            }
+                break;
 
-            Invoice s = invoiceRepository.save(invoice);
-            handleAutoPromoVoucher(s, username, LocalDateTime.now());
-            OrderStatusHistory history = new OrderStatusHistory();
-            history.setInvoice(invoice);
-            history.setEmployee(employee);
-            history.setOldStatus(currentStatus.getMa());
-            history.setNewStatus(nextStatus.getMa());
-            history.setChangedAt(new Date());
-            historyRepository.save(history);
+            // Mặc định
+            default:
+                invoice.setStatusDetail(nextStatus);
+                break;
+        }
+
+        // 7) Lưu đơn
+        Invoice saved = invoiceRepository.save(invoice);
+
+        // 8) Lưu lịch sử trạng thái
+        OrderStatusHistory history = new OrderStatusHistory();
+        history.setInvoice(saved);
+        history.setEmployee(employee);
+        history.setOldStatus(currentStatus != null ? currentStatus.getMa() : null);
+        history.setNewStatus(nextStatus.getMa());
+        history.setChangedAt(new Date());
+        historyRepository.save(history);
+
+        // 9) Gửi email khi tới mốc yêu cầu (không để lỗi email làm rollback đơn)
+        if (nextStatus == TrangThaiChiTiet.DANG_GIAO_HANG
+                || nextStatus == TrangThaiChiTiet.GIAO_THANH_CONG) {
+            try {
+                invoiceEmailServiceStatus.sendStatusEmail(saved, nextStatus); // ✅ gọi instance method
+            } catch (Exception mailEx) {
+                log.warn("Gửi email trạng thái thất bại cho đơn {}: {}", saved.getInvoiceCode(), mailEx.getMessage());
+            }
+        }
+
+        // 10) Auto tặng voucher (hàm của bạn đã tự kiểm tra THANH_CONG)
+        try {
+            handleAutoPromoVoucher(saved, username, LocalDateTime.now());
+        } catch (Exception promoEx) {
+            log.warn("Xử lý auto promo voucher lỗi cho đơn {}: {}", saved.getInvoiceCode(), promoEx.getMessage());
         }
     }
 

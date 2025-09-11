@@ -2194,8 +2194,6 @@ public class InvoiceServiceImpl implements InvoiceService {
         return new InvoiceWithZaloPayResponse(display, zaloPayResponse);
     }
 
-
-
     @Transactional
     @Override
     public Invoice getInvoice(String appTransId) {

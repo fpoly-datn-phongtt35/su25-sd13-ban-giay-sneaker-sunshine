@@ -33,7 +33,7 @@ public class DiscountCampaignProductDetail {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "campaign_id")
+    @JoinColumn(name = "campaign_id", nullable = false)
     private DiscountCampaign campaign;
 
     @ManyToOne(fetch = FetchType.LAZY)

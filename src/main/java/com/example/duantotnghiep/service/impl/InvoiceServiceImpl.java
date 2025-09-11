@@ -1827,13 +1827,10 @@ public class InvoiceServiceImpl implements InvoiceService {
             transaction.setPaymentTime(new Date());
             invoiceTransactionRepository.save(transaction);
 
-            // ===== 7) HẬU THANH TOÁN =====
             processInvoicePayment(savedInvoice.getId());
 
-            // ===== 8) AUTO BLACKLIST =====
             autoBlacklistIfTooManyCancellations(customer);
 
-            // ===== 9) TRẢ VỀ =====
             return invoiceMapper.toInvoiceDisplayResponse(savedInvoice, savedInvoice.getInvoiceDetails());
 
 

@@ -513,12 +513,10 @@ public class ProductServiceImpl implements ProductService {
         // Khuyến nghị: dùng method có fetch join nếu bạn đã có (findActiveCampaignsWithRelations)
         List<DiscountCampaign> activeCampaigns = discountCampaignRepository.findActiveCampaigns(LocalDateTime.now());
 
-        // 7) % tốt nhất mức Product
         double productDiscount = getBestDiscountPercentageForProduct(product, activeCampaigns);
         response.setDiscountPercentage((int) Math.round(productDiscount));
         response.setDiscountedPrice(calculateDiscountPrice(response.getSellPrice(), productDiscount));
 
-        // 8) Áp dụng cho từng SPCT: ưu tiên SPCT (nếu không có thì dùng % product)
         for (ProductDetailResponse d : detailResponses) {
             double detailDiscount = getBestDiscountPercentageForProductDetail(d.getId(), activeCampaigns);
             if (detailDiscount <= 0) {

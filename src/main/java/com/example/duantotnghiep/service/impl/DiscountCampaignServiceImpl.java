@@ -24,6 +24,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.sql.Timestamp;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -87,9 +88,6 @@ public class DiscountCampaignServiceImpl implements DiscountCampaignService {
         String campaignCode = generateOrUseCampaignCode(request.getCampaignCode());
         ensureCampaignCodeUniqueOrThrow(campaignCode, null);
 
-        // 3) Mode %
-//        ensureDiscountModeConsistencyOrThrow(request);
-
         // 4) Bắt buộc >= 1 product
         List<Long> productIds = distinctValidIds(request.getProducts(), DiscountCampaignProductRequest::getProductId);
         if (productIds.isEmpty()) {
@@ -105,7 +103,19 @@ public class DiscountCampaignServiceImpl implements DiscountCampaignService {
         campaign.setDescription(trimOrNull(request.getDescription()));
         campaign.setStartDate(request.getStartDate());
         campaign.setEndDate(request.getEndDate());
-        campaign.setStatus(request.getStatus() != null ? request.getStatus() : 1);
+
+        // === NEW: tính status theo thời gian bắt đầu ===
+        Integer initialStatus;
+        if (request.getStartDate() == null) {
+            throw new IllegalArgumentException("Vui lòng chọn thời gian bắt đầu (startDate).");
+        } else if (request.getStartDate().isAfter(now)) {
+            initialStatus = 0; // CHỜ BẮT ĐẦU
+        } else {
+            initialStatus = 1; // ĐANG CHẠY
+        }
+        // Nếu client truyền status thì ưu tiên luật thời gian (khuyến nghị):
+        campaign.setStatus(initialStatus);
+
         campaign.setDiscountPercentage(normalizePercentageOrNull(request.getDiscountPercentage()));
         campaign.setCreatedDate(now);
         campaign.setUpdatedDate(now);
@@ -137,8 +147,8 @@ public class DiscountCampaignServiceImpl implements DiscountCampaignService {
                 it.setCampaign(campaign);
                 it.setProductDetail(pdMap.get(dReq.getProductDetailId()));
                 it.setDiscountPercentage(normalizePercentageOrNull(dReq.getDiscountPercentage())); // nullable nếu dùng global
-                it.setCreatedDate(java.sql.Timestamp.valueOf(now));
-                it.setUpdatedDate(java.sql.Timestamp.valueOf(now));
+                it.setCreatedDate(Timestamp.valueOf(now));
+                it.setUpdatedDate(Timestamp.valueOf(now));
                 items.add(it);
             }
             campaign.setProductDetails(items);
@@ -147,6 +157,7 @@ public class DiscountCampaignServiceImpl implements DiscountCampaignService {
         DiscountCampaign saved = discountCampaignRepository.save(campaign);
         return discountCampaignMapper.toResponse(saved);
     }
+
 
     @Transactional
     @Override
@@ -301,6 +312,8 @@ public class DiscountCampaignServiceImpl implements DiscountCampaignService {
 
     // ================== VALIDATION & UTILITIES ==================
 
+    private static final ZoneId APP_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
+
     private void validateBasic(DiscountCampaignRequest req) {
         if (req == null) throw new IllegalArgumentException("Yêu cầu không hợp lệ (request null).");
 
@@ -311,23 +324,33 @@ public class DiscountCampaignServiceImpl implements DiscountCampaignService {
             throw new IllegalArgumentException("Vui lòng chọn ngày bắt đầu và ngày kết thúc.");
         }
 
-        LocalDate start = req.getStartDate().toLocalDate();
-        LocalDate end   = req.getEndDate().toLocalDate();
-        LocalDate today = LocalDate.now();
+        // Dùng LocalDateTime để so sánh theo 'thời điểm'
+        LocalDateTime start = req.getStartDate();
+        LocalDateTime end   = req.getEndDate();
+        LocalDateTime now   = LocalDateTime.now(APP_ZONE);
 
-        if (end.isBefore(start)) {
-            throw new IllegalArgumentException("Ngày kết thúc không được nhỏ hơn ngày bắt đầu.");
+        // Kết thúc phải sau bắt đầu (nếu cho phép bằng nhau thì đổi thành isBefore)
+        if (!end.isAfter(start)) {
+            throw new IllegalArgumentException("Thời gian kết thúc phải lớn hơn thời gian bắt đầu.");
         }
-        long days = Duration.between(start.atStartOfDay(), end.plusDays(1).atStartOfDay()).toDays();
+
+        // Thời lượng theo ngày (tính inclusive theo ngày như cũ)
+        long days = Duration.between(
+                start.toLocalDate().atStartOfDay(),
+                end.toLocalDate().plusDays(1).atStartOfDay()
+        ).toDays();
         if (days > MAX_CAMPAIGN_DAYS) {
             throw new IllegalArgumentException("Thời lượng đợt giảm giá vượt quá " + MAX_CAMPAIGN_DAYS + " ngày.");
         }
-        // Không cho start/end ở quá khứ
-        if (start.isBefore(today)) {
-            throw new IllegalArgumentException("Ngày bắt đầu không được ở trong quá khứ.");
+
+        // Không cho start ở quá khứ theo 'thời điểm' (khắc phục case 00:00 hôm nay < 09:29)
+        if (start.isBefore(now)) {
+            throw new IllegalArgumentException("Thời gian bắt đầu phải lớn hơn thời điểm hiện tại.");
         }
-        if (end.isBefore(today)) {
-            throw new IllegalArgumentException("Ngày kết thúc không được ở trong quá khứ.");
+
+        // Không cho end ở quá khứ (thường thừa nếu đã check start>=now và end>start, nhưng để chặt chẽ)
+        if (end.isBefore(now)) {
+            throw new IllegalArgumentException("Thời gian kết thúc không được ở trong quá khứ.");
         }
 
         // % global (nếu có)

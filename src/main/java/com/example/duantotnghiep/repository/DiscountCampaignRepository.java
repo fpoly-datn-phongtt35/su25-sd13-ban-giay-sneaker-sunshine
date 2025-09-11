@@ -93,15 +93,18 @@ public interface DiscountCampaignRepository extends JpaRepository<DiscountCampai
                                                       @Param("now") LocalDateTime now);
 
     @Query("""
-SELECT DISTINCT c
-FROM DiscountCampaign c
-JOIN c.products p
-WHERE c.status = 1
-  AND (c.startDate IS NULL OR :now >= c.startDate)
-  AND (c.endDate   IS NULL OR :now <= c.endDate)
-  AND p.product.id = :productId
-""")
+            SELECT DISTINCT c
+            FROM DiscountCampaign c
+            JOIN c.products p
+            WHERE c.status = 1
+              AND (c.startDate IS NULL OR :now >= c.startDate)
+              AND (c.endDate   IS NULL OR :now <= c.endDate)
+              AND p.product.id = :productId
+            """)
     List<DiscountCampaign> findActiveForProduct(@Param("productId") Long productId,
                                                 @Param("now") LocalDateTime now);
+
+    List<DiscountCampaign> findAllByStartDateLessThanEqualAndStatus(LocalDateTime now, int status);
+
 
 }

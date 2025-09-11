@@ -18,22 +18,43 @@ public class DiscountCampaignScheduler {
         this.repository = repository;
     }
 
-    @Scheduled(cron = "0 * * * * *") // chạy mỗi phút một lần
+    /**
+     * Mỗi phút: kích hoạt các campaign đã đến giờ chạy
+     * Điều kiện: startDate <= now AND status = 0 (CHỜ BẮT ĐẦU) -> set status = 1 (ĐANG CHẠY)
+     */
+    @Scheduled(cron = "0 * * * * *") // mỗi phút
+    @Transactional
+    public void autoActivateScheduledCampaigns() {
+        LocalDateTime now = LocalDateTime.now();
+        List<DiscountCampaign> toActivate = repository.findAllByStartDateLessThanEqualAndStatus(now, 0);
+        if (toActivate.isEmpty()) return;
+
+        for (DiscountCampaign campaign : toActivate) {
+            campaign.setStatus(1); // ĐANG CHẠY
+            campaign.setUpdatedDate(now);
+        }
+        repository.saveAll(toActivate);
+    }
+
+    /**
+     * Mỗi phút: vô hiệu các campaign đã hết hạn
+     * Điều kiện: endDate < now AND status != 2 -> set status = 2 (VÔ HIỆU/HẾT HẠN)
+     */
+    @Scheduled(cron = "0 * * * * *") // mỗi phút
     @Transactional
     public void autoDeactivateExpiredCampaigns() {
         LocalDateTime now = LocalDateTime.now();
-
-        // Tìm tất cả đợt giảm giá có endDate < now và status khác 2 (chưa bị vô hiệu hóa)
         List<DiscountCampaign> expiredCampaigns = repository.findAllByEndDateBeforeAndStatusNot(now, 2);
+        if (expiredCampaigns.isEmpty()) return;
 
         for (DiscountCampaign campaign : expiredCampaigns) {
-            campaign.setStatus(2); // chuyển thành "đã bị hủy"
+            campaign.setStatus(2); // VÔ HIỆU/HẾT HẠN
             campaign.setUpdatedDate(now);
         }
-
         repository.saveAll(expiredCampaigns);
     }
 }
+
 
 
 

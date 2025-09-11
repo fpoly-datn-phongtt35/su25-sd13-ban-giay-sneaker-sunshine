@@ -655,20 +655,20 @@ const handleSubmit = async () => {
       employeeId: null,
     }
 
-    // ---------- CHECK VOUCHER (nếu có) ----------
     if (payload.voucherCode) {
       try {
-        const res = await axios.post('http://localhost:8080/api/online-sale/get-code-voucher', payload)
-        // expecting 1 = ok
+        const res = await axios.get('http://localhost:8080/api/online-sale/get-code-voucher', {
+          params: { code: payload.voucherCode }
+        })
         if (res.data !== 1) {
           failEarly('Voucher không tồn tại hoặc đã bị xóa')
         }
       } catch (err) {
         console.error('Lỗi kiểm tra voucher:', err)
-        // nếu lỗi khi gọi voucher, dừng lại để tránh tạo đơn sai
         failEarly('Lỗi khi kiểm tra voucher. Vui lòng thử lại.')
       }
     }
+
 
     // ------------- Payment flow -------------
     if (paymentMethod.value === 1) {

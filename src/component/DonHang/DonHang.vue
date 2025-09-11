@@ -71,7 +71,6 @@ import { ElMessage } from 'element-plus'
 const router = useRouter()
 
 // Trạng thái reactive
-const filters = ref({ search: '', dateRange: [] })
 const currentTab = ref('CHO_XU_LY')
 const invoices = ref([])
 const loading = ref(false)
@@ -94,10 +93,10 @@ const statusLabelToCode = (label) => {
   const map = {
     'CHO_XU_LY': 0,
     'DA_XU_LY': 1,
-    'CHO_GIAO_HANG': 3,
-    'DANG_GIAO_HANG': 4,
-    'GIAO_THANH_CONG': 5,
-    'GIAO_THAT_BAI': 6,
+    'CHO_GIAO_HANG': 2,
+    'DANG_GIAO_HANG': 3,
+    'GIAO_THANH_CONG': 4,
+    'GIAO_THAT_BAI': 5,
     'DA_HOAN_THANH': 8,
     'YEU_CAU_HOAN': 9,
     'HUY_DON': -2

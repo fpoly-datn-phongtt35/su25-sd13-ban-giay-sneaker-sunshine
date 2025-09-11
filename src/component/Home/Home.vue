@@ -26,11 +26,12 @@
         >
           <div class="product-card">
             <div class="product-card__image-wrapper">
+              <!-- badge sử dụng minDiscountPercentage (từ productDetails) -->
               <span
-                v-if="product.discountPercentage > 0"
+                v-if="product.minDiscountPercentage && product.minDiscountPercentage > 0"
                 class="product-card__discount-badge"
               >
-                -{{ product.discountPercentage }}%
+                -{{ product.minDiscountPercentage }}%
               </span>
 
               <img
@@ -63,13 +64,25 @@
               </p>
 
               <div class="product-card__price-container">
-                <template v-if="product.discountPercentage > 0 && Number(product.discountedPrice) > 0">
-                  <span class="discounted-price">{{ formatPrice(product.discountedPrice) }}</span>
-                  <del class="original-price">{{ formatPrice(product.sellPrice) }}</del>
+                <!-- Hiển thị giá nhỏ nhất từ productDetails -->
+                <template v-if="product.minDiscountedPrice != null && product.minSellPrice != null && product.minDiscountedPrice < product.minSellPrice">
+                  <span class="discounted-price">{{ formatPrice(product.minDiscountedPrice) }}</span>
+                  <del class="original-price">{{ formatPrice(product.minSellPrice) }}</del>
+                </template>
+                <template v-else-if="product.minSellPrice != null">
+                  <span class="normal-price">{{ formatPrice(product.minSellPrice) }}</span>
                 </template>
                 <template v-else>
+                  <!-- fallback: dùng sellPrice top-level nếu không có productDetails -->
                   <span class="normal-price">{{ formatPrice(product.sellPrice) }}</span>
                 </template>
+              </div>
+
+              <!-- Ghi chú variant có giá nhỏ nhất (tùy chọn, nếu muốn) -->
+              <div class="price-note" v-if="product.minVariant">
+                <small>
+                  ({{ product.minVariant.sizeName || 'Kích thước khác' }} • {{ product.minVariant.colorName || 'Màu khác' }})
+                </small>
               </div>
 
               <div
@@ -368,19 +381,21 @@ const toggleFavorite = (productId, name) => {
 watch(favorites, (val) => localStorage.setItem('favorites', JSON.stringify(val)), { deep: true })
 
 /* =======================
- * Chuẩn hoá product
+ * Chuẩn hoá product + tính giá nhỏ nhất từ productDetails
  * ======================= */
 const normalizeProduct = (p) => {
   const details = Array.isArray(p.productDetails) ? p.productDetails : []
   const images = Array.isArray(p.productImages) ? p.productImages : []
 
+  // build variants by color
   const seen = new Set()
   const variants = []
   for (const d of details) {
     const cid = d?.colorId
-    if (cid == null || seen.has(cid)) continue
+    if (cid == null) continue
+    if (seen.has(cid)) continue
     seen.add(cid)
-    const img = images.find((i) => i?.colorId === cid)
+    const img = images.find((i) => Number(i?.colorId) === Number(cid))
     variants.push({
       colorId: cid,
       colorName: d?.colorName || 'Không rõ',
@@ -388,9 +403,72 @@ const normalizeProduct = (p) => {
       image: img?.image ? `data:image/jpeg;base64,${img.image}` : (img?.url || null),
     })
   }
-
   const activeImage = variants[0]?.image || images[0]?.url || PLACEHOLDER_IMG
-  return { ...p, variants, activeImage, __originalImage: activeImage }
+
+  // compute min prices from productDetails
+  let minSell = Number.POSITIVE_INFINITY
+  let minDiscounted = Number.POSITIVE_INFINITY
+  let minDetailForDiscount = null
+  let minDetailForOriginal = null
+
+  for (const d of details) {
+    const sp = Number(d?.sellPrice ?? NaN)
+    if (!isNaN(sp)) {
+      if (sp < minSell) {
+        minSell = sp
+        minDetailForOriginal = d
+      }
+    }
+
+    // compute discounted price (priority: discountedPrice, fallback: discountPercentage)
+    let dp = null
+    if (d?.discountedPrice != null && d.discountedPrice !== '') {
+      const v = Number(d.discountedPrice)
+      if (!isNaN(v)) dp = v
+    } else if (d?.discountPercentage != null && !isNaN(Number(d.discountPercentage)) && !isNaN(sp)) {
+      const pct = Number(d.discountPercentage)
+      dp = Math.round(sp * (100 - pct) / 100)
+    }
+
+    if (dp != null && !isNaN(dp) && !isNaN(sp) && dp < sp) {
+      if (dp < minDiscounted) {
+        minDiscounted = dp
+        minDetailForDiscount = d
+      }
+    }
+  }
+
+  if (minSell === Number.POSITIVE_INFINITY) minSell = null
+  if (minDiscounted === Number.POSITIVE_INFINITY) minDiscounted = null
+
+  // choose a representative variant (detail) for showing note / pct
+  const chosenDetail = minDetailForDiscount || minDetailForOriginal || (details[0] ?? null)
+  let minDiscountPct = 0
+  if (chosenDetail) {
+    if (chosenDetail.discountPercentage != null) minDiscountPct = Number(chosenDetail.discountPercentage) || 0
+    else if (minDiscounted != null && minSell != null && minSell > 0) {
+      minDiscountPct = Math.round((1 - (minDiscounted / minSell)) * 100)
+    }
+  }
+
+  const minVariant = chosenDetail ? {
+    productDetailId: chosenDetail.id ?? null,
+    sizeName: chosenDetail.sizeName ?? null,
+    colorName: chosenDetail.colorName ?? null,
+    colorId: chosenDetail.colorId ?? null
+  } : null
+
+  return {
+    ...p,
+    variants,
+    activeImage,
+    __originalImage: activeImage,
+    // min prices computed from productDetails
+    minSellPrice: minSell,
+    minDiscountedPrice: minDiscounted,
+    minDiscountPercentage: minDiscountPct,
+    minVariant
+  }
 }
 
 /* =======================
@@ -526,7 +604,11 @@ const findSelectedProductDetail = () => {
       (d) => d.colorId === quickViewSelectedColorId.value && d.sizeName === quickViewSelectedSize.value
     )
   }
-  return null
+  // if only color selected, return first detail for that color
+  if (quickViewSelectedColorId.value) {
+    return sp.productDetails.find(d => d.colorId === quickViewSelectedColorId.value) || null
+  }
+  return sp.productDetails[0] || null
 }
 const getStockForSize = (size) => {
   const sp = selectedProduct.value
@@ -574,13 +656,6 @@ const requiresSizeSelection = (sp) => {
   return named.size > 0
 }
 
-/**
- * handleAddToCartInModal:
- * - async
- * - có isAdding để chặn double click
- * - verify productDetail trên server trước khi add
- * - trả về true nếu thêm thành công
- */
 const handleAddToCartInModal = async () => {
   if (isAdding.value) return false
   isAdding.value = true
@@ -683,9 +758,6 @@ const handleAddToCartInModal = async () => {
   }
 }
 
-/**
- * handleBuyNowInModal: await handleAddToCartInModal
- */
 const handleBuyNowInModal = async () => {
   if (isAdding.value) return
   const ok = await handleAddToCartInModal()

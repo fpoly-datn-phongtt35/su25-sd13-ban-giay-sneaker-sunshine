@@ -58,8 +58,14 @@
                     <del class="original-price">{{ formatPrice(bestPrice(p).sell) }}</del>
                   </template>
                   <template v-else>
-                    <span class="normal-price">{{ formatPrice(p.sellPrice) }}</span>
+                    <span class="normal-price">{{ formatPrice(bestPrice(p).sell) }}</span>
                   </template>
+                </div>
+
+                <div class="price-note" v-if="p.minVariant">
+                  <small>
+                    ({{ p.minVariant.sizeName || 'Kích thước khác' }} • {{ p.minVariant.colorName || 'Màu khác' }})
+                  </small>
                 </div>
 
                 <div class="product-card__colors" v-if="p.variants?.length">
@@ -391,12 +397,70 @@ const normalizeProduct = (p) => {
       colorId: cid,
       colorName: d?.colorName || 'Không rõ',
       colorCode: colorCodeOf(d?.colorName),
-      image: img?.image ? `data:image/jpeg;base64,${img.image}` : null,
+      image: img?.image ? `data:image/jpeg;base64,${img.image}` : (img?.url || PLACEHOLDER_IMG),
     })
   }
 
   const activeImage = variants[0]?.image || images[0]?.url || PLACEHOLDER_IMG
-  return { ...p, variants, activeImage }
+
+  // Tính giá nhỏ nhất từ productDetails
+  let minSell = Number.POSITIVE_INFINITY
+  let minDiscounted = Number.POSITIVE_INFINITY
+  let minDetailForOriginal = null
+  let minDetailForDiscount = null
+
+  for (const d of details) {
+    const sp = toNum(d?.sellPrice ?? p.sellPrice)
+    if (sp && sp < minSell) {
+      minSell = sp
+      minDetailForOriginal = d
+    }
+
+    // discountedPrice ưu tiên, fallback discountPercentage
+    let dp = null
+    if (d?.discountedPrice != null && d.discountedPrice !== '') {
+      dp = toNum(d.discountedPrice)
+    } else if (d?.discountPercentage != null && !isNaN(Number(d.discountPercentage)) && sp > 0) {
+      dp = Math.round(sp * (100 - Number(d.discountPercentage)) / 100)
+    }
+
+    if (dp != null && dp > 0 && dp < sp) {
+      if (dp < minDiscounted) {
+        minDiscounted = dp
+        minDetailForDiscount = d
+      }
+    }
+  }
+
+  if (minSell === Number.POSITIVE_INFINITY) minSell = null
+  if (minDiscounted === Number.POSITIVE_INFINITY) minDiscounted = null
+
+  // tính % giảm tối thiểu (dùng detail có discounted nhỏ nhất hoặc calc từ minDiscounted/minSell)
+  let minPct = 0
+  if (minDiscounted != null && minSell != null && minSell > 0) {
+    minPct = Math.round((1 - (minDiscounted / minSell)) * 100)
+  } else if (minDetailForDiscount && minDetailForDiscount.discountPercentage != null) {
+    minPct = toNum(minDetailForDiscount.discountPercentage)
+  }
+
+  const minVariant = (minDetailForDiscount || minDetailForOriginal || details[0]) ? {
+    productDetailId: (minDetailForDiscount || minDetailForOriginal || details[0])?.id ?? null,
+    sizeName: (minDetailForDiscount || minDetailForOriginal || details[0])?.sizeName ?? null,
+    colorName: (minDetailForDiscount || minDetailForOriginal || details[0])?.colorName ?? null,
+    colorId: (minDetailForDiscount || minDetailForOriginal || details[0])?.colorId ?? null
+  } : null
+
+  return {
+    ...p,
+    variants,
+    activeImage,
+    __originalImage: activeImage,
+    // Giá tối thiểu từ productDetails (nếu có)
+    minSellPrice: minSell,
+    minDiscountedPrice: minDiscounted,
+    minDiscountPercentage: minPct,
+    minVariant
+  }
 }
 
 /* =========================
@@ -404,33 +468,34 @@ const normalizeProduct = (p) => {
  * ========================= */
 const hasDiscount = (p) => {
   if (!p) return false
+  // ưu tiên dùng giá tính từ productDetails (minDiscountedPrice < minSellPrice)
+  if (p.minSellPrice != null && p.minDiscountedPrice != null && p.minDiscountedPrice < p.minSellPrice) return true
+  // fallback: sử dụng top-level fields
   if (toNum(p.discountPercentage) > 0) return true
   if (isDiscountedPrice(p.sellPrice, p.discountedPrice)) return true
+  // fallback: kiểm tra từng detail
   const details = Array.isArray(p.productDetails) ? p.productDetails : []
   return details.some(d => toNum(d?.discountPercentage) > 0 || isDiscountedPrice(d?.sellPrice ?? p.sellPrice, d?.discountedPrice))
 }
 
 const bestPrice = (p) => {
-  // Trả về { sell, discounted, percent } để hiển thị card
+  // Trả về { sell, discounted, percent } ưu tiên min từ productDetails
   let sell = toNum(p.sellPrice)
   let discounted = isDiscountedPrice(p.sellPrice, p.discountedPrice) ? toNum(p.discountedPrice) : null
   let percent = toNum(p.discountPercentage)
 
-  if (discounted == null) {
-    const details = Array.isArray(p.productDetails) ? p.productDetails : []
-    for (const d of details) {
-      const s = toNum(d?.sellPrice ?? sell)
-      const disc = toNum(d?.discountedPrice)
-      if (isDiscountedPrice(s, disc)) {
-        if (discounted == null || disc < discounted) {
-          discounted = disc
-          sell = s
-          percent = Math.max(percent, ((s - disc) * 100) / s)
-        }
-      }
-    }
+  if (p.minSellPrice != null) sell = p.minSellPrice
+  if (p.minDiscountedPrice != null) {
+    discounted = p.minDiscountedPrice
+    percent = p.minDiscountPercentage ?? percent
+  } else {
+    // nếu không có discounted từ details, giữ discounted nếu top-level có giảm
+    if (discounted == null) discounted = sell
   }
-  return { sell, discounted: discounted ?? sell, percent: Math.round(percent) }
+
+  // đảm bảo giá trả về hợp lệ
+  if (discounted == null) discounted = sell
+  return { sell, discounted, percent: Math.round(percent) }
 }
 const discountPercent = (p) => bestPrice(p).percent
 
@@ -509,7 +574,11 @@ const findSelectedProductDetail = () => {
       (d) => d.colorId === quickViewSelectedColorId.value && d.sizeName === quickViewSelectedSize.value
     )
   }
-  return null
+  // if only color selected, return first detail for that color
+  if (quickViewSelectedColorId.value) {
+    return sp.productDetails.find(d => d.colorId === quickViewSelectedColorId.value) || null
+  }
+  return sp.productDetails[0] || null
 }
 const getStockForSize = (size) => {
   const sp = selectedProduct.value
@@ -678,16 +747,16 @@ const handlePreOrderConfirm = () => {
     productDetailId: d.id,
     quantity: preOrderQuantity.value,
   })
-  .then(() => {
-    ElMessage.success(
-      `Đã đặt trước ${preOrderQuantity.value} sản phẩm ${preOrderItem.value.productName} (Màu: ${d.colorName}, Size: ${d.sizeName}).`
-    )
-    preOrderDialogVisible.value = false
-  })
-  .catch((e) => {
-    console.error(e)
-    ElMessage.error('Có lỗi xảy ra khi đặt trước. Vui lòng thử lại.')
-  })
+    .then(() => {
+      ElMessage.success(
+        `Đã đặt trước ${preOrderQuantity.value} sản phẩm ${preOrderItem.value.productName} (Màu: ${d.colorName}, Size: ${d.sizeName}).`
+      )
+      preOrderDialogVisible.value = false
+    })
+    .catch((e) => {
+      console.error(e)
+      ElMessage.error('Có lỗi xảy ra khi đặt trước. Vui lòng thử lại.')
+    })
 }
 
 /* =========================
@@ -786,7 +855,6 @@ onMounted(() => {
 }
 .product-card:hover .product-card__quick-view-btn{ opacity:1; }
 
-/* Info */
 .product-card__info{ padding:15px; text-align:left; }
 .product-card__name{
   font-size:15px; font-weight:600; color:var(--text-1);
@@ -801,6 +869,9 @@ onMounted(() => {
 .original-price{ font-size:13px; color:#9aa0b4; text-decoration:line-through; font-weight:400; }
 .normal-price{ font-size:16px; font-weight:600; color:#000; }
 
+.price-note small{ color:#6b7280; }
+
+/* color dots */
 .product-card__colors{ display:flex; gap:6px; height:14px; margin-top:10px; }
 .product-card__color-dot{
   width:14px; height:14px; border-radius:50%;
@@ -871,4 +942,3 @@ onMounted(() => {
   .collection-title{ font-size:24px; }
 }
 </style>
-

@@ -211,22 +211,23 @@
           <div class="related-card" @click="goToDetail(rp.id)">
             <div class="related-image">
               <img :src="rp.activeImage" :alt="rp.productName" class="related-img" loading="lazy" decoding="async" />
+              <!-- show discount badge using best price (min from details) -->
               <span
-                v-if="Number(rp.discountedPrice) > 0 && Number(rp.discountedPrice) < Number(rp.sellPrice)"
+                v-if="hasDiscount(rp)"
                 class="badge"
               >
-                -{{ rp.discountPercentage }}%
+                -{{ discountPercent(rp) }}%
               </span>
             </div>
             <div class="related-info">
               <p class="name" :title="rp.productName">{{ rp.productName }}</p>
               <div class="price">
-                <template v-if="Number(rp.discountedPrice) > 0 && Number(rp.discountedPrice) < Number(rp.sellPrice)">
-                  <span class="new">{{ money(rp.discountedPrice) }}</span>
-                  <del class="old">{{ money(rp.sellPrice) }}</del>
+                <template v-if="hasDiscount(rp)">
+                  <span class="new">{{ money(bestPrice(rp).discounted) }}</span>
+                  <del class="old">{{ money(bestPrice(rp).sell) }}</del>
                 </template>
                 <template v-else>
-                  <span class="new">{{ money(rp.sellPrice) }}</span>
+                  <span class="new">{{ money(bestPrice(rp).sell) }}</span>
                 </template>
               </div>
             </div>
@@ -306,11 +307,24 @@ const selectedSize = ref(null)
 const quantity = ref(1)
 const isSizeGuideVisible = ref(false)
 
-/* ========== Helpers ========== */
+/* =========================
+ * Helpers chung
+ * ========================= */
 const money = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(n || 0))
 const imgSrc = (img) => (img?.image ? `data:image/jpeg;base64,${img.image}` : (img?.url || '/no-image.jpg'))
 
-/* Màu chuẩn hóa (VN/EN/tên CSS) */
+const toNum = (v) => {
+  const n = Number(v)
+  return Number.isFinite(n) ? n : 0
+}
+const isDiscountedPrice = (sell, disc) => {
+  const s = toNum(sell), d = toNum(disc)
+  return s > 0 && d > 0 && d < s
+}
+
+/* =========================
+ * Color helpers
+ * ========================= */
 const colorMap = {
   'đen':'#000000','trắng':'#FFFFFF','đỏ':'#FF0000','xanh dương':'#0000FF','xanh lá':'#008000','xám':'#808080',
   'bạc':'#C0C0C0','hồng':'#FFC0CB','vàng':'#FFFF00','tím':'#800080','cam':'#FFA500','nâu':'#A52A2A',
@@ -409,8 +423,66 @@ const displayPrice = computed(() => {
   return { original: null, discounted: product.value.sellPrice }
 })
 
-/* ========== Liên quan ========== */
+/* ========== Related products + normalize (với giá nhỏ nhất) ========== */
 const related = ref({ items: [], pageSize: 8 })
+
+const computeBestPriceForProduct = (p) => {
+  // trả về { sell, discounted, percent, minVariant }
+  const details = Array.isArray(p.productDetails) ? p.productDetails : []
+  let minSell = Number.POSITIVE_INFINITY
+  let minDiscounted = Number.POSITIVE_INFINITY
+  let detailForMinSell = null
+  let detailForMinDisc = null
+
+  for (const d of details) {
+    const sp = toNum(d?.sellPrice ?? p.sellPrice)
+    if (sp > 0 && sp < minSell) {
+      minSell = sp
+      detailForMinSell = d
+    }
+
+    // discounted priority
+    let dp = null
+    if (d?.discountedPrice != null && d.discountedPrice !== '') {
+      dp = toNum(d.discountedPrice)
+    } else if (d?.discountPercentage != null && !isNaN(Number(d.discountPercentage)) && sp > 0) {
+      dp = Math.round(sp * (100 - Number(d.discountPercentage)) / 100)
+    }
+
+    if (dp != null && dp > 0 && dp < sp) {
+      if (dp < minDiscounted) {
+        minDiscounted = dp
+        detailForMinDisc = d
+      }
+    }
+  }
+
+  if (minSell === Number.POSITIVE_INFINITY) minSell = null
+  if (minDiscounted === Number.POSITIVE_INFINITY) minDiscounted = null
+
+  let percent = 0
+  const baseSell = minSell ?? toNum(p.sellPrice)
+  if (minDiscounted != null && baseSell > 0) {
+    percent = Math.round((1 - (minDiscounted / baseSell)) * 100)
+  } else if (p.discountPercentage) {
+    percent = toNum(p.discountPercentage)
+  }
+
+  const minVariant = (detailForMinDisc || detailForMinSell) ? {
+    productDetailId: (detailForMinDisc || detailForMinSell)?.id ?? null,
+    sizeName: (detailForMinDisc || detailForMinSell)?.sizeName ?? null,
+    colorName: (detailForMinDisc || detailForMinSell)?.colorName ?? null,
+    colorId: (detailForMinDisc || detailForMinSell)?.colorId ?? null
+  } : null
+
+  return {
+    sell: baseSell ?? toNum(p.sellPrice),
+    discounted: minDiscounted != null ? minDiscounted : (isDiscountedPrice(p.sellPrice, p.discountedPrice) ? toNum(p.discountedPrice) : (baseSell ?? toNum(p.sellPrice))),
+    percent: Math.round(percent),
+    minVariant
+  }
+}
+
 const normalizeProduct = (p) => {
   const images = Array.isArray(p.productImages) ? p.productImages : []
   const details = Array.isArray(p.productDetails) ? p.productDetails : []
@@ -427,14 +499,56 @@ const normalizeProduct = (p) => {
       image: im?.url || (im?.image ? `data:image/jpeg;base64,${im.image}` : null)
     })
   }
-  return { ...p, variants, activeImage: variants[0]?.image || firstImg || '/no-image.jpg' }
+
+  const activeImage = variants[0]?.image || firstImg || '/no-image.jpg'
+  const best = computeBestPriceForProduct(p)
+
+  // attach min prices to product object so template can use if needed
+  return {
+    ...p,
+    variants,
+    activeImage,
+    minSellPrice: best.sell,
+    minDiscountedPrice: best.discounted,
+    minDiscountPercentage: best.percent,
+    minVariant: best.minVariant
+  }
 }
+
+/* helper to check discount on any product object */
+const hasDiscount = (p) => {
+  if (!p) return false
+  // if we attached minDiscountedPrice/minSellPrice use them
+  if (p.minSellPrice != null && p.minDiscountedPrice != null && p.minDiscountedPrice < p.minSellPrice) return true
+  // fallback to top-level
+  if (isDiscountedPrice(p.sellPrice, p.discountedPrice)) return true
+  // fallback check details
+  const details = Array.isArray(p.productDetails) ? p.productDetails : []
+  return details.some(d => toNum(d?.discountedPrice) > 0 && toNum(d?.discountedPrice) < toNum(d?.sellPrice ?? p.sellPrice))
+}
+const bestPrice = (p) => {
+  if (!p) return { sell: 0, discounted: 0, percent: 0 }
+  if (p.minSellPrice != null || p.minDiscountedPrice != null) {
+    return {
+      sell: p.minSellPrice ?? toNum(p.sellPrice),
+      discounted: p.minDiscountedPrice != null ? p.minDiscountedPrice : (isDiscountedPrice(p.sellPrice, p.discountedPrice) ? toNum(p.discountedPrice) : (p.minSellPrice ?? toNum(p.sellPrice))),
+      percent: p.minDiscountPercentage ?? 0
+    }
+  }
+  // fallback compute on the fly
+  return computeBestPriceForProduct(p)
+}
+const discountPercent = (p) => bestPrice(p).percent
 
 /* ========== API calls ========== */
 const fetchProduct = async () => {
   const id = route.params.id
-  const { data } = await apiClient.get(`/online-sale/${id}`)
-  product.value = data
+  try {
+    const { data } = await apiClient.get(`/online-sale/${id}`)
+    product.value = data || product.value
+  } catch (e) {
+    console.error('fetchProduct', e)
+  }
 }
 
 const fetchImagesForColor = async (colorId) => {
@@ -457,8 +571,8 @@ const fetchRelated = async () => {
     const { data } = await apiClient.get(`/online-sale/brands/${brandId.value}/products`, { params: { page: 0, size: related.value.pageSize + 1 } })
     const payload = data ?? {}
     const list = Array.isArray(payload.content) ? payload.content
-               : Array.isArray(payload.data?.content) ? payload.data.content
-               : Array.isArray(payload) ? payload : []
+      : Array.isArray(payload.data?.content) ? payload.data.content
+        : Array.isArray(payload) ? payload : []
     related.value.items = list
       .filter(p => p && p.id !== product.value.id)
       .slice(0, related.value.pageSize)
@@ -487,20 +601,26 @@ const handleAddToCart = async () => {
   }
   const d = findSelectedDetail()
   const productDetailId = d.id;
-try {
-  const res = await axios.get(`http://localhost:8080/api/online-sale/verify-pdDetail/${productDetailId}`)
-  console.log('res hihi: ',res)
-  const status = res?.data?.status;
-  const statusNum = Number(status)
-  if (!Number.isFinite(statusNum) || statusNum !== 1) {
-    ElMessage.error('Sản phẩm hiện không hợp lệ để mua (đã bị vô hiệu hóa hoặc không còn bán).')
+  try {
+    const res = await axios.get(`http://localhost:8080/api/online-sale/verify-pdDetail/${productDetailId}`)
+    const status = res?.data?.status ?? res?.data?.active ?? res?.data?.enabled
+    // accept numeric 1 or boolean true or string active/enabled
+    let ok = false
+    if (typeof status === 'boolean') ok = status === true
+    else {
+      const n = Number(status)
+      if (Number.isFinite(n)) ok = n === 1
+      else if (typeof status === 'string') ok = ['active','enabled','available','true'].includes(status.trim().toLowerCase())
+    }
+    if (!ok) {
+      ElMessage.error('Sản phẩm hiện không hợp lệ để mua (đã bị vô hiệu hóa hoặc không còn bán).')
+      return false
+    }
+  } catch (e) {
+    console.error('Lỗi khi kiểm tra trạng thái productDetail:', e)
+    ElMessage.error('Không thể kiểm tra trạng thái sản phẩm. Vui lòng thử lại sau.')
     return false
   }
-} catch (e) {
-  console.error('Lỗi khi kiểm tra trạng thái productDetail:', e)
-  ElMessage.error('Không thể kiểm tra trạng thái sản phẩm. Vui lòng thử lại sau.')
-  return false
-}
 
   if (!d) return ElMessage.error('Không tìm thấy biến thể phù hợp!')
 
@@ -542,7 +662,7 @@ const handleBuyNow = () => {
   }
   handleAddToCart()
   if (selectedDetail.value){
-      router.push('/cart')
+    router.push('/cart')
   }
 }
 

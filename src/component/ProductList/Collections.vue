@@ -142,7 +142,8 @@
             <el-col v-for="p in products" :key="p.id" :xs="24" :sm="12" :md="8" :lg="6">
               <div class="product-card">
                 <div class="product-card__image-wrapper">
-                  <span v-if="p.discountPercentage > 0" class="product-card__discount-badge">-{{ p.discountPercentage }}%</span>
+                  <!-- show discount badge from minDiscountPercentage (from productDetails) -->
+                  <span v-if="p.minDiscountPercentage > 0" class="product-card__discount-badge">-{{ p.minDiscountPercentage }}%</span>
 
                   <img
                     :src="p.activeImage"
@@ -171,13 +172,23 @@
                   <p class="product-card__name" @click="goToDetail(p.id)">{{ p.productName }}</p>
 
                   <div class="product-card__price-container">
-                    <template v-if="p.discountPercentage > 0 && Number(p.discountedPrice) > 0">
-                      <span class="discounted-price">{{ formatPrice(p.discountedPrice) }}</span>
-                      <del class="original-price">{{ formatPrice(p.sellPrice) }}</del>
+                    <!-- Use minDiscountedPrice/minSellPrice computed from productDetails -->
+                    <template v-if="p.minDiscountedPrice != null && p.minSellPrice != null && p.minDiscountedPrice < p.minSellPrice">
+                      <span class="discounted-price">{{ formatPrice(p.minDiscountedPrice) }}</span>
+                      <del class="original-price">{{ formatPrice(p.minSellPrice) }}</del>
+                    </template>
+                    <template v-else-if="p.minSellPrice != null">
+                      <span class="normal-price">{{ formatPrice(p.minSellPrice) }}</span>
                     </template>
                     <template v-else>
+                      <!-- fallback: use top-level sellPrice if no details -->
                       <span class="normal-price">{{ formatPrice(p.sellPrice) }}</span>
                     </template>
+                  </div>
+
+                  <!-- optional: show which variant has that min price -->
+                  <div class="price-note" v-if="p.minVariant">
+                    <small>({{ p.minVariant.sizeName || 'Kích thước khác' }} • {{ p.minVariant.colorName || 'Màu khác' }})</small>
                   </div>
 
                   <div class="product-card__colors" v-if="p.variants?.length">
@@ -384,7 +395,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ShoppingCart } from '@element-plus/icons-vue'
@@ -516,18 +527,20 @@ const toggleFavorite = (productId, name) => {
   }
 }
 
-/* ========== Normalize product ========== */
+/* ========== Normalize product (important: compute min prices from productDetails) ========= */
 const normalizeProduct = (p) => {
   const details = Array.isArray(p.productDetails) ? p.productDetails : []
   const images = Array.isArray(p.productImages) ? p.productImages : []
 
+  // build variants by color
   const seen = new Set()
   const variants = []
   for (const d of details) {
     const cid = d?.colorId
-    if (cid == null || seen.has(cid)) continue
+    if (cid == null) continue
+    if (seen.has(cid)) continue
     seen.add(cid)
-    const img = images.find((i) => i?.colorId === cid)
+    const img = images.find((i) => Number(i?.colorId) === Number(cid))
     variants.push({
       colorId: cid,
       colorName: d?.colorName || 'Không rõ',
@@ -536,10 +549,73 @@ const normalizeProduct = (p) => {
     })
   }
   const activeImage = variants[0]?.image || images[0]?.url || PLACEHOLDER_IMG
-  return { ...p, variants, activeImage, __originalImage: activeImage }
+
+  // compute min prices from productDetails
+  let minSell = Number.POSITIVE_INFINITY
+  let minDiscounted = Number.POSITIVE_INFINITY
+  let minDetailForDiscount = null
+  let minDetailForOriginal = null
+
+  for (const d of details) {
+    const sp = Number(d?.sellPrice ?? NaN)
+    if (!isNaN(sp)) {
+      if (sp < minSell) {
+        minSell = sp
+        minDetailForOriginal = d
+      }
+    }
+
+    // compute discounted price
+    let dp = null
+    if (d?.discountedPrice != null && d.discountedPrice !== '') {
+      const v = Number(d.discountedPrice)
+      if (!isNaN(v)) dp = v
+    } else if (d?.discountPercentage != null && !isNaN(Number(d.discountPercentage)) && !isNaN(sp)) {
+      const pct = Number(d.discountPercentage)
+      dp = Math.round(sp * (100 - pct) / 100)
+    }
+
+    if (dp != null && !isNaN(dp) && !isNaN(sp) && dp < sp) {
+      if (dp < minDiscounted) {
+        minDiscounted = dp
+        minDetailForDiscount = d
+      }
+    }
+  }
+
+  if (minSell === Number.POSITIVE_INFINITY) minSell = null
+  if (minDiscounted === Number.POSITIVE_INFINITY) minDiscounted = null
+
+  // compute discount pct based on chosen variant
+  let minDiscountPct = 0
+  let chosenDetail = minDetailForDiscount || minDetailForOriginal || (details[0] ?? null)
+  if (chosenDetail) {
+    if (chosenDetail.discountPercentage != null) minDiscountPct = Number(chosenDetail.discountPercentage) || 0
+    else if (minDiscounted != null && minSell != null) {
+      minDiscountPct = Math.round((1 - (minDiscounted / minSell)) * 100)
+    }
+  }
+
+  const minVariant = chosenDetail ? {
+    productDetailId: chosenDetail.id ?? null,
+    sizeName: chosenDetail.sizeName ?? null,
+    colorName: chosenDetail.colorName ?? null,
+    colorId: chosenDetail.colorId ?? null
+  } : null
+
+  return {
+    ...p,
+    variants,
+    activeImage,
+    __originalImage: activeImage,
+    minSellPrice: minSell,
+    minDiscountedPrice: minDiscounted,
+    minDiscountPercentage: minDiscountPct,
+    minVariant
+  }
 }
 
-/* ========== BRAND/COLOR/GENDER/SIZE filters (same as before) ========== */
+/* ========== BRAND/COLOR/GENDER/SIZE filters ========== */
 const brandOpen = ref(true)
 const brandSearch = ref('')
 const brands = ref([])
@@ -608,10 +684,10 @@ const fetchColors = async () => {
   }
   colors.value = Array.isArray(data)
     ? data.map(x => ({
-        id: x.id,
-        name: x.name || x.ten || x.colorName || ('#' + x.id),
-        code: x.code || x.ma || colorCodeOf(x.name || x.ten || x.colorName),
-      }))
+      id: x.id,
+      name: x.name || x.ten || x.colorName || ('#' + x.id),
+      code: x.code || x.ma || colorCodeOf(x.name || x.ten || x.colorName),
+    }))
     : []
   isLoadingColors.value = false
 }
@@ -737,8 +813,8 @@ const fetchProductsByCategory = async (params) => {
   const payload = data ?? {}
   const content =
     Array.isArray(payload.content) ? payload.content :
-    Array.isArray(payload.data?.content) ? payload.data.content :
-    Array.isArray(payload) ? payload : []
+      Array.isArray(payload.data?.content) ? payload.data.content :
+        Array.isArray(payload) ? payload : []
 
   if (!Array.isArray(content)) throw new Error('Định dạng dữ liệu API không hợp lệ.')
   const map = new Map()
@@ -760,8 +836,8 @@ const fetchProductsByGender = async (genderId, params) => {
   const payload = data ?? {}
   const content =
     Array.isArray(payload.content) ? payload.content :
-    Array.isArray(payload.data?.content) ? payload.data.content :
-    Array.isArray(payload) ? payload : []
+      Array.isArray(payload.data?.content) ? payload.data.content :
+        Array.isArray(payload) ? payload : []
   if (!Array.isArray(content)) throw new Error('Định dạng dữ liệu API không hợp lệ.')
   const map = new Map()
   for (const item of content) if (item && item.id != null) map.set(item.id, item)
@@ -781,8 +857,8 @@ const fetchProductsBySize = async (sizeId, params) => {
   const payload = data ?? {}
   const content =
     Array.isArray(payload.content) ? payload.content :
-    Array.isArray(payload.data?.content) ? payload.data.content :
-    Array.isArray(payload) ? payload : []
+      Array.isArray(payload.data?.content) ? payload.data.content :
+        Array.isArray(payload) ? payload : []
   if (!Array.isArray(content)) throw new Error('Định dạng dữ liệu API không hợp lệ.')
   const map = new Map()
   for (const item of content) if (item && item.id != null) map.set(item.id, item)
@@ -802,8 +878,8 @@ const fetchProductsByColor = async (colorId, params) => {
   const payload = data ?? {}
   const content =
     Array.isArray(payload.content) ? payload.content :
-    Array.isArray(payload.data?.content) ? payload.data.content :
-    Array.isArray(payload) ? payload : []
+      Array.isArray(payload.data?.content) ? payload.data.content :
+        Array.isArray(payload) ? payload : []
   if (!Array.isArray(content)) throw new Error('Định dạng dữ liệu API không hợp lệ.')
   const map = new Map()
   for (const item of content) if (item && item.id != null) map.set(item.id, item)
@@ -817,8 +893,8 @@ const fetchProductsByBrand = async (brandId, params) => {
   const payload = data ?? {}
   const content =
     Array.isArray(payload.content) ? payload.content :
-    Array.isArray(payload.data?.content) ? payload.data.content :
-    Array.isArray(payload) ? payload : []
+      Array.isArray(payload.data?.content) ? payload.data.content :
+        Array.isArray(payload) ? payload : []
   if (!Array.isArray(content)) throw new Error('Định dạng dữ liệu API không hợp lệ.')
   const map = new Map()
   for (const item of content) if (item && item.id != null) map.set(item.id, item)
@@ -843,8 +919,8 @@ const fetchProducts = async () => {
     const payload = data ?? {}
     const content =
       Array.isArray(payload.content) ? payload.content :
-      Array.isArray(payload.data?.content) ? payload.data.content :
-      Array.isArray(payload) ? payload : []
+        Array.isArray(payload.data?.content) ? payload.data.content :
+          Array.isArray(payload) ? payload : []
     if (!Array.isArray(content)) throw new Error('Định dạng dữ liệu API không hợp lệ.')
     const map = new Map()
     for (const item of content) if (item && item.id != null) map.set(item.id, item)
@@ -872,10 +948,6 @@ const quickViewSelectedSize = ref(null)
 const quickViewQuantity = ref(1)
 const quickViewActiveImage = ref(PLACEHOLDER_IMG)
 
-/* Dialog liên hệ khi số lượng lớn */
-const contactDialogVisible = ref(false)
-
-/* Helpers Quick View */
 const openQuickViewModal = (p) => {
   selectedProduct.value = p
   quickViewVisible.value = true
@@ -914,7 +986,12 @@ const findSelectedProductDetail = () => {
   if (quickViewSelectedColorId.value && quickViewSelectedSize.value) {
     return sp.productDetails.find(d => d.colorId===quickViewSelectedColorId.value && d.sizeName===quickViewSelectedSize.value)
   }
-  return null
+  // fallback: if only color selected, choose first detail with that color
+  if (quickViewSelectedColorId.value) {
+    return sp.productDetails.find(d => d.colorId===quickViewSelectedColorId.value)
+  }
+  // fallback: first available
+  return sp.productDetails[0] || null
 }
 const getStockForSize = (size) => {
   const sp = selectedProduct.value
@@ -951,12 +1028,7 @@ const showBulkDialog = () => {
   ElMessage.warning(`Số lượng lớn (≥ ${NGAY_MAX_QTY} đôi). Vui lòng liên hệ nhân viên để đặt hàng.`)
 }
 
-/**
- * handleAddToCartInModal:
- * - async, gọi verify endpoint backend để kiểm tra status + quantity (tồn kho)
- * - isAdding để chặn double-click
- * - trả về true khi add thành công, false nếu thất bại
- */
+/* Verify & Add to cart */
 const handleAddToCartInModal = async () => {
   if (isAdding.value) return false
   isAdding.value = true
@@ -965,13 +1037,11 @@ const handleAddToCartInModal = async () => {
     const sp = selectedProduct.value
     if (!sp) { ElMessage.error('Sản phẩm không hợp lệ.'); return false }
 
-    // Chặn nếu số lượng lớn
     if (Number(quickViewQuantity.value) >= NGAY_MAX_QTY) {
       showBulkDialog()
       return false
     }
 
-    // Bắt buộc chọn size nếu cần
     if (requiresSizeSelection(sp) && !quickViewSelectedSize.value) {
       ElMessage.warning('Vui lòng chọn kích thước sản phẩm trước khi thêm vào giỏ hàng.')
       return false
@@ -988,19 +1058,16 @@ const handleAddToCartInModal = async () => {
       return false
     }
 
-    // Verify server-side: status + quantity
+    // Verify server-side
     try {
       const productDetailId = detail.id
       const res = await axios.get(`http://localhost:8080/api/online-sale/verify-pdDetail/${productDetailId}`)
-      // backend có thể trả object hoặc array -> chuẩn hóa
       let data = res?.data
       if (Array.isArray(data) && data.length > 0) data = data[0]
 
-      // Lấy status và quantity từ response
       const statusVal = data?.status ?? data?.active ?? data?.isAvailable ?? data?.enabled
       const qtyVal = Number(data?.quantity ?? detail.quantity ?? 0)
 
-      // Kiểm tra status: chấp nhận boolean true hoặc numeric === 1 hoặc string chứa active/enabled
       let okStatus = false
       if (typeof statusVal === 'boolean') okStatus = statusVal === true
       else {
@@ -1027,7 +1094,7 @@ const handleAddToCartInModal = async () => {
       return false
     }
 
-    // Nếu pass verify -> add to cart
+    // If verified, prepare item (use detail discountedPrice if available, else sellPrice)
     const price = Number(detail.discountedPrice) > 0 ? Number(detail.discountedPrice) : Number(detail.sellPrice)
     const item = {
       productDetailId: detail.id,
@@ -1051,23 +1118,11 @@ const handleAddToCartInModal = async () => {
   }
 }
 
-/**
- * handleBuyNowInModal:
- * - await handleAddToCartInModal()
- * - nếu true -> chuyển đến /cart
- */
 const handleBuyNowInModal = async () => {
   if (isAdding.value) return
-  // Chặn nếu số lượng lớn
-  if (Number(quickViewQuantity.value) >= NGAY_MAX_QTY) {
-    showBulkDialog()
-    return
-  }
-
+  if (Number(quickViewQuantity.value) >= NGAY_MAX_QTY) { showBulkDialog(); return }
   const ok = await handleAddToCartInModal()
-  if (ok) {
-    router.push('/cart')
-  }
+  if (ok) router.push('/cart')
 }
 
 /* ========== Minor & stats ========== */

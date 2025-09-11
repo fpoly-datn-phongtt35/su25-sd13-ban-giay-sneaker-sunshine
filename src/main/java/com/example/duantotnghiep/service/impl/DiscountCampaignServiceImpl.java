@@ -88,7 +88,7 @@ public class DiscountCampaignServiceImpl implements DiscountCampaignService {
         ensureCampaignCodeUniqueOrThrow(campaignCode, null);
 
         // 3) Mode %
-        ensureDiscountModeConsistencyOrThrow(request);
+//        ensureDiscountModeConsistencyOrThrow(request);
 
         // 4) Bắt buộc >= 1 product
         List<Long> productIds = distinctValidIds(request.getProducts(), DiscountCampaignProductRequest::getProductId);
@@ -180,7 +180,7 @@ public class DiscountCampaignServiceImpl implements DiscountCampaignService {
         if (!equalsIgnoreCaseSafe(current.getCampaignCode(), newCode)) {
             ensureCampaignCodeUniqueOrThrow(newCode, id);
         }
-        ensureDiscountModeConsistencyOrThrow(virtual);
+//        ensureDiscountModeConsistencyOrThrow(virtual);
 
         // Apply scalar
         current.setCampaignCode(newCode);
@@ -369,14 +369,14 @@ public class DiscountCampaignServiceImpl implements DiscountCampaignService {
         }
     }
 
-    private void ensureDiscountModeConsistencyOrThrow(DiscountCampaignRequest req) {
-        boolean hasGlobal = req.getDiscountPercentage() != null;
-        boolean hasAnyItem = safeList(req.getProductDetails())
-                .stream().anyMatch(d -> d != null && d.getDiscountPercentage() != null);
-        if (hasGlobal && hasAnyItem) {
-            throw new IllegalArgumentException("Chỉ được chọn một hình thức giảm giá: hoặc % toàn chiến dịch, hoặc % theo từng SPCT (không được đồng thời).");
-        }
-    }
+//    private void ensureDiscountModeConsistencyOrThrow(DiscountCampaignRequest req) {
+//        boolean hasGlobal = req.getDiscountPercentage() != null;
+//        boolean hasAnyItem = safeList(req.getProductDetails())
+//                .stream().anyMatch(d -> d != null && d.getDiscountPercentage() != null);
+//        if (hasGlobal && hasAnyItem) {
+//            throw new IllegalArgumentException("Chỉ được chọn một hình thức giảm giá: hoặc % toàn chiến dịch, hoặc % theo từng SPCT (không được đồng thời).");
+//        }
+//    }
 
     private void ensureCampaignCodeUniqueOrThrow(String code, Long excludeId) {
         // Không thêm repo method mới: duyệt findAll và so sánh ignore-case

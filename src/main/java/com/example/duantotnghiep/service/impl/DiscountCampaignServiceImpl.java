@@ -165,52 +165,62 @@ public class DiscountCampaignServiceImpl implements DiscountCampaignService {
         DiscountCampaign current = discountCampaignRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy đợt giảm giá với ID: " + id));
 
-        // Dựng bản “ảo” sau cập nhật để validate đầy đủ trước khi apply
+        // --- Lấy dữ liệu mới (nếu null thì giữ nguyên) ---
         String newCode = isBlank(request.getCampaignCode()) ? current.getCampaignCode() : request.getCampaignCode().trim();
         String newName = isBlank(request.getName()) ? current.getName() : request.getName().trim();
         String newDesc = request.getDescription() == null ? current.getDescription() : trimOrNull(request.getDescription());
 
         LocalDateTime newStartDt = request.getStartDate() == null ? current.getStartDate() : request.getStartDate();
         LocalDateTime newEndDt   = request.getEndDate()   == null ? current.getEndDate()   : request.getEndDate();
-        Integer newStatus        = request.getStatus() == null ? current.getStatus() : request.getStatus();
-        BigDecimal newGlobalPercent = request.getDiscountPercentage() == null ? current.getDiscountPercentage() : request.getDiscountPercentage();
+        BigDecimal newGlobalPercent = request.getDiscountPercentage() == null
+                ? current.getDiscountPercentage() : request.getDiscountPercentage();
 
+        // --- Dựng request ảo để validate đầy đủ ---
         DiscountCampaignRequest virtual = new DiscountCampaignRequest();
         virtual.setCampaignCode(newCode);
         virtual.setName(newName);
         virtual.setDescription(newDesc);
         virtual.setStartDate(newStartDt);
         virtual.setEndDate(newEndDt);
-        virtual.setStatus(newStatus);
         virtual.setDiscountPercentage(newGlobalPercent);
-        virtual.setProducts(request.getProducts());       // null = không đổi
+        virtual.setProducts(request.getProducts());       // null = giữ nguyên
         virtual.setProductDetails(request.getProductDetails());
 
-        // Validate cơ bản & phần trăm
+        // Validate cơ bản & phần trăm (nên dùng LocalDateTime trong validateBasic)
         validateBasic(virtual);
+
         if (!equalsIgnoreCaseSafe(current.getCampaignCode(), newCode)) {
             ensureCampaignCodeUniqueOrThrow(newCode, id);
         }
-//        ensureDiscountModeConsistencyOrThrow(virtual);
 
-        // Apply scalar
+        // --- Áp dụng scalar ---
         current.setCampaignCode(newCode);
         current.setName(newName);
         current.setDescription(newDesc);
         current.setStartDate(newStartDt);
         current.setEndDate(newEndDt);
-        current.setStatus(newStatus != null ? newStatus : 1);
         current.setDiscountPercentage(normalizePercentageOrNull(newGlobalPercent));
-        LocalDateTime now = LocalDateTime.now();
+
+        // ========== NEW: Tự động tính status như create ==========
+        ZoneId APP_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
+        LocalDateTime now = LocalDateTime.now(APP_ZONE);
+
+        int computedStatus = newStartDt.isAfter(now) ? 0 : 1; // 0: CHỜ BẮT ĐẦU, 1: ĐANG CHẠY
+        // (Tùy chọn) Nếu muốn cập nhật ngay thành hết hạn khi end < now:
+        // if (newEndDt.isBefore(now)) computedStatus = 2;
+
+        current.setStatus(computedStatus);
+        // =========================================================
+
         current.setUpdatedDate(now);
 
-        // Unique % theo ngày tạo của bản ghi hiện tại (không đổi createdDate)
+        // Unique % theo ngày tạo của bản ghi hiện tại
         LocalDate createdDayOfCurrent = (current.getCreatedDate() != null)
                 ? current.getCreatedDate().toLocalDate()
-                : LocalDate.now(); // fallback an toàn
+                : now.toLocalDate(); // fallback an toàn
         ensureUniquePercentPerCreatedDayOrThrow(createdDayOfCurrent, current.getDiscountPercentage(), current.getId());
 
-        // Products
+        // --- Products ---
         List<Long> productIds;
         Map<Long, Product> productMap;
         if (virtual.getProducts() != null) {
@@ -242,7 +252,7 @@ public class DiscountCampaignServiceImpl implements DiscountCampaignService {
             if (productIds.isEmpty()) throw new IllegalArgumentException("Đợt giảm giá phải có ít nhất 1 sản phẩm.");
         }
 
-        // ProductDetails
+        // --- ProductDetails ---
         if (virtual.getProductDetails() != null) {
             LinkedHashMap<Long, BigDecimal> incoming = new LinkedHashMap<>();
             for (DiscountCampaignProductDetailRequest dReq : safeList(virtual.getProductDetails())) {
@@ -294,6 +304,7 @@ public class DiscountCampaignServiceImpl implements DiscountCampaignService {
         DiscountCampaign saved = discountCampaignRepository.save(current);
         return discountCampaignMapper.toResponse(saved);
     }
+
 
     @Override
     public DiscountCampaignStatisticsResponse getStatistics(Long campaignId) {

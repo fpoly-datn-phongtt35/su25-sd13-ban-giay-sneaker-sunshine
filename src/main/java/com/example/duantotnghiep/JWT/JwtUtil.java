@@ -1,5 +1,7 @@
+// com.example.duantotnghiep.JWT.JwtUtil.java
 package com.example.duantotnghiep.JWT;
 
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
@@ -13,6 +15,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Component
@@ -39,12 +42,7 @@ public class JwtUtil {
     }
 
     public String extractUsername(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(key)
-                .build()
-                .parseClaimsJws(token)
-                .getBody()
-                .getSubject();
+        return parseAllClaims(token).getSubject();
     }
 
     public boolean validateToken(String token, UserDetails userDetails) {
@@ -53,12 +51,28 @@ public class JwtUtil {
     }
 
     private boolean isExpired(String token) {
-        Date expiration = Jwts.parserBuilder()
+        Date expiration = parseAllClaims(token).getExpiration();
+        return expiration.before(new Date());
+    }
+
+    // ====== Thêm từ đây ======
+    /** Generic get claim theo Function */
+    public <T> T extractClaim(String token, Function<Claims, T> resolver) {
+        return resolver.apply(parseAllClaims(token));
+    }
+
+    /** Lấy claim theo tên (vd: "customerId") */
+    public Object getClaim(String token, String claimName) {
+        return parseAllClaims(token).get(claimName);
+    }
+
+    /** Parse và trả về toàn bộ Claims */
+    private Claims parseAllClaims(String token) {
+        return Jwts.parserBuilder()
                 .setSigningKey(key)
                 .build()
                 .parseClaimsJws(token)
-                .getBody()
-                .getExpiration();
-        return expiration.before(new Date());
+                .getBody();
     }
+    // ====== Hết phần thêm ======
 }

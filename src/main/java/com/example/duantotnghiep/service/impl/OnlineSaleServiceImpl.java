@@ -7,6 +7,7 @@ import com.example.duantotnghiep.model.*;
 import com.example.duantotnghiep.repository.*;
 import com.example.duantotnghiep.service.CustomerService;
 import com.example.duantotnghiep.service.InvoiceService;
+import com.example.duantotnghiep.service.NotificationService;
 import com.example.duantotnghiep.service.OnlineSaleService;
 import com.example.duantotnghiep.service.VoucherEmailService;
 import com.example.duantotnghiep.state.TrangThaiChiTiet;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -42,102 +44,204 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
     private final VoucherEmailService voucherEmailService;
     private final InvoiceEmailService invoiceEmailService;
     private final InvoiceEmailServiceStatus invoiceEmailServiceStatus;
+    private final NotificationService notificationService;
 
     @Transactional
     @Override
     public void chuyenTrangThai(Long invoiceId, String nextKey) {
-        // 1) Lấy user & employee
-        final String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng với username: " + username));
+        final Date now = new Date();
 
-        Employee employee = user.getEmployee();
+        // 1) Lấy user & employee hiện tại
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || auth.getName() == null) {
+            throw new RuntimeException("Không xác định được người dùng hiện tại.");
+        }
+        final String username = auth.getName();
+
+        User currentUser = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng: " + username));
+
+        Employee employee = currentUser.getEmployee();
         if (employee == null || employee.getId() == null) {
-            throw new RuntimeException("Người dùng không phải là nhân viên hoặc thiếu ID nhân viên.");
+            throw new RuntimeException("Người dùng không phải nhân viên hoặc thiếu ID nhân viên.");
         }
 
         // 2) Lấy invoice
         Invoice invoice = invoiceRepository.findById(invoiceId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
 
-        // 3) Check đang được xử lý bởi nhân viên khác
+        // 3) Check đang được xử lý bởi NV khác
         Boolean lockedByAnother = historyRepository.isProcessedByAnotherEmployee(invoiceId, employee.getId());
         if (Boolean.TRUE.equals(lockedByAnother)) {
             throw new RuntimeException("Đơn hàng đang được xử lý bởi nhân viên khác.");
         }
 
-        // 4) Resolve trạng thái tiếp theo
-        TrangThaiChiTiet nextStatus;
-        try {
-            nextStatus = TrangThaiChiTiet.valueOf(nextKey);
-        } catch (IllegalArgumentException ex) {
-            throw new RuntimeException("Trạng thái tiếp theo không hợp lệ: " + nextKey);
-        }
+        // 4) Resolve & validate trạng thái kế tiếp
+        final TrangThaiChiTiet nextStatus = parseStatusKey(nextKey);
+        final TrangThaiChiTiet currentStatus = invoice.getStatusDetail();
 
-        TrangThaiChiTiet currentStatus = invoice.getStatusDetail();
         if (currentStatus == nextStatus) {
             throw new RuntimeException("Trạng thái mới trùng với trạng thái hiện tại.");
         }
-
-        // 5) Gán nhân viên phụ trách cho đơn
-        invoice.setEmployee(employee);
-
-        // 6) Cập nhật các thuộc tính theo trạng thái
-        switch (nextStatus) {
-            case HUY_DON:
-                invoice.setStatusDetail(nextStatus);
-                invoice.setStatus(TrangThaiTong.DA_HUY);
-                break;
-
-            case GIAO_THANH_CONG:
-                invoice.setStatusDetail(nextStatus);
-                invoice.setDeliveredAt(new Date());
-                invoice.setStatus(TrangThaiTong.THANH_CONG);
-                break;
-
-            // Các trạng thái “đang xử lý”
-            case CHO_GIAO_HANG:
-            case DANG_GIAO_HANG:
-            case DA_XU_LY:
-            case CHO_XU_LY:
-                invoice.setStatusDetail(nextStatus);
-                invoice.setStatus(TrangThaiTong.DANG_XU_LY);
-                break;
-
-            // Mặc định
-            default:
-                invoice.setStatusDetail(nextStatus);
-                break;
+        if (!canTransit(currentStatus, nextStatus)) {
+            throw new RuntimeException("Không thể chuyển từ " +
+                    (currentStatus == null ? "NULL" : currentStatus.name()) +
+                    " sang " + nextStatus.name());
         }
 
-        // 7) Lưu đơn
+        // 5) Gán NV phụ trách
+        invoice.setEmployee(employee);
+
+        // 6) Cập nhật theo trạng thái chi tiết
+        invoice.setStatusDetail(nextStatus);
+        if (nextStatus == TrangThaiChiTiet.GIAO_THANH_CONG && invoice.getDeliveredAt() == null) {
+            invoice.setDeliveredAt(now);
+        }
+
+        // 7) Map trạng thái tổng
+        invoice.setStatus(mapTongFromDetail(nextStatus, invoice.getStatus()));
+
+        // 8) Lưu hoá đơn
         Invoice saved = invoiceRepository.save(invoice);
 
-        // 8) Lưu lịch sử trạng thái
+        // 9) Ghi lịch sử
         OrderStatusHistory history = new OrderStatusHistory();
         history.setInvoice(saved);
         history.setEmployee(employee);
         history.setOldStatus(currentStatus != null ? currentStatus.getMa() : null);
         history.setNewStatus(nextStatus.getMa());
-        history.setChangedAt(new Date());
+        history.setChangedAt(now);
         historyRepository.save(history);
 
-        // 9) Gửi email khi tới mốc yêu cầu (không để lỗi email làm rollback đơn)
+        // 10) Gửi email (không rollback nếu lỗi)
         if (nextStatus == TrangThaiChiTiet.DANG_GIAO_HANG
-                || nextStatus == TrangThaiChiTiet.GIAO_THANH_CONG) {
+                || nextStatus == TrangThaiChiTiet.GIAO_THANH_CONG
+                || nextStatus == TrangThaiChiTiet.GIAO_THAT_BAI
+                || nextStatus == TrangThaiChiTiet.DA_HOAN_TIEN) {
             try {
-                invoiceEmailServiceStatus.sendStatusEmail(saved, nextStatus); // ✅ gọi instance method
+                invoiceEmailServiceStatus.sendStatusEmail(saved, nextStatus);
             } catch (Exception mailEx) {
-                log.warn("Gửi email trạng thái thất bại cho đơn {}: {}", saved.getInvoiceCode(), mailEx.getMessage());
+                log.warn("Email trạng thái thất bại cho đơn {}: {}", saved.getInvoiceCode(), mailEx.getMessage());
             }
         }
 
-        // 10) Auto tặng voucher (hàm của bạn đã tự kiểm tra THANH_CONG)
+        // 11) Auto tặng voucher (không rollback nếu lỗi)
         try {
             handleAutoPromoVoucher(saved, username, LocalDateTime.now());
-        } catch (Exception promoEx) {
-            log.warn("Xử lý auto promo voucher lỗi cho đơn {}: {}", saved.getInvoiceCode(), promoEx.getMessage());
+        } catch (Exception ex) {
+            log.warn("Auto promo voucher lỗi cho đơn {}: {}", saved.getInvoiceCode(), ex.getMessage());
         }
+
+        // 12) Bắn thông báo realtime (không rollback nếu lỗi)
+        try {
+            Long customerId = (saved.getCustomer() != null) ? saved.getCustomer().getId() : null;
+
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("type", "ORDER_STATUS");
+            payload.put("title", "Đơn " + saved.getInvoiceCode() + " cập nhật");
+            payload.put("content", "Trạng thái: " + labelOf(nextStatus));
+            payload.put("invoiceCode", saved.getInvoiceCode());
+            payload.put("nextStatus", nextStatus.name());
+            payload.put("at", Instant.now().toString());
+            payload.put("customerId", customerId);
+            payload.put("employeeId", employee.getId());
+
+            if (customerId != null) {
+                // An toàn: đẩy vào user-queue cho mọi account thuộc KH
+                notificationService.sendToAllUsersOfCustomer(customerId, payload);
+
+                // Tuỳ chọn: topic theo KH (đã guard SUBSCRIBE nên không lộ)
+                notificationService.sendToCustomerId(customerId, payload);
+            }
+
+            // ❌ BỎ hẳn broadcast để không lộ thông tin
+            // notificationService.sendBroadcast(payload);
+
+        } catch (Exception notifyEx) {
+            log.warn("Notify realtime thất bại cho đơn {}: {}", saved.getInvoiceCode(), notifyEx.getMessage());
+        }
+
+    }
+
+    /* ================== Helpers ================== */
+
+    // Luồng chuyển hợp lệ — chỉnh theo nghiệp vụ
+    private static final Map<TrangThaiChiTiet, Set<TrangThaiChiTiet>> ALLOWED_TRANSITIONS =
+            Map.ofEntries(
+                    Map.entry(TrangThaiChiTiet.DANG_GIAO_DICH, Set.of(TrangThaiChiTiet.CHO_XU_LY, TrangThaiChiTiet.HUY_GIAO_DICH)),
+
+                    Map.entry(TrangThaiChiTiet.CHO_XU_LY, Set.of(TrangThaiChiTiet.DA_XU_LY, TrangThaiChiTiet.HUY_DON)),
+                    Map.entry(TrangThaiChiTiet.DA_XU_LY, Set.of(TrangThaiChiTiet.CHO_GIAO_HANG, TrangThaiChiTiet.HUY_DON)),
+
+                    Map.entry(TrangThaiChiTiet.CHO_GIAO_HANG, Set.of(TrangThaiChiTiet.DANG_GIAO_HANG, TrangThaiChiTiet.HUY_DON)),
+                    Map.entry(TrangThaiChiTiet.DANG_GIAO_HANG, Set.of(TrangThaiChiTiet.GIAO_THANH_CONG, TrangThaiChiTiet.GIAO_THAT_BAI, TrangThaiChiTiet.MAT_HANG, TrangThaiChiTiet.HUY_DON)),
+
+                    Map.entry(TrangThaiChiTiet.GIAO_THAT_BAI, Set.of(TrangThaiChiTiet.CHO_GIAO_HANG, TrangThaiChiTiet.YEU_CAU_HOAN, TrangThaiChiTiet.DA_HOAN_TIEN)),
+                    Map.entry(TrangThaiChiTiet.MAT_HANG, Set.of(TrangThaiChiTiet.DA_HOAN_TIEN)),
+
+                    Map.entry(TrangThaiChiTiet.YEU_CAU_HOAN, Set.of(TrangThaiChiTiet.DA_HOAN_TIEN)),
+                    Map.entry(TrangThaiChiTiet.DA_HOAN_TIEN, Set.of(TrangThaiChiTiet.DA_HOAN_THANH)),
+
+                    Map.entry(TrangThaiChiTiet.GIAO_THANH_CONG, Set.of(TrangThaiChiTiet.DA_HOAN_THANH)),
+
+                    Map.entry(TrangThaiChiTiet.HUY_DON, Set.of()),
+                    Map.entry(TrangThaiChiTiet.HUY_GIAO_DICH, Set.of()),
+                    Map.entry(TrangThaiChiTiet.DA_HOAN_THANH, Set.of())
+            );
+
+    private TrangThaiChiTiet parseStatusKey(String key) {
+        if (key == null) throw new IllegalArgumentException("Thiếu khóa trạng thái.");
+        final String k = key.trim();
+
+        for (TrangThaiChiTiet v : TrangThaiChiTiet.values()) {
+            if (v.name().equalsIgnoreCase(k)) return v;
+        }
+        try {
+            for (TrangThaiChiTiet v : TrangThaiChiTiet.values()) {
+                String maStr = String.valueOf(v.getMa());
+                if (maStr.equalsIgnoreCase(k)) return v;
+            }
+        } catch (Exception ignore) {}
+        throw new IllegalArgumentException("Trạng thái tiếp theo không hợp lệ: " + key);
+    }
+
+    private boolean canTransit(TrangThaiChiTiet from, TrangThaiChiTiet to) {
+        if (from == null) return true;
+        return ALLOWED_TRANSITIONS.getOrDefault(from, Collections.emptySet()).contains(to);
+    }
+
+    private TrangThaiTong mapTongFromDetail(TrangThaiChiTiet detail, TrangThaiTong current) {
+        if (detail == null) return current != null ? current : TrangThaiTong.DANG_XU_LY;
+        switch (detail) {
+            case HUY_DON:        return TrangThaiTong.DA_HUY;
+            case HUY_GIAO_DICH:  return TrangThaiTong.HUY_GIAO_DICH;
+
+            case DANG_GIAO_DICH:
+            case CHO_XU_LY:
+            case DA_XU_LY:
+            case CHO_GIAO_HANG:
+            case DANG_GIAO_HANG:
+            case GIAO_THAT_BAI:
+            case MAT_HANG:
+                return TrangThaiTong.DANG_XU_LY;
+
+            case YEU_CAU_HOAN:
+                return TrangThaiTong.KHIEU_NAI;
+
+            case DA_HOAN_TIEN:
+                return TrangThaiTong.TRA_HANG;
+
+            case GIAO_THANH_CONG:
+            case DA_HOAN_THANH:
+                return TrangThaiTong.THANH_CONG;
+
+            default:
+                return current != null ? current : TrangThaiTong.DANG_XU_LY;
+        }
+    }
+
+    private String labelOf(TrangThaiChiTiet v) {
+        try { return v.getMoTa(); } catch (Exception e) { return v.name(); }
     }
 
     private void handleAutoPromoVoucher(Invoice invoice, String username, LocalDateTime now) {

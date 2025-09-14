@@ -12,6 +12,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -43,6 +44,11 @@ public interface UserRepository extends JpaRepository<User,Long> {
     boolean existsByUsername(String username);
 
     Optional<User> findByCustomer(Customer customer);
+
+    @Query("select u.username from User u where u.customer.id = :customerId")
+    List<String> findUsernamesByCustomerId(@Param("customerId") Long customerId);
+
+    List<User> findAllByCustomerId(Long customerId);
 
 }
 

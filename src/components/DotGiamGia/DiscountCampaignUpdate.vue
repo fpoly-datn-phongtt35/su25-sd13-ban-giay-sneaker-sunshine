@@ -4,8 +4,12 @@
       <el-card class="wizard-card" shadow="never">
         <template #header>
           <div class="card-header">
-            <h1>Cập nhật Đợt Giảm Giá</h1>
-            <p class="subtitle">Chỉnh sửa thông tin, chọn sản phẩm/SPCT, xem lại và lưu cập nhật</p>
+            <el-page-header @back="goBack">
+              <h1>Cập nhật Đợt Giảm Giá</h1>
+              <p class="subtitle">
+                Chỉnh sửa thông tin, chọn sản phẩm/SPCT, xem lại và lưu cập nhật
+              </p>
+            </el-page-header>
           </div>
         </template>
 
@@ -61,7 +65,12 @@
                   </el-form-item>
 
                   <el-form-item label="Mô tả / Ghi chú">
-                    <el-input v-model="form.description" type="textarea" :rows="4" placeholder="Ghi chú quản trị..." />
+                    <el-input
+                      v-model="form.description"
+                      type="textarea"
+                      :rows="4"
+                      placeholder="Ghi chú quản trị..."
+                    />
                   </el-form-item>
                 </template>
               </el-col>
@@ -71,7 +80,9 @@
           <!-- ====== STEP 2 ====== -->
           <section v-show="activeStep === 1" class="step-content">
             <h3 class="step-title">2) Chọn sản phẩm & SPCT</h3>
-            <p class="step-description">Tìm kiếm sản phẩm, chọn các SP cần áp dụng. SPCT sẽ lọc theo SP đã chọn.</p>
+            <p class="step-description">
+              Tìm kiếm sản phẩm, chọn các SP cần áp dụng. SPCT sẽ lọc theo SP đã chọn.
+            </p>
 
             <!-- PRODUCTS -->
             <el-card class="table-card" shadow="none">
@@ -95,11 +106,16 @@
                 border
                 stripe
                 height="320"
-                :row-key="row => row.id"
+                :row-key="(row) => row.id"
                 @row-click="onProductRowClick"
                 @selection-change="onProductSelectionChange"
               >
-                <el-table-column type="selection" width="50" align="center" :reserve-selection="true" />
+                <el-table-column
+                  type="selection"
+                  width="50"
+                  align="center"
+                  :reserve-selection="true"
+                />
                 <el-table-column type="index" label="#" width="60" align="center" />
                 <el-table-column label="Sản phẩm" min-width="280">
                   <template #default="{ row }">
@@ -109,7 +125,12 @@
                     </div>
                   </template>
                 </el-table-column>
-                <el-table-column prop="brandText" label="Thương hiệu" width="180" show-overflow-tooltip />
+                <el-table-column
+                  prop="brandText"
+                  label="Thương hiệu"
+                  width="180"
+                  show-overflow-tooltip
+                />
                 <el-table-column prop="quantity" label="Tổng tồn" width="110" align="center" />
               </el-table>
 
@@ -118,7 +139,7 @@
                 v-model:current-page="currentPage"
                 v-model:page-size="pageSize"
                 :total="totalItems"
-                :page-sizes="[10,20,50,100]"
+                :page-sizes="[10, 20, 50, 100]"
                 layout="total, sizes, prev, pager, next"
                 @current-change="fetchProducts"
                 @size-change="onSizeChangeProducts"
@@ -130,7 +151,8 @@
             <el-card class="table-card" shadow="none" style="margin-top: 16px">
               <template #header>
                 <div class="table-card-header">
-                  <div class="title">Sản phẩm chi tiết (SPCT)
+                  <div class="title">
+                    Sản phẩm chi tiết (SPCT)
                     <span class="muted-text">— chỉ hiển thị theo SP đã chọn</span>
                   </div>
                 </div>
@@ -153,7 +175,7 @@
                   border
                   stripe
                   height="420"
-                  :row-key="r => r.id"
+                  :row-key="(r) => r.id"
                   @selection-change="onDetailSelectionChange"
                 >
                   <el-table-column
@@ -161,16 +183,35 @@
                     width="50"
                     align="center"
                     :reserve-selection="true"
-                    :selectable="r => Number(r.quantity) > 0"
+                    :selectable="(r) => Number(r.quantity) > 0"
                   />
                   <el-table-column type="index" width="60" align="center" label="#" />
-                  <el-table-column prop="productDetailCode" label="Mã SPCT" width="160" show-overflow-tooltip />
-                  <el-table-column prop="productText" label="Sản phẩm" min-width="220" show-overflow-tooltip />
-                  <el-table-column prop="brandText" label="Thương hiệu" width="180" show-overflow-tooltip />
+                  <el-table-column
+                    prop="productDetailCode"
+                    label="Mã SPCT"
+                    width="160"
+                    show-overflow-tooltip
+                  />
+                  <el-table-column
+                    prop="productText"
+                    label="Sản phẩm"
+                    min-width="220"
+                    show-overflow-tooltip
+                  />
+                  <el-table-column
+                    prop="brandText"
+                    label="Thương hiệu"
+                    width="180"
+                    show-overflow-tooltip
+                  />
                   <el-table-column label="Thuộc tính" width="200">
                     <template #default="{ row }">
-                      <el-tag size="small" effect="plain" class="attribute-tag">Màu: {{ row.colorText }}</el-tag>
-                      <el-tag size="small" effect="plain" class="attribute-tag">Size: {{ row.sizeText }}</el-tag>
+                      <el-tag size="small" effect="plain" class="attribute-tag"
+                        >Màu: {{ row.colorText }}</el-tag
+                      >
+                      <el-tag size="small" effect="plain" class="attribute-tag"
+                        >Size: {{ row.sizeText }}</el-tag
+                      >
                     </template>
                   </el-table-column>
                   <el-table-column label="Giá bán" width="140" align="right">
@@ -197,7 +238,7 @@
                   v-model:current-page="detailsPage"
                   v-model:page-size="detailsSize"
                   :total="detailsTotal"
-                  :page-sizes="[10,20,50,100]"
+                  :page-sizes="[10, 20, 50, 100]"
                   layout="total, sizes, prev, pager, next"
                   @current-change="fetchDetails"
                   @size-change="onSizeChangeDetails"
@@ -210,10 +251,12 @@
           <!-- ====== STEP 3 ====== -->
           <section v-show="activeStep === 2" class="step-content">
             <h3 class="step-title">3) Xem lại & Hoàn tất</h3>
-            <p class="step-description">Bạn có thể chỉnh <b>thời gian diễn ra</b> ngay tại bước này nếu lỡ nhập sai.</p>
+            <p class="step-description">
+              Bạn có thể chỉnh <b>thời gian diễn ra</b> ngay tại bước này nếu lỡ nhập sai.
+            </p>
 
             <!-- Quick edit time range on Step 3 -->
-            <el-card class="table-card" shadow="none" style="margin-bottom: 16px;">
+            <el-card class="table-card" shadow="none" style="margin-bottom: 16px">
               <template #header>
                 <div class="table-card-header">
                   <div class="title">Chỉnh sửa nhanh thời gian diễn ra</div>
@@ -236,7 +279,13 @@
                   </el-form-item>
                 </el-col>
               </el-row>
-              <el-alert v-if="dateError" :title="dateError" type="error" show-icon :closable="false" />
+              <el-alert
+                v-if="dateError"
+                :title="dateError"
+                type="error"
+                show-icon
+                :closable="false"
+              />
             </el-card>
 
             <el-descriptions :column="2" border class="review-descriptions">
@@ -249,9 +298,15 @@
               <el-descriptions-item label="Giảm mặc định">
                 <el-tag type="danger">{{ form.discountPercentage }}%</el-tag>
               </el-descriptions-item>
-              <el-descriptions-item label="Mô tả">{{ form.description || 'Không có' }}</el-descriptions-item>
-              <el-descriptions-item label="Bắt đầu" :span="1">{{ form.startDate }}</el-descriptions-item>
-              <el-descriptions-item label="Kết thúc" :span="1">{{ form.endDate }}</el-descriptions-item>
+              <el-descriptions-item label="Mô tả">{{
+                form.description || 'Không có'
+              }}</el-descriptions-item>
+              <el-descriptions-item label="Bắt đầu" :span="1">{{
+                form.startDate
+              }}</el-descriptions-item>
+              <el-descriptions-item label="Kết thúc" :span="1">{{
+                form.endDate
+              }}</el-descriptions-item>
             </el-descriptions>
 
             <el-divider />
@@ -268,8 +323,13 @@
                   <div class="label">SPCT</div>
                 </div>
               </div>
-              <el-alert type="info" :closable="false" show-icon class="mt-4"
-                        :title="`SPCT không đặt % riêng sẽ tự áp dụng ${form.discountPercentage}%`" />
+              <el-alert
+                type="info"
+                :closable="false"
+                show-icon
+                class="mt-4"
+                :title="`SPCT không đặt % riêng sẽ tự áp dụng ${form.discountPercentage}%`"
+              />
             </div>
           </section>
         </el-form>
@@ -280,8 +340,12 @@
             <el-button v-if="activeStep > 0" @click="prevStep" size="large">Quay lại</el-button>
           </div>
           <div>
-            <el-button v-if="activeStep < 2" type="primary" @click="nextStep" size="large">Tiếp theo</el-button>
-            <el-button v-if="activeStep === 2" type="success" @click="updateCampaign" size="large">Lưu cập nhật</el-button>
+            <el-button v-if="activeStep < 2" type="primary" @click="nextStep" size="large"
+              >Tiếp theo</el-button
+            >
+            <el-button v-if="activeStep === 2" type="success" @click="updateCampaign" size="large"
+              >Lưu cập nhật</el-button
+            >
           </div>
         </div>
       </el-card>
@@ -304,7 +368,13 @@ const campaignId = route.params.id
 const activeStep = ref(0)
 const nextStep = () => {
   if (activeStep.value === 0) {
-    if (!form.name?.trim() || form.discountPercentage === '' || form.discountPercentage === null || !form.startDate || !form.endDate) {
+    if (
+      !form.name?.trim() ||
+      form.discountPercentage === '' ||
+      form.discountPercentage === null ||
+      !form.startDate ||
+      !form.endDate
+    ) {
       ElMessage.warning('Vui lòng điền đủ thông tin ở bước 1.')
       return
     }
@@ -315,7 +385,9 @@ const nextStep = () => {
   }
   if (activeStep.value < 2) activeStep.value++
 }
-const prevStep = () => { if (activeStep.value > 0) activeStep.value-- }
+const prevStep = () => {
+  if (activeStep.value > 0) activeStep.value--
+}
 
 /* ====== Form ====== */
 const form = reactive({
@@ -324,20 +396,30 @@ const form = reactive({
   description: '',
   status: 1,
   startDate: '',
-  endDate: ''
+  endDate: '',
 })
 
 /* ====== Date range binding ====== */
 const dateRange = computed({
-  get() { return form.startDate && form.endDate ? [form.startDate, form.endDate] : [] },
+  get() {
+    return form.startDate && form.endDate ? [form.startDate, form.endDate] : []
+  },
   set(v) {
-    if (Array.isArray(v) && v.length === 2) { [form.startDate, form.endDate] = v }
-    else { form.startDate = ''; form.endDate = '' }
+    if (Array.isArray(v) && v.length === 2) {
+      ;[form.startDate, form.endDate] = v
+    } else {
+      form.startDate = ''
+      form.endDate = ''
+    }
   },
 })
 const dateRangeStep3 = computed({
-  get() { return dateRange.value },
-  set(v) { dateRange.value = v },
+  get() {
+    return dateRange.value
+  },
+  set(v) {
+    dateRange.value = v
+  },
 })
 const dateError = ref('')
 
@@ -345,7 +427,9 @@ const dateError = ref('')
 const fallbackId = (id) => (id !== undefined && id !== null ? `#${id}` : '')
 const textOf = (obj, keys) => {
   for (const k of keys) {
-    const v = k.split('.').reduce((acc, kk) => (acc && acc[kk] !== undefined ? acc[kk] : undefined), obj)
+    const v = k
+      .split('.')
+      .reduce((acc, kk) => (acc && acc[kk] !== undefined ? acc[kk] : undefined), obj)
     if (v !== undefined && v !== null && String(v).trim() !== '') return String(v)
   }
   return ''
@@ -353,40 +437,41 @@ const textOf = (obj, keys) => {
 const normalizeProduct = (row) => {
   const productText =
     textOf(row, ['productText']) ||
-    textOf(row, ['productName','name']) ||
-    textOf(row, ['product.productName','product.name']) ||
+    textOf(row, ['productName', 'name']) ||
+    textOf(row, ['product.productName', 'product.name']) ||
     fallbackId(row.id)
   const brandText =
     textOf(row, ['brandText']) ||
     textOf(row, ['brandName']) ||
-    textOf(row, ['brand.brandName','brand.name']) ||
-    textOf(row, ['product.brand.brandName','product.brand.name']) ||
+    textOf(row, ['brand.brandName', 'brand.name']) ||
+    textOf(row, ['product.brand.brandName', 'product.brand.name']) ||
     fallbackId(row.brandId)
   return { ...row, productText, brandText }
 }
 const normalizeDetail = (row) => {
   const productText =
     textOf(row, ['productText']) ||
-    textOf(row, ['productName','product.productName','product.name']) ||
+    textOf(row, ['productName', 'product.productName', 'product.name']) ||
     fallbackId(row.productId)
   const brandText =
     textOf(row, ['brandText']) ||
     textOf(row, ['brandName']) ||
-    textOf(row, ['brand.brandName','brand.name']) ||
-    textOf(row, ['product.brand.brandName','product.brand.name']) ||
+    textOf(row, ['brand.brandName', 'brand.name']) ||
+    textOf(row, ['product.brand.brandName', 'product.brand.name']) ||
     fallbackId(row.brandId)
   const colorText =
     textOf(row, ['colorText']) ||
-    textOf(row, ['colorName','color.colorName','color.name']) ||
+    textOf(row, ['colorName', 'color.colorName', 'color.name']) ||
     fallbackId(row.colorId)
   const sizeText =
     textOf(row, ['sizeText']) ||
-    textOf(row, ['sizeName','size.sizeName','size.name','sizeValue']) ||
+    textOf(row, ['sizeName', 'size.sizeName', 'size.name', 'sizeValue']) ||
     fallbackId(row.sizeId)
   return { ...row, productText, brandText, colorText, sizeText }
 }
 
 /* ====== Products (SP) ====== */
+const goBack = () => router.back()
 const productTableRef = ref()
 const products = ref([])
 const loadingProducts = ref(false)
@@ -396,12 +481,17 @@ const totalItems = ref(0)
 const selectedProductIds = ref([]) // array for reactivity with table
 const productSearch = ref('')
 
-const totalFrom = (data, contentLength) => data?.page?.totalElements ?? data?.totalElements ?? contentLength ?? 0
+const totalFrom = (data, contentLength) =>
+  data?.page?.totalElements ?? data?.totalElements ?? contentLength ?? 0
 
 const fetchProducts = async () => {
   loadingProducts.value = true
   try {
-    const params = { page: currentPage.value - 1, size: pageSize.value, keyword: productSearch.value || undefined }
+    const params = {
+      page: currentPage.value - 1,
+      size: pageSize.value,
+      keyword: productSearch.value || undefined,
+    }
     const { data } = await apiClient.get('/admin/products', { params })
     const content = data?.content || []
     products.value = content.map(normalizeProduct)
@@ -409,7 +499,7 @@ const fetchProducts = async () => {
 
     await nextTick()
     productTableRef.value?.clearSelection?.()
-    products.value.forEach(row => {
+    products.value.forEach((row) => {
       if (selectedProductIds.value.includes(row.id)) {
         productTableRef.value?.toggleRowSelection?.(row, true)
       }
@@ -423,11 +513,19 @@ const fetchProducts = async () => {
     loadingProducts.value = false
   }
 }
-const debouncedFetchProducts = debounce(() => { currentPage.value = 1; fetchProducts() }, 400)
-const onSizeChangeProducts = () => { currentPage.value = 1; fetchProducts() }
-const onProductRowClick = (row) => { productTableRef.value?.toggleRowSelection?.(row) }
+const debouncedFetchProducts = debounce(() => {
+  currentPage.value = 1
+  fetchProducts()
+}, 400)
+const onSizeChangeProducts = () => {
+  currentPage.value = 1
+  fetchProducts()
+}
+const onProductRowClick = (row) => {
+  productTableRef.value?.toggleRowSelection?.(row)
+}
 const onProductSelectionChange = (rows) => {
-  selectedProductIds.value = rows.map(r => r.id)
+  selectedProductIds.value = rows.map((r) => r.id)
   detailsPage.value = 1
   fetchDetails()
 }
@@ -446,7 +544,7 @@ const spctExtraPercent = reactive({})
 const paramsSerializerRepeat = (params) => {
   const usp = new URLSearchParams()
   Object.entries(params).forEach(([k, v]) => {
-    if (Array.isArray(v)) v.forEach(x => usp.append(k, x))
+    if (Array.isArray(v)) v.forEach((x) => usp.append(k, x))
     else if (v !== undefined && v !== null && v !== '') usp.append(k, v)
   })
   return usp.toString()
@@ -454,7 +552,11 @@ const paramsSerializerRepeat = (params) => {
 
 const fetchDetails = async () => {
   const ids = selectedProductIds.value
-  if (!ids.length) { details.value = []; detailsTotal.value = 0; return }
+  if (!ids.length) {
+    details.value = []
+    detailsTotal.value = 0
+    return
+  }
 
   loadingDetails.value = true
   try {
@@ -468,7 +570,7 @@ const fetchDetails = async () => {
 
     await nextTick()
     spctTableRef.value?.clearSelection?.()
-    details.value.forEach(row => {
+    details.value.forEach((row) => {
       if (selectedDetailIds.value.includes(row.id) && Number(row.quantity) > 0) {
         spctTableRef.value?.toggleRowSelection?.(row, true)
       }
@@ -486,38 +588,43 @@ const fetchDetails = async () => {
     loadingDetails.value = false
   }
 }
-const onSizeChangeDetails = () => { detailsPage.value = 1; fetchDetails() }
-const onDetailSelectionChange = (rows) => { selectedDetailIds.value = rows.map(r => r.id) }
+const onSizeChangeDetails = () => {
+  detailsPage.value = 1
+  fetchDetails()
+}
+const onDetailSelectionChange = (rows) => {
+  selectedDetailIds.value = rows.map((r) => r.id)
+}
 const totalSelectedDetails = computed(() => selectedDetailIds.value.length)
 
 /* ====== LOAD CAMPAIGN ====== */
 const loadingCampaign = ref(true)
-const normalizeIso = (s) => (!s ? '' : (typeof s === 'string' ? s.replace(' ', 'T') : s))
+const normalizeIso = (s) => (!s ? '' : typeof s === 'string' ? s.replace(' ', 'T') : s)
 
 const fetchCampaign = async () => {
   loadingCampaign.value = true
   try {
     const { data } = await apiClient.get(`/admin/campaigns/${campaignId}`)
-    form.name               = data?.name ?? ''
+    form.name = data?.name ?? ''
     form.discountPercentage = data?.discountPercentage ?? ''
-    form.description        = data?.description ?? ''
-    form.status             = data?.status ?? 1
-    form.startDate          = normalizeIso(data?.startDate) || ''
-    form.endDate            = normalizeIso(data?.endDate) || ''
+    form.description = data?.description ?? ''
+    form.status = data?.status ?? 1
+    form.startDate = normalizeIso(data?.startDate) || ''
+    form.endDate = normalizeIso(data?.endDate) || ''
 
     // preselect products
     selectedProductIds.value = []
     const prodLinks = data?.products || data?.productLinks || []
-    prodLinks.forEach(link => {
+    prodLinks.forEach((link) => {
       const pid = link?.product?.id ?? link?.productId
       if (pid != null) selectedProductIds.value.push(pid)
     })
 
     // preselect product details + per-item %
     selectedDetailIds.value = []
-    Object.keys(spctExtraPercent).forEach(k => delete spctExtraPercent[k])
+    Object.keys(spctExtraPercent).forEach((k) => delete spctExtraPercent[k])
     const pdLinks = data?.productDetails || data?.productDetailLinks || []
-    pdLinks.forEach(link => {
+    pdLinks.forEach((link) => {
       const pdId = link?.productDetail?.id ?? link?.productDetailId
       if (pdId != null) {
         selectedDetailIds.value.push(pdId)
@@ -549,8 +656,14 @@ const validateFinal = () => {
   const start = new Date(form.startDate)
   const end = new Date(form.endDate)
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  if (start < today) { dateError.value = 'Ngày bắt đầu không được ở quá khứ.'; return false }
-  if (start >= end) { dateError.value = 'Ngày kết thúc phải sau ngày bắt đầu.'; return false }
+  if (start < today) {
+    dateError.value = 'Ngày bắt đầu không được ở quá khứ.'
+    return false
+  }
+  if (start >= end) {
+    dateError.value = 'Ngày kết thúc phải sau ngày bắt đầu.'
+    return false
+  }
   if (selectedProductIds.value.length === 0 && selectedDetailIds.value.length === 0) {
     ElMessage.warning('Chọn ít nhất 1 SP hoặc 1 SPCT.')
     if (activeStep.value === 1) return false
@@ -559,11 +672,13 @@ const validateFinal = () => {
 }
 
 const buildPayload = () => {
-  const productDetailsPayload = selectedDetailIds.value.map(id => {
+  const productDetailsPayload = selectedDetailIds.value.map((id) => {
     const percent = spctExtraPercent[id]
     return {
       productDetailId: id,
-      ...(percent !== undefined && percent !== null && percent !== '' && { discountPercentage: Number(percent) }),
+      ...(percent !== undefined &&
+        percent !== null &&
+        percent !== '' && { discountPercentage: Number(percent) }),
     }
   })
   return {
@@ -573,7 +688,7 @@ const buildPayload = () => {
     status: form.status,
     startDate: form.startDate,
     endDate: form.endDate,
-    products: selectedProductIds.value.map(id => ({ productId: id })),
+    products: selectedProductIds.value.map((id) => ({ productId: id })),
     productDetails: productDetailsPayload,
   }
 }
@@ -582,12 +697,21 @@ const updateCampaign = async () => {
   if (!validateFinal()) return
   const payload = buildPayload()
   try {
-    await apiClient.put(`/admin/campaigns/${campaignId}`, payload, { headers: { 'Content-Type': 'application/json' } })
+    await apiClient.put(`/admin/campaigns/${campaignId}`, payload, {
+      headers: { 'Content-Type': 'application/json' },
+    })
     ElMessage.success('Cập nhật đợt giảm giá thành công!')
     router.push('/discount-campaigns')
   } catch (e) {
-    console.error('Update campaign error:', { status: e?.response?.status, data: e?.response?.data, payload })
-    ElMessage.error(e?.response?.data?.message || `Không thể cập nhật đợt giảm giá (HTTP ${e?.response?.status || 'ERR'}).`)
+    console.error('Update campaign error:', {
+      status: e?.response?.status,
+      data: e?.response?.data,
+      payload,
+    })
+    ElMessage.error(
+      e?.response?.data?.message ||
+        `Không thể cập nhật đợt giảm giá (HTTP ${e?.response?.status || 'ERR'}).`,
+    )
   }
 }
 
@@ -600,49 +724,158 @@ onMounted(async () => {
 })
 
 /* ====== Format ====== */
-const formatCurrency = (v) => (v === null || v === undefined ? '' : Number(v).toLocaleString('vi-VN'))
+const formatCurrency = (v) =>
+  v === null || v === undefined ? '' : Number(v).toLocaleString('vi-VN')
 </script>
 
 <style scoped>
 /* Layout */
-.page-container { background: #f5f7fb; min-height: 100vh; padding: 20px; }
-.wizard-card { width: 100%; max-width: 1440px; margin: 0 auto; border-radius: 12px; }
-:deep(.el-card__header) { background: #fff; }
-.card-header h1 { margin: 0; font-size: 20px; font-weight: 700; }
-.card-header .subtitle { margin: 4px 0 0; color: var(--el-text-color-secondary); font-size: 13px; }
+.page-container {
+  background: #f5f7fb;
+  min-height: 100vh;
+  padding: 20px;
+}
+.wizard-card {
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  border-radius: 12px;
+}
+:deep(.el-card__header) {
+  background: #fff;
+}
+.card-header h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+.card-header .subtitle {
+  margin: 4px 0 0;
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+}
 
 /* Steps */
-.wizard-steps { padding: 16px 0; margin: 0 16px 12px; border-bottom: 1px solid var(--el-border-color-lighter); }
-:deep(.el-step__title) { font-size: 14px; }
+.wizard-steps {
+  padding: 16px 0;
+  margin: 0 16px 12px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+}
+:deep(.el-step__title) {
+  font-size: 14px;
+}
 
 /* Content */
-.step-content { padding: 10px 16px; }
-.step-title { font-size: 18px; font-weight: 600; margin-bottom: 6px; color: var(--el-text-color-primary); }
-.step-description { font-size: 13px; color: var(--el-text-color-secondary); margin-bottom: 16px; }
+.step-content {
+  padding: 10px 16px;
+}
+.step-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--el-text-color-primary);
+}
+.step-description {
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
+  margin-bottom: 16px;
+}
 
 /* Tables */
-.table-card { border: 1px solid var(--el-border-color-lighter); border-radius: 12px; }
-:deep(.table-card .el-card__header) { background: #fcfcfd; padding: 12px 16px; }
-:deep(.table-card .el-card__body) { padding: 8px; }
-.table-card-header { display: flex; justify-content: space-between; align-items: center; }
-.table-card-header .title { font-weight: 600; font-size: 16px; }
-.muted-text { font-weight: 400; font-size: 13px; color: var(--el-text-color-secondary); margin-left: 6px; }
-.product-cell { display: flex; flex-direction: column; }
-.product-name { font-weight: 500; color: var(--el-text-color-primary); }
-.product-code { font-size: 12px; color: var(--el-text-color-secondary); }
-.attribute-tag { margin-right: 6px; margin-top: 4px; }
-.table-pagination { padding: 10px 0 0; display: flex; justify-content: center; }
+.table-card {
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 12px;
+}
+:deep(.table-card .el-card__header) {
+  background: #fcfcfd;
+  padding: 12px 16px;
+}
+:deep(.table-card .el-card__body) {
+  padding: 8px;
+}
+.table-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.table-card-header .title {
+  font-weight: 600;
+  font-size: 16px;
+}
+.muted-text {
+  font-weight: 400;
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
+  margin-left: 6px;
+}
+.product-cell {
+  display: flex;
+  flex-direction: column;
+}
+.product-name {
+  font-weight: 500;
+  color: var(--el-text-color-primary);
+}
+.product-code {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+.attribute-tag {
+  margin-right: 6px;
+  margin-top: 4px;
+}
+.table-pagination {
+  padding: 10px 0 0;
+  display: flex;
+  justify-content: center;
+}
 
 /* Review */
-.review-descriptions { border-radius: 8px; }
-.selection-summary { padding: 16px; background: #f9fafb; border-radius: 12px; }
-.selection-summary h4 { margin: 0 0 12px; font-size: 16px; font-weight: 600; }
-.summary-items { display: flex; gap: 24px; text-align: center; }
-.summary-item .count { font-size: 26px; font-weight: 700; color: var(--el-color-primary); }
-.summary-item .label { font-size: 13px; color: var(--el-text-color-secondary); }
-.mt-4 { margin-top: 16px; }
+.review-descriptions {
+  border-radius: 8px;
+}
+.selection-summary {
+  padding: 16px;
+  background: #f9fafb;
+  border-radius: 12px;
+}
+.selection-summary h4 {
+  margin: 0 0 12px;
+  font-size: 16px;
+  font-weight: 600;
+}
+.summary-items {
+  display: flex;
+  gap: 24px;
+  text-align: center;
+}
+.summary-item .count {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--el-color-primary);
+}
+.summary-item .label {
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
+}
+.mt-4 {
+  margin-top: 16px;
+}
 
 /* Footer */
-.footer-actions { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-top: 1px solid var(--el-border-color-lighter); background: rgba(255,255,255,0.9); position: sticky; bottom: 0; z-index: 10; }
-.summary-tags { display: flex; gap: 10px; }
+.footer-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  border-top: 1px solid var(--el-border-color-lighter);
+  background: rgba(255, 255, 255, 0.9);
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+}
+.summary-tags {
+  display: flex;
+  gap: 10px;
+}
 </style>

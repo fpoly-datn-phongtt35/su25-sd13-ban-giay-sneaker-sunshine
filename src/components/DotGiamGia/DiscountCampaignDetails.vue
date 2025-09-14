@@ -7,12 +7,6 @@
           <span class="cd-title">Chi tiết Đợt giảm giá</span>
         </template>
         <template #extra>
-          <div class="cd-header-actions">
-            <el-tag v-if="campaign" :type="statusTagType(campaign.status)" effect="light" round>
-              {{ statusText(campaign.status) }}
-            </el-tag>
-            <el-button :icon="Refresh" @click="refresh" circle title="Làm mới" />
-          </div>
         </template>
       </el-page-header>
     </el-header>
@@ -29,7 +23,6 @@
               <template #header>
                 <div class="card-header">
                   <span>Thông tin chung</span>
-                  <el-tag type="info" effect="plain">ID: {{ campaign.id }}</el-tag>
                 </div>
               </template>
               <el-descriptions :column="2" border>
@@ -95,26 +88,18 @@
           <template #header><div class="card-header">Dữ liệu áp dụng</div></template>
           <el-tabs v-model="activeTab" class="cd-tabs">
             <el-tab-pane name="products" label="Sản phẩm áp dụng">
-              <div class="toolbar">
-                <el-input
-                  v-model="kwProduct"
-                  placeholder="Tìm theo tên sản phẩm..."
-                  :prefix-icon="Search"
-                  clearable
-                  @input="applyProductFilter"
-                />
-              </div>
+
 
               <el-table :data="pagedProducts" border stripe v-loading="loading">
                 <template #empty><el-empty description="Không có sản phẩm nào" /></template>
                 <el-table-column type="index" label="#" width="60" align="center" />
-                <el-table-column prop="productId" label="Mã SP" width="120" />
+                <el-table-column prop="productId" label="Id sản phẩm" width="120" />
                 <el-table-column prop="productName" label="Tên sản phẩm" min-width="250" show-overflow-tooltip />
-                <el-table-column label="Hành động" width="120" align="center">
+                <!-- <el-table-column label="Hành động" width="120" align="center">
                   <template #default="{ row }">
                     <el-button type="primary" link @click="goToProduct(row.productId)">Xem chi tiết</el-button>
                   </template>
-                </el-table-column>
+                </el-table-column> -->
               </el-table>
 
               <div class="table-pagination">
@@ -128,23 +113,14 @@
               </div>
             </el-tab-pane>
 
-            <el-tab-pane name="productDetails" label="Sản phẩm chi tiết áp dụng">
-               <div class="toolbar">
-                <el-input
-                  v-model="kwDetail"
-                  placeholder="Tìm theo tên SP hoặc SKU..."
-                  :prefix-icon="Search"
-                  clearable
-                  @input="applyDetailFilter"
-                />
-              </div>
+            <el-tab-pane name="productDetails" label="Sản phẩm chi tiết áp dụng">  
 
               <el-table :data="pagedDetails" border stripe v-loading="loading">
                 <template #empty><el-empty description="Không có sản phẩm chi tiết nào" /></template>
                 <el-table-column type="index" label="#" width="60" align="center" />
-                <el-table-column prop="id" label="ID SPCT" width="110" />
+                <el-table-column prop="id" label="Id" width="110" />
                 <el-table-column prop="productName" label="Tên sản phẩm" min-width="220" show-overflow-tooltip />
-                <el-table-column prop="sku" label="SKU / Mã biến thể" min-width="160" show-overflow-tooltip />
+                <el-table-column prop="sku" label="Mã sản phẩm" min-width="140" show-overflow-tooltip />
                 <el-table-column prop="colorName" label="Màu" width="110" />
                 <el-table-column prop="sizeName" label="Size" width="90" align="center" />
                 <el-table-column label="Giá bán" width="140" align="right">
@@ -224,13 +200,7 @@ const statusTagType = (s) => ({0: 'warning', 1: 'success', 2: 'info'}[s] || '')
 
 // Điều hướng & hành động
 const goBack = () => router.back()
-const goToProduct = (productId) => {
-  if (productId) router.push({ path: `/admin/products/${productId}` })
-}
-const refresh = () => {
-  loadCampaign()
-  loadStats()
-}
+
 
 // Nguồn dữ liệu
 const products = computed(() => campaign.value?.products || [])
@@ -249,7 +219,6 @@ const pagedProducts = computed(() => {
   const start = (prodPage.value - 1) * prodPageSize.value
   return filteredProducts.value.slice(start, start + prodPageSize.value)
 })
-const applyProductFilter = () => { prodPage.value = 1 }
 
 // Logic lọc và phân trang cho SPCT
 const filteredDetails = computed(() => {

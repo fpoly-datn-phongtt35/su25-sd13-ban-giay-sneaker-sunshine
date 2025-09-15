@@ -1,794 +1,227 @@
 <template>
-  <div class="page">
-    <!-- Header -->
-    <div class="page-header">
-      <el-button @click="goBack" round>
-        <el-icon><ArrowLeft /></el-icon>
-        Quay lại
-      </el-button>
-      <h2>Thêm sản phẩm mới</h2>
+  <el-card class="box-card">
+    <template #header>
+      <span>Quản lý kích thước</span>
+    </template>
+
+    <!-- Form Thêm / Sửa -->
+    <div class="form-section">
+      <el-form :model="form" ref="formRef" label-width="120px">
+        <el-form-item
+          label="Tên kích thước"
+          :rules="[{ required: true, message: 'Tên không được để trống', trigger: 'blur' }]"
+        >
+          <el-input v-model="form.name" placeholder="Nhập tên kích thước..." />
+        </el-form-item>
+
+        <el-form-item>
+          <el-button type="primary" @click="handleSubmit">{{
+              isEditing ? 'Cập nhật' : 'Thêm mới'
+            }}</el-button>
+          <el-button @click="resetForm">Làm mới</el-button>
+        </el-form-item>
+      </el-form>
     </div>
 
-    <el-form label-position="top" class="card" :model="newProduct" :inline="false">
-      <!-- Category -->
-      <el-form-item label="Chọn danh mục sản phẩm" :error="errors.categoryIds">
-        <el-select
-          v-model="newProduct.categoryIds"
-          multiple
-          filterable
-          collapse-tags
-          placeholder="Chọn danh mục"
-          value-key="id"
-          style="width: 100%"
-        >
-          <el-option v-for="c in categoryList" :key="c.id" :label="c.categoryName" :value="c" />
-        </el-select>
-
-        <div class="hint">
-          <span>Đã chọn: </span>
-          <template v-if="newProduct.categoryIds.length === 0">
-            <el-text type="info">Chưa chọn</el-text>
-          </template>
-          <template v-else>
-            <el-space wrap>
-              <el-tag v-for="c in newProduct.categoryIds" :key="c.id" size="small" type="success">
-                {{ c.categoryName }}
-              </el-tag>
-            </el-space>
-          </template>
-        </div>
-      </el-form-item>
-
-      <!-- Product name -->
-      <el-form-item label="Tên sản phẩm" :error="errors.productName">
-        <el-input v-model="newProduct.productName" placeholder="Nhập tên sản phẩm" clearable />
-      </el-form-item>
-
-      <!-- Selects -->
-      <el-row :gutter="16">
-        <el-col :xs="24" :sm="12">
-          <el-form-item label="Chất liệu" :error="errors.materialId">
-            <el-select v-model="newProduct.materialId" placeholder="Chọn chất liệu" style="width:100%">
-              <el-option v-for="m in materialList" :key="m.id" :label="m.materialName" :value="m.id" />
-            </el-select>
-          </el-form-item>
-        </el-col>
-        <el-col :xs="24" :sm="12">
-          <el-form-item label="Nhà cung cấp" :error="errors.supplierId">
-            <el-select v-model="newProduct.supplierId" placeholder="Chọn nhà cung cấp" style="width:100%">
-              <el-option v-for="s in supplierList" :key="s.id" :label="s.supplierName" :value="s.id" />
-            </el-select>
-          </el-form-item>
-        </el-col>
-
-        <el-col :xs="24" :sm="12">
-          <el-form-item label="Đế giày" :error="errors.soleId">
-            <el-select v-model="newProduct.soleId" placeholder="Chọn loại đế" style="width:100%">
-              <el-option v-for="s in soleList" :key="s.id" :label="s.soleName" :value="s.id" />
-            </el-select>
-          </el-form-item>
-        </el-col>
-        <el-col :xs="24" :sm="12">
-          <el-form-item label="Cổ giày" :error="errors.styleId">
-            <el-select v-model="newProduct.styleId" placeholder="Chọn cổ giày" style="width:100%">
-              <el-option v-for="s in styleList" :key="s.id" :label="s.styleName" :value="s.id" />
-            </el-select>
-          </el-form-item>
-        </el-col>
-
-        <el-col :xs="24" :sm="12">
-          <el-form-item label="Thương hiệu" :error="errors.brandId">
-            <el-select v-model="newProduct.brandId" placeholder="Chọn thương hiệu" style="width:100%">
-              <el-option v-for="b in brandList" :key="b.id" :label="b.brandName" :value="b.id" />
-            </el-select>
-          </el-form-item>
-        </el-col>
-
-        <el-col :xs="24" :sm="12">
-          <el-form-item label="Dành cho" :error="errors.genderId">
-            <el-radio-group v-model="newProduct.genderId">
-              <el-radio :label="1">Nam</el-radio>
-              <el-radio :label="2">Nữ</el-radio>
-              <el-radio :label="3">Cả nam và nữ</el-radio>
-            </el-radio-group>
-          </el-form-item>
-        </el-col>
-      </el-row>
-
-      <!-- Weight + Sell price -->
-      <el-row :gutter="16">
-        <el-col :xs="24" :sm="12">
-          <el-form-item label="Cân nặng (gram)" :error="errors.weight">
-            <el-input-number
-              v-model="newProduct.weight"
-              :min="1"
-              :step="1"
-              :precision="0"
-              style="width:100%"
-              @change="onWeightChange"
-              @blur="onWeightBlur"
-            />
-            <div class="note">Phải là số nguyên (gram) và lớn hơn 0.</div>
-          </el-form-item>
-        </el-col>
-
-        <el-col :xs="24" :sm="12">
-          <el-form-item label="Giá bán (áp dụng cho tất cả biến thể)" :error="errors.sellPrice">
-            <div class="price-row">
-              <el-input-number
-                v-model="newProduct.sellPrice"
-                :min="1"
-                :step="1000"
-                style="width:100%"
-                @change="onSellPriceChange"
-                @blur="onSellPriceBlur"
-              />
-              <div class="formatted-price" v-if="formattedSellPrice">
-                {{ formattedSellPrice }}
-              </div>
-            </div>
-            <div class="note">Giao diện không cho chỉnh giá từng biến thể — tất cả biến thể sẽ dùng giá này khi lưu.</div>
-          </el-form-item>
-        </el-col>
-      </el-row>
-
-      <!-- Description -->
-      <el-form-item label="Ghi chú sản phẩm">
-        <el-input v-model="newProduct.description" type="textarea" :rows="3" placeholder="Ghi chú sản phẩm" />
-      </el-form-item>
-
-      <!-- Sizes with quick-add -->
-      <el-form-item :error="errors.selectedSizes">
-        <template #label>
-          <div class="label-with-btn">
-            <span>Kích thước</span>
-            <el-button size="small" type="primary" plain icon @click.stop="openAddSizeDialog" title="Thêm nhanh kích thước">
-              <el-icon><Plus /></el-icon>
-            </el-button>
-          </div>
+    <!-- Bảng hiển thị kích thước -->
+    <el-table :data="sizes" style="width: 100%; margin-top: 20px">
+      <el-table-column prop="id" label="ID" width="80" />
+      <el-table-column prop="sizeCode" label="Mã kích thước" />
+      <el-table-column prop="sizeName" label="Tên kích thước" />
+      <el-table-column prop="status" label="Trạng thái">
+        <template #default="scope">
+          <span :style="{ color: scope.row.status === 1 ? 'green' : 'red' }">
+            {{ scope.row.status === 1 ? 'Hoạt động' : 'Không hoạt động' }}
+          </span>
         </template>
-
-        <el-checkbox-group v-model="selectedSizes" @change="generateProductDetails">
-          <el-space wrap>
-            <el-checkbox v-for="sz in sizeList" :key="sz.id" :label="sz.id">{{ sz.sizeName }}</el-checkbox>
-          </el-space>
-        </el-checkbox-group>
-      </el-form-item>
-
-      <!-- Colors with quick-add -->
-      <el-form-item :error="errors.selectedColors">
-        <template #label>
-          <div class="label-with-btn">
-            <span>Màu sắc</span>
-            <el-button size="small" type="primary" plain icon @click.stop="openAddColorDialog" title="Thêm nhanh màu sắc">
-              <el-icon><Plus /></el-icon>
-            </el-button>
-          </div>
+      </el-table-column>
+      <el-table-column label="Ngày tạo">
+        <template #default="scope">
+          {{ formatDateTime(scope.row.createdDate) }}
         </template>
+      </el-table-column>
 
-        <el-checkbox-group v-model="selectedColors" @change="generateProductDetails">
-          <el-space wrap>
-            <el-checkbox v-for="cl in colorList" :key="cl.id" :label="cl.id">{{ cl.colorName }}</el-checkbox>
-          </el-space>
-        </el-checkbox-group>
-      </el-form-item>
-
-      <!-- Upload images per color -->
-      <div v-if="selectedColors.length > 0" class="block">
-        <el-alert title="Tải ảnh theo từng màu. Mỗi màu nên có ít nhất 1 ảnh." type="info" :closable="false" show-icon class="mb-12" />
-        <el-row :gutter="16">
-          <el-col v-for="cid in selectedColors" :key="cid" :xs="24" :md="12">
-            <el-card shadow="never" class="color-card">
-              <template #header>
-                <div class="card-header">
-                  <span>Ảnh cho màu: <b>{{ getColorName(cid) }}</b></span>
-                </div>
-              </template>
-
-              <el-upload
-                action="#"
-                list-type="picture-card"
-                :auto-upload="false"
-                multiple
-                :limit="10"
-                accept="image/*"
-                :file-list="colorImages[cid] || []"
-                :on-change="(file, list) => handleFileChange(file, list, cid)"
-                :on-remove="(file, list) => handleFileRemove(file, list, cid)"
-                :on-preview="handlePreview"
-              >
-                <el-icon><Plus /></el-icon>
-              </el-upload>
-
-              <div v-if="errors[`colorImage_${cid}`]" class="el-form-item__error mt-6">{{ errors[`colorImage_${cid}`] }}</div>
-            </el-card>
-          </el-col>
-        </el-row>
-      </div>
-
-      <!-- Product details table (no per-variant price) -->
-      <div v-if="productDetails.length > 0" class="block">
-        <div v-if="errors.productDetails" class="el-form-item__error mb-8">{{ errors.productDetails }}</div>
-
-        <el-table :data="productDetails" border style="width: 100%">
-          <el-table-column prop="sizeName" label="Kích thước" width="140" />
-          <el-table-column prop="colorName" label="Màu sắc" width="180" />
-          <el-table-column label="Số lượng" width="200">
-            <template #default="{ row, $index }">
-              <el-input-number
-                v-model="row.quantity"
-                :min="0"
-                :step="1"
-                :precision="0"
-                style="width: 100%"
-                @change="(val) => onQuantityChange(val, row, $index)"
-              />
-              <div v-if="errors[`productDetail_${$index}_quantity`]" class="el-form-item__error">{{ errors[`productDetail_${$index}_quantity`] }}</div>
-            </template>
-          </el-table-column>
-        </el-table>
-      </div>
-
-      <!-- Actions -->
-      <div class="actions">
-        <el-button size="large" @click="goBack">Huỷ</el-button>
-        <el-button size="large" type="primary" @click="openConfirmDialog">Thêm sản phẩm</el-button>
-      </div>
-    </el-form>
-
-    <!-- Confirm dialog -->
-    <el-dialog v-model="isModalVisible" title="Xác nhận" width="420px">
-      <span>Bạn có chắc chắn muốn lưu sản phẩm này không?</span>
-      <template #footer>
-        <el-button @click="closeModal">Hủy</el-button>
-        <el-button type="primary" @click="saveProduct">Xác nhận</el-button>
-      </template>
-    </el-dialog>
-
-    <!-- Quick-add size dialog -->
-    <el-dialog v-model="isAddSizeDialog" title="Thêm kích thước" width="420px" @close="resetAddSize">
-      <el-form>
-        <el-form-item label="Tên kích thước">
-          <el-input v-model="newSizeName" placeholder="Ví dụ: 39, M, L..." />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="closeAddSizeDialog">Hủy</el-button>
-        <el-button type="primary" @click="addSize" :loading="addingSize">Thêm</el-button>
-      </template>
-    </el-dialog>
-
-    <!-- Quick-add color dialog -->
-    <el-dialog v-model="isAddColorDialog" title="Thêm màu sắc" width="420px" @close="resetAddColor">
-      <el-form>
-        <el-form-item label="Tên màu">
-          <el-input v-model="newColorName" placeholder="Ví dụ: Đen, Trắng, Red..." />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="closeAddColorDialog">Hủy</el-button>
-        <el-button type="primary" @click="addColor" :loading="addingColor">Thêm</el-button>
-      </template>
-    </el-dialog>
-  </div>
+      <el-table-column label="Hành động" width="200">
+        <template #default="scope">
+          <el-button size="small" @click="editSize(scope.row)">Sửa</el-button>
+          <el-button size="small" type="danger" @click="confirmDelete(scope.row.id)">Xóa</el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+  </el-card>
 </template>
 
 <script setup>
-import { ref, onMounted, watch, computed } from 'vue'
-import { useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowLeft, Plus } from '@element-plus/icons-vue'
+import { ref, onMounted } from 'vue'
+// Import your pre-configured API client
 import apiClient from '@/utils/axiosInstance'
-import axios from 'axios'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
-const router = useRouter()
-const ArrowLeftIcon = ArrowLeft
-const PlusIcon = Plus
+const sizes = ref([])
+const form = ref({ id: null, name: '' }) // 'name' for the form input
+const isEditing = ref(false)
+const formRef = ref(null)
+const loading = ref(false)
 
-// Lists
-const brandList = ref([])
-const materialList = ref([])
-const categoryList = ref([])
-const sizeList = ref([])
-const colorList = ref([])
-const soleList = ref([])
-const supplierList = ref([])
-const styleList = ref([])
-
-// UI states
-const isModalVisible = ref(false)
-
-// quick-add dialogs state
-const isAddSizeDialog = ref(false)
-const isAddColorDialog = ref(false)
-const newSizeName = ref('')
-const newColorName = ref('')
-const addingSize = ref(false)
-const addingColor = ref(false)
-
-// images per color
-const colorImages = ref({})
-
-// selections
-const selectedSizes = ref([])
-const selectedColors = ref([])
-
-// generated details
-const productDetails = ref([])
-
-// main model
-const newProduct = ref({
-  categoryIds: [],
-  productName: '',
-  materialId: null,
-  styleId: null,
-  supplierId: null,
-  genderId: null,
-  soleId: null,
-  brandId: null,
-  originPrice: null,
-  weight: null,
-  sellPrice: null,
-  description: '',
-})
-
-// errors
-const errors = ref({})
-
-// helper notifications
-const notify = (msg, type = 'success') => {
-  if (type === 'success') ElMessage.success(msg)
-  else if (type === 'warning') ElMessage.warning(msg)
-  else ElMessage.error(msg)
-}
-const getColorName = (colorId) => colorList.value.find(c => c.id === colorId)?.colorName || 'Không xác định'
-
-// price formatting
-const formatVND = (value) => {
-  const n = Number(value)
-  if (!Number.isFinite(n)) return ''
-  return `${new Intl.NumberFormat('vi-VN').format(Math.trunc(n))} VND`
-}
-const formattedSellPrice = computed(() => (newProduct.value.sellPrice ? formatVND(newProduct.value.sellPrice) : ''))
-
-// validation helpers
-const isPositiveNumber = (v) => {
-  const n = Number(v)
-  return Number.isFinite(n) && n > 0
-}
-const isNonNegativeInteger = (v) => {
-  if (v === null || v === undefined || v === '') return false
-  const n = Number(v)
-  return Number.isFinite(n) && Number.isInteger(n) && n >= 0
-}
-
-const validateAll = () => {
-  errors.value = {}
-
-  if (!newProduct.value.productName || !String(newProduct.value.productName).trim()) {
-    errors.value.productName = 'Tên sản phẩm không được để trống.'
-  }
-  if (!newProduct.value.materialId) errors.value.materialId = 'Vui lòng chọn chất liệu.'
-  if (!newProduct.value.genderId) errors.value.genderId = 'Vui lòng chọn đối tượng dành cho.'
-  if (!newProduct.value.supplierId) errors.value.supplierId = 'Vui lòng chọn nhà cung cấp.'
-  if (!newProduct.value.soleId) errors.value.soleId = 'Vui lòng chọn loại đế.'
-  if (!newProduct.value.styleId) errors.value.styleId = 'Vui lòng chọn cổ giày.'
-  if (!newProduct.value.brandId) errors.value.brandId = 'Vui lòng chọn thương hiệu.'
-
-  if (!Array.isArray(newProduct.value.categoryIds) || newProduct.value.categoryIds.length === 0) {
-    errors.value.categoryIds = 'Vui lòng chọn ít nhất một danh mục.'
-  }
-
-  if (!isPositiveNumber(newProduct.value.weight) || !Number.isInteger(Number(newProduct.value.weight))) {
-    errors.value.weight = 'Cân nặng phải là số nguyên lớn hơn 0 (gram).'
-  }
-
-  if (!isPositiveNumber(newProduct.value.sellPrice)) {
-    errors.value.sellPrice = 'Giá bán phải là số lớn hơn 0.'
-  }
-
-  if (!selectedSizes.value || selectedSizes.value.length === 0) errors.value.selectedSizes = 'Vui lòng chọn ít nhất một kích thước.'
-  if (!selectedColors.value || selectedColors.value.length === 0) errors.value.selectedColors = 'Vui lòng chọn ít nhất một màu sắc.'
-
-  if (selectedSizes.value.length > 0 && selectedColors.value.length > 0) {
-    if (!productDetails.value || productDetails.value.length === 0) {
-      errors.value.productDetails = 'Không có chi tiết sản phẩm nào được tạo.'
-    } else {
-      productDetails.value.forEach((d, i) => {
-        if (!isNonNegativeInteger(d.quantity)) {
-          errors.value[`productDetail_${i}_quantity`] = `Số lượng của chi tiết ${i + 1} phải là số nguyên không âm.`
+const rules = {
+  name: [
+    { required: true, message: 'Tên kích thước không được để trống', trigger: 'blur' },
+    { min: 1, message: 'Tên kích thước tối thiểu 1 ký tự', trigger: 'blur' },
+    { max: 20, message: 'Tên kích thước tối đa 20 ký tự', trigger: 'blur' }, // Common size limits
+    {
+      validator: (_, value, callback) => {
+        const pattern = /^[\p{L}\d\s.+-]+$/u
+        if (!pattern.test(value)) {
+          callback(new Error('Tên kích thước không chứa ký tự đặc biệt hoặc định dạng không hợp lệ'))
+        } else {
+          callback()
         }
-      })
+      },
+      trigger: 'blur'
     }
+  ]
+}
+
+const formatDateTime = (dateStr) => {
+  if (!dateStr) return ''
+  const date = new Date(dateStr)
+  // Check if date is valid before formatting
+  if (isNaN(date.getTime())) {
+    return dateStr;
   }
-
-  for (const cid of selectedColors.value) {
-    if (!colorImages.value[cid] || colorImages.value[cid].length === 0) {
-      errors.value[`colorImage_${cid}`] = `Vui lòng tải lên ít nhất một ảnh cho màu ${getColorName(cid)}.`
-    }
-  }
-
-  return Object.keys(errors.value).length === 0
-}
-
-// input handlers
-const onWeightChange = (val) => {
-  if (val === null || val === undefined || val === '') {
-    newProduct.value.weight = null
-    return
-  }
-  const n = Number(val)
-  if (!Number.isFinite(n)) newProduct.value.weight = null
-  else newProduct.value.weight = Math.max(1, Math.trunc(n))
-  if (errors.value.weight) delete errors.value.weight
-}
-const onWeightBlur = () => {
-  if (!isPositiveNumber(newProduct.value.weight) || !Number.isInteger(Number(newProduct.value.weight))) {
-    errors.value.weight = 'Cân nặng phải là số nguyên lớn hơn 0 (gram).'
-  } else delete errors.value.weight
-}
-
-const onSellPriceChange = (val) => {
-  if (val === null || val === undefined || val === '') {
-    newProduct.value.sellPrice = null
-    return
-  }
-  const n = Number(val)
-  if (Number.isFinite(n) && n > 0) newProduct.value.sellPrice = Math.trunc(n)
-  if (errors.value.sellPrice) delete errors.value.sellPrice
-}
-const onSellPriceBlur = () => {
-  if (!isPositiveNumber(newProduct.value.sellPrice)) errors.value.sellPrice = 'Giá bán phải là số lớn hơn 0.'
-  else delete errors.value.sellPrice
-}
-
-const onQuantityChange = (val, row, index) => {
-  if (val === null || val === undefined || val === '') row.quantity = 0
-  else {
-    const n = Number(val)
-    if (!Number.isFinite(n)) row.quantity = 0
-    else {
-      if (!Number.isInteger(n)) {
-        errors.value[`productDetail_${index}_quantity`] = 'Số lượng không được là số thập phân.'
-        row.quantity = Math.trunc(n)
-      } else {
-        delete errors.value[`productDetail_${index}_quantity`]
-      }
-    }
-  }
-}
-
-// generate details
-const generateProductDetails = () => {
-  const next = []
-  const sIds = selectedSizes.value.map(x => Number(x))
-  const cIds = selectedColors.value.map(x => Number(x))
-
-  for (const sizeId of sIds) {
-    for (const colorId of cIds) {
-      const size = sizeList.value.find(s => Number(s.id) === Number(sizeId))
-      const color = colorList.value.find(c => Number(c.id) === Number(colorId))
-      const existed = productDetails.value.find(d => Number(d.sizeId) === Number(sizeId) && Number(d.colorId) === Number(colorId))
-      if (existed) next.push({ ...existed })
-      else next.push({ sizeId, colorId, sizeName: size?.sizeName || '', colorName: color?.colorName || '', quantity: 0 })
-    }
-  }
-
-  next.sort((a, b) => (Number(a.sizeId) - Number(b.sizeId)) || (Number(a.colorId) - Number(b.colorId)))
-  productDetails.value = next
-}
-
-// upload handlers
-const handleFileChange = (file, fileList, colorId) => {
-  const max = 5 * 1024 * 1024
-  const size = file.raw?.size ?? file.size ?? 0
-  if (size > max) {
-    notify(`Ảnh ${file.name} vượt quá 5MB!`, 'error')
-    fileList.splice(fileList.indexOf(file), 1)
-    return
-  }
-  const dup = (colorImages.value[colorId] || []).some(f => f.name === file.name && (f.file?.size === size))
-  if (dup) {
-    notify(`Ảnh ${file.name} đã được chọn cho màu này!`, 'error')
-    fileList.splice(fileList.indexOf(file), 1)
-    return
-  }
-
-  const f = { name: file.name, url: file.url || (file.raw ? URL.createObjectURL(file.raw) : ''), file: file.raw || null, uid: file.uid || file.name + '_' + Date.now() }
-  if (!colorImages.value[colorId]) colorImages.value[colorId] = []
-  colorImages.value[colorId].push(f)
-  colorImages.value = { ...colorImages.value }
-  if (errors.value[`colorImage_${colorId}`]) delete errors.value[`colorImage_${colorId}`]
-}
-
-const handleFileRemove = (file, fileList, colorId) => {
-  colorImages.value[colorId] = fileList.map(item => ({ name: item.name, url: item.url || (item.raw ? URL.createObjectURL(item.raw) : ''), file: item.raw || null, uid: item.uid || item.name + '_' + Date.now() }))
-  colorImages.value = { ...colorImages.value }
-}
-
-const handlePreview = (file) => {
-  if (file.url) window.open(file.url, '_blank')
-}
-
-// save product
-const openConfirmDialog = () => {
-  if (!validateAll()) {
-    notify('Vui lòng điền đầy đủ và chính xác các trường bắt buộc.', 'error')
-    requestAnimationFrame(() => {
-      const errEl = document.querySelector('.el-form-item__error')
-      if (errEl) errEl.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    })
-    return
-  }
-  isModalVisible.value = true
-}
-const closeModal = () => { isModalVisible.value = false }
-
-const saveProduct = async () => {
-  try {
-    if (!validateAll()) {
-      notify('Dữ liệu còn lỗi. Vui lòng kiểm tra các trường.', 'error')
-      isModalVisible.value = false
-      return
-    }
-
-    const totalQty = productDetails.value.reduce((s, d) => s + Number(d.quantity || 0), 0)
-    if (totalQty <= 0) {
-      notify('Tổng số lượng các biến thể phải lớn hơn 0!', 'error')
-      isModalVisible.value = false
-      return
-    }
-
-    for (const cid of selectedColors.value) {
-      if (!colorImages.value[cid] || colorImages.value[cid].length === 0) {
-        notify(`Vui lòng chọn ít nhất một ảnh cho màu ${getColorName(cid)}!`, 'error')
-        isModalVisible.value = false
-        return
-      }
-    }
-
-    const formData = new FormData()
-    formData.append('productName', newProduct.value.productName || '')
-    formData.append('materialId', newProduct.value.materialId || '')
-    formData.append('supplierId', newProduct.value.supplierId || '')
-    formData.append('brandId', newProduct.value.brandId || '')
-    formData.append('soleId', newProduct.value.soleId || '')
-    formData.append('styleId', newProduct.value.styleId || '')
-    formData.append('genderId', newProduct.value.genderId || '')
-    formData.append('weight', newProduct.value.weight || 0)
-    formData.append('originPrice', newProduct.value.originPrice || 0)
-    formData.append('sellPrice', newProduct.value.sellPrice ?? 0) // numeric
-    formData.append('quantity', totalQty)
-    formData.append('description', newProduct.value.description || '')
-
-    const cats = Array.isArray(newProduct.value.categoryIds) ? newProduct.value.categoryIds : []
-    cats.forEach((cat, idx) => formData.append(`categoryIds[${idx}]`, cat?.id ?? cat))
-
-    productDetails.value.forEach((d, i) => {
-      formData.append(`productDetails[${i}].sizeId`, d.sizeId)
-      formData.append(`productDetails[${i}].colorId`, d.colorId)
-      formData.append(`productDetails[${i}].quantity`, d.quantity)
-      formData.append(`productDetails[${i}].sellPrice`, newProduct.value.sellPrice ?? 0)
-    })
-
-    let imgIdx = 0
-    Object.entries(colorImages.value).forEach(([cid, files]) => {
-      files.filter(f => f.file).forEach(f => {
-        formData.append(`productImages[${imgIdx}].productImages`, f.file)
-        formData.append(`productImages[${imgIdx}].colorId`, cid)
-        imgIdx++
-      })
-    })
-
-    await apiClient.post('/admin/products', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
-
-    ElMessage.success(`Thêm sản phẩm thành công! Giá: ${formattedSellPrice.value}`)
-    isModalVisible.value = false
-
-    // reset
-    newProduct.value = { categoryIds: [], productName: '', materialId: null, styleId: null, supplierId: null, genderId: null, soleId: null, brandId: null, originPrice: null, weight: null, sellPrice: null, description: '' }
-    colorImages.value = {}
-    productDetails.value = []
-    selectedSizes.value = []
-    selectedColors.value = []
-    errors.value = {}
-
-    setTimeout(() => router.push('/product'), 800)
-  } catch (e) {
-    console.error('Lỗi thêm sản phẩm:', e)
-    const m = e.response?.data?.error || e.response?.data?.message || 'Đã xảy ra lỗi khi thêm sản phẩm.'
-    ElMessage.error(m)
-    isModalVisible.value = false
-  }
-}
-
-const buildDebugUri = (path, params) => {
-  try {
-    if (apiClient.getUri) return apiClient.getUri({ url: path, params })
-  } catch {
-  }
-  const q = Object.entries(params).map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&')
-  return `${path}?${q}`
-}
-
-const openAddSizeDialog = () => { newSizeName.value = ''; isAddSizeDialog.value = true }
-const closeAddSizeDialog = () => { isAddSizeDialog.value = false }
-const resetAddSize = () => { newSizeName.value = '' }
-
-const openAddColorDialog = () => { newColorName.value = ''; isAddColorDialog.value = true }
-const closeAddColorDialog = () => { isAddColorDialog.value = false }
-const resetAddColor = () => { newColorName.value = '' }
-
-const addSize = async () => {
-  const name = (newSizeName.value || '').trim()
-  if (!name) { ElMessage.error('Vui lòng nhập tên kích thước.'); return }
-  const nameLower = name.toLowerCase()
-  if (sizeList.value.some(s => (s.sizeName || '').trim().toLowerCase() === nameLower)) { ElMessage.warning('Tên kích thước đã tồn tại'); return }
-
-  addingSize.value = true
-  try {
-    await ElMessageBox.confirm('Bạn có chắc chắn muốn thêm mới kích thước?', 'Xác nhận', { confirmButtonText: 'Thêm', cancelButtonText: 'Hủy', type: 'info' })
-
-    // Debug URL log
-    const debug = buildDebugUri('/admin/size', { name })
-    console.log('Will POST to (via apiClient):', debug)
-
-    // try apiClient.post with params (query string)
-    try {
-      await apiClient.post('/admin/size', null, { params: { name } })
-    } catch (err) {
-      try {
-        const base = apiClient.defaults?.baseURL || ''
-        const absolute = base ? `${base}/admin/size` : `/admin/size`
-        const url = absolute.includes('http') ? `${absolute}?name=${encodeURIComponent(name)}` : `${absolute}?name=${encodeURIComponent(name)}`
-        console.warn('apiClient.post failed, fallback to axios.post:', url, err)
-        await axios.post(url)
-      } catch (err2) {
-        console.error('Fallback axios also failed', err2)
-        throw err2
-      }
-    }
-
-    ElMessage.success('Thêm mới thành công')
-    await fetchSizesAndColors()
-    const created = sizeList.value.find(s => (s.sizeName || '').trim().toLowerCase() === nameLower)
-    if (created && !selectedSizes.value.includes(created.id)) selectedSizes.value.push(created.id)
-    closeAddSizeDialog()
-  } catch (err) {
-    if (err === 'cancel' || (err && err.message && /cancel/i.test(err.message))) {
-      ElMessage.info('Đã hủy thao tác')
-    } else {
-      console.error('Lỗi tạo kích thước:', err)
-      ElMessage.error('Lỗi khi tạo kích thước. Vui lòng thử lại.')
-    }
-  } finally {
-    addingSize.value = false
-  }
-}
-
-const addColor = async () => {
-  const name = (newColorName.value || '').trim()
-  if (!name) { ElMessage.error('Vui lòng nhập tên màu sắc.'); return }
-  const nameLower = name.toLowerCase()
-  if (colorList.value.some(c => (c.colorName || '').trim().toLowerCase() === nameLower)) { ElMessage.warning('Tên màu đã tồn tại'); return }
-
-  addingColor.value = true
-  try {
-    await ElMessageBox.confirm('Bạn có chắc chắn muốn thêm mới màu sắc?', 'Xác nhận', { confirmButtonText: 'Thêm', cancelButtonText: 'Hủy', type: 'info' })
-
-    const debug = buildDebugUri('/admin/color', { name })
-    console.log('Will POST to (via apiClient):', debug)
-
-    try {
-      await apiClient.post('/admin/color', null, { params: { name } })
-    } catch (err) {
-      try {
-        const base = apiClient.defaults?.baseURL || ''
-        const absolute = base ? `${base}/admin/color` : `/admin/color`
-        const url = absolute.includes('http') ? `${absolute}?name=${encodeURIComponent(name)}` : `${absolute}?name=${encodeURIComponent(name)}`
-        console.warn('apiClient.post failed, fallback to axios.post:', url, err)
-        await axios.post(url)
-      } catch (err2) {
-        console.error('Fallback axios also failed', err2)
-        throw err2
-      }
-    }
-
-    ElMessage.success('Thêm mới thành công')
-    await fetchSizesAndColors()
-    const created = colorList.value.find(c => (c.colorName || '').trim().toLowerCase() === nameLower)
-    if (created && !selectedColors.value.includes(created.id)) selectedColors.value.push(created.id)
-    closeAddColorDialog()
-  } catch (err) {
-    if (err === 'cancel' || (err && err.message && /cancel/i.test(err.message))) {
-      ElMessage.info('Đã hủy thao tác')
-    } else {
-      console.error('Lỗi tạo màu sắc:', err)
-      ElMessage.error('Lỗi khi tạo màu sắc. Vui lòng thử lại.')
-    }
-  } finally {
-    addingColor.value = false
-  }
-}
-
-// watchers
-watch(selectedColors, (n, o) => {
-  const removed = (o || []).filter(id => !n.includes(id))
-  removed.forEach(id => {
-    delete colorImages.value[id]
-    colorImages.value = { ...colorImages.value }
-    if (errors.value[`colorImage_${id}`]) delete errors.value[`colorImage_${id}`]
+  return date.toLocaleString('vi-VN', {
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
   })
-  generateProductDetails()
-})
-watch(selectedSizes, () => generateProductDetails())
+}
 
-// fetchers
-const fetchCategories = async () => {
-  try { const { data } = await apiClient.get('/admin/categories/hien-thi'); categoryList.value = data } catch (e) { ElMessage.error('Lỗi lấy danh mục!') }
-}
-const fetchMaterial = async () => {
-  try { const { data } = await apiClient.get('/admin/material/hien-thi'); materialList.value = data } catch (e) { ElMessage.error('Lỗi lấy chất liệu!') }
-}
-const fetchSupplier = async () => {
-  try { const { data } = await apiClient.get('/admin/supplier/hien-thi'); supplierList.value = data } catch (e) { ElMessage.error('Lỗi lấy nhà cung cấp!') }
-}
-const fetchBrand = async () => {
-  try { const { data } = await apiClient.get('/admin/brand/hien-thi'); brandList.value = data } catch (e) { ElMessage.error('Lỗi lấy thương hiệu!') }
-}
-const fetchSole = async () => {
-  try { const { data } = await apiClient.get('/admin/sole/hien-thi'); soleList.value = data } catch (e) { ElMessage.error('Lỗi lấy đế giày!') }
-}
-const fetchStyle = async () => {
-  try { const { data } = await apiClient.get('/admin/style/hien-thi'); styleList.value = data } catch (e) { ElMessage.error('Lỗi lấy cổ giày!') }
-}
-const fetchSizesAndColors = async () => {
+const fetchSizes = async () => {
+  loading.value = true // Set loading state to true
   try {
-    const [sRes, cRes] = await Promise.all([ apiClient.get('/admin/size/hien-thi'), apiClient.get('/admin/color/hien-thi') ])
-    sizeList.value = sRes.data
-    colorList.value = cRes.data
-  } catch (e) { ElMessage.error('Lỗi lấy kích thước hoặc màu sắc!') }
+    // Use apiClient for the GET request
+    const response = await apiClient.get('/admin/size/hien-thi')
+    sizes.value = response.data
+    ElMessage.success('Tải dữ liệu kích thước thành công.')
+  } catch (error) {
+    console.error('Lỗi khi tải dữ liệu kích thước:', error)
+    ElMessage.error('Lỗi khi tải dữ liệu kích thước.')
+    sizes.value = [] // Clear data on error
+  } finally {
+    loading.value = false // Set loading state to false
+  }
 }
 
-const goBack = () => router.push('/product')
+const resetForm = () => {
+  form.value = { id: null, name: '' }
+  isEditing.value = false
+  formRef.value?.resetFields() // Safely reset form fields and validation status
+  ElMessage.info('Form đã được đặt lại.');
+}
 
-onMounted(() => {
-  fetchBrand()
-  fetchMaterial()
-  fetchSizesAndColors()
-  fetchSole()
-  fetchStyle()
-  fetchCategories()
-  fetchSupplier()
-})
+const handleSubmit = async () => {
+  // Validate the form using Element Plus's built-in validation
+  const valid = await formRef.value.validate()
+  if (!valid) {
+    ElMessage.error('Vui lòng kiểm tra lại thông tin form.');
+    return;
+  }
+
+  const nameTrimmed = form.value.name.trim().toLowerCase()
+  // Check for existing size name, excluding the current size if editing
+  const existed = sizes.value.some(
+    (s) => s.sizeName.trim().toLowerCase() === nameTrimmed && s.id !== form.value.id
+  )
+  if (existed) {
+    ElMessage.warning('Tên kích thước đã tồn tại');
+    return;
+  }
+
+  loading.value = true // Set loading state for submission
+  try {
+    if (isEditing.value) {
+      await ElMessageBox.confirm('Bạn có chắc chắn muốn cập nhật kích thước này?', 'Xác nhận', {
+        confirmButtonText: 'Cập nhật',
+        cancelButtonText: 'Hủy',
+        type: 'info',
+      })
+
+      await axios.put(`http://localhost:8080/api/admin/size/${form.value.id}`, null, {
+        params: { name: form.value.name },
+      })
+      ElMessage.success('Cập nhật thành công')
+    } else {
+      await ElMessageBox.confirm('Bạn có chắc chắn muốn thêm mới kích thước?', 'Xác nhận', {
+        confirmButtonText: 'Thêm',
+        cancelButtonText: 'Hủy',
+        type: 'info',
+      });
+      // Use apiClient for the POST request
+      await apiClient.post('/admin/size', null, {
+        params: { name: form.value.name },
+      });
+      ElMessage.success('Thêm mới thành công');
+    }
+    await fetchSizes(); // Refresh the list after successful operation
+    resetForm(); // Clear the form
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error('Có lỗi xảy ra')
+    } else {
+      ElMessage.info('Đã hủy thao tác')
+    }
+  }
+}
+
+
+const editSize = (size) => {
+  // Map fetched 'sizeName' to form's 'name'
+  form.value = { id: size.id, name: size.sizeName }
+  isEditing.value = true
+  ElMessage.info(`Đang chỉnh sửa: ${size.sizeName}`);
+}
+
+const confirmDelete = async (id) => {
+  try {
+    await ElMessageBox.confirm('Bạn có chắc chắn muốn xóa kích thước này?', 'Xác nhận', {
+      confirmButtonText: 'Xóa',
+      cancelButtonText: 'Hủy',
+      type: 'warning',
+    });
+    // Use apiClient for the DELETE request
+    await apiClient.delete(`/admin/size/${id}`);
+    ElMessage.success('Đã xóa thành công');
+    await fetchSizes(); // Refresh the list
+    // If the deleted item was the one being edited, reset the form
+    if (form.value.id === id) {
+      resetForm();
+    }
+  } catch (error) {
+    console.error('Lỗi khi xóa kích thước:', error);
+    // Handle user cancellation or API errors
+    if (error === 'cancel' || error === 'close') {
+      ElMessage.info('Đã hủy thao tác xóa.');
+    } else if (error.response && error.response.data && error.response.data.message) {
+      ElMessage.error(`Lỗi: ${error.response.data.message}`);
+    } else {
+      ElMessage.error('Lỗi khi xóa kích thước.');
+    }
+  }
+}
+
+onMounted(fetchSizes)
 </script>
 
 <style scoped>
-.page { max-width: 1100px; margin: 32px auto; padding: 0 12px; }
-.page-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
-.page-header h2 { margin: 0 0 0 8px; font-weight: 700; }
-.card { background: #fff; border-radius: 8px; padding: 16px; }
-.hint { margin-top: 6px; }
-.block { margin-top: 16px; }
-.mb-8 { margin-bottom: 8px; }
-.mb-12 { margin-bottom: 12px; }
-.mt-6 { margin-top: 6px; }
-.color-card { margin-bottom: 12px; }
-.actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
-.note { font-size: 12px; color: #666; margin-top: 6px; }
-
-/* price display */
-.price-row { display: flex; gap: 12px; align-items: center; }
-.formatted-price { min-width: 160px; font-weight: 600; color: #333; background: #f5f7fa; border-radius: 6px; padding: 8px 10px; text-align: center; }
-
-/* label + add button */
-.label-with-btn { display: flex; align-items: center; gap: 8px; }
-.label-with-btn el-button { padding: 2px; }
-
-/* dialogs inputs fullwidth */
-.el-dialog .el-input { width: 100%; }
-
-.is-invalid :deep(.el-input__wrapper), .is-invalid :deep(.el-input-number__decrease), .is-invalid :deep(.el-input-number__increase) {
-  border-color: var(--el-color-danger) !important;
+.box-card {
+  max-width: 800px;
+  margin: 30px auto;
+}
+.form-section {
+  margin-bottom: 20px;
 }
 </style>

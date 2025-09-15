@@ -594,23 +594,28 @@ const setMainImageByIndex = (i) => { currentImageIndex.value = i }
 const nextImage = () => { if (colorSpecificImages.value.length) currentImageIndex.value = (currentImageIndex.value + 1) % colorSpecificImages.value.length }
 const prevImage = () => { if (colorSpecificImages.value.length) currentImageIndex.value = (currentImageIndex.value - 1 + colorSpecificImages.value.length) % colorSpecificImages.value.length }
 
-/* ========== Cart / Buy now với giới hạn SL ========== */
+// === Trả về boolean, chỉ toast success khi thêm OK ===
 const handleAddToCart = async () => {
   if (!selectedColor.value || !selectedSize.value) {
-    return ElMessage.warning('Vui lòng chọn màu & kích thước!')
+    ElMessage.warning('Vui lòng chọn màu & kích thước!')
+    return false
   }
+
   const d = findSelectedDetail()
-  const productDetailId = d.id;
+  if (!d) {
+    ElMessage.error('Không tìm thấy biến thể phù hợp!')
+    return false
+  }
+
+  const productDetailId = d.id
   try {
     const res = await axios.get(`http://localhost:8080/api/online-sale/verify-pdDetail/${productDetailId}`)
     const status = res?.data?.status ?? res?.data?.active ?? res?.data?.enabled
-    // accept numeric 1 or boolean true or string active/enabled
     let ok = false
     if (typeof status === 'boolean') ok = status === true
     else {
       const n = Number(status)
-      if (Number.isFinite(n)) ok = n === 1
-      else if (typeof status === 'string') ok = ['active','enabled','available','true'].includes(status.trim().toLowerCase())
+      ok = Number.isFinite(n) ? n === 1 : ['active','enabled','available','true'].includes(String(status).trim().toLowerCase())
     }
     if (!ok) {
       ElMessage.error('Sản phẩm hiện không hợp lệ để mua (đã bị vô hiệu hóa hoặc không còn bán).')
@@ -622,16 +627,16 @@ const handleAddToCart = async () => {
     return false
   }
 
-  if (!d) return ElMessage.error('Không tìm thấy biến thể phù hợp!')
-
   // Chặn SL lớn
   if (Number(quantity.value) >= NGAY_MAX_QTY) {
     showBulkDialog()
-    return
+    return false
   }
 
-  if (quantity.value > Number(d.quantity || 0)) {
-    return ElMessage.warning(`Chỉ còn ${d.quantity} sản phẩm.`)
+  // Chặn vượt tồn kho
+  if (Number(quantity.value) > Number(d.quantity || 0)) {
+    ElMessage.warning(`Chỉ còn ${d.quantity} sản phẩm.`)
+    return false
   }
 
   const price = Number(d.discountedPrice) > 0 ? d.discountedPrice : (d.sellPrice || product.value.sellPrice)
@@ -645,26 +650,33 @@ const handleAddToCart = async () => {
     color: selectedColor.value,
     size: selectedSize.value,
     price,
-    quantity: quantity.value,
+    quantity: Number(quantity.value || 1),
     discountCampaignId: d.discountCampaignId || null,
     status: d.status
   }
 
-  addToCart(cartItem)
-  ElMessage.success('Đã thêm vào giỏ hàng!')
+  const result = addToCart(cartItem)
+  if (result?.ok) {
+    ElMessage.success('Đã thêm vào giỏ hàng!')
+    return true
+  }
+  // (hiếm) nếu utils/cart trả về không ok
+  ElMessage.error('Không thể thêm vào giỏ hàng.')
+  return false
 }
 
-const handleBuyNow = () => {
-  // Chặn SL lớn
+// === PHẢI async + await, chỉ push khi thêm OK ===
+const handleBuyNow = async () => {
   if (Number(quantity.value) >= NGAY_MAX_QTY) {
     showBulkDialog()
     return
   }
-  handleAddToCart()
-  if (selectedDetail.value){
-    router.push('/cart')
+  const ok = await handleAddToCart()
+  if (ok) {
+    await router.push('/cart')
   }
 }
+
 
 /* ========== Điều hướng chi tiết sp liên quan ========== */
 const goToDetail = (id) => router.push(`/product/${id}`)

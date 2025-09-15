@@ -18,4 +18,9 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url))
     },
   },
+  define: {
+    // 👇 fix triệt để cho sockjs-client và các lib CJS
+    global: 'window',
+    'process.env': {}
+  }
 })

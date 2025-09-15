@@ -483,12 +483,11 @@ const sizeComparator = (a, b) => {
   return wa - wb || A.localeCompare(B)
 }
 
-/* ========== States ========== */
 const isLoading = ref(true)
 const error = ref(null)
 const products = ref([])
 const totalItems = ref(0)
-const isAdding = ref(false) // prevent double-click when adding/buying
+const isAdding = ref(false)
 
 const currentPage = computed({
   get: () => Math.max(1, Number(route.query.page ?? 1)),

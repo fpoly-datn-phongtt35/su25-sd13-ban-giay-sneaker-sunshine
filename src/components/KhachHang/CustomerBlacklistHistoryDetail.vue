@@ -3,8 +3,7 @@
     <el-card shadow="hover">
       <template #header>
         <div class="flex justify-between items-center">
-          <span class="text-xl font-semibold">🕵️‍♂️ Lịch sử blacklist KH #{{ customerId }}</span>
-          <el-button @click="$router.back()" type="info" size="small">⬅️ Quay lại</el-button>
+          <el-button @click="$router.back()" type="blue" size="small">Quay lại</el-button>
         </div>
       </template>
 

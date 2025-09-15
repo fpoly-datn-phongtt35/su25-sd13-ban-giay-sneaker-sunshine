@@ -126,34 +126,42 @@
         </template>
       </el-table-column>
 
-      <el-table-column label="Hành động" width="230" align="center" fixed="right">
-        <template #default="{ row }">
-          <div class="action-group">
-            <!-- Xem chi tiết -->
-            <el-tooltip content="Xem chi tiết" placement="top">
-              <el-button class="action-btn view" size="small"
-                         @click="$router.push(`/discount-campaigns/detail/${getField(row, 'id')}`)">
-                <el-icon><View /></el-icon>
-              </el-button>
-            </el-tooltip>
+<el-table-column label="Hành động" width="230" align="center" fixed="right">
+  <template #default="{ row }">
+    <el-button-group>
+      <!-- Xem chi tiết -->
+      <el-tooltip content="Xem chi tiết" placement="top">
+        <el-button
+          :icon="View"
+          type="primary"
+          size="small"
+          @click="$router.push(`/discount-campaigns/detail/${getField(row, 'id')}`)"
+        />
+      </el-tooltip>
 
-            <!-- Cập nhật -->
-            <el-tooltip content="Cập nhật" placement="top">
-              <el-button class="action-btn update" size="small"
-                         @click="goToUpdate(getField(row, 'id'))">
-                <el-icon><Edit /></el-icon>
-              </el-button>
-            </el-tooltip>
+      <!-- Cập nhật -->
+      <el-tooltip content="Cập nhật" placement="top">
+        <el-button
+          :icon="Edit"
+          type="warning"
+          size="small"
+          @click="goToUpdate(getField(row, 'id'))"
+        />
+      </el-tooltip>
 
-            <!-- Chuyển trạng thái -->
-            <el-tooltip content="Chuyển trạng thái" placement="top">
-              <el-button class="action-btn status" size="small" @click="changeStatus(row)">
-                <el-icon><Refresh /></el-icon>
-              </el-button>
-            </el-tooltip>
-          </div>
-        </template>
-      </el-table-column>
+      <!-- Chuyển trạng thái -->
+      <el-tooltip content="Chuyển trạng thái" placement="top">
+        <el-button
+          :icon="Refresh"
+          type="success"
+          size="small"
+          @click="changeStatus(row)"
+        />
+      </el-tooltip>
+    </el-button-group>
+  </template>
+</el-table-column>
+
 
       <template #empty>
         <p class="text-center text-muted m-4">Không có đợt giảm giá nào để hiển thị.</p>
@@ -190,7 +198,7 @@ const router = useRouter()
 /* ------------ State ------------ */
 const campaigns = ref([])
 const page = ref(0)
-const size = ref(10)
+const size = ref(5)
 const totalPages = ref(0)
 const totalItems = ref(0)
 const loading = ref(true)

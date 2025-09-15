@@ -9,8 +9,12 @@
           </el-button>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item command="selected" :disabled="selectedRows.length === 0">Xuất các hóa đơn đã chọn</el-dropdown-item>
-              <el-dropdown-item command="currentPage" :disabled="invoices.length === 0">Xuất hóa đơn trang này</el-dropdown-item>
+              <el-dropdown-item command="selected" :disabled="selectedRows.length === 0"
+                >Xuất các hóa đơn đã chọn</el-dropdown-item
+              >
+              <el-dropdown-item command="currentPage" :disabled="invoices.length === 0"
+                >Xuất hóa đơn trang này</el-dropdown-item
+              >
               <el-dropdown-item command="all">Xuất tất cả hóa đơn</el-dropdown-item>
             </el-dropdown-menu>
           </template>
@@ -38,7 +42,9 @@
       </el-table-column>
 
       <el-table-column prop="customerName" label="Khách hàng" min-width="160">
-        <template #default="scope">{{ getField(scope.row, 'customerName') || 'Khách lẻ' }}</template>
+        <template #default="scope">{{
+          getField(scope.row, 'customerName') || 'Khách lẻ'
+        }}</template>
       </el-table-column>
 
       <el-table-column prop="phone" label="Số điện thoại" align="center" width="180">
@@ -46,7 +52,9 @@
       </el-table-column>
 
       <el-table-column prop="finalAmount" label="Thành tiền" align="right" width="150">
-        <template #default="scope">{{ formatCurrency(getField(scope.row, 'finalAmount')) }}</template>
+        <template #default="scope">{{
+          formatCurrency(getField(scope.row, 'finalAmount'))
+        }}</template>
       </el-table-column>
 
       <el-table-column prop="orderType" label="Loại đơn hàng" align="center" width="140">
@@ -60,10 +68,22 @@
       <el-table-column prop="status" label="Trạng thái" align="center" width="180">
         <template #default="scope">
           <el-tag
-            :type="statusClass(getField(scope.row, 'status'), getField(scope.row, 'statusDetail'), getField(scope.row, 'orderType'))"
+            :type="
+              statusClass(
+                getField(scope.row, 'status'),
+                getField(scope.row, 'statusDetail'),
+                getField(scope.row, 'orderType'),
+              )
+            "
             disable-transitions
           >
-            {{ statusText(getField(scope.row, 'status'), getField(scope.row, 'statusDetail'), getField(scope.row, 'orderType')) }}
+            {{
+              statusText(
+                getField(scope.row, 'status'),
+                getField(scope.row, 'statusDetail'),
+                getField(scope.row, 'orderType'),
+              )
+            }}
           </el-tag>
         </template>
       </el-table-column>
@@ -73,19 +93,30 @@
       </el-table-column>
 
       <el-table-column label="Thao tác" width="120" align="center" fixed="right">
-  <template #default="scope">
-    <el-button-group>
-      <el-button :icon="View" type="primary" size="small"
-                 @click="viewInvoiceDetails(getField(scope.row, 'id'))" title="Xem chi tiết" />
-      <!-- Sửa ở đây: truyền scope.row -->
-      <el-button :icon="Printer" type="success" size="small"
-                 @click="printInvoice(scope.row)" title="In hóa đơn" />
-    </el-button-group>
-  </template>
-</el-table-column>
+        <template #default="scope">
+          <el-button-group>
+            <el-button
+              :icon="View"
+              type="primary"
+              size="small"
+              @click="viewInvoiceDetails(getField(scope.row, 'id'))"
+              title="Xem chi tiết"
+            />
+            <!-- Sửa ở đây: truyền scope.row -->
+            <el-button
+              :icon="Printer"
+              type="success"
+              size="small"
+              @click="printInvoice(scope.row)"
+              title="In hóa đơn"
+            />
+          </el-button-group>
+        </template>
+      </el-table-column>
 
-
-      <template #empty><p class="text-center text-muted m-4">Không có hóa đơn nào để hiển thị.</p></template>
+      <template #empty
+        ><p class="text-center text-muted m-4">Không có hóa đơn nào để hiển thị.</p></template
+      >
     </el-table>
 
     <el-pagination
@@ -105,19 +136,29 @@
     <el-dialog v-model="dialogVisible" title="Chi tiết hóa đơn" width="60%" destroy-on-close>
       <template #header="{ titleId, titleClass }">
         <div class="my-header">
-          <h4 :id="titleId" :class="titleClass">Chi tiết hóa đơn #{{ selectedInvoice?.invoiceCode || selectedInvoice?.id }}</h4>
+          <h4 :id="titleId" :class="titleClass">
+            Chi tiết hóa đơn #{{ selectedInvoice?.invoiceCode || selectedInvoice?.id }}
+          </h4>
         </div>
       </template>
 
       <div v-if="selectedInvoice">
         <el-row :gutter="20" class="mb-2">
-          <el-col :span="12"><strong>Khách hàng:</strong> {{ selectedInvoice.customerName || 'Khách lẻ' }}</el-col>
-          <el-col :span="12"><strong>Nhân viên:</strong> {{ selectedInvoice.employeeName || '---' }}</el-col>
+          <el-col :span="12"
+            ><strong>Khách hàng:</strong> {{ selectedInvoice.customerName || 'Khách lẻ' }}</el-col
+          >
+          <el-col :span="12"
+            ><strong>Nhân viên:</strong> {{ selectedInvoice.employeeName || '---' }}</el-col
+          >
         </el-row>
 
         <el-row :gutter="20" class="mb-3">
-          <el-col :span="12"><strong>Ngày tạo:</strong> {{ formatDate(selectedInvoice.createdDate) }}</el-col>
-          <el-col :span="12"><strong>Ghi chú:</strong> {{ selectedInvoice.description || '---' }}</el-col>
+          <el-col :span="12"
+            ><strong>Ngày tạo:</strong> {{ formatDate(selectedInvoice.createdDate) }}</el-col
+          >
+          <el-col :span="12"
+            ><strong>Ghi chú:</strong> {{ selectedInvoice.description || '---' }}</el-col
+          >
         </el-row>
 
         <el-table :data="invoiceDetails" border size="small">
@@ -125,7 +166,9 @@
           <el-table-column property="quantity" label="Số lượng" align="right" width="120" />
           <el-table-column label="Giá bán" align="right" width="180">
             <template #default="scope">
-              <template v-if="scope.row.discountedPrice !== null && scope.row.discountedPrice !== undefined">
+              <template
+                v-if="scope.row.discountedPrice !== null && scope.row.discountedPrice !== undefined"
+              >
                 <del class="text-gray-500 me-1">{{ formatCurrency(scope.row.sellPrice) }}</del>
                 <span class="text-danger">{{ formatCurrency(scope.row.discountedPrice) }}</span>
               </template>
@@ -134,7 +177,11 @@
           </el-table-column>
           <el-table-column label="Thành tiền" align="right" width="180">
             <template #default="scope">
-              {{ formatCurrency((scope.row.discountedPrice ?? scope.row.sellPrice) * (scope.row.quantity ?? 0)) }}
+              {{
+                formatCurrency(
+                  (scope.row.discountedPrice ?? scope.row.sellPrice) * (scope.row.quantity ?? 0),
+                )
+              }}
             </template>
           </el-table-column>
         </el-table>
@@ -142,7 +189,9 @@
         <div class="mt-4 text-end">
           <p><strong>Tổng tiền:</strong> {{ formatCurrency(selectedInvoice.totalAmount) }}</p>
           <p><strong>Giảm giá:</strong> {{ formatCurrency(selectedInvoice.discountAmount) }}</p>
-          <h4 class="mt-2"><strong>Thành tiền:</strong> {{ formatCurrency(selectedInvoice.finalAmount) }}</h4>
+          <h4 class="mt-2">
+            <strong>Thành tiền:</strong> {{ formatCurrency(selectedInvoice.finalAmount) }}
+          </h4>
         </div>
       </div>
 
@@ -178,38 +227,49 @@ const dialogVisible = ref(false)
 // điều kiện hiện tại
 let currentKeyword = ''
 let currentCounterStatusKey = null // tại quầy
-let currentOnlineStatusKey  = null // online
+let currentOnlineStatusKey = null // online
 let currentCreatedDate = null
 
-const handleRowSelection = (selection) => { selectedRows.value = selection }
+const handleRowSelection = (selection) => {
+  selectedRows.value = selection
+}
 const getField = (inv, field) => inv?.[field] ?? inv?.invoice?.[field]
 const tableIndex = (index) => page.value * size.value + index + 1
 
-const formatCurrency = (val) => val == null ? '---' : new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val)
+const formatCurrency = (val) =>
+  val == null
+    ? '---'
+    : new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val)
 const formatDate = (val) => {
   if (!val) return '---'
   const d = new Date(val)
-  return isNaN(d.getTime()) ? '---' : d.toLocaleDateString('vi-VN') + ' ' + d.toLocaleTimeString('vi-VN')
+  return isNaN(d.getTime())
+    ? '---'
+    : d.toLocaleDateString('vi-VN') + ' ' + d.toLocaleTimeString('vi-VN')
 }
 const normalizeDateParam = (val) => {
   if (val == null) return undefined
   const s = String(val).trim()
   if (!s || s === 'null' || s === 'undefined') return undefined
   if (val instanceof Date && !isNaN(val.getTime())) {
-    const y = val.getFullYear(), m = String(val.getMonth() + 1).padStart(2, '0'), d = String(val.getDate()).padStart(2, '0')
+    const y = val.getFullYear(),
+      m = String(val.getMonth() + 1).padStart(2, '0'),
+      d = String(val.getDate()).padStart(2, '0')
     return `${y}-${m}-${d}`
   }
   const m = s.match(/^(\d{4}-\d{2}-\d{2})/)
-  return m ? m[1] : (/^\d{4}-\d{2}-\d{2}$/.test(s) ? s : undefined)
+  return m ? m[1] : /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : undefined
 }
 
 const buildParams = () => {
   const params = { page: Number(page.value) ?? 0, size: Number(size.value) ?? 10 }
   if (isSearching.value) {
-    const kw = (currentKeyword ?? '').trim(); if (kw) params.keyword = kw
+    const kw = (currentKeyword ?? '').trim()
+    if (kw) params.keyword = kw
     if (currentCounterStatusKey) params.counterStatusKey = currentCounterStatusKey
-    if (currentOnlineStatusKey)  params.onlineStatusKey  = currentOnlineStatusKey
-    const cd = normalizeDateParam(currentCreatedDate); if (cd) params.createdDate = cd
+    if (currentOnlineStatusKey) params.onlineStatusKey = currentOnlineStatusKey
+    const cd = normalizeDateParam(currentCreatedDate)
+    if (cd) params.createdDate = cd
   }
   return params
 }
@@ -221,7 +281,7 @@ const fetchOrSearch = async () => {
   try {
     const res = await apiClient.get(endpoint, { params })
     const items = res?.data?.content ?? []
-    invoices.value = items.map(it => it?.invoice ?? it)
+    invoices.value = items.map((it) => it?.invoice ?? it)
     const meta = res?.data?.page ?? res?.data ?? {}
     totalPages.value = meta?.totalPages ?? 0
     totalItems.value = meta?.totalElements ?? 0
@@ -268,7 +328,7 @@ const printInvoice = (row) => {
   ElMessageBox.confirm('Bạn có chắc muốn in hóa đơn?', 'Xác nhận', {
     confirmButtonText: 'Có, In ngay!',
     cancelButtonText: 'Hủy',
-    type: 'warning'
+    type: 'warning',
   })
     .then(() => {
       const path =
@@ -298,7 +358,6 @@ const printInvoice = (row) => {
     })
 }
 
-
 const handleExportCommand = (command) => {
   const url = '/admin/invoices/export-excel'
   const params = {}
@@ -306,29 +365,45 @@ const handleExportCommand = (command) => {
 
   switch (command) {
     case 'selected': {
-      if (!selectedRows.value.length) return ElMessage.warning('Vui lòng chọn ít nhất một hóa đơn để xuất.')
-      const ids = selectedRows.value.map(r => getField(r, 'id')).filter(Boolean)
+      if (!selectedRows.value.length)
+        return ElMessage.warning('Vui lòng chọn ít nhất một hóa đơn để xuất.')
+      const ids = selectedRows.value.map((r) => getField(r, 'id')).filter(Boolean)
       if (!ids.length) return ElMessage.warning('Dòng đã chọn không hợp lệ.')
-      params.invoiceIds = ids.join(','); ElMessage.info(`Đang xuất ${ids.length} hóa đơn đã chọn...`); break
+      params.invoiceIds = ids.join(',')
+      ElMessage.info(`Đang xuất ${ids.length} hóa đơn đã chọn...`)
+      break
     }
     case 'currentPage': {
-      if (!invoices.value.length) return ElMessage.warning('Không có hóa đơn nào ở trang hiện tại để xuất.')
-      const ids = invoices.value.map(r => getField(r, 'id')).filter(Boolean)
-      params.invoiceIds = ids.join(','); ElMessage.info('Đang xuất các hóa đơn trên trang hiện tại...'); break
+      if (!invoices.value.length)
+        return ElMessage.warning('Không có hóa đơn nào ở trang hiện tại để xuất.')
+      const ids = invoices.value.map((r) => getField(r, 'id')).filter(Boolean)
+      params.invoiceIds = ids.join(',')
+      ElMessage.info('Đang xuất các hóa đơn trên trang hiện tại...')
+      break
     }
     case 'all': {
       exportFileName = `tat_ca_hoa_don_${new Date().toLocaleDateString('vi-VN').replace(/\//g, '-')}.xlsx`
-      ElMessage.info('Đang xuất tất cả hóa đơn...'); break
+      ElMessage.info('Đang xuất tất cả hóa đơn...')
+      break
     }
-    default: return ElMessage.error('Hành động xuất không hợp lệ.')
+    default:
+      return ElMessage.error('Hành động xuất không hợp lệ.')
   }
 
-  apiClient.get(url, { params, responseType: 'blob' })
+  apiClient
+    .get(url, { params, responseType: 'blob' })
     .then((response) => {
-      const file = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+      const file = new Blob([response.data], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      })
       const fileURL = URL.createObjectURL(file)
-      const link = document.createElement('a'); link.href = fileURL; link.download = exportFileName
-      document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(fileURL)
+      const link = document.createElement('a')
+      link.href = fileURL
+      link.download = exportFileName
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(fileURL)
       ElMessage.success('Xuất Excel thành công!')
     })
     .catch((error) => {
@@ -337,17 +412,29 @@ const handleExportCommand = (command) => {
     })
 }
 
-const handlePageChange = (newPage) => { page.value = newPage - 1; fetchOrSearch() }
-const handleSizeChange = (newSize) => { size.value = newSize; page.value = 0; fetchOrSearch() }
+const handlePageChange = (newPage) => {
+  page.value = newPage - 1
+  fetchOrSearch()
+}
+const handleSizeChange = (newSize) => {
+  size.value = newSize
+  page.value = 0
+  fetchOrSearch()
+}
 
 // nhận từ component con: keyword, counterStatusKey (quầy), onlineStatusKey (online), createdDate
 const onSearch = ({ keyword, counterStatusKey, onlineStatusKey, createdDate }) => {
   page.value = 0
   currentKeyword = (keyword ?? '').trim()
   currentCounterStatusKey = counterStatusKey || null
-  currentOnlineStatusKey  = onlineStatusKey  || null
+  currentOnlineStatusKey = onlineStatusKey || null
   currentCreatedDate = normalizeDateParam(createdDate) || null
-  isSearching.value = !!(currentKeyword || currentCounterStatusKey || currentOnlineStatusKey || currentCreatedDate)
+  isSearching.value = !!(
+    currentKeyword ||
+    currentCounterStatusKey ||
+    currentOnlineStatusKey ||
+    currentCreatedDate
+  )
   fetchOrSearch()
 }
 
@@ -365,29 +452,49 @@ const onClear = () => {
 const statusText = (status, statusDetail, orderType) => {
   if (orderType === 0) {
     switch (status) {
-      case 'DANG_XU_LY': return 'Chờ xử lý'
-      case 'THANH_CONG': return 'Thành công'
-      case 'DA_HUY':     return 'Đã hủy'
-      case 'HUY_GIAO_DICH': return 'Hủy giao dịch'
-      case 'TRA_HANG':      return 'Trả hàng'
-      case 'KHIEU_NAI':     return 'Khiếu nại'
-      default:           return 'Không xác định'
+      case 'DANG_XU_LY':
+        return 'Chờ xử lý'
+      case 'THANH_CONG':
+        return 'Thành công'
+      case 'DA_HUY':
+        return 'Đã hủy'
+      case 'HUY_GIAO_DICH':
+        return 'Hủy giao dịch'
+      case 'TRA_HANG':
+        return 'Trả hàng'
+      case 'KHIEU_NAI':
+        return 'Khiếu nại'
+      default:
+        return 'Không xác định'
     }
   } else if (orderType === 1) {
     switch (statusDetail) {
-      case 'CHO_XU_LY':       return 'Chờ xử lý'
-      case 'DA_XU_LY':        return 'Đã xử lý'
-      case 'CHO_GIAO_HANG':   return 'Chờ giao hàng'
-      case 'DANG_GIAO_HANG':  return 'Đang giao hàng'
-      case 'GIAO_THANH_CONG': return 'Giao hàng thành công'
-      case 'GIAO_THAT_BAI':   return 'Giao hàng thất bại'
-      case 'HUY_DON':         return 'Hủy đơn'
-      case 'HUY_GIAO_DICH':   return 'Hủy giao dịch'
-      case 'DANG_GIAO_DICH':  return 'Đang giao dịch'
-      case 'MAT_HANG':        return 'Mất hàng'
-      case 'DA_HOAN_TIEN':    return 'Đã hoàn tiền'
-      case 'DA_HOAN_THANH':   return 'Đã hoàn thành'
-      default:                return 'Không xác định'
+      case 'CHO_XU_LY':
+        return 'Chờ xử lý'
+      case 'DA_XU_LY':
+        return 'Đã xử lý'
+      case 'CHO_GIAO_HANG':
+        return 'Chờ giao hàng'
+      case 'DANG_GIAO_HANG':
+        return 'Đang giao hàng'
+      case 'GIAO_THANH_CONG':
+        return 'Giao hàng thành công'
+      case 'GIAO_THAT_BAI':
+        return 'Giao hàng thất bại'
+      case 'HUY_DON':
+        return 'Hủy đơn'
+      case 'HUY_GIAO_DICH':
+        return 'Hủy giao dịch'
+      case 'DANG_GIAO_DICH':
+        return 'Đang giao dịch'
+      case 'MAT_HANG':
+        return 'Mất hàng'
+      case 'DA_HOAN_TIEN':
+        return 'Đã hoàn tiền'
+      case 'DA_HOAN_THANH':
+        return 'Đã hoàn thành'
+      default:
+        return 'Không xác định'
     }
   }
   return 'Không xác định'
@@ -396,29 +503,49 @@ const statusText = (status, statusDetail, orderType) => {
 const statusClass = (status, statusDetail, orderType) => {
   if (orderType === 0) {
     switch (status) {
-      case 'DANG_XU_LY': return 'warning'
-      case 'THANH_CONG': return 'success'
-      case 'DA_HUY':     return 'danger'
-      case 'HUY_GIAO_DICH': return 'danger'
-      case 'TRA_HANG':      return 'info'
-      case 'KHIEU_NAI':     return 'info'
-      default:           return 'info'
+      case 'DANG_XU_LY':
+        return 'warning'
+      case 'THANH_CONG':
+        return 'success'
+      case 'DA_HUY':
+        return 'danger'
+      case 'HUY_GIAO_DICH':
+        return 'danger'
+      case 'TRA_HANG':
+        return 'info'
+      case 'KHIEU_NAI':
+        return 'info'
+      default:
+        return 'info'
     }
   } else if (orderType === 1) {
     switch (statusDetail) {
-      case 'CHO_XU_LY':       return 'warning'
-      case 'DA_XU_LY':        return 'info'
-      case 'CHO_GIAO_HANG':   return 'info'
-      case 'DANG_GIAO_HANG':  return 'info'
-      case 'GIAO_THANH_CONG': return 'success'
-      case 'GIAO_THAT_BAI':   return 'danger'
-      case 'HUY_DON':         return 'danger'
-      case 'HUY_GIAO_DICH':   return 'danger'
-      case 'DANG_GIAO_DICH':  return 'info'
-      case 'MAT_HANG':        return 'danger'
-      case 'DA_HOAN_TIEN':    return 'info'
-      case 'DA_HOAN_THANH':   return 'success'
-      default:                return 'info'
+      case 'CHO_XU_LY':
+        return 'warning'
+      case 'DA_XU_LY':
+        return 'info'
+      case 'CHO_GIAO_HANG':
+        return 'info'
+      case 'DANG_GIAO_HANG':
+        return 'info'
+      case 'GIAO_THANH_CONG':
+        return 'success'
+      case 'GIAO_THAT_BAI':
+        return 'danger'
+      case 'HUY_DON':
+        return 'danger'
+      case 'HUY_GIAO_DICH':
+        return 'danger'
+      case 'DANG_GIAO_DICH':
+        return 'info'
+      case 'MAT_HANG':
+        return 'danger'
+      case 'DA_HOAN_TIEN':
+        return 'info'
+      case 'DA_HOAN_THANH':
+        return 'success'
+      default:
+        return 'info'
     }
   }
   return 'info'
@@ -428,11 +555,27 @@ onMounted(fetchOrSearch)
 </script>
 
 <style scoped>
-.mb-4 { margin-bottom: 20px; }
-.mt-4 { margin-top: 20px; }
-.p-4  { padding: 20px; }
-.text-end { text-align: right; }
-.justify-content-end { justify-content: flex-end; }
-.my-header { display: flex; flex-direction: row; justify-content: space-between; }
-.el-icon--right { margin-left: 8px; }
+.mb-4 {
+  margin-bottom: 20px;
+}
+.mt-4 {
+  margin-top: 20px;
+}
+.p-4 {
+  padding: 20px;
+}
+.text-end {
+  text-align: right;
+}
+.justify-content-end {
+  justify-content: flex-end;
+}
+.my-header {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+}
+.el-icon--right {
+  margin-left: 8px;
+}
 </style>

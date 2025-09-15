@@ -13,13 +13,13 @@
         <el-table-column prop="email" label="Email" />
         <el-table-column prop="phone" label="SĐT" width="140" />
 
-        <el-table-column label="Điểm tin cậy" width="130">
+        <!-- <el-table-column label="Điểm tin cậy" width="130">
           <template #default="{ row }">
             <el-tag :type="getTrustColor(row.trustScore)">
               {{ row.trustScore }}
             </el-tag>
           </template>
-        </el-table-column>
+        </el-table-column> -->
 
         <el-table-column prop="blacklistReason" label="Lý do bị cấm" />
 

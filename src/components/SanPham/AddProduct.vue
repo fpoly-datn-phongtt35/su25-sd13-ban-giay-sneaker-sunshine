@@ -281,7 +281,7 @@
     <el-dialog v-model="isAddSizeDialog" title="Thêm kích thước" width="420px" @close="resetAddSize">
       <el-form>
         <el-form-item label="Tên kích thước">
-          <el-input v-model="newSizeName" placeholder="Ví dụ: 39, M, L..." />
+          <el-input v-model="newSizeName" placeholder="Ví dụ: 39,40,41" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -294,7 +294,7 @@
     <el-dialog v-model="isAddColorDialog" title="Thêm màu sắc" width="420px" @close="resetAddColor">
       <el-form>
         <el-form-item label="Tên màu">
-          <el-input v-model="newColorName" placeholder="Ví dụ: Đen, Trắng, Red..." />
+          <el-input v-model="newColorName" placeholder="Ví dụ: Đen, Trắng" />
         </el-form-item>
       </el-form>
       <template #footer>

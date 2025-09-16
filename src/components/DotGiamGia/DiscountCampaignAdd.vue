@@ -74,206 +74,201 @@
           <!-- ====== STEP 2 ====== -->
           <section v-show="activeStep === 1" class="step-content">
             <h3 class="step-title">2) Chọn sản phẩm & SPCT</h3>
-            <p class="step-description">
-              Tìm kiếm sản phẩm, chọn các SP cần áp dụng. SPCT sẽ hiển thị theo <b>SP đang xem</b>.
-            </p>
 
-            <!-- PRODUCTS -->
-            <el-card class="table-card" shadow="none">
-              <template #header>
-                <div class="table-card-header">
-                  <div class="title">Danh sách sản phẩm</div>
-                  <el-input
-                    v-model="productSearch"
-                    placeholder="Tìm theo tên hoặc mã sản phẩm..."
-                    :prefix-icon="Search"
-                    clearable
-                    @input="debouncedFetchProducts"
-                    style="max-width: 340px"
-                  />
-                </div>
-              </template>
-
-              <el-table
-                ref="productTableRef"
-                v-loading="loadingProducts"
-                :data="products"
-                border
-                stripe
-                height="320"
-                :row-key="(row) => row.id"
-                @row-click="onProductRowClick"
-                @selection-change="onProductSelectionChange"
-              >
-                <el-table-column
-                  type="selection"
-                  width="50"
-                  align="center"
-                  :reserve-selection="true"
-                />
-                <el-table-column type="index" label="#" width="60" align="center" />
-                <el-table-column label="Sản phẩm" min-width="280">
-                  <template #default="{ row }">
-                    <div class="product-cell">
-                      <div class="product-name">{{ row.productText }}</div>
-                      <div class="product-code">Mã: {{ row.productCode || '-' }}</div>
+            <el-row :gutter="20">
+              <!-- LEFT: PRODUCT LIST -->
+              <el-col :span="10">
+                <el-card class="table-card" shadow="none">
+                  <template #header>
+                    <div class="table-card-header">
+                      <div class="title">Danh sách sản phẩm</div>
+                      <el-input
+                        v-model="productSearch"
+                        placeholder="Tìm tên hoặc mã SP..."
+                        :prefix-icon="Search"
+                        clearable
+                        @input="debouncedFetchProducts"
+                        style="max-width: 260px;"
+                      />
                     </div>
                   </template>
-                </el-table-column>
-                <el-table-column
-                  prop="brandText"
-                  label="Thương hiệu"
-                  width="180"
-                  show-overflow-tooltip
-                />
-                <el-table-column prop="quantity" label="Tổng tồn" width="110" align="center" />
-              </el-table>
 
-              <el-pagination
-                v-if="totalItems > 0"
-                v-model:current-page="currentPage"
-                v-model:page-size="pageSize"
-                :total="totalItems"
-                :page-sizes="[10, 20, 50, 100]"
-                layout="total, sizes, prev, pager, next"
-                @current-change="fetchProducts"
-                @size-change="onSizeChangeProducts"
-                class="table-pagination"
-              />
-            </el-card>
+                  <el-table
+                    ref="productTableRef"
+                    v-loading="loadingProducts"
+                    :data="products"
+                    border
+                    stripe
+                    height="500"
+                    highlight-current-row
+                    :row-key="(row) => row.id"
+                    @row-click="onProductRowClick"
+                    @selection-change="onProductSelectionChange"
+                  >
+                    <el-table-column
+                      type="selection"
+                      width="50"
+                      align="center"
+                      :reserve-selection="true"
+                    />
+                    <!-- <el-table-column type="index" label="#" width="50" align="center" /> -->
+                    <el-table-column label="Sản phẩm" min-width="250">
+                      <template #default="{ row }">
+                        <div class="product-cell">
+                          <div class="product-name">{{ row.productText }}</div>
+                          <div class="product-code">Mã: {{ row.productCode || '-' }}</div>
+                        </div>
+                      </template>
+                    </el-table-column>
+                    <el-table-column prop="quantity" label="Tổng tồn" width="90" align="center" />
+                  </el-table>
 
-            <!-- DETAILS -->
-            <el-card class="table-card" shadow="none" style="margin-top: 16px">
-              <template #header>
-                <div class="table-card-header">
-                  <div class="title">
-                    Sản phẩm chi tiết (SPCT)
-                    <span class="muted-text">
-                      — đang xem:
-                      <el-tag v-if="activeProductId" size="small" type="info">
-                        {{ activeProductName || '#' + activeProductId }}
-                      </el-tag>
-                      <template v-else>chưa chọn</template>
-                    </span>
+                  <el-pagination
+                    v-if="totalItems > 0"
+                    v-model:current-page="currentPage"
+                    v-model:page-size="pageSize"
+                    :total="totalItems"
+                    :page-sizes="[10, 20, 50, 100]"
+                    layout="total, sizes, prev, pager, next"
+                    @current-change="fetchProducts"
+                    @size-change="onSizeChangeProducts"
+                    class="table-pagination"
+                  />
+                </el-card>
+              </el-col>
+
+              <!-- RIGHT: PRODUCT DETAILS -->
+              <el-col :span="14">
+                <el-card class="table-card" shadow="none">
+                  <template #header>
+                    <div class="table-card-header">
+                      <div class="title">
+                        Sản phẩm chi tiết
+                        <el-tag
+                          v-if="activeProductId && spctScope === 'single'"
+                          size="small"
+                          type="info"
+                          class="ml-2"
+                        >
+                          Đang xem: {{ activeProductName || '#' + activeProductId }}
+                        </el-tag>
+                      </div>
+
+                      <!-- Chế độ hiển thị SPCT -->
+               
+                    </div>
+                  </template>
+
+                  <div v-if="currentProductIds.length === 0" class="empty-state">
+                    <el-empty description="Chọn sản phẩm ở bảng bên trái để xem SPCT" />
                   </div>
 
-                  <!-- BỘ LỌC SPCT: theo API /api/admin/products/{productId}/details -->
-                  <div class="spct-filters">
-                    <el-select
-                      v-model="selectedColorId"
-                      clearable
-                      filterable
-                      placeholder="Lọc theo màu sắc"
-                      style="min-width: 220px"
-                      @change="onSpctFilterChanged"
-                    >
-                      <el-option v-for="c in allColors" :key="c.id" :label="c.name" :value="c.id" />
-                    </el-select>
-
-                    <el-select
-                      v-model="selectedBrandId"
-                      clearable
-                      filterable
-                      placeholder="Lọc theo thương hiệu"
-                      style="min-width: 220px"
-                      @change="onSpctFilterChanged"
-                    >
-                      <el-option v-for="b in allBrands" :key="b.id" :label="b.name" :value="b.id" />
-                    </el-select>
-
-                    <el-button text @click="clearSpctFilters">Xóa lọc</el-button>
-                  </div>
-                </div>
-              </template>
-
-              <el-alert
-                v-if="!activeProductId"
-                type="info"
-                :closable="false"
-                show-icon
-                class="mb-2"
-                title="Hãy chọn 1 sản phẩm (click vào hàng) để xem SPCT theo API /api/admin/products/{productId}/details."
-              />
-
-              <div v-else>
-                <el-table
-                  ref="spctTableRef"
-                  v-loading="loadingDetails"
-                  :data="details"
-                  border
-                  stripe
-                  height="420"
-                  :row-key="(r) => r.id"
-                  @selection-change="onDetailSelectionChange"
-                >
-                  <el-table-column
-                    type="selection"
-                    width="50"
-                    align="center"
-                    :reserve-selection="true"
-                    :selectable="(r) => Number(r.quantity) > 0"
-                  />
-                  <el-table-column type="index" width="60" align="center" label="#" />
-                  <el-table-column
-                    prop="productDetailCode"
-                    label="Mã SPCT"
-                    width="160"
-                    show-overflow-tooltip
-                  />
-                  <el-table-column
-                    prop="productText"
-                    label="Sản phẩm"
-                    min-width="220"
-                    show-overflow-tooltip
-                  />
-                  <el-table-column
-                    prop="brandText"
-                    label="Thương hiệu"
-                    width="180"
-                    show-overflow-tooltip
-                  />
-                  <el-table-column label="Thuộc tính" width="200">
-                    <template #default="{ row }">
-                      <el-tag size="small" effect="plain" class="attribute-tag"
-                        >Màu: {{ row.colorText }}</el-tag
+                  <div v-else>
+                    <div class="spct-filters">
+                      <el-select
+                        v-model="selectedColorId"
+                        clearable
+                        filterable
+                        placeholder="Lọc theo màu sắc"
+                        @change="onSpctFilterChanged"
+                        style="min-width: 180px"
                       >
-                      <el-tag size="small" effect="plain" class="attribute-tag"
-                        >Size: {{ row.sizeText }}</el-tag
+                        <el-option
+                          v-for="c in allColors"
+                          :key="c.id"
+                          :label="c.name"
+                          :value="c.id"
+                        />
+                      </el-select>
+
+                      <el-select
+                        v-model="selectedBrandId"
+                        clearable
+                        filterable
+                        placeholder="Lọc theo thương hiệu"
+                        @change="onSpctFilterChanged"
+                        style="min-width: 200px"
                       >
-                    </template>
-                  </el-table-column>
-                  <el-table-column label="Giá bán" width="140" align="right">
-                    <template #default="{ row }">{{ formatCurrency(row.sellPrice) }}</template>
-                  </el-table-column>
-                  <el-table-column prop="quantity" label="Tồn" width="90" align="center" />
-                  <el-table-column label="% riêng" width="160" header-align="center">
-                    <template #default="{ row }">
-                      <el-input-number
-                        v-model="spctExtraPercent[row.id]"
-                        :min="1"
-                        :max="99"
-                        :step="1"
-                        placeholder="Mặc định"
-                        controls-position="right"
-                        style="width: 130px"
+                        <el-option
+                          v-for="b in allBrands"
+                          :key="b.id"
+                          :label="b.name"
+                          :value="b.id"
+                        />
+                      </el-select>
+
+                      <el-button text @click="clearSpctFilters" :icon="Delete">Xóa lọc</el-button>
+                    </div>
+
+                    <el-table
+                      ref="spctTableRef"
+                      v-loading="loadingDetails"
+                      :data="details"
+                      border
+                      stripe
+                      height="420"
+                      :row-key="(r) => r.id"
+                      @selection-change="onDetailSelectionChange"
+                      class="mt-4"
+                    >
+                      <el-table-column
+                        type="selection"
+                        width="50"
+                        align="center"
+                        :reserve-selection="true"
+                        :selectable="(r) => Number(r.quantity) > 0"
                       />
-                    </template>
-                  </el-table-column>
-                </el-table>
+                      <!-- <el-table-column type="index" width="50" align="center" label="#" /> -->
+                      <el-table-column
+                        prop="productName"
+                        label="Tên sản phẩm"
+                        width="150"
+                        show-overflow-tooltip
+                      />
+                      <el-table-column label="Thuộc tính" width="170">
+                        <template #default="{ row }">
+                          <el-tag size="small" effect="plain" class="attribute-tag">
+                            Màu: {{ row.colorText }}
+                          </el-tag>
+                          <el-tag size="small" effect="plain" class="attribute-tag">
+                            Size: {{ row.sizeText }}
+                          </el-tag>
+                        </template>
+                      </el-table-column>
+                      <el-table-column label="Giá bán" width="120" align="right">
+                        <template #default="{ row }">{{ formatCurrency(row.sellPrice) }}</template>
+                      </el-table-column>
+                      <el-table-column prop="quantity" label="Tồn" width="80" align="center" />
+                      <el-table-column label="% riêng" width="140" header-align="center">
+                        <template #default="{ row }">
+                          <el-input-number
+                            v-model="spctExtraPercent[row.id]"
+                            :min="1"
+                            :max="99"
+                            :step="1"
+                            placeholder="Mặc định"
+                            controls-position="right"
+                            style="width: 100%"
+                          />
+                        </template>
+                      </el-table-column>
+                    </el-table>
 
-                <el-pagination
-                  v-if="detailsTotal > 0"
-                  v-model:current-page="detailsPage"
-                  v-model:page-size="detailsSize"
-                  :total="detailsTotal"
-                  :page-sizes="[10, 20, 50, 100]"
-                  layout="total, sizes, prev, pager, next"
-                  @current-change="fetchDetails"
-                  @size-change="onSizeChangeDetails"
-                  class="table-pagination"
-                />
-              </div>
-            </el-card>
+                    <el-pagination
+                      v-if="detailsTotal > 0"
+                      v-model:current-page="detailsPage"
+                      v-model:page-size="detailsSize"
+                      :total="detailsTotal"
+                      :page-sizes="[10, 20, 50, 100]"
+                      layout="total, sizes, prev, pager, next"
+                      @current-change="fetchDetails"
+                      @size-change="onSizeChangeDetails"
+                      class="table-pagination"
+                    />
+                  </div>
+                </el-card>
+              </el-col>
+            </el-row>
           </section>
 
           <!-- ====== STEP 3 ====== -->
@@ -325,15 +320,15 @@
               <el-descriptions-item label="Giảm mặc định">
                 <el-tag type="danger">{{ form.discountPercentage }}%</el-tag>
               </el-descriptions-item>
-              <el-descriptions-item label="Mô tả">{{
-                form.description || 'Không có'
-              }}</el-descriptions-item>
-              <el-descriptions-item label="Bắt đầu" :span="1">{{
-                form.startDate
-              }}</el-descriptions-item>
-              <el-descriptions-item label="Kết thúc" :span="1">{{
-                form.endDate
-              }}</el-descriptions-item>
+              <el-descriptions-item label="Mô tả">
+                {{ form.description || 'Không có' }}
+              </el-descriptions-item>
+              <el-descriptions-item label="Bắt đầu" :span="1">
+                {{ form.startDate }}
+              </el-descriptions-item>
+              <el-descriptions-item label="Kết thúc" :span="1">
+                {{ form.endDate }}
+              </el-descriptions-item>
             </el-descriptions>
 
             <el-divider />
@@ -368,17 +363,18 @@
           </div>
 
           <div>
-            <el-button v-if="activeStep < 2" type="primary" @click="nextStep" size="large"
-              >Tiếp theo</el-button
-            >
+            <el-button v-if="activeStep < 2" type="primary" @click="nextStep" size="large">
+              Tiếp theo
+            </el-button>
             <el-button
               v-if="activeStep === 2"
               type="success"
               :icon="CircleCheck"
               @click="createCampaign"
               size="large"
-              >Xác nhận & Tạo</el-button
             >
+              Xác nhận & Tạo
+            </el-button>
           </div>
         </div>
       </el-card>
@@ -387,10 +383,10 @@
 </template>
 
 <script setup>
-import { reactive, ref, computed, onMounted, nextTick } from 'vue'
+import { reactive, ref, computed, onMounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Edit, Goods, CircleCheck, Search } from '@element-plus/icons-vue'
+import { Edit, Goods, CircleCheck, Search, Delete } from '@element-plus/icons-vue'
 import apiClient from '@/utils/axiosInstance'
 import { debounce } from 'lodash-es'
 
@@ -456,6 +452,7 @@ const dateRangeStep3 = computed({
 const dateError = ref('')
 
 /* ====== Helpers ====== */
+const goBack = () => router.back()
 const fallbackId = (id) => (id !== undefined && id !== null ? `#${id}` : '')
 const textOf = (obj, keys) => {
   for (const k of keys) {
@@ -501,20 +498,20 @@ const normalizeDetail = (row) => {
     fallbackId(row.sizeId)
   return { ...row, productText, brandText, colorText, sizeText }
 }
+const totalFrom = (data, contentLength) =>
+  data?.page?.totalElements ?? data?.totalElements ?? contentLength ?? 0
+const formatCurrency = (v) =>
+  v === null || v === undefined ? '' : Number(v).toLocaleString('vi-VN')
 
 /* ====== Products (SP) ====== */
-const goBack = () => router.back()
 const productTableRef = ref()
 const products = ref([])
 const loadingProducts = ref(false)
 const currentPage = ref(1)
 const pageSize = ref(10)
 const totalItems = ref(0)
-const selectedProductIds = ref([]) // vẫn cho chọn nhiều để tạo campaign
+const selectedProductIds = ref([]) // cho phép chọn nhiều
 const productSearch = ref('')
-
-const totalFrom = (data, contentLength) =>
-  data?.page?.totalElements ?? data?.totalElements ?? contentLength ?? 0
 
 const fetchProducts = async () => {
   loadingProducts.value = true
@@ -522,9 +519,10 @@ const fetchProducts = async () => {
     const params = {
       page: currentPage.value - 1,
       size: pageSize.value,
-      keyword: productSearch.value || undefined,
+      keyword: productSearch.value?.trim() || undefined,
     }
-    const { data } = await apiClient.get('/admin/products', { params })
+    // Endpoint theo hệ thống của bạn
+    const { data } = await apiClient.get('/admin/products/search/tanh', { params })
     const content = data?.content || []
     products.value = content.map(normalizeProduct)
     totalItems.value = totalFrom(data, content.length)
@@ -532,8 +530,9 @@ const fetchProducts = async () => {
     await nextTick()
     productTableRef.value?.clearSelection?.()
     products.value.forEach((row) => {
-      if (selectedProductIds.value.includes(row.id))
+      if (selectedProductIds.value.includes(row.id)) {
         productTableRef.value?.toggleRowSelection?.(row, true)
+      }
     })
   } catch (e) {
     console.error(e)
@@ -544,7 +543,6 @@ const fetchProducts = async () => {
     loadingProducts.value = false
   }
 }
-
 const debouncedFetchProducts = debounce(() => {
   currentPage.value = 1
   fetchProducts()
@@ -554,41 +552,41 @@ const onSizeChangeProducts = () => {
   fetchProducts()
 }
 
-const activeProductId = ref(null) // SP đang xem SPCT
+const activeProductId = ref(null)
 const activeProductName = ref('')
-
 const setActiveProduct = (row) => {
   activeProductId.value = row?.id || null
   activeProductName.value = row?.productText || ''
   detailsPage.value = 1
   fetchDetails()
 }
-
 const onProductRowClick = (row) => {
-  // toggle chọn để phục vụ campaign + set active để xem SPCT
   productTableRef.value?.toggleRowSelection?.(row)
   setActiveProduct(row)
 }
-
 const onProductSelectionChange = (rows) => {
   selectedProductIds.value = rows.map((r) => r.id)
-  // nếu chưa có active hoặc active không còn trong list thì set active = phần tử đầu tiên
-  if (!activeProductId.value || !selectedProductIds.value.includes(activeProductId.value)) {
-    const first = rows[0]
-    if (first) setActiveProduct(first)
-    else {
-      activeProductId.value = null
-      activeProductName.value = ''
-      details.value = []
-      detailsTotal.value = 0
+  // Nếu đang xem single mà SP active không còn trong list → set active mới
+  if (spctScope.value === 'single') {
+    if (!activeProductId.value || !selectedProductIds.value.includes(activeProductId.value)) {
+      const first = rows[0]
+      if (first) setActiveProduct(first)
+      else {
+        activeProductId.value = null
+        activeProductName.value = ''
+        details.value = []
+        detailsTotal.value = 0
+      }
+    } else {
+      detailsPage.value = 1
+      fetchDetails()
     }
   } else {
-    // vẫn giữ active hiện tại -> refresh theo filter hiện hành
+    // all mode → reload theo danh sách mới
     detailsPage.value = 1
     fetchDetails()
   }
 }
-
 const totalSelectedProducts = computed(() => selectedProductIds.value.length)
 
 /* ====== Product Details (SPCT) ====== */
@@ -601,11 +599,10 @@ const detailsTotal = ref(0)
 const selectedDetailIds = ref([])
 const spctExtraPercent = reactive({})
 
-// dropdown đơn lẻ theo API
 const allColors = ref([])
 const allBrands = ref([])
-const selectedColorId = ref(null) // Long?
-const selectedBrandId = ref(null) // Long?
+const selectedColorId = ref(null)
+const selectedBrandId = ref(null)
 
 const fetchAllColorsBrands = async () => {
   try {
@@ -629,6 +626,13 @@ const fetchAllColorsBrands = async () => {
   }
 }
 
+/** CHẾ ĐỘ HIỂN THỊ SPCT */
+const spctScope = ref('single') // 'single' | 'all'
+const currentProductIds = computed(() => {
+  if (spctScope.value === 'all') return selectedProductIds.value.slice()
+  return activeProductId.value ? [activeProductId.value] : []
+})
+
 const clearSpctFilters = () => {
   selectedColorId.value = null
   selectedBrandId.value = null
@@ -640,28 +644,71 @@ const onSpctFilterChanged = () => {
   fetchDetails()
 }
 
+const fetchDetailsSingle = async (productId) => {
+  const params = {
+    page: detailsPage.value - 1,
+    size: detailsSize.value,
+    colorId: selectedColorId.value || undefined,
+    brandId: selectedBrandId.value || undefined,
+  }
+  const { data } = await apiClient.get(`/admin/products/${productId}/details`, { params })
+  const content = data?.content || []
+  details.value = content.map(normalizeDetail)
+  detailsTotal.value = totalFrom(data, content.length)
+}
+
+const fetchDetailsAll = async (productIds) => {
+  // ƯU TIÊN nếu có API gộp:
+  // const params = {
+  //   page: detailsPage.value - 1,
+  //   size: detailsSize.value,
+  //   productIds: productIds.join(','),
+  //   colorId: selectedColorId.value || undefined,
+  //   brandId: selectedBrandId.value || undefined,
+  // }
+  // const { data } = await apiClient.get('/admin/product-details/search', { params })
+  // const content = data?.content || []
+  // details.value = content.map(normalizeDetail)
+  // detailsTotal.value = totalFrom(data, content.length)
+
+  // Fallback: batch từng product rồi gộp client-side
+  const baseParams = {
+    page: 0,
+    size: 1000,
+    colorId: selectedColorId.value || undefined,
+    brandId: selectedBrandId.value || undefined,
+  }
+  const results = await Promise.all(
+    productIds.map((pid) =>
+      apiClient
+        .get(`/admin/products/${pid}/details`, { params: baseParams })
+        .then((res) => res.data?.content || [])
+        .catch(() => []),
+    ),
+  )
+  const merged = results.flat().map(normalizeDetail)
+  detailsTotal.value = merged.length
+
+  // Phân trang client-side
+  const start = (detailsPage.value - 1) * detailsSize.value
+  const end = start + detailsSize.value
+  details.value = merged.slice(start, end)
+}
+
 const fetchDetails = async () => {
-  if (!activeProductId.value) {
+  const productIds = currentProductIds.value
+  if (!productIds.length) {
     details.value = []
     detailsTotal.value = 0
     return
   }
   loadingDetails.value = true
   try {
-    const params = {
-      page: detailsPage.value - 1,
-      size: detailsSize.value,
-      colorId: selectedColorId.value || undefined,
-      brandId: selectedBrandId.value || undefined,
+    if (spctScope.value === 'single') {
+      await fetchDetailsSingle(productIds[0])
+    } else {
+      await fetchDetailsAll(productIds)
     }
-    // API chuẩn theo yêu cầu:
-    // GET /api/admin/products/{productId}/details?page=&size=&colorId=&brandId=
-    const { data } = await apiClient.get(`/admin/products/${activeProductId.value}/details`, {
-      params,
-    })
-    const content = data?.content || []
-    details.value = content.map(normalizeDetail)
-    detailsTotal.value = totalFrom(data, content.length)
 
     await nextTick()
     spctTableRef.value?.clearSelection?.()
@@ -763,15 +810,21 @@ const createCampaign = async () => {
   }
 }
 
-/* ====== Init ====== */
+/* ====== Watchers & Init ====== */
+watch(spctScope, () => {
+  detailsPage.value = 1
+  fetchDetails()
+})
+watch(selectedProductIds, (val) => {
+  // nếu đang single và user chọn >1 SP, tự chuyển sang all cho tiện
+  if (val.length > 1 && spctScope.value === 'single') {
+    spctScope.value = 'all'
+  }
+})
 onMounted(async () => {
   await fetchAllColorsBrands()
   await fetchProducts()
 })
-
-/* ====== Format ====== */
-const formatCurrency = (v) =>
-  v === null || v === undefined ? '' : Number(v).toLocaleString('vi-VN')
 </script>
 
 <style scoped>
@@ -850,12 +903,7 @@ const formatCurrency = (v) =>
   font-weight: 600;
   font-size: 16px;
 }
-.muted-text {
-  font-weight: 400;
-  font-size: 13px;
-  color: var(--el-text-color-secondary);
-  margin-left: 6px;
-}
+
 .product-cell {
   display: flex;
   flex-direction: column;
@@ -876,6 +924,14 @@ const formatCurrency = (v) =>
   padding: 10px 0 0;
   display: flex;
   justify-content: center;
+  margin-top: 16px;
+}
+
+.empty-state {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 500px;
 }
 
 /* SPCT filters */
@@ -885,6 +941,8 @@ const formatCurrency = (v) =>
   gap: 8px;
   flex-wrap: wrap;
 }
+.ml-2 { margin-left: 8px; }
+.mt-4 { margin-top: 16px; }
 
 /* Review */
 .review-descriptions {
@@ -914,9 +972,6 @@ const formatCurrency = (v) =>
   font-size: 13px;
   color: var(--el-text-color-secondary);
 }
-.mt-4 {
-  margin-top: 16px;
-}
 
 /* Footer */
 .footer-actions {
@@ -929,9 +984,5 @@ const formatCurrency = (v) =>
   position: sticky;
   bottom: 0;
   z-index: 10;
-}
-.summary-tags {
-  display: flex;
-  gap: 10px;
 }
 </style>

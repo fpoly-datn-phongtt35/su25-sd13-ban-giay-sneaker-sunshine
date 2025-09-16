@@ -93,7 +93,7 @@
               <el-table :data="pagedProducts" border stripe v-loading="loading">
                 <template #empty><el-empty description="Không có sản phẩm nào" /></template>
                 <el-table-column type="index" label="#" width="60" align="center" />
-                <el-table-column prop="productId" label="Id sản phẩm" width="120" />
+                <el-table-column prop="productCode" label="Mã sản phẩm" width="120" />
                 <el-table-column prop="productName" label="Tên sản phẩm" min-width="250" show-overflow-tooltip />
                 <!-- <el-table-column label="Hành động" width="120" align="center">
                   <template #default="{ row }">
@@ -118,9 +118,8 @@
               <el-table :data="pagedDetails" border stripe v-loading="loading">
                 <template #empty><el-empty description="Không có sản phẩm chi tiết nào" /></template>
                 <el-table-column type="index" label="#" width="60" align="center" />
-                <el-table-column prop="id" label="Id" width="110" />
                 <el-table-column prop="productName" label="Tên sản phẩm" min-width="220" show-overflow-tooltip />
-                <el-table-column prop="sku" label="Mã sản phẩm" min-width="140" show-overflow-tooltip />
+                <el-table-column prop="productCode" label="Mã sản phẩm" min-width="140" show-overflow-tooltip />
                 <el-table-column prop="colorName" label="Màu" width="110" />
                 <el-table-column prop="sizeName" label="Size" width="90" align="center" />
                 <el-table-column label="Giá bán" width="140" align="right">
@@ -131,12 +130,12 @@
                 <el-table-column label="Giảm (%)" width="100" align="center">
                   <template #default="{ row }">
                     <el-tag type="warning" effect="light">
-                      {{ row.discountPercentage ?? campaign.discountPercentage ?? 0 }}%
+                      {{ row.discountPercent ?? campaign.discountPercent ?? 0 }}%
                     </el-tag>
                   </template>
                 </el-table-column>
                 <el-table-column prop="quantity" label="Tồn kho" width="100" align="center">
-                   <template #default="{ row }">{{ row.quantity ?? 'N/A' }}</template>
+                   <template #default="{ row }">{{ row.stock ?? 'N/A' }}</template>
                 </el-table-column>
               </el-table>
 

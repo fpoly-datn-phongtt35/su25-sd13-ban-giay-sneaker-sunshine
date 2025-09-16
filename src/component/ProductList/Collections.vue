@@ -187,9 +187,9 @@
                   </div>
 
                   <!-- optional: show which variant has that min price -->
-                  <div class="price-note" v-if="p.minVariant">
-                    <small>({{ p.minVariant.sizeName || 'Kích thước khác' }} • {{ p.minVariant.colorName || 'Màu khác' }})</small>
-                  </div>
+<!--                  <div class="price-note" v-if="p.minVariant">-->
+<!--                    <small>({{ p.minVariant.sizeName || 'Kích thước khác' }} • {{ p.minVariant.colorName || 'Màu khác' }})</small>-->
+<!--                  </div>-->
 
                   <div class="product-card__colors" v-if="p.variants?.length">
                     <span
@@ -483,12 +483,11 @@ const sizeComparator = (a, b) => {
   return wa - wb || A.localeCompare(B)
 }
 
-/* ========== States ========== */
 const isLoading = ref(true)
 const error = ref(null)
 const products = ref([])
 const totalItems = ref(0)
-const isAdding = ref(false) // prevent double-click when adding/buying
+const isAdding = ref(false)
 
 const currentPage = computed({
   get: () => Math.max(1, Number(route.query.page ?? 1)),

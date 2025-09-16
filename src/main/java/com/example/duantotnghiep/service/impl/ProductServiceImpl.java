@@ -530,21 +530,17 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public Page<ProductDetailResponse> searchProductDetailsByDetailIds(
-            int page, int size, List<Long> detailIds, Long colorId, Long brandId) {
+    public Page<ProductDetailResponse> pageProductDetailsByProductId(
+            int page, int size, Long productId, Long colorId, Long brandId) {
 
         Pageable pageable = PageRequest.of(page, size);
 
-        // Tránh lỗi IN () : nếu list rỗng => trả về trang rỗng
-        if (detailIds != null && detailIds.isEmpty()) {
-            return Page.empty(pageable);
-        }
-
         Page<ProductDetail> pdPage =
-                productDetailRepository.pageByDetailIds(detailIds, colorId, brandId, pageable);
+                productDetailRepository.pageByProductId(productId, colorId, brandId, pageable);
 
         return pdPage.map(productDetailMapper::toResponse);
     }
+
 
     @Override
     public Page<ProductDetailResponse> pageProductDetails(int page, int size, List<Long> productIds) {
@@ -1067,6 +1063,13 @@ public class ProductServiceImpl implements ProductService {
             throw new RuntimeException("Ko tìm thấy spct với id: "+id);
         }
         return productDetailMapper.toResponses(details);
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public Page<ProductResponse> searchProducts(String keyword, Pageable pageable) {
+        Page<Product> page = productRepository.searchByKeyword(keyword, pageable);
+        return page.map(productMapper::toResponse);
     }
 
 }

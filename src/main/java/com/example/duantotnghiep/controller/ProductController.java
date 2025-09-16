@@ -34,6 +34,17 @@ import java.util.List;
 public class ProductController {
     private final ProductService productService;
 
+    @GetMapping("/search/tanh")
+    public ResponseEntity<Page<ProductResponse>> searchProducts(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String keyword) {
+
+        Pageable pageable = PageRequest.of(page, size);
+        Page<ProductResponse> result = productService.searchProducts(keyword, pageable);
+        return ResponseEntity.ok(result);
+    }
+
     @GetMapping()
     public ResponseEntity<Page<ProductResponse>> getProducts(
             @RequestParam(defaultValue = "0") int page,
@@ -66,17 +77,18 @@ public class ProductController {
     }
 
     @GetMapping("/{productId}/details")
-    public ResponseEntity<Page<ProductDetailResponse>> searchDetailsByDetailIds(
-            @RequestParam(name = "detailIds", required = false) List<Long> detailIds,
+    public ResponseEntity<Page<ProductDetailResponse>> pageDetailsOfProduct(
+            @PathVariable Long productId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) Long colorId,
             @RequestParam(required = false) Long brandId
     ) {
         return ResponseEntity.ok(
-                productService.searchProductDetailsByDetailIds(page, size, detailIds, colorId, brandId)
+                productService.pageProductDetailsByProductId(page, size, productId, colorId, brandId)
         );
     }
+
 
     @GetMapping("/product-detail/{idProduct}")
     public ResponseEntity<List<ProductDetailResponse>> getProductDetailById(@PathVariable Long idProduct) {

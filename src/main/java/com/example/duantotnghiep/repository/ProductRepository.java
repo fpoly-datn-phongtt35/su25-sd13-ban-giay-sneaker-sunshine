@@ -187,4 +187,32 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     @Query("select p from Product p where p.id = :id")
     Optional<Product> findByIdProduct(@Param("id") Long id);
+
+    @Query(
+            value = """
+        SELECT p.*
+        FROM product p
+        WHERE p.status = 1
+          AND (
+                :kw IS NULL OR :kw = ''
+                OR p.product_name COLLATE Vietnamese_100_CI_AI LIKE '%' + :kw + '%'
+                OR p.product_code COLLATE Vietnamese_100_CI_AI LIKE '%' + :kw + '%'
+              )
+        ORDER BY p.id DESC
+        """,
+            countQuery = """
+        SELECT COUNT(1)
+        FROM product p
+        WHERE p.status = 1
+          AND (
+                :kw IS NULL OR :kw = ''
+                OR p.product_name COLLATE Vietnamese_100_CI_AI LIKE '%' + :kw + '%'
+                OR p.product_code COLLATE Vietnamese_100_CI_AI LIKE '%' + :kw + '%'
+              )
+        """,
+            nativeQuery = true
+    )
+    Page<Product> searchByKeyword(@Param("kw") String keyword, Pageable pageable);
+
+
 }

@@ -3,6 +3,8 @@ package com.example.duantotnghiep.service.impl;
 import com.example.duantotnghiep.dto.request.DiscountCampaignProductDetailRequest;
 import com.example.duantotnghiep.dto.request.DiscountCampaignProductRequest;
 import com.example.duantotnghiep.dto.request.DiscountCampaignRequest;
+import com.example.duantotnghiep.dto.response.DiscountCampaignProductDetailResponse;
+import com.example.duantotnghiep.dto.response.DiscountCampaignProductResponse;
 import com.example.duantotnghiep.dto.response.DiscountCampaignResponse;
 import com.example.duantotnghiep.dto.response.DiscountCampaignStatisticsResponse;
 import com.example.duantotnghiep.mapper.DiscountCampaignMapper;
@@ -58,10 +60,73 @@ public class DiscountCampaignServiceImpl implements DiscountCampaignService {
     }
 
     @Override
+    @Transactional
     public DiscountCampaignResponse getDetail(Long id) {
-        DiscountCampaign campaign = repository.findById(id)
+        // 1) Lấy campaign + fetch đầy đủ
+        DiscountCampaign campaign = repository.findDetailGraph(id)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy đợt giảm giá với ID: " + id));
-        return discountCampaignMapper.toResponse(campaign);
+
+        // 2) Map phần thông tin chung
+        DiscountCampaignResponse res = discountCampaignMapper.toResponse(campaign);
+
+        // 3) Map danh sách SPCT (giữ nguyên như bạn đang có)
+        BigDecimal globalPercent = campaign.getDiscountPercentage();
+
+        List<DiscountCampaignProductDetailResponse> items =
+                campaign.getProductDetails() == null ? List.of() :
+                        campaign.getProductDetails().stream().map(link -> {
+                            ProductDetail pd = link.getProductDetail();
+
+                            DiscountCampaignProductDetailResponse dto = new DiscountCampaignProductDetailResponse();
+                            dto.setId(link.getId());
+                            if (pd != null) {
+                                var product = pd.getProduct();
+                                var color   = pd.getColor();
+                                var size    = pd.getSize();
+
+                                dto.setProductDetailId(pd.getId());
+                                dto.setProductName(product != null ? product.getProductName() : null);
+                                dto.setProductCode(product != null ? product.getProductCode() : null);
+                                dto.setColorName(color != null
+                                        ? (color.getColorName() != null ? color.getColorName() : color.getColorCode())
+                                        : null);
+                                dto.setSizeName(size != null
+                                        ? (size.getSizeName() != null ? size.getSizeName() : size.getSizeCode())
+                                        : null);
+                                dto.setSellPrice(pd.getSellPrice());
+                                dto.setDiscountPercent(link.getDiscountPercentage() != null
+                                        ? link.getDiscountPercentage()
+                                        : globalPercent);
+                                Integer q = pd.getQuantity();
+                                dto.setStock(q != null ? q.longValue() : null);
+                            } else {
+                                // fallback nếu dữ liệu lỗi
+                                dto.setDiscountPercent(link.getDiscountPercentage() != null
+                                        ? link.getDiscountPercentage()
+                                        : globalPercent);
+                            }
+                            return dto;
+                        }).toList();
+
+        res.setProductDetails(items);
+
+        // 4) Map lại danh sách products để có thêm productCode
+        List<DiscountCampaignProductResponse> productSummaries =
+                campaign.getProducts() == null ? List.of() :
+                        campaign.getProducts().stream().map(cp -> {
+                            DiscountCampaignProductResponse pDto = new DiscountCampaignProductResponse();
+                            pDto.setId(cp.getId());
+                            if (cp.getProduct() != null) {
+                                pDto.setProductId(cp.getProduct().getId());
+                                pDto.setProductName(cp.getProduct().getProductName());
+                                pDto.setProductCode(cp.getProduct().getProductCode()); // <<-- gán mã SP
+                            }
+                            return pDto;
+                        }).toList();
+
+        res.setProducts(productSummaries);
+
+        return res;
     }
 
     @Transactional

@@ -16,6 +16,7 @@ public interface DiscountCampaignMapper {
     // Các mapping khác nếu cần
     @Mapping(source = "product.id", target = "productId")
     @Mapping(source = "product.productName", target = "productName")
+    @Mapping(source = "product.productCode", target = "productCode")   // <<-- thêm dòng này
     DiscountCampaignProductResponse toProductResponse(DiscountCampaignProduct entity);
 
     @Mapping(source = "productDetail.id", target = "productDetailId")

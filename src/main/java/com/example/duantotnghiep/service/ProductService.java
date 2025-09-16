@@ -25,8 +25,8 @@ public interface ProductService {
     ProductResponse getProductById(Long id);
 
 
-    Page<ProductDetailResponse> searchProductDetailsByDetailIds(
-            int page, int size, List<Long> detailIds, Long colorId, Long brandId);
+    Page<ProductDetailResponse> pageProductDetailsByProductId(
+            int page, int size, Long productId, Long colorId, Long brandId);
 
     Page<ProductDetailResponse> pageProductDetails(int page, int size, List<Long> productIds);
 
@@ -60,4 +60,7 @@ public interface ProductService {
 
     ProductDetailResponse verifyProductDetail(Long id);
     List<ProductDetailResponse> verifyListProductDetail(List<Long> id);
+
+    @Transactional(readOnly = true)
+    Page<ProductResponse> searchProducts(String keyword, Pageable pageable);
 }

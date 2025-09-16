@@ -61,16 +61,16 @@ public interface ProductDetailRepository extends JpaRepository<ProductDetail,Lon
     Page<ProductDetail> pageAllActive(@Param("productIds") List<Long> productIds, Pageable pageable);
 
     @Query("""
-        SELECT pd
-        FROM ProductDetail pd
-        WHERE pd.status = 1
-          AND (:detailIds IS NULL OR pd.id IN :detailIds)
-          AND (:colorId  IS NULL OR pd.color.id = :colorId)
-          AND (:brandId  IS NULL OR pd.product.brand.id = :brandId)
-        ORDER BY pd.id DESC
-    """)
-    Page<ProductDetail> pageByDetailIds(
-            @Param("detailIds") List<Long> detailIds,
+    SELECT pd
+    FROM ProductDetail pd
+    WHERE pd.status = 1
+      AND (:productId IS NULL OR pd.product.id = :productId)
+      AND (:colorId   IS NULL OR pd.color.id = :colorId)
+      AND (:brandId   IS NULL OR pd.product.brand.id = :brandId)
+    ORDER BY pd.id DESC
+""")
+    Page<ProductDetail> pageByProductId(
+            @Param("productId") Long productId,
             @Param("colorId") Long colorId,
             @Param("brandId") Long brandId,
             Pageable pageable

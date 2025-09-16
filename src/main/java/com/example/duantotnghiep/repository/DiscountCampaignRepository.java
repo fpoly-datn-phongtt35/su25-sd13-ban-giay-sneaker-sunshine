@@ -11,6 +11,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface DiscountCampaignRepository extends JpaRepository<DiscountCampaign, Long> {
     boolean existsByCampaignCode(@Size(max = 100) String campaignCode);
@@ -106,5 +107,16 @@ public interface DiscountCampaignRepository extends JpaRepository<DiscountCampai
 
     List<DiscountCampaign> findAllByStartDateLessThanEqualAndStatus(LocalDateTime now, int status);
 
+    @Query("""
+        select distinct dc
+        from DiscountCampaign dc
+        left join fetch dc.productDetails dcpd
+        left join fetch dcpd.productDetail pd
+        left join fetch pd.product p
+        left join fetch pd.color c
+        left join fetch pd.size s
+        where dc.id = :id
+    """)
+    Optional<DiscountCampaign> findDetailGraph(@Param("id") Long id);
 
 }

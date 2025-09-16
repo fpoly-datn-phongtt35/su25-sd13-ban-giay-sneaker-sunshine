@@ -2501,8 +2501,8 @@ public class InvoiceServiceImpl implements InvoiceService {
     }
 
     @Override
-    public Integer findDiscountCampianByCode(String code) {
-        Integer status = invoiceRepository.getDiscountCampaignStatus(code);
+    public List<Integer> findDiscountCampianByCode(String code) {
+        List<Integer> status = invoiceRepository.getDiscountCampaignStatus(code);
         return status;
     }
 

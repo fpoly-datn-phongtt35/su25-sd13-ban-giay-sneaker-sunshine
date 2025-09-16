@@ -402,7 +402,7 @@ left join i.invoiceDetails id
 left join id.discountCampaign dc
 where i.invoiceCode = :code
 """)
-    Integer getDiscountCampaignStatus(@Param("code") String code);
+    List<Integer> getDiscountCampaignStatus(@Param("code") String code);
 
 
 

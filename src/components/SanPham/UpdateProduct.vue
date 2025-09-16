@@ -1,39 +1,41 @@
 <template>
   <div class="ssn-wrap">
     <!-- Topbar -->
-    <div class="ssn-topbar">
+    <header class="ssn-topbar" role="banner">
       <div class="left">
-        <el-button link type="primary" @click="goBack">
+        <el-button link type="primary" @click="goBack" aria-label="Quay lại trang danh sách sản phẩm">
           <el-icon><ArrowLeft /></el-icon>
           <span class="ml-1">Quay lại</span>
         </el-button>
-        <span class="divider"></span>
-        <h2 class="title">Cập nhật Sản phẩm</h2>
+        <span class="divider" aria-hidden="true"></span>
+        <h1 class="title">Cập nhật sản phẩm</h1>
       </div>
 
       <div class="right">
-        <el-button @click="openConfirmDialog" type="success" round size="large">
+        <el-button @click="openConfirmDialog" type="success" round size="large" aria-label="Cập nhật sản phẩm">
           Cập nhật
         </el-button>
       </div>
-    </div>
+    </header>
 
-    <div class="ssn-container">
+    <!-- Form container -->
+    <main class="ssn-container" role="main">
       <el-form
         ref="productForm"
         :model="updateProduct"
         :rules="rules"
         label-position="top"
         class="ssn-form"
+        autocomplete="off"
       >
         <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          <!-- LEFT: INFO + VARIANTS -->
-          <div class="xl:col-span-2 space-y-6">
-            <!-- General Info -->
-            <el-card shadow="never" class="ssn-card">
+          <!-- LEFT (main) -->
+          <section class="xl:col-span-2 space-y-6" aria-label="Thông tin sản phẩm và biến thể">
+            <!-- General info card -->
+            <el-card shadow="never" class="ssn-card" aria-labelledby="general-info-heading">
               <template #header>
                 <div class="card-header">
-                  <h3>Thông tin chung</h3>
+                  <h2 id="general-info-heading">Thông tin chung</h2>
                 </div>
               </template>
 
@@ -43,47 +45,60 @@
                     v-model="updateProduct.productName"
                     placeholder="Nhập tên sản phẩm"
                     clearable
+                    aria-required="true"
                   />
                 </el-form-item>
 
                 <el-form-item label="Thương hiệu" prop="brandId">
-                  <el-select v-model="updateProduct.brandId" placeholder="Chọn thương hiệu" filterable>
-                    <el-option v-for="br in brandList" :key="br.id" :label="br.brandName" :value="br.id" />
+                  <el-select
+                    v-model="updateProduct.brandId"
+                    placeholder="Chọn thương hiệu"
+                    filterable
+                    clearable
+                    aria-required="true"
+                  >
+                    <el-option
+                      v-for="br in brandList"
+                      :key="br.id"
+                      :label="br.brandName"
+                      :value="br.id"
+                    />
                   </el-select>
                 </el-form-item>
 
                 <el-form-item label="Nhà cung cấp" prop="supplierId">
-                  <el-select v-model="updateProduct.supplierId" placeholder="Chọn nhà cung cấp" filterable>
+                  <el-select v-model="updateProduct.supplierId" placeholder="Chọn nhà cung cấp" filterable clearable>
                     <el-option v-for="sp in supplierList" :key="sp.id" :label="sp.supplierName" :value="sp.id" />
                   </el-select>
                 </el-form-item>
 
                 <el-form-item label="Chất liệu" prop="materialId">
-                  <el-select v-model="updateProduct.materialId" placeholder="Chọn chất liệu" filterable>
+                  <el-select v-model="updateProduct.materialId" placeholder="Chọn chất liệu" filterable clearable>
                     <el-option v-for="mt in materialList" :key="mt.id" :label="mt.materialName" :value="mt.id" />
                   </el-select>
                 </el-form-item>
 
                 <el-form-item label="Loại đế" prop="soleId">
-                  <el-select v-model="updateProduct.soleId" placeholder="Chọn loại đế" filterable>
+                  <el-select v-model="updateProduct.soleId" placeholder="Chọn loại đế" filterable clearable>
                     <el-option v-for="s in soleList" :key="s.id" :label="s.soleName" :value="s.id" />
                   </el-select>
                 </el-form-item>
 
                 <el-form-item label="Cổ giày" prop="styleId">
-                  <el-select v-model="updateProduct.styleId" placeholder="Chọn cổ giày" filterable>
+                  <el-select v-model="updateProduct.styleId" placeholder="Chọn cổ giày" filterable clearable>
                     <el-option v-for="st in styleList" :key="st.id" :label="st.styleName" :value="st.id" />
                   </el-select>
                 </el-form-item>
 
                 <el-form-item label="Dành cho" prop="genderId">
-                  <el-radio-group v-model="updateProduct.genderId" class="radio-inline">
+                  <el-radio-group v-model="updateProduct.genderId" class="radio-inline" aria-required="true">
                     <el-radio :label="'1'">Nam</el-radio>
                     <el-radio :label="'2'">Nữ</el-radio>
                     <el-radio :label="'3'">Unisex</el-radio>
                   </el-radio-group>
                 </el-form-item>
 
+                <!-- Weight + Price row -->
                 <div class="grid grid-cols-2 gap-4">
                   <el-form-item label="Cân nặng (gram)" prop="weight">
                     <el-input
@@ -92,20 +107,32 @@
                       placeholder="0"
                       clearable
                       :min="0"
+                      @blur="onWeightBlur"
+                      inputmode="numeric"
+                      aria-describedby="weight-hint"
                     />
+                    <p id="weight-hint" class="note">Số nguyên, tối đa 5 chữ số.</p>
                   </el-form-item>
 
                   <el-form-item label="Giá bán mặc định" prop="sellPrice">
-                    <div class="flex items-center gap-3">
+                    <div class="price-row" role="group" aria-label="Giá bán">
                       <el-input
                         type="number"
                         v-model.number="updateProduct.sellPrice"
                         placeholder="0"
                         clearable
                         :min="0"
-                        style="max-width:220px"
+                        :max="999999999"
+                        style="max-width: 220px;"
+                        @blur="onSellPriceBlur"
+                        inputmode="numeric"
+                        aria-describedby="sellprice-hint"
                       />
+                      <div class="formatted-price" v-if="formattedSellPrice" aria-hidden="true">
+                        {{ formattedSellPrice }}
+                      </div>
                     </div>
+                    <p id="sellprice-hint" class="note">Số nguyên, min 0, max 9 chữ số — hiển thị dạng VND.</p>
                   </el-form-item>
                 </div>
               </div>
@@ -140,41 +167,31 @@
               </el-form-item>
             </el-card>
 
-            <!-- Variants -->
-            <el-card shadow="never" class="ssn-card">
+            <!-- Variants card -->
+            <el-card shadow="never" class="ssn-card" aria-labelledby="variants-heading">
               <template #header>
                 <div class="card-header">
-                  <h3>Biến thể (Size & Màu)</h3>
+                  <h2 id="variants-heading">Biến thể (Size & Màu)</h2>
                 </div>
               </template>
 
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <el-form-item label="Kích thước" prop="selectedSizes">
                   <el-checkbox-group v-model="updateProduct.selectedSizes" @change="generateProductDetails">
-                    <div class="check-grid">
-                      <el-checkbox
-                        v-for="size in sizeList"
-                        :key="size.id"
-                        :label="size.id"
-                        class="check-item"
-                      >
-                        {{ size.sizeName }}
-                      </el-checkbox>
+                    <div class="check-grid" role="list" aria-label="Danh sách kích thước">
+                      <div role="listitem" v-for="size in sizeList" :key="size.id" class="check-item">
+                        <el-checkbox :label="size.id">{{ size.sizeName }}</el-checkbox>
+                      </div>
                     </div>
                   </el-checkbox-group>
                 </el-form-item>
 
                 <el-form-item label="Màu sắc" prop="selectedColors">
                   <el-checkbox-group v-model="updateProduct.selectedColors" @change="generateProductDetails">
-                    <div class="check-grid">
-                      <el-checkbox
-                        v-for="color in colorList"
-                        :key="color.id"
-                        :label="color.id"
-                        class="check-item"
-                      >
-                        {{ color.colorName }}
-                      </el-checkbox>
+                    <div class="check-grid" role="list" aria-label="Danh sách màu sắc">
+                      <div role="listitem" v-for="color in colorList" :key="color.id" class="check-item">
+                        <el-checkbox :label="color.id">{{ color.colorName }}</el-checkbox>
+                      </div>
                     </div>
                   </el-checkbox-group>
                 </el-form-item>
@@ -183,67 +200,75 @@
               <el-divider />
 
               <div class="variants">
-                <el-empty
-                  v-if="!productDetails.length"
-                  description="Chọn Size và Màu để tạo biến thể"
-                />
+                <el-empty v-if="!productDetails.length" description="Chọn Size và Màu để tạo biến thể" />
                 <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <el-card
+                  <article
                     v-for="(detail, index) in productDetails"
                     :key="detail.sizeId + '-' + detail.colorId"
-                    shadow="hover"
                     class="variant-card"
+                    :aria-labelledby="`variant-${index}-label`"
                   >
-                    <div class="variant-head">
-                      <span class="badge">{{ detail.sizeName }}</span>
-                      <span class="sep">×</span>
-                      <span class="badge badge-blue">{{ detail.colorName }}</span>
-                      <span class="price-badge">{{ formatCurrency(updateProduct.sellPrice) }}</span>
-                    </div>
-                    <div class="grid grid-cols-2 gap-3 mt-3">
-                      <!-- Giá bán chi tiết đã bỏ input, hiển thị giá chung ở trên -->
+                    <header class="variant-head">
+                      <div id="`variant-${index}-label`" class="variant-meta">
+                        <span class="badge">{{ detail.sizeName }}</span>
+                        <span class="sep">×</span>
+                        <span class="badge badge-blue">{{ detail.colorName }}</span>
+                      </div>
+                      <div class="variant-price">
+                        <span class="price-badge">{{ formatCurrency(updateProduct.sellPrice) }}</span>
+                      </div>
+                    </header>
+
+                    <div class="variant-body">
                       <el-form-item
                         :prop="'productDetails.' + index + '.quantity'"
-                        :rules="rules.productDetailQuantity"
+                        :rules="[rules.productDetailQuantity[0]]"
                       >
                         <label class="form-label">Số lượng</label>
-                        <el-input type="number" v-model.number="detail.quantity" :min="0" clearable />
+                        <el-input
+                          type="number"
+                          v-model.number="detail.quantity"
+                          :min="1"
+                          clearable
+                          @blur="onDetailQuantityBlur(detail, index)"
+                          inputmode="numeric"
+                          aria-label="Số lượng biến thể"
+                        />
+                        <p class="note">Số nguyên dương, tối đa 6 chữ số.</p>
                       </el-form-item>
                     </div>
-                  </el-card>
+                  </article>
                 </div>
               </div>
             </el-card>
 
-            <!-- Confirm Summary -->
+            <!-- Confirmation summary -->
             <el-card shadow="never" class="ssn-card">
               <template #header>
                 <div class="card-header">
-                  <h3>Xác nhận cập nhật</h3>
+                  <h2>Xác nhận cập nhật</h2>
                 </div>
               </template>
-              <div class="flex items-center justify-between">
+
+              <div class="confirm-row flex items-center justify-between">
                 <div class="meta">
-                  <div class="meta-line">
-                    Tổng biến thể: <b>{{ productDetails.length || 0 }}</b>
-                  </div>
-                  <div class="meta-line">
-                    Tổng số lượng: <b>{{ totalQuantity }}</b>
-                  </div>
+                  <div class="meta-line">Tổng biến thể: <b>{{ productDetails.length || 0 }}</b></div>
+                  <div class="meta-line">Tổng số lượng: <b>{{ totalQuantity }}</b></div>
                 </div>
-                <el-button type="success" size="large" @click="openConfirmDialog">
-                  Cập nhật sản phẩm
-                </el-button>
+
+                <div class="actions">
+                  <el-button type="success" size="large" @click="openConfirmDialog">Cập nhật sản phẩm</el-button>
+                </div>
               </div>
             </el-card>
-          </div>
+          </section>
 
-          <!-- RIGHT: IMAGES BY COLOR -->
-          <div class="xl:col-span-1 space-y-6">
-            <el-card shadow="never" class="ssn-card">
+          <!-- RIGHT (images) -->
+          <aside class="xl:col-span-1 space-y-6" aria-label="Hình ảnh theo màu">
+            <el-card shadow="never" class="ssn-card" aria-labelledby="images-heading">
               <template #header>
                 <div class="card-header">
-                  <h3>Hình ảnh theo màu</h3>
+                  <h2 id="images-heading">Hình ảnh theo màu</h2>
                 </div>
               </template>
 
@@ -256,7 +281,7 @@
                 description="Chọn màu để tải ảnh tương ứng."
               />
 
-              <div v-for="colorId in updateProduct.selectedColors" :key="colorId" class="mb-6">
+              <section v-for="colorId in updateProduct.selectedColors" :key="colorId" class="color-block" :aria-label="`Ảnh màu ${getColorName(colorId)}`">
                 <div class="color-heading">
                   <div class="dot" />
                   <div class="name">{{ getColorName(colorId) }}</div>
@@ -274,6 +299,7 @@
                   :on-preview="handlePreview"
                   :on-change="(file, fileList) => handleFileChange(file, fileList, colorId)"
                   :on-remove="(file, fileList) => handleFileRemove(file, fileList, colorId)"
+                  aria-label="Tải ảnh màu"
                 >
                   <template #default>
                     <div class="upload-slot">
@@ -282,19 +308,19 @@
                     </div>
                   </template>
                 </el-upload>
-              </div>
+              </section>
 
-              <!-- hidden prop for validation trigger -->
-              <el-form-item v-if="updateProduct.selectedColors.length > 0" prop="images">
-                <div style="display:none;"></div>
+              <!-- Hidden form item used to run images validator -->
+              <el-form-item v-if="updateProduct.selectedColors.length > 0" prop="images" style="display:none;">
+                <div />
               </el-form-item>
             </el-card>
-          </div>
+          </aside>
         </div>
       </el-form>
-    </div>
+    </main>
 
-    <!-- Confirm Dialog -->
+    <!-- Confirm dialog -->
     <el-dialog
       title="Xác nhận"
       v-model="isModalVisible"
@@ -326,6 +352,10 @@ import apiClient from '@/utils/axiosInstance'
 /* Router */
 const router = useRouter()
 const route = useRoute()
+
+/* Limits */
+const MAX_SELL_PRICE = 999_999_999  // 9 chữ số
+const MAX_QTY = 999_999            // 6 chữ số
 
 /* Refs & state */
 const productForm = ref(null)
@@ -374,7 +404,23 @@ const showError = (message) => {
   ElNotification({ title: 'Lỗi', message, type: 'error', duration: 3000, position: 'top-right' })
 }
 
-/* Validation rules (note: productDetailSellPrice removed since sellPrice is global) */
+/* Format currency: 1.000.000 VND */
+const formattedSellPrice = computed(() => {
+  if (updateProduct.sellPrice === null || updateProduct.sellPrice === undefined || updateProduct.sellPrice === '') return ''
+  const n = Number(updateProduct.sellPrice) || 0
+  return n.toLocaleString('vi-VN') + ' VND'
+})
+const formatCurrency = (v) => {
+  if (v == null) return '0 VND'
+  const n = Number(v) || 0
+  return n.toLocaleString('vi-VN') + ' VND'
+}
+
+/* Helper to get names */
+const getColorName = (colorId) => colorList.value.find(c => c.id === colorId)?.colorName || 'Không xác định'
+const getCategoryName = (id) => categoryList.value.find(c => c.id === id)?.categoryName || ''
+
+/* Validation rules */
 const rules = {
   categoryIds: [
     {
@@ -396,8 +442,29 @@ const rules = {
     { type: 'number', min: 0, message: 'Cân nặng phải là số không âm', trigger: 'blur' }
   ],
   sellPrice: [
-    { required: true, message: 'Vui lòng nhập giá bán', trigger: 'blur' },
-    { type: 'number', min: 1, message: 'Giá bán phải là số lớn hơn 0', trigger: 'blur' }
+    {
+      validator: (rule, value, cb) => {
+        if (value === null || value === undefined || value === '') {
+          cb(new Error('Vui lòng nhập giá bán'))
+          return
+        }
+        const n = Number(value)
+        if (!Number.isFinite(n) || !Number.isInteger(n)) {
+          cb(new Error('Giá bán phải là số nguyên và không chứa chữ'))
+          return
+        }
+        if (n < 0) {
+          cb(new Error('Giá bán phải lớn hơn hoặc bằng 0'))
+          return
+        }
+        if (n > MAX_SELL_PRICE) {
+          cb(new Error(`Giá bán không được lớn hơn ${MAX_SELL_PRICE.toLocaleString('vi-VN')}`))
+          return
+        }
+        cb()
+      },
+      trigger: 'blur'
+    }
   ],
   description: [{ required: true, message: 'Vui lòng nhập mô tả sản phẩm', trigger: 'blur' }],
   selectedSizes: [
@@ -431,20 +498,29 @@ const rules = {
       trigger: 'change'
     }
   ],
-  productDetailQuantity: [
-    { type: 'number', min: 0, message: 'Số lượng phải là số không âm', trigger: 'blur' }
-  ]
-}
-
-/* Helper to get names */
-const getColorName = (colorId) => colorList.value.find(c => c.id === colorId)?.colorName || 'Không xác định'
-const getCategoryName = (id) => categoryList.value.find(c => c.id === id)?.categoryName || ''
-
-/* Format currency */
-const formatCurrency = (v) => {
-  if (v == null) return '0 ₫'
-  const n = Number(v) || 0
-  return n.toLocaleString('vi-VN') + ' ₫'
+  // Product detail quantity validator (applied per variant)
+  productDetailQuantity: [{
+    validator: (rule, value, cb) => {
+      if (value === null || value === undefined || value === '') {
+        cb(new Error('Số lượng phải lớn hơn 0'))
+        return
+      }
+      const n = Number(value)
+      if (!Number.isFinite(n) || !Number.isInteger(n)) {
+        cb(new Error('Số lượng phải là số nguyên'))
+        return
+      }
+      if (n <= 0) {
+        cb(new Error('Số lượng phải lớn hơn 0'))
+        return
+      }
+      if (n > MAX_QTY) {
+        cb(new Error(`Số lượng không được vượt quá ${MAX_QTY.toLocaleString('vi-VN')}`))
+        return
+      }
+      cb()
+    }, trigger: 'blur'
+  }]
 }
 
 /* Fetchers */
@@ -547,7 +623,7 @@ const generateProductDetails = () => {
       const color = colorList.value.find(c => c.id === colorId)
       const old = existed.find(d => d.sizeId === sizeId && d.colorId === colorId)
 
-      const baseQty = old?.quantity != null ? old.quantity : 0
+      const baseQty = old?.quantity != null ? old.quantity : null // keep null to force validation if empty
 
       out.push({
         id: old?.id || null,
@@ -562,13 +638,99 @@ const generateProductDetails = () => {
   productDetails.value = out
 }
 
+/* Input sanitizers / blur handlers */
+const onSellPriceBlur = () => {
+  const v = updateProduct.sellPrice
+  if (v === null || v === undefined || v === '') {
+    updateProduct.sellPrice = null
+    productForm.value?.validateField('sellPrice')
+    return
+  }
+  let n = Number(v)
+  if (!Number.isFinite(n)) {
+    updateProduct.sellPrice = null
+    productForm.value?.validateField('sellPrice')
+    return
+  }
+  n = Math.trunc(n)
+  if (n < 0) n = 0
+  if (n > MAX_SELL_PRICE) n = MAX_SELL_PRICE
+  updateProduct.sellPrice = n
+  productForm.value?.validateField('sellPrice')
+}
+
+const onDetailQuantityBlur = (detail, index) => {
+  // sanitize to integer and validate bounds (do not auto-correct to >0 — let validation force user)
+  const v = detail.quantity
+  if (v === null || v === undefined || v === '') {
+    detail.quantity = null
+    productForm.value?.validateField(`productDetails.${index}.quantity`)
+    return
+  }
+  let n = Number(v)
+  if (!Number.isFinite(n)) {
+    detail.quantity = null
+    productForm.value?.validateField(`productDetails.${index}.quantity`)
+    return
+  }
+  n = Math.trunc(n)
+  if (n > MAX_QTY) n = MAX_QTY
+  detail.quantity = n
+  productForm.value?.validateField(`productDetails.${index}.quantity`)
+}
+
+const onWeightBlur = () => {
+  // ensure integer >=0
+  const v = updateProduct.weight
+  if (v === null || v === undefined || v === '') {
+    updateProduct.weight = null
+    productForm.value?.validateField('weight')
+    return
+  }
+  let n = Number(v)
+  if (!Number.isFinite(n)) {
+    updateProduct.weight = null
+    productForm.value?.validateField('weight')
+    return
+  }
+  n = Math.trunc(n)
+  if (n < 0) n = 0
+  updateProduct.weight = n
+  productForm.value?.validateField('weight')
+}
+
 /* Watchers */
 
-// khi sellPrice thay đổi -> luôn cập nhật giá biến thể trong payload khi save (displayed via formatCurrency)
+// sanitize sellPrice live (in case of copy-paste string)
 watch(() => updateProduct.sellPrice, (val) => {
-  // nothing to update on productDetails objects because we removed per-variant price,
-  // but keep this watcher in case you want to enforce something later
+  if (val === null || val === undefined || val === '') return
+  if (typeof val === 'string') {
+    const digits = val.replace(/[^\d]/g, '')
+    const n = digits === '' ? null : Number(digits)
+    updateProduct.sellPrice = n
+  } else {
+    // ensure integer bounds
+    let n = Number(val)
+    if (!Number.isFinite(n)) { updateProduct.sellPrice = null; return }
+    n = Math.trunc(n)
+    if (n < 0) n = 0
+    if (n > MAX_SELL_PRICE) n = MAX_SELL_PRICE
+    if (n !== val) updateProduct.sellPrice = n
+  }
 })
+
+// watch productDetails to enforce integer truncation for any typed decimals (but keep 0/null for validation)
+watch(productDetails, (n) => {
+  n.forEach(d => {
+    if (d.quantity !== null && d.quantity !== undefined) {
+      const num = Number(d.quantity)
+      if (Number.isFinite(num)) {
+        const t = Math.trunc(num)
+        if (t !== d.quantity) d.quantity = t
+      }
+    }
+  })
+}, { deep: true })
 
 // when removing a color, mark its images for deletion and remember old color
 watch(() => updateProduct.selectedColors, (newColors, oldColors) => {
@@ -583,6 +745,7 @@ watch(() => updateProduct.selectedColors, (newColors, oldColors) => {
     }
   })
   colorImages.value = { ...colorImages.value }
+  // trigger images validation
   productForm.value?.validateField('images')
 }, { deep: true })
 
@@ -592,9 +755,10 @@ watch(() => updateProduct.selectedSizes, () => generateProductDetails())
 /* Upload handlers */
 const handleFileChange = (file, fileList, colorId) => {
   const max = 5 * 1024 * 1024
-  if (file.size > max) {
+  const fsize = file.raw?.size ?? file.size ?? 0
+  if (fsize > max) {
     showError(`Ảnh ${file.name} vượt quá 5MB!`)
-    colorImages.value[colorId] = fileList.filter(f => f.raw !== file.raw).map(item => ({
+    colorImages.value[colorId] = fileList.filter(f => (f.raw?.size ?? f.size) <= max).map(item => ({
       name: item.name,
       url: item.url || (item.raw ? URL.createObjectURL(item.raw) : ''),
       file: item.raw || null,
@@ -606,10 +770,10 @@ const handleFileChange = (file, fileList, colorId) => {
   }
 
   const existed = colorImages.value[colorId] || []
-  const isDup = existed.some(f => f.name === file.name && (!f.file || f.file.size === file.size))
+  const isDup = existed.some(f => f.name === file.name && (!f.file || f.file.size === fsize))
   if (isDup) {
     showError(`Ảnh ${file.name} đã được chọn cho màu này!`)
-    colorImages.value[colorId] = fileList.filter(f => f.raw !== file.raw).map(item => ({
+    colorImages.value[colorId] = fileList.map(item => ({
       name: item.name,
       url: item.url || (item.raw ? URL.createObjectURL(item.raw) : ''),
       file: item.raw || null,
@@ -649,10 +813,12 @@ const openConfirmDialog = () => {
   // validate form + custom checks for productDetails
   productForm.value.validate(async (valid) => {
     if (valid) {
-      // validate each variant has quantity non-negative
-      for (const d of productDetails.value) {
-        if (d.quantity === null || d.quantity === undefined || d.quantity < 0) {
-          showError('Vui lòng nhập số lượng hợp lệ cho tất cả biến thể (>= 0).')
+      // validate each variant has quantity > 0
+      for (let i = 0; i < productDetails.value.length; i++) {
+        const d = productDetails.value[i]
+        if (d.quantity === null || d.quantity === undefined || Number(d.quantity) <= 0) {
+          showError('Vui lòng nhập số lượng hợp lệ (> 0) cho tất cả biến thể.')
+          productForm.value.validateField(`productDetails.${i}.quantity`)
           return
         }
       }
@@ -690,6 +856,15 @@ const saveProduct = async () => {
       updateProduct.selectedSizes.includes(d.sizeId) && updateProduct.selectedColors.includes(d.colorId)
     )
 
+    // ensure quantities are valid before sending
+    for (let i = 0; i < mergedDetails.length; i++) {
+      const q = mergedDetails[i].quantity
+      if (q === null || q === undefined || !Number.isInteger(Number(q)) || Number(q) <= 0 || Number(q) > MAX_QTY) {
+        showError('Số lượng biến thể không hợp lệ. Vui lòng kiểm tra lại.')
+        return
+      }
+    }
+
     const formData = new FormData()
     formData.append('productName', updateProduct.productName || '')
     formData.append('materialId', updateProduct.materialId || '')
@@ -716,7 +891,6 @@ const saveProduct = async () => {
       if (d.id) formData.append(`productDetails[${idx}].id`, d.id)
       formData.append(`productDetails[${idx}].sizeId`, d.sizeId)
       formData.append(`productDetails[${idx}].colorId`, d.colorId)
-      // we still send sellPrice for compatibility (server may expect it) — use global price
       formData.append(`productDetails[${idx}].sellPrice`, updateProduct.sellPrice ?? 0)
       formData.append(`productDetails[${idx}].quantity`, d.quantity ?? 0)
     })
@@ -789,102 +963,286 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* ===== Colors & layout ===== */
-.ssn-wrap {
+/* =========================
+   Theme variables
+   ========================= */
+:root{
   --bg: #f6f9ff;
-  --card: #fff;
+  --card: #ffffff;
   --text: #0f172a;
   --muted: #64748b;
-  --primary: #2563eb;
-  --ring: rgba(37,99,235,.12);
-  background: var(--bg);
-  min-height: 100vh;
+  --accent: #2563eb;
+  --accent-2: #1d4ed8;
+  --accent-ring: rgba(37,99,235,.12);
+  --danger: #ef4444;
+  --surface: #f8fafc;
+  --border: #e6eef8;
+  --shadow: 0 6px 18px rgba(15,23,42,0.06);
+  --radius: 12px;
+  --input-height: 40px;
 }
 
-/* Topbar */
-.ssn-topbar {
+/* =========================
+   Base layout
+   ========================= */
+.ssn-wrap {
+  background: var(--bg);
+  min-height: 100vh;
+  color: var(--text);
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  padding-bottom: 48px;
+  box-sizing: border-box;
+}
+
+.ssn-container {
+  max-width: 1200px;
+  margin: 18px auto 40px;
+  padding: 0 16px;
+  box-sizing: border-box;
+}
+
+/* =========================
+   Topbar
+   ========================= */
+.ssn-topbar{
   position: sticky;
   top: 0;
-  z-index: 30;
+  z-index: 40;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 20px;
-  backdrop-filter: saturate(180%) blur(6px);
-  background: linear-gradient(180deg, rgba(255,255,255,.9), rgba(255,255,255,.75));
-  border-bottom: 1px solid #e5e9f2;
+  gap: 12px;
+  padding: 12px 20px;
+  background: rgba(255,255,255,0.95);
+  border-bottom: 1px solid #eef4ff;
+  backdrop-filter: blur(6px) saturate(140%);
 }
-.ssn-topbar .left { display: flex; align-items: center; }
-.ssn-topbar .divider { width: 1px; height: 22px; background: #e5e9f2; margin: 0 12px; }
-.ssn-topbar .title { font-size: 18px; font-weight: 700; color: var(--text); }
 
-.ssn-container { max-width: 1200px; margin: 18px auto 40px; padding: 0 16px; }
-.ssn-form :deep(.el-form-item__label) { font-weight: 600; color: #334155; }
+.ssn-topbar .left { display:flex; align-items:center; gap:12px; }
+.ssn-topbar .divider { width:1px; height:22px; background:#e5e9f2; }
+.ssn-topbar .title { margin:0; font-size:18px; font-weight:700; color:var(--text); }
 
-/* Card */
-.ssn-card { border: 1px solid #eef2ff; border-radius: 14px; overflow: hidden; }
-.ssn-card :deep(.el-card__header) { background: #fff; border-bottom: 1px solid #eef2ff; padding: 14px 18px; }
-.card-header h3 { font-weight: 700; color: #0f172a; font-size: 16px; }
+/* =========================
+   Card
+   ========================= */
+.ssn-card{
+  background: var(--card);
+  border-radius: 14px;
+  border: 1px solid #eef4ff;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  padding-bottom: 12px;
+}
+.ssn-card :deep(.el-card__header){
+  background: transparent;
+  border-bottom: 1px solid #eef4ff;
+  padding: 14px 18px;
+}
+.card-header h2, .card-header h3 { margin:0; font-size:15px; font-weight:700; color:var(--text); }
 
-/* Chips */
-.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+/* =========================
+   Form labels & inputs
+   ========================= */
+.ssn-form :deep(.el-form-item__label) {
+  font-weight:700;
+  color:#1f2937;
+  margin-bottom:6px;
+  font-size:13px;
+}
+
+/* unify heights and paddings for Element components used */
+:deep(.el-input__inner),
+:deep(.el-select .el-input__inner),
+:deep(.el-input-number__wrapper),
+:deep(.el-input--prefix) {
+  height: var(--input-height);
+  line-height: var(--input-height);
+  padding: 8px 12px;
+  border-radius: 10px;
+  box-sizing: border-box;
+  font-size: 14px;
+}
+
+/* textarea */
+:deep(.el-textarea__inner){
+  border-radius:10px;
+  padding: 10px 12px;
+  font-size:14px;
+}
+
+/* small helper note text under inputs */
+.note {
+  margin-top:6px;
+  color:var(--muted);
+  font-size:12px;
+}
+
+/* form errors */
+.ssn-form :deep(.el-form-item__error){
+  color: var(--danger);
+  font-size:12px;
+  margin-top:6px;
+}
+
+/* =========================
+   Price row and formatted price
+   ========================= */
+.price-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.formatted-price {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 160px;
+  height: var(--input-height);
+  padding: 0 12px;
+  font-weight:700;
+  font-size:14px;
+  color: #0f172a;
+  background: #f5f7fa;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-sizing: border-box;
+  white-space: nowrap;
+}
+
+/* responsive adjustments */
+@media (max-width: 640px) {
+  .formatted-price { min-width: 120px; height: 36px; font-size: 13px; }
+  .price-row { gap:8px; }
+}
+
+/* =========================
+   Chips */
+.chips { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
 .chip {
-  background: #eff6ff; border: 1px solid #dbeafe; color: #1e40af;
-  padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  background:#eff6ff;
+  border:1px solid #dbeafe;
+  color:#1e40af;
+  padding:6px 10px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:600;
 }
 
-/* Checkbox grid */
-.check-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px 12px; }
-.check-item :deep(.el-checkbox__label) { color: #334155; }
+/* =========================
+   Checkbox grid */
+.check-grid {
+  display:grid;
+  grid-template-columns: repeat(3, minmax(0,1fr));
+  gap:8px 12px;
+}
+.check-item :deep(.el-checkbox__label) { color:#334155; }
 
-/* Variant cards */
-.variant-card { border-radius: 12px; border: 1px solid #eef2ff; padding: 12px; }
-.variant-head { display: flex; align-items: center; gap: 8px; }
-.badge { background: #f1f5f9; color: #0f172a; font-weight: 700; font-size: 12px; padding: 4px 8px; border-radius: 8px; }
-.badge-blue { background: #e8f1ff; color: #1d4ed8; }
-.sep { color: #94a3b8; }
+/* =========================
+   Variant cards */
+.variant-card{
+  border-radius:12px;
+  border:1px solid #eef4ff;
+  padding:12px;
+  background:var(--surface);
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  min-height:108px;
+}
+
+.variant-head{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  justify-content:space-between;
+  flex-wrap:wrap;
+}
+.variant-meta { display:flex; align-items:center; gap:8px; }
+.badge {
+  background:#f1f5f9;
+  color:#0f172a;
+  font-weight:700;
+  font-size:12px;
+  padding:4px 8px;
+  border-radius:8px;
+}
+.badge-blue { background:#e8f1ff; color:var(--accent-2); }
+.sep { color:#94a3b8; font-weight:600; }
+
+/* Price badge small */
 .price-badge {
-  margin-left: 8px;
-  background: #fff7ed;
-  border: 1px solid #ffedd5;
-  color: #92400e;
-  font-weight: 700;
-  padding: 4px 8px;
-  border-radius: 8px;
-  font-size: 12px;
+  margin-left:8px;
+  background:#fffaf0;
+  border:1px solid #ffedd5;
+  color:#92400e;
+  font-weight:700;
+  padding:4px 8px;
+  border-radius:8px;
+  font-size:12px;
 }
 
-/* Images by color */
-.color-heading { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.color-heading .dot { width: 8px; height: 8px; border-radius: 999px; background: var(--primary); box-shadow: 0 0 0 3px var(--ring); }
-.color-heading .name { font-weight: 700; color: #0f172a; }
-.color-heading .count { color: var(--muted); font-size: 12px; }
-.upload-slot { display: flex; flex-direction: column; align-items: center; padding: 6px 0; font-size: 12px; color: #475569; }
-.upload-slot :deep(.el-icon) { margin-bottom: 6px; }
-
-/* Dialog */
-.ssn-dialog :deep(.el-dialog__header) { border-bottom: 1px solid #eef2ff; }
-.dialog-footer { display: flex; gap: 10px; justify-content: flex-end; }
-
-/* Inputs rounding */
-:deep(.el-input__wrapper),
-:deep(.el-select .el-input__wrapper),
-:deep(.el-textarea__inner) { border-radius: 10px !important; }
-
-/* Minimal grid helpers */
-.grid { display: grid; }
-.grid-cols-1 { grid-template-columns: repeat(1,minmax(0,1fr)); }
-.grid-cols-2 { grid-template-columns: repeat(2,minmax(0,1fr)); }
-@media (min-width: 1280px) {
-  .xl\:grid-cols-3 { grid-template-columns: repeat(3,minmax(0,1fr)); }
-  .xl\:col-span-2 { grid-column: span 2 / span 2; }
-  .xl\:col-span-1 { grid-column: span 1 / span 1; }
-}
-.gap-3 { gap: .75rem; } .gap-4 { gap: 1rem; } .gap-6 { gap: 1.5rem; }
-.mt-2 { margin-top: .5rem; } .mt-3 { margin-top: .75rem; }
-.mb-3 { margin-bottom: .75rem; } .mb-6 { margin-bottom: 1.5rem; }
-.ml-1 { margin-left: .25rem; }
-.flex { display: flex; } .items-center { align-items: center; } .justify-between { justify-content: space-between; }
-.space-y-6 > * + * { margin-top: 1.5rem; }
+/* variant body & input label */
+.variant-body { margin-top:10px; }
 .form-label { display:block; font-weight:600; margin-bottom:6px; color:#334155; }
+
+/* =========================
+   Image by color block */
+.color-block { margin-bottom:12px; }
+.color-heading {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-bottom:8px;
+}
+.color-heading .dot {
+  width:10px; height:10px; border-radius:50%;
+  background:var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-ring);
+}
+.color-heading .name { font-weight:700; color:var(--text); font-size:13px; }
+.color-heading .count { color:var(--muted); font-size:12px; }
+
+.upload-slot {
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  padding:8px;
+  min-width:92px;
+}
+:deep(.el-upload__tip) { display:none; }
+:deep(.el-upload-list__item) { max-width:100px; }
+
+/* =========================
+   Confirm row & summary
+   ========================= */
+.confirm-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px; }
+.meta { color:#334155; font-size:14px; }
+.meta-line { margin-bottom:6px; }
+
+/* =========================
+   Error visual helpers */
+.is-error :deep(.el-input__inner),
+.is-error :deep(.el-select .el-input__inner) {
+  border-color: var(--danger) !important;
+  box-shadow: 0 0 0 4px rgba(239,68,68,0.06);
+}
+
+/* =========================
+   Accessibility / utilities */
+.sr-only { position:absolute !important; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+
+/* =========================
+   Responsive tweaks */
+@media (max-width: 1024px) {
+  .check-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .xl\:col-span-2 { grid-column: auto; }
+  .xl\:col-span-1 { grid-column: auto; }
+}
 </style>

@@ -187,9 +187,9 @@
                   </div>
 
                   <!-- optional: show which variant has that min price -->
-                  <div class="price-note" v-if="p.minVariant">
-                    <small>({{ p.minVariant.sizeName || 'Kích thước khác' }} • {{ p.minVariant.colorName || 'Màu khác' }})</small>
-                  </div>
+<!--                  <div class="price-note" v-if="p.minVariant">-->
+<!--                    <small>({{ p.minVariant.sizeName || 'Kích thước khác' }} • {{ p.minVariant.colorName || 'Màu khác' }})</small>-->
+<!--                  </div>-->
 
                   <div class="product-card__colors" v-if="p.variants?.length">
                     <span

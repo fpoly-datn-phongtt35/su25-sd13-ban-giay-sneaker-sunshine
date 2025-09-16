@@ -155,6 +155,18 @@
         <el-table-column prop="sizeName" label="Kích thước" />
         <el-table-column prop="colorName" label="Màu sắc" />
         <el-table-column prop="quantity" label="Số lượng" />
+        <el-table-column label="Giá" min-width="180" align="right">
+          <template #default="{ row }">
+            <div class="price">
+              <span v-if="row.sellPrice !== row.discountedPrice" class="old">
+                {{ formatCurrency(row.sellPrice) }}
+              </span>
+              <span class="new" :class="{ danger: row.discountedPrice < row.sellPrice }">
+                {{ formatCurrency(row.discountedPrice) }}
+              </span>
+            </div>
+          </template>
+        </el-table-column>
       </el-table>
     </el-card>
 
@@ -547,7 +559,6 @@ const fetchInvoice = async () => {
   }
 }
 
-/* ===== Utils ===== */
 const formatDate = (dateStr) => dateStr ? new Date(dateStr).toLocaleString('vi-VN') : ''
 const formatCurrency = (val) => `${Number(val || 0).toLocaleString('vi-VN')} ₫`
 const goBack = () => router.back()
@@ -568,4 +579,7 @@ onMounted(() => {
 .el-dialog__header { padding-bottom: 10px; border-bottom: 1px solid #eee; }
 .el-dialog__title { font-size: 1.25rem; font-weight: 600; color: #333; }
 .el-form-item__label { font-size: 0.95rem; font-weight: 500; color: #555; }
+.price { display: flex; gap: 8px; justify-content: flex-end; align-items: baseline; }
+.price .old { text-decoration: line-through; color: var(--el-text-color-placeholder); }
+.price .new.danger { color: var(--el-color-danger); font-weight: 700; }
 </style>

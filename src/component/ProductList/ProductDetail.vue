@@ -211,7 +211,6 @@
           <div class="related-card" @click="goToDetail(rp.id)">
             <div class="related-image">
               <img :src="rp.activeImage" :alt="rp.productName" class="related-img" loading="lazy" decoding="async" />
-              <!-- show discount badge using best price (min from details) -->
               <span
                 v-if="hasDiscount(rp)"
                 class="badge"

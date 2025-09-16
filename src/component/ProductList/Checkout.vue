@@ -683,8 +683,31 @@ const handleSubmit = async () => {
         if (code) {
           try {
             const res2 = await axios.get('http://localhost:8080/api/online-sale/verify-invoice-status', { params: { code } })
-            if (res2.data === 2) {
-              // nếu 2 -> dừng ngay, không mở ZaloPay, không chuyển trang
+            const data = res2?.data
+            if (Array.isArray(data) && data.includes(2)) {
+              failEarly('Đợt giảm giá không tồn tại hoặc đã xóa')
+            }
+
+            // Trường hợp 2: backend có thể trả về mảng object: [{status:2}, {status:1}]
+            // Chuẩn hóa sang mảng số rồi kiểm tra
+            if (Array.isArray(data)) {
+              const nums = data.map(item => {
+                if (typeof item === 'number') return item
+                if (typeof item === 'string' && item.trim() !== '') return Number(item)
+                if (item && typeof item === 'object') {
+                  // thử lấy trường phổ biến: status, code, value, hoặc chính object nếu là số
+                  return Number(item.status ?? item.code ?? item.value ?? item)
+                }
+                return NaN
+              }).filter(n => Number.isFinite(n))
+
+              if (nums.includes(2)) {
+                failEarly('Đợt giảm giá không tồn tại hoặc đã xóa')
+              }
+            }
+
+            // Trường hợp 3: backend trả về 1 số đơn lẻ (2)
+            if (!Array.isArray(data) && Number(data) === 2) {
               failEarly('Đợt giảm giá không tồn tại hoặc đã xóa')
             }
             console.log('verify-invoice-status: ', res2.data)

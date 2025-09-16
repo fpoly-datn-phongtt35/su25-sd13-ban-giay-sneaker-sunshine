@@ -306,7 +306,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch, computed } from 'vue'
+import { ref, onMounted, watch, computed, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElNotification } from 'element-plus'
 import { ArrowLeft, Plus } from '@element-plus/icons-vue'
@@ -315,6 +315,11 @@ import apiClient from '@/utils/axiosInstance'
 const router = useRouter()
 const ArrowLeftIcon = ArrowLeft
 const PlusIcon = Plus
+
+// ---------- CONSTANTS ----------
+const MAX_SELL_PRICE = 999_999_999      // 9 chữ số
+const MAX_WEIGHT = 99_999                // 5 chữ số
+const MAX_QTY = 999_999                  // tối đa 6 chữ số cho số lượng chi tiết
 
 // Data lists
 const brandList = ref([])
@@ -337,17 +342,14 @@ const newColorName = ref('')
 const addingSize = ref(false)
 const addingColor = ref(false)
 
-// Images by colorId
 const colorImages = ref({}) // { [colorId]: [{name,url,file,uid}] }
 
-// selections
 const selectedSizes = ref([])   // array of sizeId
 const selectedColors = ref([])  // array of colorId
 
 // generated details
 const productDetails = ref([])
 
-// main form model
 const newProduct = ref({
   categoryIds: [],
   productName: '',
@@ -392,12 +394,127 @@ const isNonNegativeInteger = (v) => {
   return Number.isFinite(n) && Number.isInteger(n) && n >= 0
 }
 
+// ---------- Dynamic field validators ----------
+const validateSellPriceField = () => {
+  delete errors.value.sellPrice
+  const v = newProduct.value.sellPrice
+  if (v === null || v === undefined || v === '') {
+    errors.value.sellPrice = 'Giá bán phải là số lớn hơn 0.'
+    return false
+  }
+  if (!isPositiveNumber(v)) {
+    errors.value.sellPrice = 'Giá bán phải là số lớn hơn 0.'
+    return false
+  }
+  if (Number(v) > MAX_SELL_PRICE) {
+    errors.value.sellPrice = `Giá bán không được lớn hơn ${MAX_SELL_PRICE.toLocaleString('vi-VN')} (tối đa 9 chữ số).`
+    return false
+  }
+  // success
+  delete errors.value.sellPrice
+  return true
+}
+
+const validateWeightField = () => {
+  delete errors.value.weight
+  const v = newProduct.value.weight
+  if (v === null || v === undefined || v === '') {
+    errors.value.weight = 'Cân nặng phải là số nguyên lớn hơn 0 (gram).'
+    return false
+  }
+  if (!isPositiveNumber(v) || !Number.isInteger(Number(v))) {
+    errors.value.weight = 'Cân nặng phải là số nguyên lớn hơn 0 (gram).'
+    return false
+  }
+  if (Number(v) > MAX_WEIGHT) {
+    errors.value.weight = `Cân nặng không được lớn hơn ${MAX_WEIGHT.toLocaleString('vi-VN')} (tối đa 5 chữ số).`
+    return false
+  }
+  delete errors.value.weight
+  return true
+}
+
+const validateCategorySelection = () => {
+  if (!Array.isArray(newProduct.value.categoryIds) || newProduct.value.categoryIds.length === 0) {
+    errors.value.categoryIds = 'Vui lòng chọn ít nhất một danh mục.'
+    return false
+  } else {
+    delete errors.value.categoryIds
+    return true
+  }
+}
+
+const validateSizesColorsSelection = () => {
+  let ok = true
+  if (!selectedSizes.value || selectedSizes.value.length === 0) {
+    errors.value.selectedSizes = 'Vui lòng chọn ít nhất một kích thước.'
+    ok = false
+  } else {
+    delete errors.value.selectedSizes
+  }
+  if (!selectedColors.value || selectedColors.value.length === 0) {
+    errors.value.selectedColors = 'Vui lòng chọn ít nhất một màu sắc.'
+    ok = false
+  } else {
+    delete errors.value.selectedColors
+  }
+  return ok
+}
+
+const validateProductDetailsQuantities = () => {
+  // validate each detail quantity
+  let ok = true
+  if (!productDetails.value || productDetails.value.length === 0) {
+    errors.value.productDetails = 'Không có chi tiết sản phẩm nào được tạo.'
+    return false
+  } else {
+    delete errors.value.productDetails
+  }
+
+  productDetails.value.forEach((d, i) => {
+    const key = `productDetail_${i}_quantity`
+    if (d.quantity === null || d.quantity === undefined || d.quantity === '') {
+      errors.value[key] = 'Số lượng phải là số nguyên không âm.'
+      ok = false
+    } else {
+      const n = Number(d.quantity)
+      if (!Number.isFinite(n) || !Number.isInteger(n) || n < 0) {
+        errors.value[key] = 'Số lượng phải là số nguyên không âm.'
+        ok = false
+      } else if (n > MAX_QTY) {
+        errors.value[key] = `Số lượng không được vượt quá ${MAX_QTY.toLocaleString('vi-VN')}.`
+        ok = false
+      } else {
+        // valid: remove previous error
+        if (errors.value[key]) delete errors.value[key]
+      }
+    }
+  })
+  return ok
+}
+
+const validateColorImages = () => {
+  let ok = true
+  for (const cid of selectedColors.value) {
+    if (!colorImages.value[cid] || colorImages.value[cid].length === 0) {
+      errors.value[`colorImage_${cid}`] = `Vui lòng tải lên ít nhất một ảnh cho màu ${getColorName(cid)}.`
+      ok = false
+    } else {
+      if (errors.value[`colorImage_${cid}`]) delete errors.value[`colorImage_${cid}`]
+    }
+  }
+  return ok
+}
+
+// Full validation used on submit
 const validateAll = () => {
   errors.value = {}
 
+  // required & basic fields
   if (!newProduct.value.productName || !String(newProduct.value.productName).trim()) {
     errors.value.productName = 'Tên sản phẩm không được để trống.'
   }
+
   if (!newProduct.value.materialId) errors.value.materialId = 'Vui lòng chọn chất liệu.'
   if (!newProduct.value.genderId) errors.value.genderId = 'Vui lòng chọn đối tượng dành cho.'
   if (!newProduct.value.supplierId) errors.value.supplierId = 'Vui lòng chọn nhà cung cấp.'
@@ -405,101 +522,121 @@ const validateAll = () => {
   if (!newProduct.value.styleId) errors.value.styleId = 'Vui lòng chọn cổ giày.'
   if (!newProduct.value.brandId) errors.value.brandId = 'Vui lòng chọn thương hiệu.'
 
-  if (!Array.isArray(newProduct.value.categoryIds) || newProduct.value.categoryIds.length === 0) {
-    errors.value.categoryIds = 'Vui lòng chọn ít nhất một danh mục.'
-  }
+  // category
+  validateCategorySelection()
 
-  if (!isPositiveNumber(newProduct.value.weight) || !Number.isInteger(Number(newProduct.value.weight))) {
-    errors.value.weight = 'Cân nặng phải là số nguyên lớn hơn 0 (gram).'
-  }
+  // weight & sellPrice
+  validateWeightField()
+  validateSellPriceField()
 
-  if (!isPositiveNumber(newProduct.value.sellPrice)) {
-    errors.value.sellPrice = 'Giá bán phải là số lớn hơn 0.'
-  }
+  // sizes/colors
+  validateSizesColorsSelection()
 
-  if (!selectedSizes.value || selectedSizes.value.length === 0) errors.value.selectedSizes = 'Vui lòng chọn ít nhất một kích thước.'
-  if (!selectedColors.value || selectedColors.value.length === 0) errors.value.selectedColors = 'Vui lòng chọn ít nhất một màu sắc.'
-
+  // product details
   if (selectedSizes.value.length > 0 && selectedColors.value.length > 0) {
-    if (!productDetails.value || productDetails.value.length === 0) {
-      errors.value.productDetails = 'Không có chi tiết sản phẩm nào được tạo.'
-    } else {
-      productDetails.value.forEach((d, i) => {
-        if (!isNonNegativeInteger(d.quantity)) {
-          errors.value[`productDetail_${i}_quantity`] = `Số lượng của chi tiết ${i + 1} phải là số nguyên không âm.`
-        }
-      })
-    }
+    validateProductDetailsQuantities()
   }
 
-  for (const cid of selectedColors.value) {
-    if (!colorImages.value[cid] || colorImages.value[cid].length === 0) {
-      errors.value[`colorImage_${cid}`] = `Vui lòng tải lên ít nhất một ảnh cho màu ${getColorName(cid)}.`
-    }
-  }
+  // images
+  validateColorImages()
 
   return Object.keys(errors.value).length === 0
 }
 
+// ---------- Input handlers with limits ----------
 const onWeightChange = (val) => {
   if (val === null || val === undefined || val === '') {
     newProduct.value.weight = null
+    errors.value.weight = 'Cân nặng phải là số nguyên lớn hơn 0 (gram).'
     return
   }
-  const n = Number(val)
+  let n = Number(val)
   if (!Number.isFinite(n)) {
     newProduct.value.weight = null
-  } else {
-    newProduct.value.weight = Math.max(1, Math.trunc(n))
-  }
-  if (errors.value.weight) delete errors.value.weight
-}
-const onWeightBlur = () => {
-  if (!isPositiveNumber(newProduct.value.weight) || !Number.isInteger(Number(newProduct.value.weight))) {
     errors.value.weight = 'Cân nặng phải là số nguyên lớn hơn 0 (gram).'
-  } else {
-    delete errors.value.weight
+    return
   }
+  n = Math.trunc(n)
+  if (n <= 0) {
+    newProduct.value.weight = null
+    errors.value.weight = 'Cân nặng phải là số nguyên lớn hơn 0 (gram).'
+    return
+  }
+  if (n > MAX_WEIGHT) {
+    newProduct.value.weight = MAX_WEIGHT
+    errors.value.weight = `Cân nặng không được lớn hơn ${MAX_WEIGHT.toLocaleString('vi-VN')}.`
+    return
+  }
+  newProduct.value.weight = n
+  delete errors.value.weight
+}
+
+const onWeightBlur = () => {
+  validateWeightField()
 }
 
 const onSellPriceChange = (val) => {
   if (val === null || val === undefined || val === '') {
     newProduct.value.sellPrice = null
+    errors.value.sellPrice = 'Giá bán phải là số lớn hơn 0.'
     return
   }
-  const n = Number(val)
-  if (!Number.isFinite(n) || n <= 0) {
-  } else {
-    newProduct.value.sellPrice = Math.trunc(n)
-  }
-  if (errors.value.sellPrice) delete errors.value.sellPrice
-}
-const onSellPriceBlur = () => {
-  if (!isPositiveNumber(newProduct.value.sellPrice)) {
+  let n = Number(val)
+  if (!Number.isFinite(n)) {
+    newProduct.value.sellPrice = null
     errors.value.sellPrice = 'Giá bán phải là số lớn hơn 0.'
-  } else {
-    delete errors.value.sellPrice
+    return
   }
+  n = Math.trunc(n)
+  if (n <= 0) {
+    newProduct.value.sellPrice = null
+    errors.value.sellPrice = 'Giá bán phải là số lớn hơn 0.'
+    return
+  }
+  if (n > MAX_SELL_PRICE) {
+    newProduct.value.sellPrice = MAX_SELL_PRICE
+    errors.value.sellPrice = `Giá bán không được lớn hơn ${MAX_SELL_PRICE.toLocaleString('vi-VN')}.`
+    return
+  }
+  newProduct.value.sellPrice = n
+  delete errors.value.sellPrice
+}
+
+const onSellPriceBlur = () => {
+  validateSellPriceField()
 }
 
 const onQuantityChange = (val, row, index) => {
+  // normalize / enforce integer and max
   if (val === null || val === undefined || val === '') {
     row.quantity = 0
-  } else {
-    const n = Number(val)
-    if (!Number.isFinite(n)) {
-      row.quantity = 0
-    } else {
-      if (!Number.isInteger(n)) {
-        errors.value[`productDetail_${index}_quantity`] = 'Số lượng không được là số thập phân.'
-        row.quantity = Math.trunc(n)
-      } else {
-        delete errors.value[`productDetail_${index}_quantity`]
-      }
-    }
+    errors.value[`productDetail_${index}_quantity`] = 'Số lượng phải là số nguyên không âm.'
+    return
   }
+  let n = Number(val)
+  if (!Number.isFinite(n)) {
+    row.quantity = 0
+    errors.value[`productDetail_${index}_quantity`] = 'Số lượng phải là số nguyên không âm.'
+    return
+  }
+  // integer required
+  n = Math.trunc(n)
+  if (n < 0) {
+    row.quantity = 0
+    errors.value[`productDetail_${index}_quantity`] = 'Số lượng không được âm.'
+    return
+  }
+  if (n > MAX_QTY) {
+    row.quantity = MAX_QTY
+    errors.value[`productDetail_${index}_quantity`] = `Số lượng không được vượt quá ${MAX_QTY.toLocaleString('vi-VN')}.`
+    return
+  }
+  row.quantity = n
+  // pass validation for this row
+  if (errors.value[`productDetail_${index}_quantity`]) delete errors.value[`productDetail_${index}_quantity`]
 }
 
+// ---------- Product details generation ----------
 const generateProductDetails = () => {
   const next = []
   const sIds = selectedSizes.value.map(x => Number(x))
@@ -525,8 +662,12 @@ const generateProductDetails = () => {
   }
   next.sort((a, b) => (Number(a.sizeId) - Number(b.sizeId)) || (Number(a.colorId) - Number(b.colorId)))
   productDetails.value = next
+
+  // after generate, validate the productDetails to show feedback immediately
+  validateProductDetailsQuantities()
 }
 
+// ---------- File uploads ----------
 const handleFileChange = (file, fileList, colorId) => {
   const max = 5 * 1024 * 1024
   const size = file.raw?.size ?? file.size ?? 0
@@ -563,12 +704,19 @@ const handleFileRemove = (file, fileList, colorId) => {
     uid: item.uid || item.name + '_' + Date.now(),
   }))
   colorImages.value = { ...colorImages.value }
+  // revalidate this color
+  if (!colorImages.value[colorId] || colorImages.value[colorId].length === 0) {
+    errors.value[`colorImage_${colorId}`] = `Vui lòng tải lên ít nhất một ảnh cho màu ${getColorName(colorId)}.`
+  } else {
+    delete errors.value[`colorImage_${colorId}`]
+  }
 }
 
 const handlePreview = (file) => {
   if (file.url) window.open(file.url, '_blank')
 }
 
+// ---------- Actions ----------
 const openConfirmDialog = () => {
   if (!validateAll()) {
     notify('Vui lòng điền đầy đủ và chính xác các trường bắt buộc.', 'error')
@@ -676,6 +824,7 @@ const saveProduct = async () => {
   }
 }
 
+// ---------- Quick add size/color ----------
 const openAddSizeDialog = () => {
   newSizeName.value = ''
   isAddSizeDialog.value = true
@@ -742,7 +891,59 @@ const addColor = async () => {
   }
 }
 
-// ---------- Watchers ----------
+// ---------- Watchers (dynamic validation) ----------
+watch(() => newProduct.value.sellPrice, () => {
+  // live validate price when changed externally
+  if (newProduct.value.sellPrice !== null && newProduct.value.sellPrice !== undefined) {
+    // ensure integer and within max
+    let n = Number(newProduct.value.sellPrice)
+    if (!Number.isFinite(n)) {
+      errors.value.sellPrice = 'Giá bán phải là số hợp lệ.'
+    } else {
+      n = Math.trunc(n)
+      if (n <= 0) {
+        errors.value.sellPrice = 'Giá bán phải là số lớn hơn 0.'
+      } else if (n > MAX_SELL_PRICE) {
+        errors.value.sellPrice = `Giá bán không được lớn hơn ${MAX_SELL_PRICE.toLocaleString('vi-VN')}.`
+        newProduct.value.sellPrice = MAX_SELL_PRICE
+      } else {
+        delete errors.value.sellPrice
+        newProduct.value.sellPrice = n
+      }
+    }
+  } else {
+    errors.value.sellPrice = 'Giá bán phải là số lớn hơn 0.'
+  }
+})
+
+watch(() => newProduct.value.weight, () => {
+  if (newProduct.value.weight !== null && newProduct.value.weight !== undefined) {
+    let n = Number(newProduct.value.weight)
+    if (!Number.isFinite(n)) {
+      errors.value.weight = 'Cân nặng phải là số hợp lệ.'
+    } else {
+      n = Math.trunc(n)
+      if (n <= 0) {
+        errors.value.weight = 'Cân nặng phải là số nguyên lớn hơn 0 (gram).'
+      } else if (n > MAX_WEIGHT) {
+        errors.value.weight = `Cân nặng không được lớn hơn ${MAX_WEIGHT.toLocaleString('vi-VN')}.`
+        newProduct.value.weight = MAX_WEIGHT
+      } else {
+        delete errors.value.weight
+        newProduct.value.weight = n
+      }
+    }
+  } else {
+    errors.value.weight = 'Cân nặng phải là số nguyên lớn hơn 0 (gram).'
+  }
+})
+
+// watch productDetails deeply to validate quantities live
+watch(productDetails, (n, o) => {
+  validateProductDetailsQuantities()
+}, { deep: true })
+
+// watch selectedColors to remove images and errors when deselected
 watch(selectedColors, (n, o) => {
   const removed = (o || []).filter(id => !n.includes(id))
   removed.forEach(id => {
@@ -752,6 +953,8 @@ watch(selectedColors, (n, o) => {
   })
   generateProductDetails()
 })
+
+// watch selectedSizes to regenerate details
 watch(selectedSizes, () => generateProductDetails())
 
 // ---------- Fetchers ----------

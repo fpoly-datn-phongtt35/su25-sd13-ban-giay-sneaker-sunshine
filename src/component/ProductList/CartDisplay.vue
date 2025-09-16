@@ -1,6 +1,9 @@
 <template>
-  <div class="cart-container">
-    <h2 class="cart-title">Giỏ hàng của bạn</h2>
+  <div class="cart-page-container">
+    <div class="cart-header">
+      <h2 class="cart-title">Giỏ hàng của bạn</h2>
+      <span v-if="cartItems.length" class="item-count">({{ totalQty }} sản phẩm)</span>
+    </div>
 
     <el-alert
       v-if="exceedsBulkRule && cartItems.length"
@@ -12,87 +15,92 @@
       description="Số lượng mỗi sản phẩm tối đa 9. Nếu bạn muốn đặt từ 10 đôi trở lên, vui lòng liên hệ nhân viên để được hỗ trợ."
     />
 
-    <el-table v-if="cartItems.length" :data="cartItems" border class="cart-table">
-      <el-table-column label="Ảnh" width="90" align="center">
-        <template #default="{ row }">
-          <el-image :src="row.image || '/no-image.jpg'" fit="cover" class="cart-thumb" />
-        </template>
-      </el-table-column>
-
-      <el-table-column label="Sản phẩm" min-width="200">
-        <template #default="{ row }">
-          <div class="product-info">
-            <span class="product-name">{{ row.productName }}</span>
-            <span class="product-details">
-              Màu: {{ row.color }} | Size: {{ row.size }}
-              <span v-if="Number(row.maxQuantity) > 0" class="stock-hint">| Tồn: {{ row.maxQuantity }}</span>
-            </span>
+    <div v-if="cartItems.length" class="cart-layout">
+      <div class="cart-items-list">
+        <div v-for="item in cartItems" :key="`${item.productDetailId}-${item.color}-${item.size}`" class="cart-item-card">
+          <div class="item-image">
+            <el-image :src="item.image || '/no-image.jpg'" fit="cover" class="cart-thumb" />
           </div>
-        </template>
-      </el-table-column>
 
-      <el-table-column label="Số lượng" width="160" align="center">
-        <template #default="{ row }">
-          <el-input-number
-            v-model="row.quantity"
-            :min="1"
-            :max="getRowMax(row)"
-            @change="() => updateQuantity(row)"
-            size="small"
-          />
-        </template>
-      </el-table-column>
+          <div class="item-details">
+            <div class="item-info">
+              <span class="product-name">{{ item.productName }}</span>
+              <span class="product-meta">
+                Màu: {{ item.color }} | Size: {{ item.size }}
+                <span v-if="Number(item.maxQuantity) > 0" class="stock-hint">| Tồn: {{ item.maxQuantity }}</span>
+              </span>
+            </div>
 
-      <el-table-column label="Đơn giá" width="160" align="right">
-        <template #default="{ row }">
-          <div class="price-block">
-            <span v-if="row.sellPrice > row.price" class="original-price">
-              {{ formatPrice(row.sellPrice) }}
-            </span>
-            <span class="final-price">{{ formatPrice(row.price) }}</span>
+            <div class="item-price">
+               <span v-if="item.sellPrice > item.price" class="original-price">
+                {{ formatPrice(item.sellPrice) }}
+              </span>
+              <span class="final-price">{{ formatPrice(item.price) }}</span>
+            </div>
           </div>
-        </template>
-      </el-table-column>
 
-      <el-table-column label="Thành tiền" width="150" align="right">
-        <template #default="{ row }">
-          <span class="total-price">{{ formatPrice((Number(row.price) || 0) * (Number(row.quantity) || 0)) }}</span>
-        </template>
-      </el-table-column>
-
-      <el-table-column label="Hành động" width="100" align="center">
-        <template #default="{ row }">
-          <el-button type="danger" :icon="Delete" circle size="small" @click="removeItem(row)" />
-        </template>
-      </el-table-column>
-    </el-table>
-
-    <div v-if="cartItems.length" class="cart-summary">
-      <div class="total-amount">
-        Tổng cộng ({{ totalQty }} đôi): <span class="total-price-display">{{ formatPrice(calculateTotal) }}</span>
+          <div class="item-controls">
+            <el-input-number
+              v-model="item.quantity"
+              :min="1"
+              :max="getRowMax(item)"
+              @change="() => updateQuantity(item)"
+              size="small"
+              class="quantity-input"
+            />
+             <div class="item-total-price">
+              {{ formatPrice((Number(item.price) || 0) * (Number(item.quantity) || 0)) }}
+            </div>
+          </div>
+          
+          <div class="item-actions">
+            <el-button type="danger" :icon="Delete" text circle @click="removeItem(item)" />
+          </div>
+        </div>
       </div>
-      <div class="cart-actions">
-        <el-button type="info" @click="router.push('/')">
-          <el-icon><Back /></el-icon> Tiếp tục mua sắm
-        </el-button>
-        <el-button type="danger" @click="confirmClearAll">Xóa tất cả</el-button>
 
-        <el-tooltip
-          v-if="exceedsBulkRule"
-          effect="dark"
-          content="Số lượng lớn (≥ 10). Vui lòng liên hệ nhân viên để đặt hàng."
-          placement="top"
-        >
-          <el-button type="success" :disabled="true" @click="goToCheckout">Thanh toán</el-button>
-        </el-tooltip>
+      <div class="cart-summary-card">
+        <h3 class="summary-title">Tóm tắt đơn hàng</h3>
+        <div class="summary-row">
+          <span>Tạm tính ({{ totalQty }} sản phẩm)</span>
+          <span>{{ formatPrice(calculateTotal) }}</span>
+        </div>
+        <div class="summary-row total-row">
+          <span class="total-label">Tổng cộng</span>
+          <span class="total-price-display">{{ formatPrice(calculateTotal) }}</span>
+        </div>
 
-        <el-button v-else type="success" @click="goToCheckout">Thanh toán</el-button>
+        <div class="summary-actions">
+           <el-tooltip
+            v-if="exceedsBulkRule"
+            effect="dark"
+            content="Số lượng lớn (≥ 10). Vui lòng liên hệ nhân viên để đặt hàng."
+            placement="top"
+            class="full-width-tooltip"
+          >
+            <el-button type="success" :disabled="true" @click="goToCheckout" class="checkout-btn" size="large">
+              Thanh toán
+            </el-button>
+          </el-tooltip>
+          <el-button v-else type="success" @click="goToCheckout" class="checkout-btn" size="large">
+            Thanh toán
+          </el-button>
+        </div>
+        
+        <div class="continue-shopping">
+            <el-button type="info" link @click="router.push('/')">
+                <el-icon><Back /></el-icon> Tiếp tục mua sắm
+            </el-button>
+            <el-button type="danger" link @click="confirmClearAll">
+              <el-icon><Delete /></el-icon> Xóa tất cả
+            </el-button>
+        </div>
       </div>
     </div>
 
     <el-empty v-else description="Giỏ hàng của bạn đang trống" image-size="200">
-      <el-button type="primary" @click="router.push('/')">
-        <el-icon><Shop /></el-icon> Bắt đầu mua sắm ngay!
+      <el-button type="primary" @click="router.push('/')" size="large">
+        Bắt đầu mua sắm ngay!
       </el-button>
     </el-empty>
 
@@ -115,6 +123,8 @@
 </template>
 
 <script setup>
+// ===== SCRIPT SETUP KHÔNG THAY ĐỔI =====
+// (Dán toàn bộ phần <script setup> của bạn vào đây)
 import { ref, onMounted, onBeforeUnmount, watch, computed, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -465,28 +475,249 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-/* (giữ nguyên CSS từ bản trước) */
-.cart-container { max-width: 1200px; margin: 20px auto; padding: 20px; background: #fff; border-radius: 8px; }
-.cart-title { font-size: 24px; font-weight: 700; margin-bottom: 20px; text-align: center; }
-.bulk-alert { margin-bottom: 12px; }
-.cart-table { margin-bottom: 20px; }
-.cart-thumb { width: 70px; height: 70px; border: 1px solid #eee; border-radius: 6px; }
-.product-info { text-align: left; }
-.product-name { font-weight: 600; color: #333; }
-.product-details { font-size: 13px; color: #666; }
-.stock-hint { color: #999; }
-.price-block { display: flex; flex-direction: column; align-items: flex-end; }
-.original-price { text-decoration: line-through; color: #999; font-size: 12px; }
-.final-price { color: #e6a23c; font-weight: 600; }
-.total-price { color: #f56c6c; font-weight: 700; }
-.cart-summary { text-align: right; border-top: 1px solid #eee; padding-top: 15px; }
-.total-amount { font-size: 20px; font-weight: 700; margin-bottom: 10px; }
-.total-price-display { color: #f56c6c; font-size: 24px; }
-.cart-actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+/* ===== GIAO DIỆN TỔNG THỂ ===== */
+.cart-page-container {
+  max-width: 1280px;
+  margin: 20px auto;
+  padding: 20px;
+  background-color: #f8f9fa; /* Nền xám nhạt cho toàn trang */
+}
 
-.contact-block { font-size:14px; color:#333; }
-.contact-list { margin:10px 0 0; padding-left:18px; }
-.contact-list li { margin:4px 0; }
-.contact-list a { color:#409eff; text-decoration:none; }
-.contact-list a:hover { text-decoration:underline; }
+.cart-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.cart-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #333;
+  margin: 0;
+}
+
+.item-count {
+  font-size: 16px;
+  color: #666;
+}
+
+.bulk-alert {
+  margin-bottom: 20px;
+}
+
+/* ===== BỐ CỤC CHÍNH (2 CỘT) ===== */
+.cart-layout {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.cart-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px; /* Tạo đường kẻ mảnh giữa các item */
+  background-color: #e9ecef; /* Màu đường kẻ */
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* ===== THẺ SẢN PHẨM (CARD) ===== */
+.cart-item-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 16px;
+  align-items: center;
+  padding: 16px;
+  background: #fff;
+}
+
+.item-image .cart-thumb {
+  width: 80px;
+  height: 80px;
+  border-radius: 6px;
+  border: 1px solid #eee;
+}
+
+.item-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+}
+
+.product-name {
+  font-weight: 600;
+  color: #333;
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+.product-meta {
+  font-size: 13px;
+  color: #6c757d;
+}
+
+.stock-hint {
+  color: #28a745;
+}
+
+.item-price {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+}
+
+.original-price {
+  text-decoration: line-through;
+  color: #999;
+  font-size: 13px;
+}
+
+.final-price {
+  color: #333;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.item-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.quantity-input {
+  width: 100px;
+}
+.item-total-price {
+  font-size: 16px;
+  font-weight: 700;
+  color: #d9534f;
+}
+
+.item-actions .el-button {
+  font-size: 18px;
+}
+
+/* ===== THẺ TÓM TẮT ĐƠN HÀNG ===== */
+.cart-summary-card {
+  position: sticky;
+  top: 20px;
+  background: #fff;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 24px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.summary-title {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0 0 20px 0;
+  text-align: left;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  font-size: 15px;
+  color: #555;
+}
+
+.summary-row.total-row {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px dashed #ced4da;
+}
+
+.total-label {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.total-price-display {
+  font-size: 22px;
+  font-weight: 700;
+  color: #d9534f;
+}
+
+.summary-actions {
+  margin-top: 24px;
+}
+.checkout-btn {
+  width: 100%;
+  font-weight: 600;
+}
+.full-width-tooltip {
+  width: 100%;
+}
+.continue-shopping {
+    margin-top: 16px;
+    display: flex;
+    justify-content: space-between;
+}
+
+/* ===== DIALOG LIÊN HỆ ===== */
+.contact-block { font-size: 14px; color: #333; }
+.contact-list { margin: 10px 0 0; padding-left: 18px; }
+.contact-list li { margin: 4px 0; }
+.contact-list a { color: #409eff; text-decoration: none; }
+.contact-list a:hover { text-decoration: underline; }
+
+/* ===== RESPONSIVE DESIGN ===== */
+@media (max-width: 992px) {
+  .cart-layout {
+    grid-template-columns: 1fr; /* Chuyển thành 1 cột */
+  }
+
+  .cart-summary-card {
+    position: static; /* Gỡ sticky */
+    margin-top: 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  .cart-title {
+    font-size: 24px;
+  }
+  
+  .cart-item-card {
+    grid-template-columns: 80px 1fr; /* Ảnh và phần còn lại */
+    grid-template-rows: auto auto auto;
+    row-gap: 12px;
+    column-gap: 12px;
+  }
+
+  .item-image {
+    grid-row: 1 / 4; /* Ảnh chiếm cả 3 hàng */
+  }
+
+  .item-details { grid-column: 2 / 3; grid-row: 1 / 2; }
+  .item-controls { 
+    grid-column: 2 / 3; 
+    grid-row: 2 / 3;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .item-actions { 
+    grid-column: 2 / 3;
+    grid-row: 3 / 4; 
+    justify-self: end;
+  }
+  .product-name { font-size: 15px; }
+}
+
+@media (max-width: 480px) {
+    .cart-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+}
 </style>

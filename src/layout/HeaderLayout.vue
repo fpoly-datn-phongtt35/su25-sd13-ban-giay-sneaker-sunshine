@@ -682,7 +682,7 @@ function formatPrice(v) { if (v == null) return ''; try { return Number(v).toLoc
 .notify-badge{position:absolute;top:-5px;right:-8px;min-width:18px;height:18px;padding:0 6px;border-radius:999px;background:#dc3545;color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
 .cart-icon-container{position:relative}
 .cart-badge{position:absolute;top:-5px;right:-10px;background:var(--danger-color);color:#da2d2d;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
-.fav-badge{position:absolute;top:-5px;right:-10px;background:#0b61ff;color:#db2626;border-radius:50%;min-width:18px;height:18px;display:flex;align-items:center;justify-content:center;padding:0 5px;font-size:11px;font-weight:700}
+.fav-badge{position:absolute;top:-5px;right:-10px;background:#0b61ff;color:#d31111;border-radius:50%;min-width:18px;height:18px;display:flex;align-items:center;justify-content:center;padding:0 5px;font-size:11px;font-weight:700}
 
 /* User dropdown */
 .user-menu-container{position:relative}

@@ -746,6 +746,8 @@ const handleSubmit = async () => {
             } catch (err) { /* ignore cross-origin check errors */ }
           }, 1000)
 
+                  clearCart()
+
           // done — trả về để chờ popup xử lý (finally sẽ chạy để dọn dẹp)
           return
         } else {

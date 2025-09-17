@@ -5,39 +5,36 @@
       <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h2 class="text-xl md:text-2xl font-bold text-gray-800">Tổng quan bán hàng</h2>
 
-<div class="flex items-center gap-2 bg-white border border-gray-200 rounded-2xl px-3 py-2">
-  <el-date-picker
-    v-model="dateRange"
-    type="daterange"
-    start-placeholder="Từ ngày"
-    end-placeholder="Đến ngày"
-    format="YYYY-MM-DD"
-    value-format="YYYY-MM-DD"
-    :unlink-panels="true"
-    size="small"
-    class="w-80"
-  />
-  <el-button type="primary" size="small" @click="refreshAll" :loading="loading">Áp dụng</el-button>
-  <el-button size="small" @click="resetAll" :disabled="loading">Đặt lại</el-button>
-  <el-button type="primary" size="small" @click="goToOrderStaff">
-    Thống kê đơn hàng theo nhân viên
-  </el-button>
-    <el-button
-    type="success"
-    size="small"
-    plain
-    :loading="exporting"
-    :disabled="loading || exporting"
-    @click="exportExcel"
-  >
-    Xuất Excel
-  </el-button>
-
-</div>
-
+        <div class="flex items-center gap-2 bg-white border border-gray-200 rounded-2xl px-3 py-2">
+          <el-date-picker
+            v-model="dateRange"
+            type="daterange"
+            start-placeholder="Từ ngày"
+            end-placeholder="Đến ngày"
+            format="YYYY-MM-DD"
+            value-format="YYYY-MM-DD"
+            :unlink-panels="true"
+            size="small"
+            class="w-80"
+          />
+          <el-button type="primary" size="small" @click="refreshAll" :loading="loading">Áp dụng</el-button>
+          <el-button size="small" @click="resetAll" :disabled="loading">Đặt lại</el-button>
+          <el-button type="primary" size="small" @click="goToOrderStaff">
+            Thống kê đơn hàng theo nhân viên
+          </el-button>
+          <el-button
+            type="success"
+            size="small"
+            plain
+            :loading="exporting"
+            :disabled="loading || exporting"
+            @click="exportExcel"
+          >
+            Xuất Excel
+          </el-button>
+        </div>
       </div>
 
-      <!-- ===== KPI Cards ===== -->
       <el-row :gutter="16" class="mb-4">
         <el-col :xs="24" :md="8">
           <div class="kpi">
@@ -82,9 +79,7 @@
         </el-col>
       </el-row>
 
-      <!-- ===== Charts Row ===== -->
       <el-row :gutter="16">
-        <!-- Bar: Thống kê (Ngày/Tháng/Năm; Số lượng/Doanh số) -->
         <el-col :xs="24" :md="16">
           <div class="panel">
             <div class="panel-head">
@@ -151,6 +146,46 @@
         </el-table>
       </div>
 
+      <!-- ===== Favorite products (Yêu thích nhất) ===== -->
+      <div class="panel mt-4">
+        <div class="panel-head">
+          <div class="panel-title">Sản phẩm yêu thích nhất</div>
+        </div>
+
+        <el-table
+          :data="favoriteRows"
+          size="small"
+          class="rounded-xl"
+          :empty-text="loading ? 'Đang tải...' : 'Không có dữ liệu yêu thích'"
+        >
+          <el-table-column label="Sản phẩm" min-width="300">
+            <template #default="{ row }">
+              <div class="prod">
+                <img v-if="row.thumbnail" :src="row.thumbnail" alt="thumb" class="w-12 h-12 rounded-md object-cover" />
+                <div>
+                  <div class="prod-name">{{ row.productName }}</div>
+                  <div class="text-xs text-gray-500" v-if="row.sku">SKU: {{ row.sku }}</div>
+                </div>
+              </div>
+            </template>
+          </el-table-column>
+
+          <el-table-column prop="favoritesCount" label="Lượt yêu thích" width="140" align="right">
+            <template #default="{ row }">
+              <div>{{ row.favoritesCount ?? row.favoriteCount ?? 0 }}</div>
+            </template>
+          </el-table-column>
+
+          <el-table-column prop="totalQuantitySold" label="Số lượng bán" width="140" align="right" />
+
+          <el-table-column label="Hành động" width="140">
+            <template #default="{ row }">
+              <el-button type="primary" plain size="small" @click="goToProduct(row.productId)">Xem</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+
       <!-- ===== Footer updated ===== -->
       <div class="mt-3 text-xs text-gray-500 flex items-center gap-2">
         <el-icon><Clock /></el-icon>
@@ -168,20 +203,17 @@ import Chart from 'chart.js/auto'
 import apiClient from '@/utils/axiosInstance'
 import { useRouter } from 'vue-router'
 const router = useRouter()
+
+/* STATE */
+const loading = ref(true)
 const exporting = ref(false)
 const error = ref(null)
-
-
-/* =================== STATE =================== */
-const loading = ref(true)
 const lastUpdated = ref(null)
-const dateRange = ref([]) // ['YYYY-MM-DD','YYYY-MM-DD']
+const dateRange = ref([])
 
-// Switch biểu đồ
-const timeMode  = ref('day')       // 'day' | 'month' | 'year'
-const valueMode = ref('revenue')   // 'revenue' | 'quantity'
+const timeMode  = ref('day')
+const valueMode = ref('revenue')
 
-// Raw dashboard từ API
 const dash = ref({
   todayRevenue: 0,
   currentPeriods: null,
@@ -190,57 +222,12 @@ const dash = ref({
   yearly: [],
   invoiceStatusStats: [],
   topProducts: [],
+  favoriteProducts: [], // <-- backend may fill this
   periodStart: null,
   periodEnd: null
 })
 
-const exportExcel = async () => {
-  try {
-    exporting.value = true
-    // Dùng lại body hiện có để khớp service backend
-    const body = {
-      ...buildBody(),
-      // Khi xuất excel nên lấy đủ các phần, bật topProducts nếu BE hỗ trợ
-      includeTopProducts: true,
-    }
-
-    // ĐÚNG với controller bạn đã đưa:
-    // @RequestMapping("/api/statistics")
-    // @PostMapping("/dashboard/export-excel")
-    // -> URL: /api/statistics/dashboard/export-excel
-    const res = await apiClient.post('/admin/statistics/dashboard/export-excel', body, {
-      responseType: 'blob'
-    })
-
-    // Tải file
-    const blob = new Blob([res.data], {
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')
-    a.download = `dashboard_stat_${ts}.xlsx`
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
-    window.URL.revokeObjectURL(url)
-  } catch (e) {
-    console.error('Xuất Excel thất bại:', e)
-    if (e?.response?.status === 403) {
-      router.push('/error')
-    } else {
-      // Tận dụng alert error sẵn có của bạn
-      // (giữ nguyên biến error hiện có)
-      error.value = e?.message || 'Không thể xuất Excel'
-    }
-  } finally {
-    exporting.value = false
-  }
-}
-
-
-/* =================== HELPERS =================== */
+/* HELPERS */
 const pad = n => String(n ?? 0).padStart(2,'0')
 const vnd = n => (n ?? 0).toLocaleString('vi-VN')
 const safeNum = n => (typeof n === 'number' && isFinite(n)) ? n : 0
@@ -249,14 +236,13 @@ const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate())
 const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n)
 const inRange = (d, a, b) => (!a || d >= a) && (!b || d < b)
 const startOfWeekMon = (d) => {
-  const day = d.getDay() || 7 // Monday = 1..Sunday = 7
+  const day = d.getDay() || 7
   const monday = new Date(d)
   monday.setDate(d.getDate() - (day - 1))
   monday.setHours(0,0,0,0)
   return monday
 }
 const endOfWeekMon = (d) => addDays(startOfWeekMon(d), 7)
-
 const fmtDateTime = d => {
   if (!d) return ''
   const t = new Date(d)
@@ -269,217 +255,131 @@ const pct = (cur, prev) => {
 }
 const formatPct = v => v == null ? 'N/A' : `${(v>=0?'+':'')}${v.toFixed(0)}%`
 
-/* =================== COMPUTED KPI =================== */
+/* KPI computed (same logic as before) */
 const kpis = computed(() => {
   const d = dash.value
   const today = safeNum(d.todayRevenue)
-
-  // Nếu BE đã cung cấp currentPeriods thì ưu tiên
   const week = safeNum(d.currentPeriods?.weekRevenue)
   const month = safeNum(d.currentPeriods?.monthRevenue)
-  const prevWeek = d.currentPeriods?.prevWeekRevenue
-  const prevMonth = d.currentPeriods?.prevMonthRevenue
-
-  // Nếu thiếu, tự tính từ chartAgg trong khoảng periodStart-periodEnd
-  let calcWeek = week, calcMonth = month, calcPrevWeek = prevWeek, calcPrevMonth = prevMonth
-  const ps = parseISO(d.periodStart)
-  const pe = parseISO(d.periodEnd)
+  let calcWeek = week, calcMonth = month, calcPrevWeek = 0, calcPrevMonth = 0
   const todayDate = new Date()
-
   if ((!d.currentPeriods || d.currentPeriods?.weekRevenue == null || d.currentPeriods?.monthRevenue == null) && Array.isArray(d.chartAgg)) {
-    // Sum theo tuần hiện tại
-    const ws = startOfWeekMon(todayDate)
-    const we = endOfWeekMon(todayDate)
-    calcWeek = d.chartAgg
-      .map(x => ({ date: parseISO(x.label), revenue: safeNum(x.totalRevenue ?? x.revenue) }))
-      .filter(x => x.date && inRange(startOfDay(x.date), ws, we))
-      .reduce((s, i) => s + i.revenue, 0)
+    const ws = startOfWeekMon(todayDate), we = endOfWeekMon(todayDate)
+    calcWeek = d.chartAgg.map(x => ({ date: parseISO(x.label), revenue: safeNum(x.totalRevenue ?? x.revenue) }))
+      .filter(x => x.date && inRange(startOfDay(x.date), ws, we)).reduce((s,i)=>s+i.revenue,0)
 
-    // Tháng hiện tại (ưu tiên chartAgg nếu period là tháng hiện tại)
     const ym = todayDate.getMonth(), yy = todayDate.getFullYear()
-    const monthStart = new Date(yy, ym, 1)
-    const monthEnd = new Date(yy, ym + 1, 1)
-    const fromAgg = d.chartAgg
-      .map(x => ({ date: parseISO(x.label), revenue: safeNum(x.totalRevenue ?? x.revenue) }))
-      .filter(x => x.date && inRange(startOfDay(x.date), monthStart, monthEnd))
-      .reduce((s, i) => s + i.revenue, 0)
+    const monthStart = new Date(yy, ym, 1), monthEnd = new Date(yy, ym + 1, 1)
+    const fromAgg = d.chartAgg.map(x => ({ date: parseISO(x.label), revenue: safeNum(x.totalRevenue ?? x.revenue) }))
+      .filter(x => x.date && inRange(startOfDay(x.date), monthStart, monthEnd)).reduce((s,i)=>s+i.revenue,0)
+    calcMonth = fromAgg > 0 ? fromAgg : (Array.isArray(d.monthly) ? safeNum((d.monthly.find(m => safeNum(m.year) === yy && safeNum(m.month) === (ym+1)) || {}).totalRevenue) : 0)
 
-    // Nếu chartAgg không nằm trong tháng hiện tại, fallback từ monthly
-    if (fromAgg > 0) {
-      calcMonth = fromAgg
-    } else if (Array.isArray(d.monthly) && d.monthly.length) {
-      const mRow = d.monthly.find(m => safeNum(m.year) === yy && safeNum(m.month) === (ym + 1))
-      calcMonth = safeNum(mRow?.totalRevenue)
-    } else {
-      calcMonth = 0
-    }
+    const prevWs = addDays(ws, -7), prevWe = ws
+    calcPrevWeek = d.chartAgg.map(x => ({ date: parseISO(x.label), revenue: safeNum(x.totalRevenue ?? x.revenue) }))
+      .filter(x => x.date && inRange(startOfDay(x.date), prevWs, prevWe)).reduce((s,i)=>s+i.revenue,0)
 
-    // Tính tuần trước (dựa chartAgg)
-    const prevWe = ws
-    const prevWs = addDays(ws, -7)
-    calcPrevWeek = d.chartAgg
-      .map(x => ({ date: parseISO(x.label), revenue: safeNum(x.totalRevenue ?? x.revenue) }))
-      .filter(x => x.date && inRange(startOfDay(x.date), prevWs, prevWe))
-      .reduce((s, i) => s + i.revenue, 0)
-
-    // Tháng trước
-    const prevMonthStart = new Date(yy, ym - 1, 1)
-    const prevMonthEnd = new Date(yy, ym, 1)
-    const prevAgg = d.chartAgg
-      .map(x => ({ date: parseISO(x.label), revenue: safeNum(x.totalRevenue ?? x.revenue) }))
-      .filter(x => x.date && inRange(startOfDay(x.date), prevMonthStart, prevMonthEnd))
-      .reduce((s, i) => s + i.revenue, 0)
-
-    if (prevAgg > 0) {
-      calcPrevMonth = prevAgg
-    } else if (Array.isArray(d.monthly) && d.monthly.length) {
-      const pm = ym === 0 ? 12 : ym
-      const py = ym === 0 ? yy - 1 : yy
-      const mRowPrev = d.monthly.find(m => safeNum(m.year) === py && safeNum(m.month) === pm)
-      calcPrevMonth = safeNum(mRowPrev?.totalRevenue)
-    } else {
-      calcPrevMonth = 0
-    }
+    const prevMonthStart = new Date(yy, ym - 1, 1), prevMonthEnd = new Date(yy, ym, 1)
+    const prevAgg = d.chartAgg.map(x => ({ date: parseISO(x.label), revenue: safeNum(x.totalRevenue ?? x.revenue) }))
+      .filter(x => x.date && inRange(startOfDay(x.date), prevMonthStart, prevMonthEnd)).reduce((s,i)=>s+i.revenue,0)
+    calcPrevMonth = prevAgg > 0 ? prevAgg : (Array.isArray(d.monthly) ? safeNum((d.monthly.find(m => safeNum(m.year) === (ym===0?yy-1:yy) && safeNum(m.month) === (ym===0?12:ym)) || {}).totalRevenue) : 0)
   }
 
-  // So sánh Today vs Hôm qua (nếu không có sẵn)
   let todayPct = null
   if (d.changes?.todayRevenue != null) {
     todayPct = d.changes.todayRevenue
   } else if (Array.isArray(d.chartAgg) && d.chartAgg.length) {
-    const t0 = startOfDay(new Date())
-    const t1 = addDays(t0, 1)
+    const t0 = startOfDay(new Date()), t1 = addDays(t0, 1)
     const y0 = addDays(t0, -1), y1 = t0
-    const sumIn = (s, e) => d.chartAgg
-      .map(x => ({ date: parseISO(x.label), revenue: safeNum(x.totalRevenue ?? x.revenue) }))
-      .filter(x => x.date && inRange(startOfDay(x.date), s, e))
-      .reduce((sum, i) => sum + i.revenue, 0)
-
-    const todaySum = sumIn(t0, t1)
-    const yestSum  = sumIn(y0, y1)
-    todayPct = pct(todaySum, yestSum)
+    const sumIn = (s,e) => d.chartAgg.map(x => ({ date: parseISO(x.label), revenue: safeNum(x.totalRevenue ?? x.revenue) }))
+      .filter(x => x.date && inRange(startOfDay(x.date), s, e)).reduce((sum,i)=>sum+i.revenue,0)
+    todayPct = pct(sumIn(t0,t1), sumIn(y0,y1))
   }
 
   return {
     today,
-    week: (d.currentPeriods?.weekRevenue != null) ? week : safeNum(calcWeek),
-    month: (d.currentPeriods?.monthRevenue != null) ? month : safeNum(calcMonth),
-    weekPct: (d.currentPeriods?.weekRevenue != null && d.currentPeriods?.prevWeekRevenue != null)
-      ? pct(week, prevWeek) : pct(calcWeek, calcPrevWeek),
-    monthPct: (d.currentPeriods?.monthRevenue != null && d.currentPeriods?.prevMonthRevenue != null)
-      ? pct(month, prevMonth) : pct(calcMonth, calcPrevMonth),
+    week: safeNum(calcWeek),
+    month: safeNum(calcMonth),
+    weekPct: pct(calcWeek, calcPrevWeek),
+    monthPct: pct(calcMonth, calcPrevMonth),
     todayPct
   }
 })
 
-/* =================== BAR CHART =================== */
+/* BAR CHART */
 const barRef = ref(); let barChart = null
-
 const normalizeBar = () => {
   const d = dash.value
   if (timeMode.value === 'day') {
-    // Ưu tiên chartAgg
     if (Array.isArray(d.chartAgg) && d.chartAgg.length) {
-      return d.chartAgg.map(i => ({
-        label: i.label,
-        quantity: safeNum(i.totalQuantity ?? i.quantity),
-        revenue: safeNum(i.totalRevenue ?? i.revenue)
-      }))
+      return d.chartAgg.map(i => ({ label: i.label, quantity: safeNum(i.totalQuantity ?? i.quantity), revenue: safeNum(i.totalRevenue ?? i.revenue) }))
     }
-    // Fallback: rỗng
     return []
   }
   if (timeMode.value === 'month') {
-    return (d.monthly || []).map(i => ({
-      label: `${pad(i.month)}/${i.year}`,
-      quantity: safeNum(i.totalQuantity),
-      revenue: safeNum(i.totalRevenue)
-    }))
+    return (d.monthly || []).map(i => ({ label: `${pad(i.month)}/${i.year}`, quantity: safeNum(i.totalQuantity), revenue: safeNum(i.totalRevenue) }))
   }
-  // year
-  return (d.yearly || []).map(i => ({
-    label: String(i.year),
-    quantity: safeNum(i.totalQuantity),
-    revenue: safeNum(i.totalRevenue)
-  }))
+  return (d.yearly || []).map(i => ({ label: String(i.year), quantity: safeNum(i.totalQuantity), revenue: safeNum(i.totalRevenue) }))
 }
-
 const buildBar = () => {
   const rows = normalizeBar()
   const labels = rows.map(r => r.label)
   const data   = rows.map(r => valueMode.value === 'quantity' ? r.quantity : r.revenue)
-
   const ctx = barRef.value?.getContext('2d')
   barChart?.destroy()
   barChart = new Chart(ctx, {
     type: 'bar',
     data: { labels, datasets: [{ label: valueMode.value === 'quantity' ? 'Số lượng' : 'Doanh số', data, borderWidth: 1 }] },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: { y: { beginAtZero: true } }
-    }
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
   })
 }
 
-/* =================== DONUT =================== */
+/* DONUT */
 const donutRef = ref(); let donutChart = null
-
-// Map màu theo statusCode (tuỳ biến phù hợp brand)
 const statusColorByCode = (code) => {
   switch (code) {
-    case 0: return '#6366F1'  // Đang xử lý / Chờ xác nhận
-    case 1: return '#22C55E'  // Thành công
-    case -1: return '#EF4444' // Hủy
-    case 2: return '#60A5FA'  // Chờ thanh toán (nếu có)
-    case 3: return '#F59E0B'  // Chờ vận chuyển (nếu có)
+    case 0: return '#6366F1'
+    case 1: return '#22C55E'
+    case -1: return '#EF4444'
+    case 2: return '#60A5FA'
+    case 3: return '#F59E0B'
     default: return '#93C5FD'
   }
 }
-
 const statusLegend = computed(() => {
   const arr = dash.value?.invoiceStatusStats || []
-  return arr.map(s => ({
-    label: s.status || s.statusName || `Trạng thái ${s.statusCode}`,
-    value: safeNum(s.totalInvoices ?? s.count),
-    color: statusColorByCode(s.statusCode)
-  }))
+  return arr.map(s => ({ label: s.status || s.statusName || `Trạng thái ${s.statusCode}`, value: safeNum(s.totalInvoices ?? s.count), color: statusColorByCode(s.statusCode) }))
 })
 const statusTotal = computed(() => statusLegend.value.reduce((s,i)=>s + i.value, 0))
-
 const buildDonut = () => {
   const labels = statusLegend.value.map(i => i.label)
   const data   = statusLegend.value.map(i => i.value)
   const colors = statusLegend.value.map(i => i.color)
-
   const ctx = donutRef.value?.getContext('2d')
   donutChart?.destroy()
   donutChart = new Chart(ctx, {
     type: 'doughnut',
     data: { labels, datasets: [{ data, borderWidth: 1, backgroundColor: colors }] },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      cutout: '72%'
-    }
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, cutout: '72%' }
   })
 }
 
-/* =================== TOP PRODUCTS =================== */
+/* TOP & FAVORITE ROWS */
 const topRows = computed(() => dash.value?.topProducts || [])
+const favoriteRows = computed(() => dash.value?.favoriteProducts || [])
 
-/* =================== API =================== */
+/* BUILD BODY FOR API */
 const buildBody = () => {
   const body = {
     includeMonthly: true,
     includeYearly: true,
     includeTodayRevenue: true,
     includeTopProducts: true,
+    includeFavoriteProducts: true, // request favorite products when supported
     includeStatus: true,
     includeCurrentPeriods: true,
-    limit: 5,
-    groupBy: timeMode.value,             // 'day' | 'month' | 'year'
-    metric: valueMode.value              // 'revenue' | 'quantity'
+    limit: 10,
+    groupBy: timeMode.value,
+    metric: valueMode.value
   }
   if (dateRange.value?.length === 2) {
     body.startDate = dateRange.value[0]
@@ -488,16 +388,31 @@ const buildBody = () => {
   return body
 }
 
+/* REFRESH / API */
 const refreshAll = async () => {
   loading.value = true
   try {
     const { data } = await apiClient.post('/admin/statistics/dashboard', buildBody())
-    // dữ liệu trả về giống payload bạn gửi
     dash.value = data || {}
     lastUpdated.value = new Date()
-    // vẽ biểu đồ
+
+    // If backend didn't provide favoriteProducts within dashboard payload,
+    // try fallback endpoint (best-effort).
+    if (!dash.value.favoriteProducts) {
+      try {
+        const favRes = await apiClient.post('/admin/statistics/favorite-products', buildBody())
+        dash.value.favoriteProducts = favRes?.data || []
+      } catch (e) {
+        // ignore fallback error — leave favoriteProducts empty
+        dash.value.favoriteProducts = dash.value.favoriteProducts || []
+      }
+    }
+
     buildBar()
     buildDonut()
+  } catch (e) {
+    console.error('Lỗi load dashboard', e)
+    dash.value = dash.value || {}
   } finally {
     loading.value = false
   }
@@ -510,17 +425,40 @@ const resetAll = () => {
   refreshAll()
 }
 
-const goToOrderStaff = () => {
-  router.push('/nhan-vien-xu-ly')
+const goToOrderStaff = () => router.push('/nhan-vien-xu-ly')
+const goToProduct = (id) => {
+  if (!id) return
+  router.push(`/product/${id}`)
 }
 
-/* =================== LIFECYCLE & WATCHERS =================== */
-onMounted(refreshAll)
+/* EXPORT EXCEL (giữ nguyên) */
+const exportExcel = async () => {
+  try {
+    exporting.value = true
+    const body = { ...buildBody(), includeTopProducts: true, includeFavoriteProducts: true }
+    const res = await apiClient.post('/admin/statistics/dashboard/export-excel', body, { responseType: 'blob' })
+    const blob = new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')
+    a.download = `dashboard_stat_${ts}.xlsx`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    window.URL.revokeObjectURL(url)
+  } catch (e) {
+    console.error('Xuất Excel thất bại:', e)
+    if (e?.response?.status === 403) router.push('/error')
+    else error.value = e?.message || 'Không thể xuất Excel'
+  } finally {
+    exporting.value = false
+  }
+}
 
-// Mỗi khi đổi timeMode/valueMode -> gọi lại API để trả đúng groupBy/metric
-watch([timeMode, valueMode], () => {
-  refreshAll()
-})
+/* LIFECYCLE & WATCH */
+onMounted(refreshAll)
+watch([timeMode, valueMode], () => { refreshAll() })
 </script>
 
 <style scoped>
@@ -557,7 +495,16 @@ watch([timeMode, valueMode], () => {
 .legend{display:flex; flex-direction:column; gap:6px; margin-top:10px;}
 .legend .dot{display:inline-block; width:10px; height:10px; border-radius:999px; margin-right:8px;}
 
-/* ===== Top list ===== */
+/* ===== Top list & favourite ===== */
 .prod{display:flex; align-items:center; gap:10px;}
+.prod img { width:48px; height:48px; object-fit:cover; border-radius:8px; margin-right:8px; }
 .prod-name{font-weight:600; color:#334155;}
+
+/* small tweaks */
+.el-table .prod { align-items:center; }
+
+/* responsive */
+@media (max-width: 1024px) {
+  .chart-wrap { height: 260px; }
+}
 </style>

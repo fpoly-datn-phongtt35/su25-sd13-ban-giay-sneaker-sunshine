@@ -41,28 +41,12 @@
 
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <el-form-item label="Tên sản phẩm" prop="productName">
-                  <el-input
-                    v-model="updateProduct.productName"
-                    placeholder="Nhập tên sản phẩm"
-                    clearable
-                    aria-required="true"
-                  />
+                  <el-input v-model="updateProduct.productName" placeholder="Nhập tên sản phẩm" clearable />
                 </el-form-item>
 
                 <el-form-item label="Thương hiệu" prop="brandId">
-                  <el-select
-                    v-model="updateProduct.brandId"
-                    placeholder="Chọn thương hiệu"
-                    filterable
-                    clearable
-                    aria-required="true"
-                  >
-                    <el-option
-                      v-for="br in brandList"
-                      :key="br.id"
-                      :label="br.brandName"
-                      :value="br.id"
-                    />
+                  <el-select v-model="updateProduct.brandId" placeholder="Chọn thương hiệu" filterable clearable>
+                    <el-option v-for="br in brandList" :key="br.id" :label="br.brandName" :value="br.id" />
                   </el-select>
                 </el-form-item>
 
@@ -91,7 +75,7 @@
                 </el-form-item>
 
                 <el-form-item label="Dành cho" prop="genderId">
-                  <el-radio-group v-model="updateProduct.genderId" class="radio-inline" aria-required="true">
+                  <el-radio-group v-model="updateProduct.genderId" class="radio-inline">
                     <el-radio :label="'1'">Nam</el-radio>
                     <el-radio :label="'2'">Nữ</el-radio>
                     <el-radio :label="'3'">Unisex</el-radio>
@@ -111,7 +95,6 @@
                       inputmode="numeric"
                       aria-describedby="weight-hint"
                     />
-                    <p id="weight-hint" class="note">Số nguyên, tối đa 5 chữ số.</p>
                   </el-form-item>
 
                   <el-form-item label="Giá bán mặc định" prop="sellPrice">
@@ -122,7 +105,7 @@
                         placeholder="0"
                         clearable
                         :min="0"
-                        :max="999999999"
+                        :max="MAX_SELL_PRICE"
                         style="max-width: 220px;"
                         @blur="onSellPriceBlur"
                         inputmode="numeric"
@@ -200,16 +183,16 @@
               <el-divider />
 
               <div class="variants">
-                <el-empty v-if="!productDetails.length" description="Chọn Size và Màu để tạo biến thể" />
+                <el-empty v-if="!updateProduct.productDetails.length" description="Chọn Size và Màu để tạo biến thể" />
                 <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <article
-                    v-for="(detail, index) in productDetails"
+                    v-for="(detail, index) in updateProduct.productDetails"
                     :key="detail.sizeId + '-' + detail.colorId"
                     class="variant-card"
                     :aria-labelledby="`variant-${index}-label`"
                   >
                     <header class="variant-head">
-                      <div id="`variant-${index}-label`" class="variant-meta">
+                      <div :id="`variant-${index}-label`" class="variant-meta">
                         <span class="badge">{{ detail.sizeName }}</span>
                         <span class="sep">×</span>
                         <span class="badge badge-blue">{{ detail.colorName }}</span>
@@ -228,13 +211,13 @@
                         <el-input
                           type="number"
                           v-model.number="detail.quantity"
-                          :min="1"
+                          :min="0"
                           clearable
                           @blur="onDetailQuantityBlur(detail, index)"
                           inputmode="numeric"
                           aria-label="Số lượng biến thể"
                         />
-                        <p class="note">Số nguyên dương, tối đa 6 chữ số.</p>
+                        <p class="note">Số nguyên, tối đa 6 chữ số.</p>
                       </el-form-item>
                     </div>
                   </article>
@@ -252,7 +235,7 @@
 
               <div class="confirm-row flex items-center justify-between">
                 <div class="meta">
-                  <div class="meta-line">Tổng biến thể: <b>{{ productDetails.length || 0 }}</b></div>
+                  <div class="meta-line">Tổng biến thể: <b>{{ updateProduct.productDetails.length || 0 }}</b></div>
                   <div class="meta-line">Tổng số lượng: <b>{{ totalQuantity }}</b></div>
                 </div>
 
@@ -341,7 +324,16 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, watch, computed } from 'vue'
+/*
+  Toàn bộ file được viết cho Vue 3 + <script setup>, Element Plus, vue-multiselect.
+  Những điểm chính:
+  - productDetails nằm trong updateProduct để el-form validate đúng.
+  - Toàn bộ quantity được convert về Number khi fetch (preserve 0).
+  - Validator productDetailQuantity nhận string hoặc number, convert, và chấp nhận >=0 (tổng vẫn phải >0).
+  - Sau fetch gọi nextTick + clearValidate để tránh validate cũ.
+*/
+
+import { ref, reactive, onMounted, watch, computed, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import Multiselect from 'vue-multiselect'
 import 'vue-multiselect/dist/vue-multiselect.css'
@@ -354,8 +346,8 @@ const router = useRouter()
 const route = useRoute()
 
 /* Limits */
-const MAX_SELL_PRICE = 999_999_999  // 9 chữ số
-const MAX_QTY = 999_999            // 6 chữ số
+const MAX_SELL_PRICE = 999_999_999
+const MAX_QTY = 999_999
 
 /* Refs & state */
 const productForm = ref(null)
@@ -367,13 +359,13 @@ const colorList = ref([])
 const soleList = ref([])
 const supplierList = ref([])
 const styleList = ref([])
+
 const isModalVisible = ref(false)
 const colorImages = ref({}) // { colorId: [{ name, url, file, isOld, id }] }
 const deletedImageIds = ref([])
 const oldColorIds = ref([])
-const productDetails = ref([]) // array of { id, sizeId, colorId, sizeName, colorName, quantity }
 
-/* Reactive product model */
+/* Reactive product model (productDetails inside model) */
 const updateProduct = reactive({
   categoryIds: [],
   productName: '',
@@ -388,23 +380,20 @@ const updateProduct = reactive({
   sellPrice: null,
   description: '',
   selectedSizes: [],
-  selectedColors: []
+  selectedColors: [],
+  productDetails: [] // important: each item { id, sizeId, colorId, sizeName, colorName, quantity }
 })
 
 /* Computed total quantity */
 const totalQuantity = computed(() =>
-  productDetails.value.reduce((s, d) => s + Number(d.quantity || 0), 0)
+  (updateProduct.productDetails || []).reduce((s, d) => s + Number(d.quantity || 0), 0)
 )
 
-/* Notification helpers */
-const showSuccess = (message) => {
-  ElNotification({ title: 'Thành công', message, type: 'success', duration: 3000, position: 'top-right' })
-}
-const showError = (message) => {
-  ElNotification({ title: 'Lỗi', message, type: 'error', duration: 3000, position: 'top-right' })
-}
+/* Notifications */
+const showSuccess = (message) => ElNotification({ title: 'Thành công', message, type: 'success', duration: 3000, position: 'top-right' })
+const showError = (message) => ElNotification({ title: 'Lỗi', message, type: 'error', duration: 3000, position: 'top-right' })
 
-/* Format currency: 1.000.000 VND */
+/* Currency formatting */
 const formattedSellPrice = computed(() => {
   if (updateProduct.sellPrice === null || updateProduct.sellPrice === undefined || updateProduct.sellPrice === '') return ''
   const n = Number(updateProduct.sellPrice) || 0
@@ -416,18 +405,17 @@ const formatCurrency = (v) => {
   return n.toLocaleString('vi-VN') + ' VND'
 }
 
-/* Helper to get names */
+/* Helpers */
 const getColorName = (colorId) => colorList.value.find(c => c.id === colorId)?.colorName || 'Không xác định'
 const getCategoryName = (id) => categoryList.value.find(c => c.id === id)?.categoryName || ''
 
-/* Validation rules */
+/* Validation rules (productDetailQuantity uses Promise-style validator) */
 const rules = {
   categoryIds: [
     {
       required: true,
       message: 'Vui lòng chọn ít nhất một danh mục',
-      trigger: 'change',
-      validator: (rule, value, cb) => (!value || value.length === 0) ? cb(new Error('Vui lòng chọn ít nhất một danh mục')) : cb()
+      trigger: 'change'
     }
   ],
   productName: [{ required: true, message: 'Vui lòng nhập tên sản phẩm', trigger: 'blur' }],
@@ -443,117 +431,69 @@ const rules = {
   ],
   sellPrice: [
     {
-      validator: (rule, value, cb) => {
-        if (value === null || value === undefined || value === '') {
-          cb(new Error('Vui lòng nhập giá bán'))
-          return
-        }
-        const n = Number(value)
-        if (!Number.isFinite(n) || !Number.isInteger(n)) {
-          cb(new Error('Giá bán phải là số nguyên và không chứa chữ'))
-          return
-        }
-        if (n < 0) {
-          cb(new Error('Giá bán phải lớn hơn hoặc bằng 0'))
-          return
-        }
-        if (n > MAX_SELL_PRICE) {
-          cb(new Error(`Giá bán không được lớn hơn ${MAX_SELL_PRICE.toLocaleString('vi-VN')}`))
-          return
-        }
-        cb()
+      validator: (rule, value) => {
+        return new Promise((resolve, reject) => {
+          if (value === null || value === undefined || value === '') return reject(new Error('Vui lòng nhập giá bán'))
+          const n = Number(value)
+          if (!Number.isFinite(n) || !Number.isInteger(n)) return reject(new Error('Giá bán phải là số nguyên và không chứa chữ'))
+          if (n < 0) return reject(new Error('Giá bán phải lớn hơn hoặc bằng 0'))
+          if (n > MAX_SELL_PRICE) return reject(new Error(`Giá bán không được lớn hơn ${MAX_SELL_PRICE.toLocaleString('vi-VN')}`))
+          resolve()
+        })
       },
       trigger: 'blur'
     }
   ],
   description: [{ required: true, message: 'Vui lòng nhập mô tả sản phẩm', trigger: 'blur' }],
   selectedSizes: [
-    {
-      required: true,
-      message: 'Vui lòng chọn ít nhất một kích thước',
-      trigger: 'change',
-      validator: (rule, value, cb) => (!value || value.length === 0) ? cb(new Error('Vui lòng chọn ít nhất một kích thước')) : cb()
-    }
+    { required: true, message: 'Vui lòng chọn ít nhất một kích thước', trigger: 'change' }
   ],
   selectedColors: [
-    {
-      required: true,
-      message: 'Vui lòng chọn ít nhất một màu sắc',
-      trigger: 'change',
-      validator: (rule, value, cb) => (!value || value.length === 0) ? cb(new Error('Vui lòng chọn ít nhất một màu sắc')) : cb()
-    }
+    { required: true, message: 'Vui lòng chọn ít nhất một màu sắc', trigger: 'change' }
   ],
   images: [
     {
-      validator: (rule, value, cb) => {
-        for (const colorId of updateProduct.selectedColors) {
-          const files = colorImages.value[colorId]
-          if (!files || files.length === 0) {
-            cb(new Error(`Vui lòng tải lên ít nhất một ảnh cho màu ${getColorName(colorId)}`))
-            return
+      validator: () => {
+        return new Promise((resolve, reject) => {
+          for (const colorId of updateProduct.selectedColors) {
+            const files = colorImages.value[colorId]
+            if (!files || files.length === 0) return reject(new Error(`Vui lòng tải lên ít nhất một ảnh cho màu ${getColorName(colorId)}`))
           }
-        }
-        cb()
+          resolve()
+        })
       },
       trigger: 'change'
     }
   ],
-  // Product detail quantity validator (applied per variant)
+  // per-variant quantity validator: accepts >= 0 (0 allowed), integer, <= MAX_QTY
   productDetailQuantity: [{
-    validator: (rule, value, cb) => {
-      if (value === null || value === undefined || value === '') {
-        cb(new Error('Số lượng phải lớn hơn 0'))
-        return
-      }
-      const n = Number(value)
-      if (!Number.isFinite(n) || !Number.isInteger(n)) {
-        cb(new Error('Số lượng phải là số nguyên'))
-        return
-      }
-      if (n <= 0) {
-        cb(new Error('Số lượng phải lớn hơn 0'))
-        return
-      }
-      if (n > MAX_QTY) {
-        cb(new Error(`Số lượng không được vượt quá ${MAX_QTY.toLocaleString('vi-VN')}`))
-        return
-      }
-      cb()
-    }, trigger: 'blur'
+    validator: (rule, value) => {
+      return new Promise((resolve, reject) => {
+        if (value === null || value === undefined || value === '') {
+          // force user to explicitly set value (can be 0)
+          return reject(new Error('Vui lòng nhập số lượng (>= 0)'))
+        }
+        const n = Number(value)
+        if (!Number.isFinite(n) || !Number.isInteger(n)) return reject(new Error('Số lượng phải là số nguyên'))
+        if (n < 0) return reject(new Error('Số lượng không được âm'))
+        if (n > MAX_QTY) return reject(new Error(`Số lượng không được vượt quá ${MAX_QTY.toLocaleString('vi-VN')}`))
+        resolve()
+      })
+    },
+    trigger: 'blur'
   }]
 }
 
 /* Fetchers */
-const fetchCategories = async () => {
-  try { categoryList.value = (await apiClient.get('/admin/categories/hien-thi')).data }
-  catch (e) { console.error(e); showError('Lỗi lấy danh mục sản phẩm!') }
-}
-const fetchMaterial = async () => {
-  try { materialList.value = (await apiClient.get('/admin/material/hien-thi')).data }
-  catch (e) { console.error(e); showError('Lỗi lấy chất liệu sản phẩm!') }
-}
-const fetchSupplier = async () => {
-  try { supplierList.value = (await apiClient.get('/admin/supplier/hien-thi')).data }
-  catch (e) { console.error(e); showError('Lỗi lấy nhà cung cấp!') }
-}
-const fetchBrand = async () => {
-  try { brandList.value = (await apiClient.get('/admin/brand/hien-thi')).data }
-  catch (e) { console.error(e); showError('Lỗi lấy thương hiệu sản phẩm!') }
-}
-const fetchSole = async () => {
-  try { soleList.value = (await apiClient.get('/admin/sole/hien-thi')).data }
-  catch (e) { console.error(e); showError('Lỗi lấy đế giày sản phẩm!') }
-}
-const fetchStyle = async () => {
-  try { styleList.value = (await apiClient.get('/admin/style/hien-thi')).data }
-  catch (e) { console.error(e); showError('Lỗi lấy phong cách sản phẩm!') }
-}
+const fetchCategories = async () => { try { categoryList.value = (await apiClient.get('/admin/categories/hien-thi')).data } catch (e) { console.error(e); showError('Lỗi lấy danh mục sản phẩm!') } }
+const fetchMaterial = async () => { try { materialList.value = (await apiClient.get('/admin/material/hien-thi')).data } catch (e) { console.error(e); showError('Lỗi lấy chất liệu sản phẩm!') } }
+const fetchSupplier = async () => { try { supplierList.value = (await apiClient.get('/admin/supplier/hien-thi')).data } catch (e) { console.error(e); showError('Lỗi lấy nhà cung cấp!') } }
+const fetchBrand = async () => { try { brandList.value = (await apiClient.get('/admin/brand/hien-thi')).data } catch (e) { console.error(e); showError('Lỗi lấy thương hiệu sản phẩm!') } }
+const fetchSole = async () => { try { soleList.value = (await apiClient.get('/admin/sole/hien-thi')).data } catch (e) { console.error(e); showError('Lỗi lấy đế giày sản phẩm!') } }
+const fetchStyle = async () => { try { styleList.value = (await apiClient.get('/admin/style/hien-thi')).data } catch (e) { console.error(e); showError('Lỗi lấy phong cách sản phẩm!') } }
 const fetchSizesAndColors = async () => {
   try {
-    const [sizesRes, colorsRes] = await Promise.all([
-      apiClient.get('/admin/size/hien-thi'),
-      apiClient.get('/admin/color/hien-thi')
-    ])
+    const [sizesRes, colorsRes] = await Promise.all([apiClient.get('/admin/size/hien-thi'), apiClient.get('/admin/color/hien-thi')])
     sizeList.value = sizesRes.data
     colorList.value = colorsRes.data
   } catch (e) {
@@ -561,39 +501,42 @@ const fetchSizesAndColors = async () => {
   }
 }
 
-/* Load product detail */
+/* Load product detail
+   Important: convert quantity to Number (preserve 0), then clear validation state.
+*/
 const fetchProduct = async () => {
   const id = route.params.id
   try {
     const product = (await apiClient.get(`/admin/products/${id}`)).data
-    // map categories to objects if necessary
+
     updateProduct.categoryIds = product.categories?.map(c => ({ id: c.id, categoryName: c.categoryName })) || []
     updateProduct.productName = product.productName || ''
     updateProduct.materialId = product.materialId || null
     updateProduct.styleId = product.styleId || null
     updateProduct.supplierId = product.supplierId || null
-    updateProduct.genderId = product.genderId ? product.genderId.toString() : null
+    updateProduct.genderId = product.genderId ? String(product.genderId) : null
     updateProduct.soleId = product.soleId || null
     updateProduct.brandId = product.brandId || null
-    updateProduct.originPrice = product.originPrice || null
-    updateProduct.weight = product.weight || null
-    updateProduct.sellPrice = product.sellPrice || null
+    updateProduct.originPrice = product.originPrice ?? null
+    updateProduct.weight = product.weight ?? null
+    updateProduct.sellPrice = product.sellPrice ?? null
     updateProduct.description = product.description || ''
     updateProduct.selectedSizes = [...new Set(product.productDetails?.map(d => d.sizeId) || [])]
     updateProduct.selectedColors = [...new Set(product.productDetails?.map(d => d.colorId) || [])]
 
-    productDetails.value = product.productDetails?.map(d => ({
-      id: d.id,
+    // Convert quantities to Number (preserve 0). If server sends "10" -> becomes 10.
+    updateProduct.productDetails = (product.productDetails || []).map(d => ({
+      id: d.id ?? null,
       sizeId: d.sizeId,
       colorId: d.colorId,
-      sizeName: d.sizeName,
-      colorName: d.colorName,
-      quantity: d.quantity
-    })) || []
+      sizeName: d.sizeName ?? '',
+      colorName: d.colorName ?? '',
+      quantity: (d.quantity === null || d.quantity === undefined) ? null : Number(d.quantity)
+    }))
 
     // images
     colorImages.value = {}
-    product.productImages?.forEach(img => {
+    ;(product.productImages || []).forEach(img => {
       if (img.status === '1') {
         const colorId = img.colorId
         if (!colorImages.value[colorId]) colorImages.value[colorId] = []
@@ -607,14 +550,18 @@ const fetchProduct = async () => {
       }
     })
     colorImages.value = { ...colorImages.value }
+
+    // ensure element-plus form clears old errors (important)
+    await nextTick()
+    productForm.value?.clearValidate()
   } catch (e) {
     console.error(e); showError('Lỗi lấy dữ liệu sản phẩm!')
   }
 }
 
-/* Generate productDetails from selectedSizes x selectedColors while preserving existing entries */
+/* Generate productDetails from selectedSizes x selectedColors while preserving existing entries (including 0) */
 const generateProductDetails = () => {
-  const existed = [...productDetails.value] // shallow copy
+  const existed = [...(updateProduct.productDetails || [])]
   const out = []
 
   for (const sizeId of updateProduct.selectedSizes) {
@@ -622,20 +569,21 @@ const generateProductDetails = () => {
       const size = sizeList.value.find(s => s.id === sizeId)
       const color = colorList.value.find(c => c.id === colorId)
       const old = existed.find(d => d.sizeId === sizeId && d.colorId === colorId)
-
-      const baseQty = old?.quantity != null ? old.quantity : null // keep null to force validation if empty
-
+      const baseQty = (old && old.quantity !== null && old.quantity !== undefined) ? Number(old.quantity) : null
       out.push({
-        id: old?.id || null,
+        id: old?.id ?? null,
         sizeId,
         colorId,
-        sizeName: size?.sizeName || '',
-        colorName: color?.colorName || '',
+        sizeName: size?.sizeName ?? '',
+        colorName: color?.colorName ?? '',
         quantity: baseQty
       })
     }
   }
-  productDetails.value = out
+
+  updateProduct.productDetails = out
+  // clear validation for new set
+  nextTick(() => productForm.value?.clearValidate())
 }
 
 /* Input sanitizers / blur handlers */
@@ -660,7 +608,6 @@ const onSellPriceBlur = () => {
 }
 
 const onDetailQuantityBlur = (detail, index) => {
-  // sanitize to integer and validate bounds (do not auto-correct to >0 — let validation force user)
   const v = detail.quantity
   if (v === null || v === undefined || v === '') {
     detail.quantity = null
@@ -680,7 +627,6 @@ const onDetailQuantityBlur = (detail, index) => {
 }
 
 const onWeightBlur = () => {
-  // ensure integer >=0
   const v = updateProduct.weight
   if (v === null || v === undefined || v === '') {
     updateProduct.weight = null
@@ -701,7 +647,7 @@ const onWeightBlur = () => {
 
 /* Watchers */
 
-// sanitize sellPrice live (in case of copy-paste string)
+// sanitize sellPrice live
 watch(() => updateProduct.sellPrice, (val) => {
   if (val === null || val === undefined || val === '') return
   if (typeof val === 'string') {
@@ -709,7 +655,6 @@ watch(() => updateProduct.sellPrice, (val) => {
     const n = digits === '' ? null : Number(digits)
     updateProduct.sellPrice = n
   } else {
-    // ensure integer bounds
     let n = Number(val)
     if (!Number.isFinite(n)) { updateProduct.sellPrice = null; return }
     n = Math.trunc(n)
@@ -719,10 +664,10 @@ watch(() => updateProduct.sellPrice, (val) => {
   }
 })
 
-// watch productDetails to enforce integer truncation for any typed decimals (but keep 0/null for validation)
-watch(productDetails, (n) => {
-  n.forEach(d => {
-    if (d.quantity !== null && d.quantity !== undefined) {
+// enforce integer truncation for any typed decimals in productDetails
+watch(() => updateProduct.productDetails, (n) => {
+  (n || []).forEach(d => {
+    if (d && d.quantity !== null && d.quantity !== undefined) {
       const num = Number(d.quantity)
       if (Number.isFinite(num)) {
         const t = Math.trunc(num)
@@ -745,12 +690,8 @@ watch(() => updateProduct.selectedColors, (newColors, oldColors) => {
     }
   })
   colorImages.value = { ...colorImages.value }
-  // trigger images validation
   productForm.value?.validateField('images')
 }, { deep: true })
-
-// when sizes change -> regenerate details
-watch(() => updateProduct.selectedSizes, () => generateProductDetails())
 
 /* Upload handlers */
 const handleFileChange = (file, fileList, colorId) => {
@@ -808,42 +749,41 @@ const handleFileRemove = (file, fileList, colorId) => {
 }
 const handlePreview = (file) => window.open(file.url, '_blank')
 
-/* Dialog controls */
-const openConfirmDialog = () => {
-  // validate form + custom checks for productDetails
-  productForm.value.validate(async (valid) => {
-    if (valid) {
-      // validate each variant has quantity > 0
-      for (let i = 0; i < productDetails.value.length; i++) {
-        const d = productDetails.value[i]
-        if (d.quantity === null || d.quantity === undefined || Number(d.quantity) <= 0) {
-          showError('Vui lòng nhập số lượng hợp lệ (> 0) cho tất cả biến thể.')
-          productForm.value.validateField(`productDetails.${i}.quantity`)
-          return
-        }
-      }
-      const totalQty = productDetails.value.reduce((s, d) => s + Number(d.quantity || 0), 0)
-      if (totalQty <= 0) {
-        showError('Tổng số lượng của các biến thể phải lớn hơn 0!')
+/* Dialog controls - use async validate to avoid race */
+const openConfirmDialog = async () => {
+  try {
+    await productForm.value.validate()
+    // validate each variant has quantity >= 0 (we accept 0 per-variant, but require total > 0)
+    for (let i = 0; i < (updateProduct.productDetails || []).length; i++) {
+      const d = updateProduct.productDetails[i]
+      if (d.quantity === null || d.quantity === undefined || Number(d.quantity) < 0) {
+        showError('Vui lòng nhập số lượng hợp lệ (>= 0) cho tất cả biến thể.')
+        await productForm.value.validateField(`productDetails.${i}.quantity`).catch(() => {})
         return
       }
-      // validate images presence
-      for (const colorId of updateProduct.selectedColors) {
-        if (!colorImages.value[colorId] || colorImages.value[colorId].length === 0) {
-          showError(`Vui lòng tải lên ít nhất 1 ảnh cho màu ${getColorName(colorId)}`)
-          return
-        }
-      }
-
-      isModalVisible.value = true
-    } else {
-      showError('Vui lòng điền đầy đủ các trường bắt buộc hoặc sửa lỗi!')
-      setTimeout(() => {
-        const el = document.querySelector('.is-error')
-        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      }, 100)
     }
-  })
+    const totalQty = (updateProduct.productDetails || []).reduce((s, d) => s + Number(d.quantity || 0), 0)
+    if (totalQty <= 0) {
+      showError('Tổng số lượng của các biến thể phải lớn hơn 0!')
+      return
+    }
+    // validate images presence
+    for (const colorId of updateProduct.selectedColors) {
+      if (!colorImages.value[colorId] || colorImages.value[colorId].length === 0) {
+        showError(`Vui lòng tải lên ít nhất 1 ảnh cho màu ${getColorName(colorId)}`)
+        return
+      }
+    }
+
+    isModalVisible.value = true
+  } catch (err) {
+    // validation failed
+    showError('Vui lòng sửa các lỗi trên form trước khi tiếp tục.')
+    nextTick(() => {
+      const el = document.querySelector('.is-error')
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    })
+  }
 }
 const closeModal = () => { isModalVisible.value = false }
 const goBack = () => { router.push('/product') }
@@ -851,15 +791,14 @@ const goBack = () => { router.push('/product') }
 /* Save handler */
 const saveProduct = async () => {
   try {
-    // prepare merged details (only keep combos currently selected)
-    const mergedDetails = productDetails.value.filter(d =>
+    const mergedDetails = (updateProduct.productDetails || []).filter(d =>
       updateProduct.selectedSizes.includes(d.sizeId) && updateProduct.selectedColors.includes(d.colorId)
     )
 
-    // ensure quantities are valid before sending
+    // final check quantities
     for (let i = 0; i < mergedDetails.length; i++) {
       const q = mergedDetails[i].quantity
-      if (q === null || q === undefined || !Number.isInteger(Number(q)) || Number(q) <= 0 || Number(q) > MAX_QTY) {
+      if (q === null || q === undefined || !Number.isInteger(Number(q)) || Number(q) < 0 || Number(q) > MAX_QTY) {
         showError('Số lượng biến thể không hợp lệ. Vui lòng kiểm tra lại.')
         return
       }
@@ -875,18 +814,17 @@ const saveProduct = async () => {
     formData.append('genderId', updateProduct.genderId || '')
     formData.append('weight', updateProduct.weight ?? 0)
     formData.append('originPrice', updateProduct.originPrice ?? 0)
-    // sellPrice is global and will be used as the price for each product detail on server
     formData.append('sellPrice', updateProduct.sellPrice ?? 0)
     formData.append('quantity', mergedDetails.reduce((s, d) => s + Number(d.quantity || 0), 0))
     formData.append('description', updateProduct.description || '')
 
-    // categories (support object list or primitive ids)
+    // categories
     updateProduct.categoryIds.forEach((cat, idx) => {
       const id = typeof cat === 'object' ? cat.id : cat
       formData.append(`categoryIds[${idx}]`, id)
     })
 
-    // product details: send id, sizeId, colorId, quantity
+    // product details
     mergedDetails.forEach((d, idx) => {
       if (d.id) formData.append(`productDetails[${idx}].id`, d.id)
       formData.append(`productDetails[${idx}].sizeId`, d.sizeId)
@@ -895,16 +833,9 @@ const saveProduct = async () => {
       formData.append(`productDetails[${idx}].quantity`, d.quantity ?? 0)
     })
 
-    // deleted images (existing image ids user removed)
-    if (deletedImageIds.value.length > 0) {
-      deletedImageIds.value.forEach((id, idx) => formData.append(`oldImageIds[${idx}]`, id))
-    }
-    // removed old color ids
-    if (oldColorIds.value.length > 0) {
-      oldColorIds.value.forEach((id, idx) => formData.append(`removedColorIds[${idx}]`, id))
-    }
+    if (deletedImageIds.value.length > 0) deletedImageIds.value.forEach((id, idx) => formData.append(`oldImageIds[${idx}]`, id))
+    if (oldColorIds.value.length > 0) oldColorIds.value.forEach((id, idx) => formData.append(`removedColorIds[${idx}]`, id))
 
-    // append new images grouped with colorId
     let imageIndex = 0
     Object.entries(colorImages.value).forEach(([colorId, files]) => {
       files.filter(f => f.file && !f.isOld).forEach(f => {
@@ -935,8 +866,8 @@ const saveProduct = async () => {
     updateProduct.description = ''
     updateProduct.selectedSizes = []
     updateProduct.selectedColors = []
+    updateProduct.productDetails = []
     colorImages.value = {}
-    productDetails.value = []
     deletedImageIds.value = []
     oldColorIds.value = []
 
@@ -951,14 +882,7 @@ const saveProduct = async () => {
 
 /* Mount */
 onMounted(() => {
-  fetchBrand()
-  fetchMaterial()
-  fetchSizesAndColors()
-  fetchSole()
-  fetchStyle()
-  fetchCategories()
-  fetchSupplier()
-  fetchProduct()
+  fetchBrand(); fetchMaterial(); fetchSizesAndColors(); fetchSole(); fetchStyle(); fetchCategories(); fetchSupplier(); fetchProduct()
 })
 </script>
 
@@ -1024,9 +948,6 @@ onMounted(() => {
 .ssn-topbar .divider { width:1px; height:22px; background:#e5e9f2; }
 .ssn-topbar .title { margin:0; font-size:18px; font-weight:700; color:var(--text); }
 
-/* =========================
-   Card
-   ========================= */
 .ssn-card{
   background: var(--card);
   border-radius: 14px;
@@ -1042,9 +963,6 @@ onMounted(() => {
 }
 .card-header h2, .card-header h3 { margin:0; font-size:15px; font-weight:700; color:var(--text); }
 
-/* =========================
-   Form labels & inputs
-   ========================= */
 .ssn-form :deep(.el-form-item__label) {
   font-weight:700;
   color:#1f2937;
@@ -1052,7 +970,6 @@ onMounted(() => {
   font-size:13px;
 }
 
-/* unify heights and paddings for Element components used */
 :deep(.el-input__inner),
 :deep(.el-select .el-input__inner),
 :deep(.el-input-number__wrapper),
@@ -1065,30 +982,24 @@ onMounted(() => {
   font-size: 14px;
 }
 
-/* textarea */
 :deep(.el-textarea__inner){
   border-radius:10px;
   padding: 10px 12px;
   font-size:14px;
 }
 
-/* small helper note text under inputs */
 .note {
   margin-top:6px;
   color:var(--muted);
   font-size:12px;
 }
 
-/* form errors */
 .ssn-form :deep(.el-form-item__error){
   color: var(--danger);
   font-size:12px;
   margin-top:6px;
 }
 
-/* =========================
-   Price row and formatted price
-   ========================= */
 .price-row {
   display: inline-flex;
   align-items: center;
@@ -1112,14 +1023,11 @@ onMounted(() => {
   white-space: nowrap;
 }
 
-/* responsive adjustments */
 @media (max-width: 640px) {
   .formatted-price { min-width: 120px; height: 36px; font-size: 13px; }
   .price-row { gap:8px; }
 }
 
-/* =========================
-   Chips */
 .chips { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
 .chip {
   display:inline-flex;
@@ -1134,8 +1042,6 @@ onMounted(() => {
   font-weight:600;
 }
 
-/* =========================
-   Checkbox grid */
 .check-grid {
   display:grid;
   grid-template-columns: repeat(3, minmax(0,1fr));
@@ -1143,8 +1049,6 @@ onMounted(() => {
 }
 .check-item :deep(.el-checkbox__label) { color:#334155; }
 
-/* =========================
-   Variant cards */
 .variant-card{
   border-radius:12px;
   border:1px solid #eef4ff;
@@ -1175,7 +1079,6 @@ onMounted(() => {
 .badge-blue { background:#e8f1ff; color:var(--accent-2); }
 .sep { color:#94a3b8; font-weight:600; }
 
-/* Price badge small */
 .price-badge {
   margin-left:8px;
   background:#fffaf0;
@@ -1187,12 +1090,9 @@ onMounted(() => {
   font-size:12px;
 }
 
-/* variant body & input label */
 .variant-body { margin-top:10px; }
 .form-label { display:block; font-weight:600; margin-bottom:6px; color:#334155; }
 
-/* =========================
-   Image by color block */
 .color-block { margin-bottom:12px; }
 .color-heading {
   display:flex;
@@ -1219,27 +1119,18 @@ onMounted(() => {
 :deep(.el-upload__tip) { display:none; }
 :deep(.el-upload-list__item) { max-width:100px; }
 
-/* =========================
-   Confirm row & summary
-   ========================= */
 .confirm-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px; }
 .meta { color:#334155; font-size:14px; }
 .meta-line { margin-bottom:6px; }
 
-/* =========================
-   Error visual helpers */
 .is-error :deep(.el-input__inner),
 .is-error :deep(.el-select .el-input__inner) {
   border-color: var(--danger) !important;
   box-shadow: 0 0 0 4px rgba(239,68,68,0.06);
 }
 
-/* =========================
-   Accessibility / utilities */
 .sr-only { position:absolute !important; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
 
-/* =========================
-   Responsive tweaks */
 @media (max-width: 1024px) {
   .check-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .xl\:col-span-2 { grid-column: auto; }

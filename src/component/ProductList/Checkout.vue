@@ -688,14 +688,11 @@ const handleSubmit = async () => {
               failEarly('Đợt giảm giá không tồn tại hoặc đã xóa')
             }
 
-            // Trường hợp 2: backend có thể trả về mảng object: [{status:2}, {status:1}]
-            // Chuẩn hóa sang mảng số rồi kiểm tra
             if (Array.isArray(data)) {
               const nums = data.map(item => {
                 if (typeof item === 'number') return item
                 if (typeof item === 'string' && item.trim() !== '') return Number(item)
                 if (item && typeof item === 'object') {
-                  // thử lấy trường phổ biến: status, code, value, hoặc chính object nếu là số
                   return Number(item.status ?? item.code ?? item.value ?? item)
                 }
                 return NaN

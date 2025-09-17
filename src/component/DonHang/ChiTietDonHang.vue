@@ -553,6 +553,7 @@ const fetchInvoice = async () => {
       params: { invoiceId }
     })
     invoice.value = res.data
+    console.log('data: ', invoice.value)
   } catch (err) {
     ElMessage.error('Lỗi khi tải thông tin đơn hàng.')
     console.error(err)

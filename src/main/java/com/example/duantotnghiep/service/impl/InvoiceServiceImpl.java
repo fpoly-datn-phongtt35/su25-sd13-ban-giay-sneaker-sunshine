@@ -1332,27 +1332,25 @@ public class InvoiceServiceImpl implements InvoiceService {
 
     public Page<InvoiceResponse> getInvoicesByStatus(int status, int page, int size) {
         TrangThaiTong statusEnum = TrangThaiTong.tuMa(status);
-        // Lấy username từ SecurityContext
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
 
-        // Tìm user theo username
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng với username: " + username));
 
-        // Lấy employee
         Employee employee = user.getEmployee();
         if (employee == null) {
             throw new RuntimeException("Người dùng không phải là nhân viên.");
         }
 
-        // Tạo phân trang
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdDate").descending());
 
-        // Truy vấn theo status và employeeId
-        Page<Invoice> invoicePage = invoiceRepository.findByStatusAndEmployeeId(statusEnum, employee.getId(), pageable);
+        // Lọc thêm orderType = 0
+        Page<Invoice> invoicePage =
+                invoiceRepository.findByStatusAndEmployeeIdAndOrderType(statusEnum, employee.getId(), 0, pageable);
 
         return invoicePage.map(invoiceMapper::toInvoiceResponse);
     }
+
 
     @Override
     public InvoiceDisplayResponse getInvoiceWithDetails(Long invoiceId) {

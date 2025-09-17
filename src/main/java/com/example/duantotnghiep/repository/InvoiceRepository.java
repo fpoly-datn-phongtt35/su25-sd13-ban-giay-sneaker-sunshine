@@ -115,8 +115,9 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
     @Query("SELECT i FROM Invoice i WHERE i.invoiceCode = :invoiceCode")
     Optional<Invoice> findByInvoiceCodeQR(@Param("invoiceCode") String invoiceCode);
 
-    Page<Invoice> findByStatusAndEmployeeId(TrangThaiTong status, Long employeeId, Pageable pageable);
-
+    Page<Invoice> findByStatusAndEmployeeIdAndOrderType(
+            TrangThaiTong status, Long employeeId, int orderType, Pageable pageable);
+    
     List<Invoice> findByStatusAndOrderTypeAndCreatedDateBefore(TrangThaiTong status, int orderType, LocalDateTime time);
 
     boolean existsByCustomer_IdAndStatusAndOrderType(Long customerId, TrangThaiTong status, Integer orderType);

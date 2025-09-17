@@ -101,7 +101,7 @@
             <el-radio-group v-model="newProduct.genderId">
               <el-radio :label="1">Nam</el-radio>
               <el-radio :label="2">Nữ</el-radio>
-              <el-radio :label="3">Cả nam và nữ</el-radio>
+              <el-radio :label="3">Unisex</el-radio>
             </el-radio-group>
           </el-form-item>
         </el-col>
@@ -120,7 +120,6 @@
               @change="onWeightChange"
               @blur="onWeightBlur"
             />
-            <div class="note">Phải là số nguyên (gram) và lớn hơn 0.</div>
           </el-form-item>
         </el-col>
         <el-col :xs="24" :sm="12">
@@ -139,7 +138,6 @@
                 {{ formattedSellPrice }}
               </div>
             </div>
-            <div class="note">Giao diện không cho chỉnh giá từng biến thể — tất cả biến thể sẽ dùng giá này khi lưu.</div>
           </el-form-item>
         </el-col>
       </el-row>

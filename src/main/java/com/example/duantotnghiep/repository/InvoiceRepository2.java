@@ -19,7 +19,7 @@ public class InvoiceRepository2 {
     private static final String BASE_SELECT = """
         SELECT
             i.id, i.invoice_code, i.customer_id, c.customer_name,
-            i.employee_id, e.employee_name,c.phone,
+            i.employee_id, e.employee_name,i.phone,
             i.total_amount, i.discount_amount, i.final_amount,
             i.description, i.status, i.status_detail,
             i.created_date, i.updated_date,

@@ -76,7 +76,7 @@ const pagination = reactive({
   currentPage: 1, // 1-based page for UI
   totalPages: 0,
   totalElements: 0,
-  pageSize: 10,
+  pageSize: 100,
   hasPrevious: false,
   hasNext: false,
 });

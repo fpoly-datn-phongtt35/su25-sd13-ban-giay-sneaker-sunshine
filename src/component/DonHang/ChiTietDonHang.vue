@@ -143,7 +143,7 @@
             {{ formatDate(scope.row.paymentTime) }}
           </template>
         </el-table-column>
-        <el-table-column prop="transactionNote" label="Ghi chú" />
+        <el-table-column prop="description" label="Ghi chú" />
       </el-table>
 
       <el-divider />

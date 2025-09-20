@@ -6,7 +6,13 @@
         <div class="shipping-info-section">
           <div class="section-header">THÔNG TIN GIAO HÀNG</div>
 
-          <el-form :model="form" :rules="rules" ref="formRef" label-position="top" class="delivery-form">
+          <el-form
+            :model="form"
+            :rules="rules"
+            ref="formRef"
+            label-position="top"
+            class="delivery-form"
+          >
             <el-row :gutter="20">
               <el-col :span="12">
                 <el-form-item label="HỌ VÀ TÊN" prop="customerName">
@@ -40,23 +46,69 @@
             <el-row :gutter="20">
               <el-col :span="8">
                 <el-form-item label="TỈNH / THÀNH" prop="address.provinceCode">
-                  <el-select v-model.number="form.address.provinceCode" placeholder="Chọn tỉnh / thành" @change="onProvinceChange" filterable>
-                    <el-option v-for="item in provinces" :key="item.ProvinceID" :label="item.ProvinceName" :value="item.ProvinceID" />
+                  <el-select
+                    v-model.number="form.address.provinceCode"
+                    placeholder="Chọn tỉnh / thành"
+                    @change="onProvinceChange"
+                    filterable
+                  >
+                    <el-option
+                      v-for="item in provinces"
+                      :key="item.ProvinceID"
+                      :label="item.ProvinceName"
+                      :value="item.ProvinceID"
+                    />
                   </el-select>
                 </el-form-item>
               </el-col>
               <el-col :span="8">
                 <el-form-item label="QUẬN / HUYỆN" prop="address.districtCode">
-                  <el-select v-model.number="form.address.districtCode" placeholder="Chọn quận / huyện" @change="onDistrictChange" :disabled="!form.address.provinceCode" filterable>
-                    <el-option v-for="item in districts" :key="item.DistrictID" :label="item.DistrictName" :value="item.DistrictID" />
+                  <el-select
+                    v-model.number="form.address.districtCode"
+                    placeholder="Chọn quận / huyện"
+                    @change="onDistrictChange"
+                    :disabled="!form.address.provinceCode"
+                    filterable
+                  >
+                    <el-option
+                      v-for="item in districts"
+                      :key="item.DistrictID"
+                      :label="item.DistrictName"
+                      :value="item.DistrictID"
+                    />
                   </el-select>
                 </el-form-item>
               </el-col>
               <el-col :span="8">
                 <el-form-item label="PHƯỜNG / XÃ" prop="address.wardCode">
-                  <el-select v-model="form.address.wardCode" placeholder="Chọn phường / xã" @change="onWardChange" :disabled="!form.address.districtCode" filterable>
-                    <el-option v-for="item in wards" :key="item.WardCode" :label="item.WardName" :value="item.WardCode" />
+                  <el-select
+                    v-model="form.address.wardCode"
+                    placeholder="Chọn phường / xã"
+                    @change="onWardChange"
+                    :disabled="!form.address.districtCode"
+                    filterable
+                  >
+                    <el-option
+                      v-for="item in wards"
+                      :key="item.WardCode"
+                      :label="item.WardName"
+                      :value="item.WardCode"
+                    />
                   </el-select>
+                </el-form-item>
+              </el-col>
+            </el-row>
+            <el-row :gutter="20">
+              <el-col :span="24">
+                <el-form-item label="GHI CHÚ" prop="description">
+                  <el-input
+                    v-model="form.description"
+                    type="textarea"
+                    :rows="3"
+                    placeholder="Ghi chú cho đơn hàng (không bắt buộc)..."
+                    maxlength="500"
+                    show-word-limit
+                  />
                 </el-form-item>
               </el-col>
             </el-row>
@@ -67,13 +119,21 @@
             <el-radio-group v-model="paymentMethod" class="payment-method-radio">
               <el-radio :label="1" border class="payment-option">
                 <div class="payment-content">
-                  <img src="https://file.hstatic.net/1000284478/file/zalo_pay-39_a15d1d155b814bf38a06e52e1fff5cad.svg" alt="ZaloPay" class="payment-icon" />
+                  <img
+                    src="https://file.hstatic.net/1000284478/file/zalo_pay-39_a15d1d155b814bf38a06e52e1fff5cad.svg"
+                    alt="ZaloPay"
+                    class="payment-icon"
+                  />
                   <span>Thanh toán qua ZaloPay</span>
                 </div>
               </el-radio>
               <el-radio :label="0" border class="payment-option">
                 <div class="payment-content">
-                  <img src="https://file.hstatic.net/1000284478/file/cod_icon-47_a8768752c1a445da90d600ca0a94675c.svg" alt="COD" class="payment-icon" />
+                  <img
+                    src="https://file.hstatic.net/1000284478/file/cod_icon-47_a8768752c1a445da90d600ca0a94675c.svg"
+                    alt="COD"
+                    class="payment-icon"
+                  />
                   <span>Thanh toán khi nhận hàng (COD)</span>
                 </div>
               </el-radio>
@@ -120,14 +180,32 @@
 
           <!-- Discount area -->
           <div class="discount-code-section">
-            <el-input v-model="discountCode" placeholder="Nhập Mã Giảm Giá" class="discount-input" />
-            <el-button type="primary" class="apply-discount-button" @click="applyDiscountCode">SỬ DỤNG</el-button>
-            <el-button class="view-voucher-button" @click="openVoucherDialog">XEM VOUCHER</el-button>
-            <el-button v-if="appliedVoucher" type="danger" class="cancel-discount-button" @click="cancelVoucher">HỦY BỎ</el-button>
+            <el-input
+              v-model="discountCode"
+              placeholder="Nhập Mã Giảm Giá"
+              class="discount-input"
+            />
+            <el-button type="primary" class="apply-discount-button" @click="applyDiscountCode"
+              >SỬ DỤNG</el-button
+            >
+            <el-button class="view-voucher-button" @click="openVoucherDialog"
+              >XEM VOUCHER</el-button
+            >
+            <el-button
+              v-if="appliedVoucher"
+              type="danger"
+              class="cancel-discount-button"
+              @click="cancelVoucher"
+              >HỦY BỎ</el-button
+            >
           </div>
 
           <div v-if="appliedVoucher" class="applied-voucher-note">
-            <el-tag type="success">Đang áp dụng: {{ appliedVoucher.voucherName }} ({{ appliedVoucher.voucherCode }})</el-tag>
+            <el-tag type="success"
+              >Đang áp dụng: {{ appliedVoucher.voucherName }} ({{
+                appliedVoucher.voucherCode
+              }})</el-tag
+            >
           </div>
 
           <div class="loyal-customer-text">Khách hàng thân thiết</div>
@@ -143,7 +221,9 @@
             </div>
             <div class="total-row">
               <span class="label">Phí vận chuyển</span>
-              <span class="value shipping-value">{{ shippingFee > 0 ? formatPrice(shippingFee) : 'Miễn phí' }}</span>
+              <span class="value shipping-value">{{
+                shippingFee > 0 ? formatPrice(shippingFee) : 'Miễn phí'
+              }}</span>
             </div>
             <div class="total-row final-total-row">
               <span class="label">THÀNH TIỀN</span>
@@ -151,24 +231,36 @@
             </div>
           </div>
 
-          <div class="delivery-time-warning">Do lượng đơn hàng bên vận chuyển đang cao, thời gian giao hàng dự kiến sẽ tăng thêm 2-3 ngày.</div>
+          <div class="delivery-time-warning">
+            Do lượng đơn hàng bên vận chuyển đang cao, thời gian giao hàng dự kiến sẽ tăng thêm 2-3
+            ngày.
+          </div>
         </div>
       </el-col>
     </el-row>
 
     <!-- VOUCHER DIALOG -->
     <el-dialog v-model="voucherDialog.visible" width="900px" :close-on-click-modal="false">
-
-      <div v-if="voucherDialog.loading" class="text-center py-6 text-gray-500">Đang tải voucher...</div>
+      <div v-if="voucherDialog.loading" class="text-center py-6 text-gray-500">
+        Đang tải voucher...
+      </div>
 
       <div v-else>
         <el-empty v-if="!voucherDialog.filtered.length" description="Không có voucher phù hợp" />
-        <el-table v-else :data="voucherDialog.filtered" border style="width:100%">
+        <el-table v-else :data="voucherDialog.filtered" border style="width: 100%">
           <el-table-column prop="voucherCode" label="Mã" min-width="130" />
-          <el-table-column prop="voucherName" label="Tên voucher" min-width="220" show-overflow-tooltip />
+          <el-table-column
+            prop="voucherName"
+            label="Tên voucher"
+            min-width="220"
+            show-overflow-tooltip
+          />
           <el-table-column label="Ưu đãi" min-width="160">
             <template #default="{ row }">
-              <span v-if="row.discountPercentage">-{{ row.discountPercentage }}% (tối đa {{ formatPrice(row.maxDiscountValue || 0) }})</span>
+              <span v-if="row.discountPercentage"
+                >-{{ row.discountPercentage }}% (tối đa
+                {{ formatPrice(row.maxDiscountValue || 0) }})</span
+              >
               <span v-else>{{ formatPrice(row.discountAmount || 0) }}</span>
             </template>
           </el-table-column>
@@ -178,21 +270,33 @@
           <el-table-column prop="endDate" label="Hết hạn" min-width="130" />
           <el-table-column label="Trạng thái" min-width="110" align="center">
             <template #default="{ row }">
-              <el-tag :type="row.status === 1 ? 'success' : 'danger'">{{ row.status === 1 ? 'Hoạt động' : 'Hết hạn' }}</el-tag>
+              <el-tag :type="row.status === 1 ? 'success' : 'danger'">{{
+                row.status === 1 ? 'Hoạt động' : 'Hết hạn'
+              }}</el-tag>
             </template>
           </el-table-column>
 
           <el-table-column label="Thao tác" fixed="right" width="200">
             <template #default="{ row }">
               <el-space v-if="isCurrentApplied(row)">
-                <el-button size="small" type="danger" @click="cancelVoucherFromDialog">Hủy bỏ</el-button>
+                <el-button size="small" type="danger" @click="cancelVoucherFromDialog"
+                  >Hủy bỏ</el-button
+                >
                 <el-tag size="small" type="success">Đang áp dụng</el-tag>
               </el-space>
               <template v-else>
-                <el-tooltip v-if="!isVoucherUsable(row)" placement="top" :content="voucherDisableReason(row)">
-                  <span><el-button size="small" type="primary" plain disabled>Sử dụng</el-button></span>
+                <el-tooltip
+                  v-if="!isVoucherUsable(row)"
+                  placement="top"
+                  :content="voucherDisableReason(row)"
+                >
+                  <span
+                    ><el-button size="small" type="primary" plain disabled>Sử dụng</el-button></span
+                  >
                 </el-tooltip>
-                <el-button v-else size="small" type="primary" @click="applyVoucherFromDialog(row)">Sử dụng</el-button>
+                <el-button v-else size="small" type="primary" @click="applyVoucherFromDialog(row)"
+                  >Sử dụng</el-button
+                >
               </template>
             </template>
           </el-table-column>
@@ -268,11 +372,19 @@ const rules = {
   customerName: [{ required: true, message: 'Vui lòng nhập họ và tên', trigger: 'blur' }],
   phone: [
     { required: true, message: 'Vui lòng nhập số điện thoại', trigger: 'blur' },
-    { pattern: /^(0?)(3[2-9]|5[6|8|9]|7[0|6-9]|8[0-6|8|9]|9[0-4|6-9])[0-9]{7}$/, message: 'Số điện thoại không hợp lệ', trigger: 'blur' },
+    {
+      pattern: /^(0?)(3[2-9]|5[6|8|9]|7[0|6-9]|8[0-6|8|9]|9[0-4|6-9])[0-9]{7}$/,
+      message: 'Số điện thoại không hợp lệ',
+      trigger: 'blur',
+    },
   ],
   'address.houseName': [{ required: true, message: 'Vui lòng nhập địa chỉ', trigger: 'blur' }],
-  'address.provinceCode': [{ required: true, message: 'Vui lòng chọn tỉnh/thành phố', trigger: 'change' }],
-  'address.districtCode': [{ required: true, message: 'Vui lòng chọn quận/huyện', trigger: 'change' }],
+  'address.provinceCode': [
+    { required: true, message: 'Vui lòng chọn tỉnh/thành phố', trigger: 'change' },
+  ],
+  'address.districtCode': [
+    { required: true, message: 'Vui lòng chọn quận/huyện', trigger: 'change' },
+  ],
   'address.wardCode': [{ required: true, message: 'Vui lòng chọn phường/xã', trigger: 'change' }],
 }
 
@@ -286,10 +398,11 @@ const orderTotal = computed(() =>
     const price = unitPriceOf(it)
     const qty = toInt(it.quantity)
     return s + (Number.isFinite(price) && Number.isFinite(qty) ? price * qty : 0)
-  }, 0)
+  }, 0),
 )
 
-const formatPrice = (val) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(val || 0))
+const formatPrice = (val) =>
+  new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(val || 0))
 
 // voucher helpers
 const isVoucherUsable = (voucher) => {
@@ -340,7 +453,10 @@ const cancelVoucher = () => {
 }
 const cancelVoucherFromDialog = () => cancelVoucher()
 const applyVoucherFromDialog = (voucher) => {
-  if (!isVoucherUsable(voucher)) { ElMessage.warning('Voucher không hợp lệ'); return }
+  if (!isVoucherUsable(voucher)) {
+    ElMessage.warning('Voucher không hợp lệ')
+    return
+  }
   appliedVoucher.value = voucher
   discountCode.value = voucher.voucherCode || ''
   recalcFinal()
@@ -348,10 +464,17 @@ const applyVoucherFromDialog = (voucher) => {
 }
 const applyDiscountCode = async () => {
   const code = (discountCode.value || '').trim()
-  if (!code) { ElMessage.warning('Vui lòng nhập mã giảm giá!'); return }
+  if (!code) {
+    ElMessage.warning('Vui lòng nhập mã giảm giá!')
+    return
+  }
   try {
     const res = await axios.get('http://localhost:8080/api/online-sale/vouchers/apply', {
-      params: { customerId: form.value.customerId || 0, voucherCode: code, orderTotal: orderTotal.value }
+      params: {
+        customerId: form.value.customerId || 0,
+        voucherCode: code,
+        orderTotal: orderTotal.value,
+      },
     })
     appliedVoucher.value = res.data || null
     discountCode.value = appliedVoucher.value?.voucherCode || code
@@ -376,7 +499,7 @@ const openVoucherDialog = async () => {
       return
     }
     const res = await axios.get(`http://localhost:8080/api/online-sale/by-customer/${customerId}`)
-    vouchers.value = Array.isArray(res.data) ? res.data : (res.data?.data || [])
+    vouchers.value = Array.isArray(res.data) ? res.data : res.data?.data || []
     voucherDialog.value.filtered = [...vouchers.value]
   } catch (err) {
     console.error('Lỗi load voucher:', err)
@@ -389,45 +512,69 @@ const openVoucherDialog = async () => {
 }
 const filterVouchers = () => {
   const q = (voucherDialog.value.search || '').trim().toLowerCase()
-  if (!q) { voucherDialog.value.filtered = [...vouchers.value]; return }
-  voucherDialog.value.filtered = vouchers.value.filter(v =>
-    (v.voucherCode || '').toLowerCase().includes(q) || (v.voucherName || '').toLowerCase().includes(q)
+  if (!q) {
+    voucherDialog.value.filtered = [...vouchers.value]
+    return
+  }
+  voucherDialog.value.filtered = vouchers.value.filter(
+    (v) =>
+      (v.voucherCode || '').toLowerCase().includes(q) ||
+      (v.voucherName || '').toLowerCase().includes(q),
   )
 }
-const isCurrentApplied = (row) => !!(appliedVoucher.value && (row?.voucherCode || '') === (appliedVoucher.value?.voucherCode || ''))
+const isCurrentApplied = (row) =>
+  !!(appliedVoucher.value && (row?.voucherCode || '') === (appliedVoucher.value?.voucherCode || ''))
 
 // auto apply best
-
 
 // ===== GHN helpers
 const loadProvinces = async () => {
   try {
-    const res = await axios.post('https://online-gateway.ghn.vn/shiip/public-api/master-data/province', {}, { headers: { Token: GHN_TOKEN }})
+    const res = await axios.post(
+      'https://online-gateway.ghn.vn/shiip/public-api/master-data/province',
+      {},
+      { headers: { Token: GHN_TOKEN } },
+    )
     provinces.value = res.data?.data || []
-  } catch (err) { console.error('Lỗi load provinces', err) }
+  } catch (err) {
+    console.error('Lỗi load provinces', err)
+  }
 }
 const loadDistricts = async () => {
   if (!form.value.address.provinceCode) return
   try {
-    const res = await axios.get('https://online-gateway.ghn.vn/shiip/public-api/master-data/district', {
-      headers: { Token: GHN_TOKEN }, params: { province_id: form.value.address.provinceCode }
-    })
+    const res = await axios.get(
+      'https://online-gateway.ghn.vn/shiip/public-api/master-data/district',
+      {
+        headers: { Token: GHN_TOKEN },
+        params: { province_id: form.value.address.provinceCode },
+      },
+    )
     districts.value = res.data?.data || []
-  } catch (err) { console.error('Lỗi load districts', err) }
+  } catch (err) {
+    console.error('Lỗi load districts', err)
+  }
 }
 const loadWards = async () => {
   if (!form.value.address.districtCode) return
   try {
     const res = await axios.get('https://online-gateway.ghn.vn/shiip/public-api/master-data/ward', {
-      headers: { Token: GHN_TOKEN }, params: { district_id: form.value.address.districtCode }
+      headers: { Token: GHN_TOKEN },
+      params: { district_id: form.value.address.districtCode },
     })
     wards.value = res.data?.data || []
-  } catch (err) { console.error('Lỗi load wards', err) }
+  } catch (err) {
+    console.error('Lỗi load wards', err)
+  }
 }
 
 // calculate shipping
 const calculateShippingFee = async () => {
-  if (!form.value.address.districtCode || !form.value.address.wardCode) { shippingFee.value = 0; recalcFinal(); return }
+  if (!form.value.address.districtCode || !form.value.address.wardCode) {
+    shippingFee.value = 0
+    recalcFinal()
+    return
+  }
   try {
     const totalWeight = cartItems.value.reduce((s, it) => {
       const w = toInt(it.weight || 200)
@@ -435,14 +582,18 @@ const calculateShippingFee = async () => {
       return s + (Number.isFinite(w) && Number.isFinite(q) ? w * q : 0)
     }, 0)
     const weightToSend = Math.max(totalWeight, 100)
-    const res = await axios.post('https://online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/fee', {
-      from_district_id: FROM_DISTRICT_ID,
-      from_ward_code: FROM_WARD_CODE,
-      to_district_id: Number(form.value.address.districtCode),
-      to_ward_code: form.value.address.wardCode,
-      weight: weightToSend,
-      service_type_id: 2,
-    }, { headers: { 'Content-Type': 'application/json', Token: GHN_TOKEN, ShopId: SHOP_ID }})
+    const res = await axios.post(
+      'https://online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/fee',
+      {
+        from_district_id: FROM_DISTRICT_ID,
+        from_ward_code: FROM_WARD_CODE,
+        to_district_id: Number(form.value.address.districtCode),
+        to_ward_code: form.value.address.wardCode,
+        weight: weightToSend,
+        service_type_id: 2,
+      },
+      { headers: { 'Content-Type': 'application/json', Token: GHN_TOKEN, ShopId: SHOP_ID } },
+    )
     shippingFee.value = Math.max(0, toInt(res.data?.data?.total || 0))
     ElMessage.info(`Phí vận chuyển: ${formatPrice(shippingFee.value)}`)
     recalcFinal()
@@ -456,28 +607,33 @@ const calculateShippingFee = async () => {
 
 // address handlers
 const onProvinceChange = async () => {
-  const sel = provinces.value.find(p => p.ProvinceID === form.value.address.provinceCode)
+  const sel = provinces.value.find((p) => p.ProvinceID === form.value.address.provinceCode)
   form.value.address.provinceName = sel?.ProvinceName || ''
-  form.value.address.districtCode = null; form.value.address.districtName = ''
-  form.value.address.wardCode = null; form.value.address.wardName = ''
-  districts.value = []; wards.value = []
+  form.value.address.districtCode = null
+  form.value.address.districtName = ''
+  form.value.address.wardCode = null
+  form.value.address.wardName = ''
+  districts.value = []
+  wards.value = []
   shippingFee.value = 0
   await loadDistricts()
 }
 const onDistrictChange = async () => {
-  const sel = districts.value.find(d => d.DistrictID === form.value.address.districtCode)
+  const sel = districts.value.find((d) => d.DistrictID === form.value.address.districtCode)
   form.value.address.districtName = sel?.DistrictName || ''
-  form.value.address.wardCode = null; form.value.address.wardName = ''
-  wards.value = []; shippingFee.value = 0
+  form.value.address.wardCode = null
+  form.value.address.wardName = ''
+  wards.value = []
+  shippingFee.value = 0
   await loadWards()
 }
 const onWardChange = async () => {
-  const sel = wards.value.find(w => w.WardCode === form.value.address.wardCode)
+  const sel = wards.value.find((w) => w.WardCode === form.value.address.wardCode)
   form.value.address.wardName = sel?.WardName || ''
   await calculateShippingFee()
 }
 
-const productDetailIds = ref(null);
+const productDetailIds = ref(null)
 const handleSubmit = async () => {
   // helper để dừng sớm, show message và nhảy tới finally
   const failEarly = (msg, type = 'error') => {
@@ -512,11 +668,11 @@ const handleSubmit = async () => {
     loadingInstance = ElLoading.service({ fullscreen: true, text: 'Đang đặt hàng...' })
 
     // ------------- Chuẩn hóa items -------------
-    const itemsPayload = cartItems.value.map(it => {
+    const itemsPayload = cartItems.value.map((it) => {
       const unitPrice = unitPriceOf(it)
       const quantity = toInt(it.quantity || 0)
       const sellPrice = toInt(it.sellPrice ?? it.price ?? unitPrice)
-      const discounted = (it.discountedPrice != null) ? toInt(it.discountedPrice) : null
+      const discounted = it.discountedPrice != null ? toInt(it.discountedPrice) : null
       const lineTotal = unitPrice * quantity
       return {
         productDetailId: it.productDetailId,
@@ -532,15 +688,23 @@ const handleSubmit = async () => {
     })
 
     // IDs để gọi verify
-    productDetailIds.value = itemsPayload.map(x => x.productDetailId)
+    productDetailIds.value = itemsPayload.map((x) => x.productDetailId)
 
     // ------------- VERIFY: status + tồn kho (field `quantity` ở backend) -------------
     try {
-      const idsParam = Array.isArray(productDetailIds.value) ? productDetailIds.value.join(',') : productDetailIds.value
-      const res = await axios.get(`http://localhost:8080/api/online-sale/verify-list-pdDetail/${idsParam}`)
+      const idsParam = Array.isArray(productDetailIds.value)
+        ? productDetailIds.value.join(',')
+        : productDetailIds.value
+      const res = await axios.get(
+        `http://localhost:8080/api/online-sale/verify-list-pdDetail/${idsParam}`,
+      )
       let payload = res.data
       if (typeof payload === 'string') {
-        try { payload = JSON.parse(payload) } catch (e) { /* ignore parse error */ }
+        try {
+          payload = JSON.parse(payload)
+        } catch (e) {
+          /* ignore parse error */
+        }
       }
 
       if (!Array.isArray(payload) || payload.length === 0) {
@@ -551,7 +715,7 @@ const handleSubmit = async () => {
       const getAvailable = (p) => p?.quantity ?? null
 
       const byId = new Map()
-      payload.forEach(p => {
+      payload.forEach((p) => {
         const id = p?.id ?? p?.productDetailId ?? p?.product_detail_id ?? null
         if (id != null) byId.set(String(id), p)
       })
@@ -560,10 +724,15 @@ const handleSubmit = async () => {
       for (const item of itemsPayload) {
         const idStr = String(item.productDetailId)
         const serverItem = byId.get(idStr)
-        const displayName = item.productName || (serverItem && (serverItem.productName || serverItem.name)) || idStr
+        const displayName =
+          item.productName || (serverItem && (serverItem.productName || serverItem.name)) || idStr
 
         if (!serverItem) {
-          invalidItems.push({ id: idStr, name: displayName, reason: 'Không tìm thấy sản phẩm trên server' })
+          invalidItems.push({
+            id: idStr,
+            name: displayName,
+            reason: 'Không tìm thấy sản phẩm trên server',
+          })
           continue
         }
 
@@ -584,35 +753,55 @@ const handleSubmit = async () => {
           }
         }
         if (!okStatus) {
-          invalidItems.push({ id: idStr, name: displayName, reason: 'Sản phẩm không hợp lệ (status)' })
+          invalidItems.push({
+            id: idStr,
+            name: displayName,
+            reason: 'Sản phẩm không hợp lệ (status)',
+          })
           continue
         }
 
         const availRaw = getAvailable(serverItem)
         if (availRaw == null) {
-          invalidItems.push({ id: idStr, name: displayName, reason: 'Backend không trả thông tin tồn kho (quantity)' })
+          invalidItems.push({
+            id: idStr,
+            name: displayName,
+            reason: 'Backend không trả thông tin tồn kho (quantity)',
+          })
           continue
         }
 
         const availNum = Number(availRaw)
         if (!Number.isFinite(availNum)) {
-          invalidItems.push({ id: idStr, name: displayName, reason: `Tồn kho trả về không hợp lệ: ${availRaw}` })
+          invalidItems.push({
+            id: idStr,
+            name: displayName,
+            reason: `Tồn kho trả về không hợp lệ: ${availRaw}`,
+          })
           continue
         }
 
         if (availNum <= 0) {
-          invalidItems.push({ id: idStr, name: displayName, reason: `Sản phẩm đã hết hàng (tồn kho = ${availNum})` })
+          invalidItems.push({
+            id: idStr,
+            name: displayName,
+            reason: `Sản phẩm đã hết hàng (tồn kho = ${availNum})`,
+          })
           continue
         }
 
         if (item.quantity > availNum) {
-          invalidItems.push({ id: idStr, name: displayName, reason: `Số lượng yêu cầu (${item.quantity}) vượt quá tồn kho (${availNum})` })
+          invalidItems.push({
+            id: idStr,
+            name: displayName,
+            reason: `Số lượng yêu cầu (${item.quantity}) vượt quá tồn kho (${availNum})`,
+          })
           continue
         }
       } // end for
 
       if (invalidItems.length > 0) {
-        const details = invalidItems.map(i => `${i.name || i.id}: ${i.reason}`).join('; ')
+        const details = invalidItems.map((i) => `${i.name || i.id}: ${i.reason}`).join('; ')
         failEarly(`Có sản phẩm không hợp lệ: ${details}`)
       }
     } catch (verifyErr) {
@@ -621,8 +810,14 @@ const handleSubmit = async () => {
     }
 
     // ------------- Tính tiền và build payload -------------
-    const itemsSubtotal = itemsPayload.reduce((s, x) => s + (x.lineTotal ?? (x.unitPrice * x.quantity)), 0)
-    const expectedTotal = Math.max(0, toInt(itemsSubtotal) - toInt(discountAmount.value) + toInt(shippingFee.value))
+    const itemsSubtotal = itemsPayload.reduce(
+      (s, x) => s + (x.lineTotal ?? x.unitPrice * x.quantity),
+      0,
+    )
+    const expectedTotal = Math.max(
+      0,
+      toInt(itemsSubtotal) - toInt(discountAmount.value) + toInt(shippingFee.value),
+    )
     finalTotal.value = expectedTotal
     paymentAmount.value = expectedTotal
 
@@ -631,10 +826,18 @@ const handleSubmit = async () => {
         ...form.value,
         address: {
           ...form.value.address,
-          provinceName: provinces.value.find(p => p.ProvinceID === form.value.address.provinceCode)?.ProvinceName || '',
-          districtName: districts.value.find(d => d.DistrictID === form.value.address.address?.districtCode ?? form.value.address.districtCode)?.DistrictName || '',
-          wardName: wards.value.find(w => w.WardCode === form.value.address.wardCode)?.WardName || '',
-        }
+          provinceName:
+            provinces.value.find((p) => p.ProvinceID === form.value.address.provinceCode)
+              ?.ProvinceName || '',
+          districtName:
+            districts.value.find(
+              (d) =>
+                d.DistrictID === form.value.address.address?.districtCode ??
+                form.value.address.districtCode,
+            )?.DistrictName || '',
+          wardName:
+            wards.value.find((w) => w.WardCode === form.value.address.wardCode)?.WardName || '',
+        },
       },
       items: itemsPayload,
       orderTotal: toInt(orderTotal.value),
@@ -658,7 +861,7 @@ const handleSubmit = async () => {
     if (payload.voucherCode) {
       try {
         const res = await axios.get('http://localhost:8080/api/online-sale/get-code-voucher', {
-          params: { code: payload.voucherCode }
+          params: { code: payload.voucherCode },
         })
         if (res.data !== 1) {
           failEarly('Voucher không tồn tại hoặc đã bị xóa')
@@ -668,7 +871,6 @@ const handleSubmit = async () => {
         failEarly('Lỗi khi kiểm tra voucher. Vui lòng thử lại.')
       }
     }
-
 
     // ------------- Payment flow -------------
     if (paymentMethod.value === 1) {
@@ -682,7 +884,10 @@ const handleSubmit = async () => {
 
         if (code) {
           try {
-            const res2 = await axios.get('http://localhost:8080/api/online-sale/verify-invoice-status', { params: { code } })
+            const res2 = await axios.get(
+              'http://localhost:8080/api/online-sale/verify-invoice-status',
+              { params: { code } },
+            )
             const data = res2?.data
             if (Array.isArray(data) && data.includes(2)) {
               failEarly('Đợt giảm giá không tồn tại hoặc đã xóa')
@@ -691,15 +896,17 @@ const handleSubmit = async () => {
             // Trường hợp 2: backend có thể trả về mảng object: [{status:2}, {status:1}]
             // Chuẩn hóa sang mảng số rồi kiểm tra
             if (Array.isArray(data)) {
-              const nums = data.map(item => {
-                if (typeof item === 'number') return item
-                if (typeof item === 'string' && item.trim() !== '') return Number(item)
-                if (item && typeof item === 'object') {
-                  // thử lấy trường phổ biến: status, code, value, hoặc chính object nếu là số
-                  return Number(item.status ?? item.code ?? item.value ?? item)
-                }
-                return NaN
-              }).filter(n => Number.isFinite(n))
+              const nums = data
+                .map((item) => {
+                  if (typeof item === 'number') return item
+                  if (typeof item === 'string' && item.trim() !== '') return Number(item)
+                  if (item && typeof item === 'object') {
+                    // thử lấy trường phổ biến: status, code, value, hoặc chính object nếu là số
+                    return Number(item.status ?? item.code ?? item.value ?? item)
+                  }
+                  return NaN
+                })
+                .filter((n) => Number.isFinite(n))
 
               if (nums.includes(2)) {
                 failEarly('Đợt giảm giá không tồn tại hoặc đã xóa')
@@ -724,15 +931,25 @@ const handleSubmit = async () => {
         if (customerId) localStorage.setItem('userId', String(customerId))
 
         if (zaloPay?.orderUrl && zaloPay?.appTransId) {
-          const pending = { invoiceId: invoice?.id || null, appTransId: zaloPay.appTransId, amount: payload.amount }
+          const pending = {
+            invoiceId: invoice?.id || null,
+            appTransId: zaloPay.appTransId,
+            amount: payload.amount,
+          }
           localStorage.setItem('appTransId', zaloPay.appTransId)
           localStorage.setItem('pendingOrder', JSON.stringify(pending))
 
-          ElMessage.success('Đang mở ZaloPay ở tab mới. Sau khi thanh toán xong, tab này sẽ tự động đóng.')
+          ElMessage.success(
+            'Đang mở ZaloPay ở tab mới. Sau khi thanh toán xong, tab này sẽ tự động đóng.',
+          )
 
           // Thử mở popup
           let newTab = null
-          try { newTab = window.open(zaloPay.orderUrl, '_blank') } catch (e) { newTab = null }
+          try {
+            newTab = window.open(zaloPay.orderUrl, '_blank')
+          } catch (e) {
+            newTab = null
+          }
 
           if (!newTab) {
             console.warn('Popup bị chặn, chuyển cùng tab')
@@ -743,8 +960,15 @@ const handleSubmit = async () => {
           // Lắng nghe message từ popup
           const messageHandler = (e) => {
             const data = e.data || {}
-            if (data && (data.status === 'paid' || data.status === 'failed' || data.status === 'cancel')) {
-              try { if (newTab && !newTab.closed) newTab.close() } catch (err) { /* ignore */ }
+            if (
+              data &&
+              (data.status === 'paid' || data.status === 'failed' || data.status === 'cancel')
+            ) {
+              try {
+                if (newTab && !newTab.closed) newTab.close()
+              } catch (err) {
+                /* ignore */
+              }
               window.removeEventListener('message', messageHandler)
               if (typeof router !== 'undefined' && router && typeof router.replace === 'function') {
                 router.replace('/payment-result')
@@ -760,16 +984,22 @@ const handleSubmit = async () => {
               if (!newTab || newTab.closed) {
                 clearInterval(watcher)
                 window.removeEventListener('message', messageHandler)
-                if (typeof router !== 'undefined' && router && typeof router.replace === 'function') {
+                if (
+                  typeof router !== 'undefined' &&
+                  router &&
+                  typeof router.replace === 'function'
+                ) {
                   router.replace('/payment-result')
                 } else {
                   window.location.replace('/payment-result')
                 }
               }
-            } catch (err) { /* ignore cross-origin check errors */ }
+            } catch (err) {
+              /* ignore cross-origin check errors */
+            }
           }, 1000)
 
-                  clearCart()
+          clearCart()
 
           // done — trả về để chờ popup xử lý (finally sẽ chạy để dọn dẹp)
           return
@@ -778,12 +1008,14 @@ const handleSubmit = async () => {
         }
       } catch (err) {
         console.error('Lỗi khi khởi tạo thanh toán ZaloPay:', err)
-        failEarly(err?.response?.data?.message || 'Lỗi khi khởi tạo thanh toán ZaloPay. Vui lòng thử lại.')
+        failEarly(
+          err?.response?.data?.message || 'Lỗi khi khởi tạo thanh toán ZaloPay. Vui lòng thử lại.',
+        )
       }
     } else {
       // COD flow
       try {
-        console.log('Checkout COD, payload: ', payload);
+        console.log('Checkout COD, payload: ', payload)
         const res = await axios.post('http://localhost:8080/api/online-sale/checkout', payload)
         console.log('res là: ', res)
 
@@ -799,7 +1031,10 @@ const handleSubmit = async () => {
         if (invoiceCode) {
           // verify invoice status (same rule)
           try {
-            const res2 = await axios.get('http://localhost:8080/api/online-sale/verify-invoice-status', { params: { code: invoiceCode } })
+            const res2 = await axios.get(
+              'http://localhost:8080/api/online-sale/verify-invoice-status',
+              { params: { code: invoiceCode } },
+            )
             if (res2.data === 2) {
               failEarly('Đợt giảm giá không tồn tại hoặc đã xóa')
             }
@@ -834,14 +1069,22 @@ const handleSubmit = async () => {
     }
   } finally {
     isSubmitting.value = false
-    try { if (loadingInstance) loadingInstance.close() } catch (e) { /* ignore */ }
+    try {
+      if (loadingInstance) loadingInstance.close()
+    } catch (e) {
+      /* ignore */
+    }
   }
 }
 
-
-
 // ===== watchers
-watch([orderTotal, shippingFee, appliedVoucher], () => { recalcFinal() }, { immediate: true })
+watch(
+  [orderTotal, shippingFee, appliedVoucher],
+  () => {
+    recalcFinal()
+  },
+  { immediate: true },
+)
 
 // ===== onMounted
 onMounted(async () => {
@@ -888,17 +1131,25 @@ onMounted(async () => {
           wardCode: customer.wardCode || '',
           wardName: customer.wardName || '',
           houseName: customer.houseName || '',
-          fullAddress: customer.houseName && customer.wardName && customer.districtName && customer.provinceName
-            ? `${customer.houseName}, ${customer.wardName}, ${customer.districtName}, ${customer.provinceName}` : '',
-        }
+          fullAddress:
+            customer.houseName &&
+            customer.wardName &&
+            customer.districtName &&
+            customer.provinceName
+              ? `${customer.houseName}, ${customer.wardName}, ${customer.districtName}, ${customer.provinceName}`
+              : '',
+        },
       }
       if (form.value.address.provinceCode) await loadDistricts()
       if (form.value.address.districtCode) await loadWards()
-      if (form.value.address.districtCode && form.value.address.wardCode) await calculateShippingFee()
+      if (form.value.address.districtCode && form.value.address.wardCode)
+        await calculateShippingFee()
     } catch (err) {
       console.error('Không lấy được thông tin khách hàng:', err)
     } finally {
-      try { loadingInstance.close() } catch {}
+      try {
+        loadingInstance.close()
+      } catch {}
     }
   }
 
@@ -907,39 +1158,204 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.checkout-page { padding: 30px; max-width: 1400px; margin: 20px auto; font-family: Arial, sans-serif; }
-.shipping-info-section { padding:20px; border:1px solid #e0e0e0; border-radius:8px; background:#fff; box-shadow:0 2px 8px rgba(0,0,0,.05); }
-.section-header { font-size:16px; font-weight:700; color:#333; margin-bottom:20px; padding-bottom:10px; border-bottom:1px solid #eee; }
-.delivery-form .el-form-item { margin-bottom: 15px; }
-.phone-hint { font-size:12px; color:#f56c6c; margin-top:5px; }
-.shipping-method-section { margin-top:30px; padding-top:20px; border-top:1px dashed #eee; }
-.payment-option { border:1px solid #dcdfe6; border-radius:4px; padding:10px 15px; display:flex; align-items:center; gap:10px; width:100%; }
-.payment-content { display:flex; align-items:center; gap:10px; }
-.payment-icon { height:24px; width:auto; object-fit:contain; }
-.submit-button { width:100%; margin-top:30px; padding:14px 0; font-size:18px; font-weight:700; background-color:#f56c6c; border-color:#f56c6c; color:#fff; }
-.order-summary-section { padding:20px; border:1px solid #e0e0e0; border-radius:8px; background:#f9f9f9; box-shadow:0 2px 8px rgba(0,0,0,.05); }
-.summary-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; padding-bottom:10px; border-bottom:1px solid #eee; }
-.summary-title { font-size:16px; font-weight:700; color:#333; }
-.total-price-header { font-size:20px; font-weight:700; color:#f56c6c; }
-.order-items-list { border-bottom:1px solid #eee; padding-bottom:15px; margin-bottom:15px; }
-.order-item { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; font-size:14px; }
-.item-details { flex-grow:1; }
-.item-name { font-weight:500; color:#333; line-height:1.4; }
-.item-variant { color:#999; font-size:12px; }
-.item-quantity { width:60px; text-align:center; color:#666; flex-shrink:0; }
-.item-price { font-weight:500; color:#333; width:100px; text-align:right; flex-shrink:0; }
-.discount-code-section { display:flex; gap:10px; margin-bottom:12px; flex-wrap:wrap; align-items:center; }
-.discount-input { flex:1 1 220px; min-width:220px; }
-.apply-discount-button { background-color:#409EFF; border-color:#409EFF; color:#fff; font-weight:700; }
-.applied-voucher-note { margin-bottom:10px; }
-.loyal-customer-text { font-size:13px; color:#999; margin-bottom:20px; text-align:right; }
-.summary-totals { padding-top:15px; border-top:1px dashed #e0e0e0; margin-bottom:20px; }
-.total-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; font-size:15px; color:#555; }
-.total-row .value { font-weight:700; color:#333; }
-.discount-value, .shipping-value { font-weight:normal; }
-.total-row.final-total-row { margin-top:20px; font-size:20px; }
-.final-total-row .label { font-size:18px; font-weight:700; color:#333; }
-.final-total-row .value.final-value { font-size:24px; font-weight:700; color:#f56c6c; }
-.delivery-time-warning { font-size:12px; color:#f56c6c; text-align:center; margin-top:20px; }
-@media (max-width:991px) { .checkout-page { padding:15px } .order-summary-section { margin-top:30px } }
+.checkout-page {
+  padding: 30px;
+  max-width: 1400px;
+  margin: 20px auto;
+  font-family: Arial, sans-serif;
+}
+.shipping-info-section {
+  padding: 20px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+.section-header {
+  font-size: 16px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #eee;
+}
+.delivery-form .el-form-item {
+  margin-bottom: 15px;
+}
+.phone-hint {
+  font-size: 12px;
+  color: #f56c6c;
+  margin-top: 5px;
+}
+.shipping-method-section {
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px dashed #eee;
+}
+.payment-option {
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  padding: 10px 15px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+.payment-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.payment-icon {
+  height: 24px;
+  width: auto;
+  object-fit: contain;
+}
+.submit-button {
+  width: 100%;
+  margin-top: 30px;
+  padding: 14px 0;
+  font-size: 18px;
+  font-weight: 700;
+  background-color: #f56c6c;
+  border-color: #f56c6c;
+  color: #fff;
+}
+.order-summary-section {
+  padding: 20px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background: #f9f9f9;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+.summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #eee;
+}
+.summary-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #333;
+}
+.total-price-header {
+  font-size: 20px;
+  font-weight: 700;
+  color: #f56c6c;
+}
+.order-items-list {
+  border-bottom: 1px solid #eee;
+  padding-bottom: 15px;
+  margin-bottom: 15px;
+}
+.order-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+.item-details {
+  flex-grow: 1;
+}
+.item-name {
+  font-weight: 500;
+  color: #333;
+  line-height: 1.4;
+}
+.item-variant {
+  color: #999;
+  font-size: 12px;
+}
+.item-quantity {
+  width: 60px;
+  text-align: center;
+  color: #666;
+  flex-shrink: 0;
+}
+.item-price {
+  font-weight: 500;
+  color: #333;
+  width: 100px;
+  text-align: right;
+  flex-shrink: 0;
+}
+.discount-code-section {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.discount-input {
+  flex: 1 1 220px;
+  min-width: 220px;
+}
+.apply-discount-button {
+  background-color: #409eff;
+  border-color: #409eff;
+  color: #fff;
+  font-weight: 700;
+}
+.applied-voucher-note {
+  margin-bottom: 10px;
+}
+.loyal-customer-text {
+  font-size: 13px;
+  color: #999;
+  margin-bottom: 20px;
+  text-align: right;
+}
+.summary-totals {
+  padding-top: 15px;
+  border-top: 1px dashed #e0e0e0;
+  margin-bottom: 20px;
+}
+.total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  font-size: 15px;
+  color: #555;
+}
+.total-row .value {
+  font-weight: 700;
+  color: #333;
+}
+.discount-value,
+.shipping-value {
+  font-weight: normal;
+}
+.total-row.final-total-row {
+  margin-top: 20px;
+  font-size: 20px;
+}
+.final-total-row .label {
+  font-size: 18px;
+  font-weight: 700;
+  color: #333;
+}
+.final-total-row .value.final-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #f56c6c;
+}
+.delivery-time-warning {
+  font-size: 12px;
+  color: #f56c6c;
+  text-align: center;
+  margin-top: 20px;
+}
+@media (max-width: 991px) {
+  .checkout-page {
+    padding: 15px;
+  }
+  .order-summary-section {
+    margin-top: 30px;
+  }
+}
 </style>

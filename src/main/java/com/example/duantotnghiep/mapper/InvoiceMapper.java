@@ -21,9 +21,11 @@ public interface InvoiceMapper {
     // ============ Invoice -> InvoiceResponse ============
     @Mapping(target = "customerId", expression = "java(invoice.getCustomer() != null ? invoice.getCustomer().getId() : null)")
     @Mapping(target = "customerName", expression = "java(invoice.getCustomer() != null ? invoice.getCustomer().getCustomerName() : \"Khách lẻ\")")
-    @Mapping(target = "phone", expression = "java(invoice.getCustomer() != null ? invoice.getCustomer().getPhone() : \"\")")
+    @Mapping(target = "phone", source = "phone")
+//    @Mapping(target = "phone", expression = "java(invoice.getCustomer() != null ? invoice.getCustomer().getPhone() : \"\")")
     @Mapping(target = "employeeName", source = "employee.employeeName")
     @Mapping(target = "shippingFee", source = "shippingFee")
+    @Mapping(target = "deliveryAddress", source = "deliveryAddress") // THÊM DÒNG NÀY
     InvoiceResponse toInvoiceResponse(Invoice invoice);
 
     // ============ InvoiceDetail -> InvoiceDetailResponse ============
@@ -41,6 +43,7 @@ public interface InvoiceMapper {
     @Mapping(target = "totalPrice", expression = "java(invoiceDetail.getSellPrice() != null ? invoiceDetail.getSellPrice().multiply(java.math.BigDecimal.valueOf(invoiceDetail.getQuantity())) : null)")
     @Mapping(target = "discountAmount", expression = "java((invoiceDetail.getSellPrice() != null && invoiceDetail.getDiscountPercentage() != null) ? invoiceDetail.getSellPrice().multiply(java.math.BigDecimal.valueOf(invoiceDetail.getDiscountPercentage())).divide(java.math.BigDecimal.valueOf(100)) : null)")
     @Mapping(target = "finalTotalPrice", expression = "java(invoiceDetail.getDiscountedPrice() != null ? invoiceDetail.getDiscountedPrice().multiply(java.math.BigDecimal.valueOf(invoiceDetail.getQuantity())) : null)")
+    @Mapping(target = "deliveryAddress", source = "invoice.deliveryAddress")
     InvoiceDetailResponse toInvoiceDetailResponse(InvoiceDetail invoiceDetail);
 
     // ============ ProductDetail -> ProductAttributeResponse ============

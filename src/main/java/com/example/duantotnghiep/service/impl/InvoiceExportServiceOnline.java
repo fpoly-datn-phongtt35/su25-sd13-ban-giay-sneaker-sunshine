@@ -78,6 +78,8 @@ public class InvoiceExportServiceOnline {
         addMeta(meta, "Số điện thoại:", invoice.getCustomer() != null ?
                 safe(invoice.getCustomer().getPhone(), "Không có") : "Không có", fText, fBold);
 
+        addMeta(meta, "Địa chỉ giao hàng:", safe(invoice.getDeliveryAddress(), "---"), fText, fBold);
+
         doc.add(meta);
 
         // ===== Section title =====

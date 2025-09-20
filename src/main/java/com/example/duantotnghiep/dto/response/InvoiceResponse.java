@@ -46,6 +46,8 @@ public class InvoiceResponse {
     private TrangThaiChiTiet statusDetail;
     private Date deliveredAt;
 
+    private String deliveryAddress;
+
     private List<InvoiceDetailResponse> invoiceDetails;
 
     public InvoiceResponse(Long id, String invoiceCode, TrangThaiChiTiet status, Integer orderType,

@@ -109,6 +109,8 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
             Pageable pageable
     );
 
+    long countByStatusAndOrderTypeAndEmployee_Id(TrangThaiTong status, Integer orderType, Long employeeId);
+
 
     Invoice findByInvoiceCode(String invoiceCode);
 
@@ -117,7 +119,7 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
 
     Page<Invoice> findByStatusAndEmployeeIdAndOrderType(
             TrangThaiTong status, Long employeeId, int orderType, Pageable pageable);
-    
+
     List<Invoice> findByStatusAndOrderTypeAndCreatedDateBefore(TrangThaiTong status, int orderType, LocalDateTime time);
 
     boolean existsByCustomer_IdAndStatusAndOrderType(Long customerId, TrangThaiTong status, Integer orderType);

@@ -27,5 +27,7 @@ public class InvoiceDetailResponse {
     private BigDecimal totalPrice;          // Tổng giá gốc = sellPrice * quantity
     private BigDecimal finalTotalPrice;     // Tổng giá sau giảm = discountedPrice * quantity
     private String customerName;
+    private String deliveryAddress;
+
 }
 

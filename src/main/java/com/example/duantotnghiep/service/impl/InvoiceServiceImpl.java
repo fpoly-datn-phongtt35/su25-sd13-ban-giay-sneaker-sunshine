@@ -105,6 +105,8 @@ public class InvoiceServiceImpl implements InvoiceService {
     private final ProductCategoryRepository productCategoryRepository;
     private static final ZoneId ZONE_VN = ZoneId.of("Asia/Ho_Chi_Minh");
 
+    private static final int MAX_OPEN_INVOICES = 5;
+
     @Transactional
     @Override
     public InvoiceResponse createEmptyInvoice() {
@@ -116,8 +118,20 @@ public class InvoiceServiceImpl implements InvoiceService {
         Employee employee = user.getEmployee();
         if (employee == null) throw new RuntimeException("Người dùng không phải là nhân viên.");
 
+        // ⛔ Giới hạn: tối đa 5 hóa đơn đang xử lý cho nhân viên này ở quầy (orderType=0)
+        long openCount = invoiceRepository.countByStatusAndOrderTypeAndEmployee_Id(
+                TrangThaiTong.DANG_XU_LY, 0, employee.getId()
+        );
+        if (openCount >= MAX_OPEN_INVOICES) {
+            // ném lỗi 400 dễ hiểu
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST,
+                    "Bạn chỉ có thể tạo tối đa " + MAX_OPEN_INVOICES + " hóa đơn đang xử lý."
+            );
+        }
+
         Invoice invoice = new Invoice();
-        invoice.setInvoiceCode(safeInvoiceCode()); // tránh count()+1
+        invoice.setInvoiceCode(safeInvoiceCode());
         invoice.setEmployee(employee);
         invoice.setCreatedDate(new Date());
         invoice.setUpdatedDate(new Date());
@@ -135,6 +149,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         invoiceRepository.save(invoice);
         return invoiceMapper.toInvoiceResponse(invoice);
     }
+
 
     @Transactional
     public void applyDiscountToInvoiceDetails(Invoice invoice) {
@@ -508,7 +523,11 @@ public class InvoiceServiceImpl implements InvoiceService {
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy khách hàng với id: " + customerId));
 
         // Kiểm tra nếu khách hàng đã được gán vào hóa đơn khác có status = 0
-        boolean isCustomerAssigned = invoiceRepository.existsByCustomer_IdAndStatusAndOrderType(customerId, TrangThaiTong.DANG_XU_LY, 0);
+        boolean isCustomerAssigned = invoiceRepository.existsByCustomer_IdAndStatusAndOrderType(
+                customerId,
+                TrangThaiTong.DANG_XU_LY,
+                0
+        );
 
         if (isCustomerAssigned) {
             throw new RuntimeException("Khách hàng đã có một hóa đơn đang xử lý");
@@ -516,6 +535,10 @@ public class InvoiceServiceImpl implements InvoiceService {
 
         // Gán khách hàng vào hóa đơn
         invoice.setCustomer(customer);
+
+        // Gán thêm số điện thoại khách hàng vào invoice.phone
+        invoice.setPhone(customer.getPhone());
+
         invoiceRepository.save(invoice);
     }
 
@@ -1650,6 +1673,7 @@ public class InvoiceServiceImpl implements InvoiceService {
             invoice.setCustomer(customer);
             invoice.setCreatedDate(new Date());
             invoice.setUpdatedDate(new Date());
+            invoice.setPhone(phone);
             invoice.setDescription(request.getDescription());
             invoice.setOrderType(request.getOrderType());
             invoice.setIsPaid(false);
@@ -2305,8 +2329,8 @@ public class InvoiceServiceImpl implements InvoiceService {
             invoiceTransaction.setInvoice(invoice);
             invoiceTransaction.setAmount(invoice.getFinalAmount());
             invoiceTransaction.setPaymentStatus(1);
-            invoiceTransaction.setPaymentMethod("Chuyển khoản");
-            invoiceTransaction.setTransactionType("Thanh toán trước");
+            invoiceTransaction.setPaymentMethod("Transfer");
+            invoiceTransaction.setTransactionType("Payment in advance");
             invoiceTransaction.setNote(null);
             invoiceTransaction.setPaymentTime(new Date());
             invoiceTransactionRepository.save(invoiceTransaction);

@@ -6,7 +6,7 @@ const API_BASE = (typeof window !== 'undefined' && window.__API_BASE__) || 'http
 const VERIFY_BATCH_PATH = (idsCsv) => `${API_BASE}/api/online-sale/verify-list-pdDetail/${idsCsv}`
 
 // ===== Legacy compat =====
-const LEGACY_KEY = 'cart' // key cũ mà code khác có thể đang dùng
+const LEGACY_KEY = 'cart'
 
 function _getCurrentUserId() {
   try { return JSON.parse(localStorage.getItem('user') || '{}')?.id ?? null } catch { return null }

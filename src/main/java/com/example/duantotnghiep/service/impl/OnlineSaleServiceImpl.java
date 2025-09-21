@@ -477,8 +477,6 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
         Invoice invoice = invoiceRepository.findPaidInvoiceById(invoiceId, isPaid)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
 
-        huyDonClient(invoiceId, nextKey);
-
         TrangThaiChiTiet statusDetail = invoice.getStatusDetail();
         if(statusDetail == TrangThaiChiTiet.DA_XU_LY) {
             List<InvoiceDetail> invoiceDetails = invoiceDetailRepository.findByInvoiceId(invoiceId);
@@ -495,6 +493,8 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
                 productRepository.save(product);
             }
         }
+
+        huyDonClient(invoiceId, nextKey);
 
         InvoiceTransaction invoiceTransaction = new InvoiceTransaction();
         invoiceTransaction.setTransactionCode("GD-" + UUID.randomUUID().toString().substring(0, 8));
@@ -526,7 +526,6 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
 
         invoice.setEmployee(employee);
-        huyDonEmployee(invoiceId, nextKey);
 
         TrangThaiChiTiet statusDetail = invoice.getStatusDetail();
         if(statusDetail == TrangThaiChiTiet.DA_XU_LY) {
@@ -544,6 +543,8 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
                 productRepository.save(product);
             }
         }
+
+        huyDonEmployee(invoiceId, nextKey);
 
         InvoiceTransaction invoiceTransaction = new InvoiceTransaction();
         invoiceTransaction.setTransactionCode("GD-" + UUID.randomUUID().toString().substring(0, 8));

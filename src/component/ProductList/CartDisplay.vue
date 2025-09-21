@@ -37,8 +37,8 @@
             </div>
 
             <div class="item-price">
-              <!-- Nếu có giá giảm hợp lệ thì hiển thị sellPrice (gạch) + discountedPrice (nổi bật) -->
-              <template v-if="item.discountedPrice>0">
+              <!-- Có giảm giá hợp lệ: hiện giá gốc (gạch) + giá sau giảm (nổi bật) -->
+              <template v-if="shouldShowDiscount(item)">
                 <span class="original-price" aria-hidden="true">
                   {{ formatNumber(getSellPrice(item)) }} <span class="currency-small">đ</span>
                 </span>
@@ -49,9 +49,11 @@
                 </span>
               </template>
 
-              <!-- Ngược lại chỉ hiển thị sellPrice -->
+              <!-- Không có giảm giá: chỉ hiện một giá -->
               <template v-else>
-              <span>{{item.discountedPrice}}</span>
+                <span class="single-price">
+                  {{ formatNumber(getSellPrice(item)) }} <span class="currency-small">đ</span>
+                </span>
               </template>
             </div>
           </div>
@@ -107,10 +109,10 @@
 
         <div class="continue-shopping">
           <el-button type="info" link @click="router.push('/')">
-            <el-icon><Back /></el-icon> Tiếp tục mua sắm
+            Tiếp tục mua sắm
           </el-button>
           <el-button type="danger" link @click="confirmClearAll">
-            <el-icon><Delete /></el-icon> Xóa tất cả
+          Xóa tất cả
           </el-button>
         </div>
       </div>
@@ -166,14 +168,11 @@ const cartItems = ref([])
 const isApplyingRemote = ref(false)
 const lastNetworkError = ref(false)
 
-/* ---- Helpers giá ----
-   parsePriceToNumber: an toàn với chuỗi đã format như "360.000 đ"
-*/
+/* ---- Helpers giá (đã ưu tiên field mới unitPrice*) ---- */
 const parsePriceToNumber = (v) => {
   if (v === null || v === undefined) return null
   if (typeof v === 'number') return Number.isFinite(v) ? Math.trunc(v) : null
   if (typeof v === 'string') {
-    // loại bỏ mọi ký tự không phải số (giữ dấu - nếu có)
     const cleaned = v.replace(/[^\d\-]/g, '')
     if (cleaned === '') return null
     const n = Number(cleaned)
@@ -182,56 +181,54 @@ const parsePriceToNumber = (v) => {
   return null
 }
 
-/* Lấy sellPrice (giá gốc để hiển thị gạch khi có discount).
-   Ưu tiên các trường thường dùng: sellPrice -> price -> listPrice -> msrp
-*/
+/* Giá gốc để hiển thị gạch ngang */
 const getSellPrice = (item) => {
   if (!item) return 0
   return (
+    parsePriceToNumber(item.unitPriceOriginal) ??   // mới
     parsePriceToNumber(item.sellPrice) ??
-    parsePriceToNumber(item.price) ??
     parsePriceToNumber(item.listPrice) ??
     parsePriceToNumber(item.msrp) ??
+    // giá fallback cuối (có thể là final) — để tránh trống giá
+    parsePriceToNumber(item.price) ??
     0
   )
 }
 
-/* Lấy discountedPrice (nếu backend có đặt tên khác, thêm vào đây)
-   ưu tiên: discountedPrice -> discountPrice -> promoPrice -> salePrice
-*/
+/* Giá sau giảm (nếu có) */
 const getDiscountedPrice = (item) => {
   if (!item) return null
-  return (
+  const original = getSellPrice(item)
+
+  // lấy candidate theo thứ tự ưu tiên
+  const candidate =
+    parsePriceToNumber(item.unitPriceFinal) ??        // mới: giá cuối áp dụng
+    parsePriceToNumber(item.unitPriceDiscounted) ??   // mới: giá sau giảm tường minh
     parsePriceToNumber(item.discountedPrice) ??
     parsePriceToNumber(item.discountPrice) ??
     parsePriceToNumber(item.promoPrice) ??
     parsePriceToNumber(item.salePrice) ??
+    parsePriceToNumber(item.price) ??                 // có thể là final từ modal
     null
-  )
+
+  if (candidate === null || candidate <= 0) return null
+  if (original <= 0) return candidate
+  return candidate < original ? candidate : null
 }
 
-/* Quy tắc hiển thị:
-   - nếu discountedPrice tồn tại, > 0, và < sellPrice => show both (sellPrice gạch)
-   - nếu discountedPrice === 0 || null || >= sellPrice => chỉ show sellPrice
-*/
+/* Có hiển thị bộ đôi giá hay không */
 const shouldShowDiscount = (item) => {
   const sell = getSellPrice(item)
   const disc = getDiscountedPrice(item)
-  if (disc === null) return false
-  if (disc <= 0) return false
-  if (sell <= 0) {
-    // nếu không có sellPrice nhưng có discountedPrice > 0 -> vẫn hiển thị discountedPrice (business may vary)
-    return true
-  }
-  return disc < sell
+  return disc !== null && disc > 0 && (sell <= 0 || disc < sell)
 }
 
-/* Giá hiển thị để tính tổng (nếu có discount hợp lệ dùng discounted, else sell) */
+/* Giá dùng để tính tổng */
 const getDisplayedPrice = (item) => {
   return shouldShowDiscount(item) ? getDiscountedPrice(item) : getSellPrice(item)
 }
 
-/* format helpers */
+/* định dạng */
 const formatNumber = (n) => {
   const num = Number(n) || 0
   return num.toLocaleString('vi-VN')
@@ -241,7 +238,7 @@ const formatPrice = (n) => {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(num)
 }
 
-/* ===== Cart logic (load/save/normalize) - giữ nguyên logic trước đó ===== */
+/* ===== Cart logic (load/save/normalize) ===== */
 const safeInt = (v, def = 0) => {
   const n = Number(v)
   return Number.isFinite(n) ? Math.trunc(n) : def
@@ -270,12 +267,10 @@ function isCartEqual(a, b) {
 
 let isLoading = false
 const loadCartFromService = async () => {
-
   if (isLoading) return
   isLoading = true
   try {
     const res = await getCart()
-    console.log('res: ',res)
     let arr = []
     if (Array.isArray(res)) {
       arr = res
@@ -294,16 +289,10 @@ const loadCartFromService = async () => {
       productDetailId: it.productDetailId ?? (it.productDetail && it.productDetail.id)
     }))
 
-    console.log('cart: ',cartItems.value)
-    if (isCartEqual(normalized, cartItems.value)) {
-      isLoading = false
-      return
-    }
-
+    if (isCartEqual(normalized, cartItems.value)) { isLoading = false; return }
 
     isApplyingRemote.value = true
     cartItems.value = normalized
-    console.log('cart: ',cartItems.value)
     normalizeAllRows(false)
     await nextTick()
     isApplyingRemote.value = false
@@ -326,13 +315,8 @@ const normalizeAllRows = (showDialog = true) => {
     const qty0 = safeInt(row.quantity, 1)
     const rowMax = getRowMax(row)
     let qty = Math.max(1, qty0)
-    if (qty >= NGAY_MAX_QTY) {
-      qty = rowMax
-      touched = true
-    } else if (qty > rowMax) {
-      qty = rowMax
-      touched = true
-    }
+    if (qty >= NGAY_MAX_QTY) { qty = rowMax; touched = true }
+    else if (qty > rowMax)   { qty = rowMax; touched = true }
     return { ...row, quantity: qty }
   })
   if (touched) {
@@ -407,10 +391,7 @@ const goToCheckout = async () => {
     ElMessage.warning('Giỏ hàng đang trống!')
     return
   }
-  if (exceedsBulkRule.value) {
-    showBulkDialog()
-    return
-  }
+  if (exceedsBulkRule.value) { showBulkDialog(); return }
 
   const ids = Array.from(new Set(
     cartItems.value
@@ -570,7 +551,7 @@ onBeforeUnmount(() => {
   font-size: 18px;
   text-decoration: line-through;
   text-decoration-thickness: 2px;
-  text-decoration-color: #e2e8f0;
+  text-decoration-color: #9f0707;
   opacity: 0.95;
   margin-right: 6px;
   display:flex;
@@ -582,7 +563,7 @@ onBeforeUnmount(() => {
 .final-price { display:inline-flex; align-items:baseline; gap:6px; }
 
 .final-price .amount {
-  color: #b91c1c; /* đỏ đậm */
+  color: #b91c1c;
   font-weight: 800;
   font-size: 22px;
   line-height: 1;
@@ -590,20 +571,16 @@ onBeforeUnmount(() => {
   position: relative;
 }
 
-/* gạch nền dưới số giống mock: a subtle rectangle block */
 .final-price .amount::after {
   content: '';
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -4px;
+  left: 0; right: 0; bottom: -4px;
   height: 8px;
   background: rgba(185,28,28,0.12);
   border-radius: 2px;
   z-index: -1;
 }
 
-/* currency small, aligned */
 .final-price .currency {
   color: #b91c1c;
   font-weight: 800;
@@ -615,14 +592,22 @@ onBeforeUnmount(() => {
 .final-price .currency::after {
   content: '';
   position: absolute;
-  left: -2px;
-  right: -2px;
-  bottom: -4px;
+  left: -2px; right: -2px; bottom: -4px;
   height: 8px;
   background: rgba(185,28,28,0.12);
   border-radius: 2px;
   z-index: -1;
 }
+
+/* single price (không giảm) */
+.single-price {
+  color:#111;
+  font-weight: 700;
+  font-size: 20px;
+  display:flex;
+  align-items:center;
+}
+.single-price .currency-small { font-size: 16px; margin-left:4px; color:#111; }
 
 /* controls */
 .item-controls { display:flex; flex-direction:column; align-items:center; gap:8px; }

@@ -24,12 +24,12 @@
         row-class-name="hover:bg-gray-100 transition-colors duration-200"
         header-cell-class-name="bg-blue-50 text-gray-700 font-semibold"
       >
-        <el-table-column label="STT" type="index" width="300" align="center" />
+        <el-table-column label="STT" type="index" width="150" align="center" />
         <el-table-column prop="invoiceCode" label="Mã hóa đơn" width="300" />
-        <el-table-column prop="totalAmount" label="Tổng tiền" width="300" align="center">
+        <el-table-column prop="totalAmount" label="Tổng tiền" width="200" align="center">
           <template #default="scope">{{ formatCurrency(scope.row.totalAmount) }}</template>
         </el-table-column>
-        <el-table-column prop="shippingFee" label="Tiền ship" width="280" align="center">
+        <el-table-column prop="shippingFee" label="Tiền ship" width="200" align="center">
           <template #default="scope">{{ formatCurrency(scope.row.shippingFee) }}</template>
         </el-table-column>
         <el-table-column prop="amountToPay" label="Tiền phải trả" width="200" align="center">

@@ -827,17 +827,16 @@ const handleSubmit = async () => {
         address: {
           ...form.value.address,
           provinceName:
-            provinces.value.find((p) => p.ProvinceID === form.value.address.provinceCode)
+            provinces.value.find(p => p.ProvinceID === form.value.address.provinceCode)
               ?.ProvinceName || '',
           districtName:
-            districts.value.find(
-              (d) =>
-                d.DistrictID === form.value.address.address?.districtCode ??
-                form.value.address.districtCode,
-            )?.DistrictName || '',
+            districts.value.find(d => d.DistrictID === form.value.address.districtCode)
+              ?.DistrictName || '',
           wardName:
-            wards.value.find((w) => w.WardCode === form.value.address.wardCode)?.WardName || '',
-        },
+            wards.value.find(w => w.WardCode === form.value.address.wardCode)
+              ?.WardName || '',
+        }
+
       },
       items: itemsPayload,
       orderTotal: toInt(orderTotal.value),
@@ -871,6 +870,7 @@ const handleSubmit = async () => {
         failEarly('Lỗi khi kiểm tra voucher. Vui lòng thử lại.')
       }
     }
+
 
     // ------------- Payment flow -------------
     if (paymentMethod.value === 1) {
@@ -927,7 +927,6 @@ const handleSubmit = async () => {
             console.log('verify-invoice-status: ', res2.data)
           } catch (err) {
             console.error('verify-invoice error:', err?.response?.data || err)
-            // Nếu verify lỗi, dừng luôn (an toàn hơn)
             failEarly('Không thể kiểm tra trạng thái hoá đơn. Vui lòng thử lại.')
           }
         } else {

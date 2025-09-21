@@ -9,38 +9,8 @@ import com.example.duantotnghiep.dto.request.InvoiceRequest;
 import com.example.duantotnghiep.dto.request.InvoiceSearchRequest;
 import com.example.duantotnghiep.dto.response.*;
 import com.example.duantotnghiep.mapper.InvoiceMapper;
-import com.example.duantotnghiep.model.AddressCustomer;
-import com.example.duantotnghiep.model.Customer;
-import com.example.duantotnghiep.model.CustomerBlacklistHistory;
-import com.example.duantotnghiep.model.DiscountCampaign;
-import com.example.duantotnghiep.model.DiscountCampaignProductDetail;
-import com.example.duantotnghiep.model.Employee;
-import com.example.duantotnghiep.model.Invoice;
-import com.example.duantotnghiep.model.InvoiceDetail;
-import com.example.duantotnghiep.model.InvoiceTransaction;
-import com.example.duantotnghiep.model.Product;
-import com.example.duantotnghiep.model.ProductCategory;
-import com.example.duantotnghiep.model.ProductDetail;
-import com.example.duantotnghiep.model.PromotionSuggestion;
-import com.example.duantotnghiep.model.PurchaseStats;
-import com.example.duantotnghiep.model.User;
-import com.example.duantotnghiep.model.Voucher;
-import com.example.duantotnghiep.model.VoucherHistory;
-import com.example.duantotnghiep.repository.AddressRepository;
-import com.example.duantotnghiep.repository.CustomerBlacklistHistoryRepository;
-import com.example.duantotnghiep.repository.CustomerRepository;
-import com.example.duantotnghiep.repository.DiscountCampaignProductRepository;
-import com.example.duantotnghiep.repository.DiscountCampaignRepository;
-import com.example.duantotnghiep.repository.EmployeeRepository;
-import com.example.duantotnghiep.repository.InvoiceDetailRepository;
-import com.example.duantotnghiep.repository.InvoiceRepository;
-import com.example.duantotnghiep.repository.InvoiceTransactionRepository;
-import com.example.duantotnghiep.repository.ProductCategoryRepository;
-import com.example.duantotnghiep.repository.ProductDetailRepository;
-import com.example.duantotnghiep.repository.ProductRepository;
-import com.example.duantotnghiep.repository.UserRepository;
-import com.example.duantotnghiep.repository.VoucherHistoryRepository;
-import com.example.duantotnghiep.repository.VoucherRepository;
+import com.example.duantotnghiep.model.*;
+import com.example.duantotnghiep.repository.*;
 import com.example.duantotnghiep.service.AccountEmailService;
 import com.example.duantotnghiep.service.InvoiceService;
 import com.example.duantotnghiep.service.VoucherEmailService;
@@ -103,6 +73,7 @@ public class InvoiceServiceImpl implements InvoiceService {
     private final PasswordEncoder passwordEncoder;
     private final AccountEmailService accountEmailService;
     private final ProductCategoryRepository productCategoryRepository;
+    private final ReservationOrderRepository reservationOrderRepository;
     private static final ZoneId ZONE_VN = ZoneId.of("Asia/Ho_Chi_Minh");
 
     private static final int MAX_OPEN_INVOICES = 5;
@@ -118,7 +89,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         Employee employee = user.getEmployee();
         if (employee == null) throw new RuntimeException("Người dùng không phải là nhân viên.");
 
-        // ⛔ Giới hạn: tối đa 5 hóa đơn đang xử lý cho nhân viên này ở quầy (orderType=0)
+        //  Giới hạn: tối đa 5 hóa đơn đang xử lý cho nhân viên này ở quầy (orderType=0)
         long openCount = invoiceRepository.countByStatusAndOrderTypeAndEmployee_Id(
                 TrangThaiTong.DANG_XU_LY, 0, employee.getId()
         );
@@ -606,7 +577,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         // 2) Trừ kho + kiểm tra ngừng bán/hết hàng
         List<InvoiceDetail> details = invoiceDetailRepository.findByInvoiceAndStatus(invoice, 1);
         for (InvoiceDetail d : details) {
-            ProductDetail pd = productDetailRepository.findById(d.getProductDetail().getId())
+            ProductDetail pd = productDetailRepository.findByIdAndStatus(d.getProductDetail().getId())
                     .orElseThrow(() -> new RuntimeException("Sản phẩm đã bị xoá hoặc không tồn tại."));
 
             String name = pd.getProduct() != null ? pd.getProduct().getProductName() : "Sản phẩm";
@@ -1626,14 +1597,15 @@ public class InvoiceServiceImpl implements InvoiceService {
     @Override
     public InvoiceDisplayResponse createInvoiceShipCode(InvoiceRequest request) {
         try {
-            // ===== 1) KHÁCH HÀNG =====
             Customer customer;
             Long customerId = request.getCustomerInfo().getCustomerId();
             String phone = request.getCustomerInfo().getPhone();
 
+            String phoneSender = null;
             if (customerId != null) {
                 customer = customerRepository.findById(customerId)
                         .orElseThrow(() -> new RuntimeException("Không tìm thấy khách hàng với ID: " + customerId));
+                phoneSender =  customer.getPhone();
             } else if (phone != null && !phone.isBlank()) {
                 customer = customerRepository.findTop1ByPhoneAndStatus(phone, 1).orElse(null);
                 if (customer == null) {
@@ -1674,6 +1646,7 @@ public class InvoiceServiceImpl implements InvoiceService {
             invoice.setCreatedDate(new Date());
             invoice.setUpdatedDate(new Date());
             invoice.setPhone(phone);
+            invoice.setPhoneSender(phoneSender);
             invoice.setDescription(request.getDescription());
             invoice.setOrderType(request.getOrderType());
             invoice.setIsPaid(false);
@@ -1697,28 +1670,26 @@ public class InvoiceServiceImpl implements InvoiceService {
             BigDecimal total = BigDecimal.ZERO;
             List<InvoiceDetail> details = new ArrayList<>();
 
+            Map<Long,Integer> productDetailQty = new HashMap<>();
             for (CartItemRequest item : request.getItems()) {
                 // --- Lấy PD & kiểm tồn ---
-                ProductDetail pd = productDetailRepository.findById(item.getProductDetailId())
+                ProductDetail pd = productDetailRepository.findByIdAndStatus(item.getProductDetailId())
                         .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm chi tiết ID: " + item.getProductDetailId()));
+                Product product = pd.getProduct();
 
-                if (item.getQuantity() > pd.getQuantity()) {
+                productDetailQty.put(item.getProductDetailId(), item.getQuantity());
+
+                Integer quantityReserOrder = reservationOrderRepository.sumQuantityByProductDetailActive(pd.getId());
+                Integer quantityKho = pd.getQuantity() - quantityReserOrder;
+                System.out.println("sóo lượng trueyenf: " + item.getQuantity());
+                if (item.getQuantity() > quantityKho ) {
                     throw new RuntimeException("Số lượng vượt quá tồn kho chi tiết sản phẩm: " + item.getProductDetailId());
                 }
-                pd.setQuantity(pd.getQuantity() - item.getQuantity());
-
-                Product product = pd.getProduct();
-                int stock = Optional.ofNullable(product.getQuantity()).orElse(0);
-                if (item.getQuantity() > stock) {
-                    throw new RuntimeException("Tồn kho tổng không đủ cho sản phẩm: " + product.getId());
-                }
-                product.setQuantity(stock - item.getQuantity());
 
                 // --- Giá gốc từ DB (không tin FE) ---
                 BigDecimal sellPrice = Optional.ofNullable(pd.getSellPrice())
                         .orElse(Optional.ofNullable(product.getSellPrice()).orElse(BigDecimal.ZERO));
 
-                // --- Tìm % giảm tốt nhất ---
                 // 1) ƯU TIÊN: % theo SPCT (DiscountCampaignProductDetail.discountPercentage). Nếu null thì fallback % campaign.
                 Optional<AbstractMap.SimpleEntry<Long, BigDecimal>> pdBest = activeCampaigns.stream()
                         .filter(c -> c.getProductDetails() != null)
@@ -1834,6 +1805,19 @@ public class InvoiceServiceImpl implements InvoiceService {
 
             // ===== 5) LƯU HÓA ĐƠN =====
             Invoice savedInvoice = invoiceRepository.save(invoice);
+
+            List<ReservationOrder> oders = new ArrayList<>();
+            productDetailQty.forEach((pdId, qty) -> {
+                ReservationOrder order = new ReservationOrder();
+                order.setProductDetailId(pdId);
+                order.setInvoiceId(invoice.getId());
+                order.setQuantity(qty);
+                order.setStatus(1);
+                order.setCreatedAt(new Date());
+                oders.add(order);
+            });
+            reservationOrderRepository.saveAll(oders);
+
             LocalDateTime now = LocalDateTime.now();
             markVoucherUsedIfAny(savedInvoice,now);
 
@@ -1868,17 +1852,14 @@ public class InvoiceServiceImpl implements InvoiceService {
         LocalDateTime lastCheckedLdt = Optional.ofNullable(customer.getLastBlacklistChecked())
                 .orElse(now.minusDays(30));
 
-        // Invoice.updatedDate là java.util.Date → convert mốc thời gian sang Date
         Date lastCheckedDate = Date.from(lastCheckedLdt.atZone(ZoneId.systemDefault()).toInstant());
 
-        // 1) Số đơn HUỶ mới (status_detail = HUY_DON) sau mốc lastChecked
         int newCancelledOrders = invoiceRepository.countByCustomerAndStatusDetailAndUpdatedDateAfter(
                 customer,
                 TrangThaiChiTiet.HUY_DON,
                 lastCheckedDate
         );
 
-        // 2) Số đơn THÀNH CÔNG mới (status = HOAN_THANH) sau mốc lastChecked  → điều kiện ân xá
         int newSuccessfulOrders = invoiceRepository.countByCustomerAndStatusAndUpdatedDateAfter(
                 customer,
                 TrangThaiTong.THANH_CONG, // đổi lại nếu enum trạng thái hoàn tất của bạn khác tên
@@ -1984,9 +1965,11 @@ public class InvoiceServiceImpl implements InvoiceService {
         Long customerId = request.getCustomerInfo().getCustomerId();
         String phone = request.getCustomerInfo().getPhone();
 
+        String phoneSender = null;
         if (customerId != null) {
             customer = customerRepository.findById(customerId)
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy khách hàng với ID: " + customerId));
+            phoneSender = customer.getPhone();
         } else if (phone != null && !phone.isBlank()) {
             customer = customerRepository.findTop1ByPhoneAndStatus(phone, 1).orElse(null);
             if (customer == null) {
@@ -2044,6 +2027,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         invoice.setDeliveryAddress(addressNew);
         invoice.setEmail(request.getCustomerInfo().getEmail());
         invoice.setPhone(request.getCustomerInfo().getPhone());
+        invoice.setPhoneSender(phoneSender);
 
         if (request.getEmployeeId() != null) {
             employeeRepository.findById(request.getEmployeeId()).ifPresent(invoice::setEmployee);
@@ -2066,22 +2050,22 @@ public class InvoiceServiceImpl implements InvoiceService {
         BigDecimal total = BigDecimal.ZERO;
         List<InvoiceDetail> details = new ArrayList<>();
 
+        Map<Long,Integer> productDetailQty = new HashMap<>();
         for (CartItemRequest item : request.getItems()) {
             // Lấy ProductDetail
             ProductDetail pd = productDetailRepository.findById(item.getProductDetailId())
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm chi tiết ID: " + item.getProductDetailId()));
 
+            productDetailQty.put(item.getProductDetailId(), pd.getQuantity());
+            Integer quantityReserOrder = reservationOrderRepository.sumQuantityByProductDetailActive(pd.getId());
+
             // Kiểm tra tồn kho (chi tiết)
-            if (item.getQuantity() > Optional.ofNullable(pd.getQuantity()).orElse(0)) {
+            Integer quantity = pd.getQuantity() - quantityReserOrder;
+            if (item.getQuantity() > quantity) {
                 throw new RuntimeException("Số lượng vượt quá tồn kho chi tiết sản phẩm: " + item.getProductDetailId());
             }
 
-            // Kiểm tra tồn kho tổng (Product)
             Product product = pd.getProduct();
-            int stock = Optional.ofNullable(product.getQuantity()).orElse(0);
-            if (item.getQuantity() > stock) {
-                throw new RuntimeException("Tồn kho tổng không đủ cho sản phẩm: " + product.getId());
-            }
 
             // Giá gốc lấy từ pd (nếu null dùng product)
             BigDecimal sellPrice = Optional.ofNullable(pd.getSellPrice())
@@ -2179,10 +2163,6 @@ public class InvoiceServiceImpl implements InvoiceService {
             details.add(detail);
         }
 
-        // ===== Voucher xử lý: CHỈ set nếu voucher đã được load (managed) =====
-        // (đoạn này đã được set phía trên vào invoice nếu có tìm thấy)
-        // Nếu bạn cần validate voucher (số lượng, thời hạn, giá trị tối thiểu ...) -> làm tiếp ở đây.
-
         invoice.setTotalAmount(total);
         invoice.setFinalAmount(
                 total
@@ -2194,6 +2174,19 @@ public class InvoiceServiceImpl implements InvoiceService {
 
         // Lưu invoice (với cascade invoiceDetails nếu mapping đúng)
         Invoice saved = invoiceRepository.save(invoice);
+        final Long invoiceId = saved.getId();
+
+        List<ReservationOrder> orders = new ArrayList<>();
+        productDetailQty.forEach((pdId, qty) -> {
+            ReservationOrder order = new ReservationOrder();
+            order.setInvoiceId(invoiceId);
+            order.setProductDetailId(pdId);
+            order.setQuantity(qty);
+            order.setStatus(1);
+            order.setCreatedAt(new  Date());
+            orders.add(order);
+        });
+        reservationOrderRepository.saveAll(orders);
 
         // Tạo appTransId dựa trên id saved
         String appTransId = new SimpleDateFormat("yyMMdd").format(new Date()) + "_" + saved.getId();
@@ -2223,14 +2216,15 @@ public class InvoiceServiceImpl implements InvoiceService {
         Invoice invoice = invoiceRepository.findByAppTransId(appTransId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy hóa đơn với appTransId: " + appTransId));
 
-        // Idempotency: chỉ xử lý khi đang chờ xử lý
-        if (invoice.getStatusDetail() != TrangThaiChiTiet.CHO_XU_LY) {
+        // Idempotency: CHỈ trừ kho khi chi tiết đã ở trạng thái ĐÃ_XỬ_LÝ
+        if (invoice.getStatusDetail() != TrangThaiChiTiet.DA_XU_LY) {
+            // Không phải thời điểm trừ kho -> trả nguyên trạng
             return invoice;
         }
 
         List<InvoiceDetail> details = invoice.getInvoiceDetails();
         if (details == null || details.isEmpty()) {
-            // Không có detail -> mark lỗi / hủy theo nghiệp vụ
+            // Không có detail -> hủy/hard-fail theo nghiệp vụ
             invoice.setStatus(TrangThaiTong.HUY_GIAO_DICH);
             invoice.setStatusDetail(TrangThaiChiTiet.HUY_GIAO_DICH);
             invoice.setUpdatedDate(new Date());
@@ -2253,24 +2247,28 @@ public class InvoiceServiceImpl implements InvoiceService {
 
             Long pdId = detail.getProductDetail().getId();
 
-            // lock productDetail (SELECT ... FOR UPDATE)
+            // Lock row ProductDetail (SELECT ... FOR UPDATE)
             ProductDetail pd = productDetailRepository.findByIdForUpdate(pdId)
-                    .orElseThrow(() -> new RuntimeException("Không tìm thấy ProductDetail khi confirm: " + pdId));
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy ProductDetail khi trừ kho: " + pdId));
 
-            int availPd = Optional.ofNullable(pd.getQuantity()).orElse(0);
-            if (detail.getQuantity() > availPd) {
-                // cập nhật trạng thái invoice, persist, rồi báo lỗi
+            Integer quantityKho = Optional.ofNullable(pd.getQuantity()).orElse(0);
+            Integer quantityReser = reservationOrderRepository.sumQuantityByProductDetailActive(pdId);
+
+            int availPd = quantityKho - quantityReser;
+            int need = Optional.ofNullable(detail.getQuantity()).orElse(0);
+
+            if (need > availPd) {
                 invoice.setStatus(TrangThaiTong.HUY_GIAO_DICH);
                 invoice.setStatusDetail(TrangThaiChiTiet.HUY_GIAO_DICH);
                 invoice.setUpdatedDate(new Date());
                 invoiceRepository.save(invoice);
-                throw new RuntimeException("Tồn kho chi tiết không đủ cho sản phẩm pdId=" + pdId);
+                throw new RuntimeException("Tồn kho chi tiết không đủ cho pdId=" + pdId + " (cần " + need + ", còn " + availPd + ")");
             }
-            pd.setQuantity(availPd - detail.getQuantity());
+            pd.setQuantity(availPd - need);
             pdToSave.add(pd);
 
-            // lock product tổng (nếu bạn quản stock ở Product)
-            Long productId = pd.getProduct() == null ? null : pd.getProduct().getId();
+            // Lock & trừ kho tổng ở Product (nếu có quản lý số lượng ở Product)
+            Long productId = (pd.getProduct() != null) ? pd.getProduct().getId() : null;
             if (productId == null) {
                 invoice.setStatus(TrangThaiTong.HUY_GIAO_DICH);
                 invoice.setStatusDetail(TrangThaiChiTiet.HUY_GIAO_DICH);
@@ -2282,31 +2280,36 @@ public class InvoiceServiceImpl implements InvoiceService {
             Product p = productRepository.findByIdProduct(productId)
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy Product id=" + productId));
 
-            int availP = Optional.ofNullable(p.getQuantity()).orElse(0);
-            if (detail.getQuantity() > availP) {
-                invoice.setStatus(TrangThaiTong.HUY_GIAO_DICH);
-                invoice.setStatusDetail(TrangThaiChiTiet.HUY_GIAO_DICH);
-                invoice.setUpdatedDate(new Date());
-                invoiceRepository.save(invoice);
-                throw new RuntimeException("Tồn kho tổng không đủ cho productId=" + productId);
-            }
-            p.setQuantity(availP - detail.getQuantity());
+//            int availP = Optional.ofNullable(p.getQuantity()).orElse(0);
+//            if (need > availP) {
+//                invoice.setStatus(TrangThaiTong.HUY_GIAO_DICH);
+//                invoice.setStatusDetail(TrangThaiChiTiet.HUY_GIAO_DICH);
+//                invoice.setUpdatedDate(new Date());
+//                invoiceRepository.save(invoice);
+//                throw new RuntimeException("Tồn kho tổng không đủ cho productId=" + productId + " (cần " + need + ", còn " + availP + ")");
+//            }
+//            p.setQuantity(availP - need);
             pToSave.add(p);
         }
 
+        // Commit thay đổi kho
         productDetailRepository.saveAll(pdToSave);
         productRepository.saveAll(pToSave);
 
-        // Cập nhật invoice: đã thanh toán/đã trừ kho
-        invoice.setIsPaid(true);
-        invoice.setStatusDetail(TrangThaiChiTiet.CHO_XU_LY);
+        // Cập nhật invoice: đánh dấu đã trừ kho (và đã thanh toán nếu nghiệp vụ yêu cầu)
+        invoice.setIsPaid(true); // hoặc giữ nguyên nếu bạn set ở bước thanh toán
+        // Giữ nguyên trạng thái chi tiết là ĐÃ_XỬ_LÝ (không set về CHO_XU_LY nữa)
         invoice.setUpdatedDate(new Date());
+
         Invoice saved = invoiceRepository.save(invoice);
 
+        // Các bước hậu xử lý (ví dụ: mark voucher used)
         LocalDateTime now = LocalDateTime.now();
-        markVoucherUsedIfAny(saved,now);
+        markVoucherUsedIfAny(saved, now);
+
         return saved;
     }
+
 
 
     @Transactional
@@ -2401,7 +2404,17 @@ public class InvoiceServiceImpl implements InvoiceService {
     @Override
     public List<InvoiceResponse> searchInvoices(InvoiceSearchRequest request) {
         TrangThaiChiTiet statusEnum  = TrangThaiChiTiet.tuMa(request.getStatusDetail());
-        List<InvoiceResponse> invoices = invoiceRepository.searchInvoices(statusEnum,request.getIsPaid(),1,request.getCreatedFrom(),request.getCreatedTo(),request.getPhone(),request.getCode());
+
+        TrangThaiChiTiet statusChoXuLy = TrangThaiChiTiet.CHO_XU_LY;
+        TrangThaiChiTiet statusDaXacNhan = TrangThaiChiTiet.DA_XU_LY;
+        TrangThaiChiTiet statusChoGiaoHang = TrangThaiChiTiet.CHO_GIAO_HANG;
+        TrangThaiChiTiet statusDangGiao = TrangThaiChiTiet.DANG_GIAO_HANG;
+        TrangThaiChiTiet statusGiaoThanhCong = TrangThaiChiTiet.GIAO_THANH_CONG;
+        TrangThaiChiTiet statusGiaoThatBai = TrangThaiChiTiet.GIAO_THAT_BAI;
+        TrangThaiChiTiet statusHuy = TrangThaiChiTiet.HUY_DON;
+
+        List<InvoiceResponse> invoices = invoiceRepository.searchInvoices(statusEnum,request.getIsPaid(),1,request.getCreatedFrom(),request.getCreatedTo(),request.getPhone(),request.getCode(),statusChoXuLy,statusDaXacNhan,
+                statusChoGiaoHang,statusDangGiao,statusGiaoThanhCong,statusGiaoThatBai,statusHuy);
         return invoices;
     }
 

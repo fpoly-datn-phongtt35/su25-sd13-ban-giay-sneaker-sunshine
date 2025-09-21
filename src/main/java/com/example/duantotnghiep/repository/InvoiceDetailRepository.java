@@ -103,4 +103,9 @@ public interface InvoiceDetailRepository extends JpaRepository<InvoiceDetail, Lo
                                @Param("end") Date end,
                                @Param("successSet") Set<TrangThaiTong> successSet);
 
+    @Query("""
+        select id from InvoiceDetail id where id.invoice.id = :invoiceId and id.status = 1
+                """)
+    List<InvoiceDetail> findByInvoiceIdAndStatus(@Param("invoiceId") Long  invoiceId);
+
 }

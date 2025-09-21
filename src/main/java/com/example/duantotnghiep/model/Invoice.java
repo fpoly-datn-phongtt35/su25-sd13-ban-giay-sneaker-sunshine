@@ -96,6 +96,9 @@ public class Invoice {
     @Column(name = "delivery_address")
     private String deliveryAddress;
 
+    @Column(name = "phone_sender")
+    private String phoneSender;
+
     @Column(name = "created_date")
     private Date createdDate;
 

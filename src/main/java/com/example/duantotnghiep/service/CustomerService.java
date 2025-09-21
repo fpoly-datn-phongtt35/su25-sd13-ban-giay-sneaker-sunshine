@@ -12,7 +12,7 @@ import org.springframework.data.domain.Pageable;
 import java.util.List;
 
 public interface CustomerService {
-    CustomerResponse createCustomer(CustomerRequest request);
+    CustomerResponse createCustomer(CustomerRequest request) throws Exception;
     CustomerResponse updateCustomer(Long id, CustomerRequest request);
     void deleteCustomer(Long id);
     CustomerResponse getCustomerById(Long id);

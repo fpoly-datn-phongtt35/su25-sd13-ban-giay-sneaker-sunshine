@@ -61,6 +61,7 @@ public class ProductServiceImpl implements ProductService {
     private final DiscountCampaignRepository discountCampaignRepository;
     private final FavoriteProductRepository favoriteProductRepository;
     private final UserRepository userRepository;
+    private final ReservationOrderRepository reservationOrderRepository;
 
     @Transactional(rollbackFor = Throwable.class)
     @Override
@@ -509,7 +510,6 @@ public class ProductServiceImpl implements ProductService {
                 .collect(Collectors.toList());
         response.setProductDetails(detailResponses);
 
-        // 6) Lấy campaign đang hoạt động
         // Khuyến nghị: dùng method có fetch join nếu bạn đã có (findActiveCampaignsWithRelations)
         List<DiscountCampaign> activeCampaigns = discountCampaignRepository.findActiveCampaigns(LocalDateTime.now());
 
@@ -524,6 +524,60 @@ public class ProductServiceImpl implements ProductService {
             }
             d.setDiscountPercentage((int) Math.round(detailDiscount));
             d.setDiscountedPrice(calculateDiscountPrice(d.getSellPrice(), detailDiscount));
+        }
+
+        return response;
+    }
+
+    @Override
+    public ProductResponse getProductByIdV2(Long id) {
+        // 1) Lấy product + chi tiết
+        Product product = productRepository.findByIdWithProductDetails(id)
+                .orElseThrow(() -> new IllegalArgumentException("Product not found: " + id));
+
+        // 2) Ảnh (status=1)
+        List<ProductImageResponse> imageResponses = productRepository.findByIdWithProductImages(id)
+                .map(Product::getProductImages)
+                .orElse(List.of())
+                .stream()
+                .filter(pi -> pi.getStatus() == 1)
+                .map(productImageMapper::toResponse)
+                .collect(Collectors.toList());
+
+        // 3) Danh mục (status=1)
+        List<CategoryResponse> categoryResponses = productCategoryRepository.getAllByProductAndStatus(id).stream()
+                .map(pc -> categoryMapper.toResponse(pc.getCategory()))
+                .collect(Collectors.toList());
+
+        // 4) Map sang DTO
+        ProductResponse response = productMapper.toResponse(product);
+        response.setProductImages(imageResponses);
+        response.setCategories(categoryResponses);
+
+        // 5) Lọc SPCT status=1
+        List<ProductDetailResponse> detailResponses = product.getProductDetails().stream()
+                .filter(pd -> pd.getStatus() == 1)
+                .map(productDetailMapper::toResponse)
+                .collect(Collectors.toList());
+        response.setProductDetails(detailResponses);
+
+        // Khuyến nghị: dùng method có fetch join nếu bạn đã có (findActiveCampaignsWithRelations)
+        List<DiscountCampaign> activeCampaigns = discountCampaignRepository.findActiveCampaigns(LocalDateTime.now());
+
+        double productDiscount = getBestDiscountPercentageForProduct(product, activeCampaigns);
+        response.setDiscountPercentage((int) Math.round(productDiscount));
+        response.setDiscountedPrice(calculateDiscountPrice(response.getSellPrice(), productDiscount));
+
+        for (ProductDetailResponse d : detailResponses) {
+            double detailDiscount = getBestDiscountPercentageForProductDetail(d.getId(), activeCampaigns);
+            if (detailDiscount <= 0) {
+                detailDiscount = productDiscount; // fallback
+            }
+            d.setDiscountPercentage((int) Math.round(detailDiscount));
+            d.setDiscountedPrice(calculateDiscountPrice(d.getSellPrice(), detailDiscount));
+            Integer quantityReser = reservationOrderRepository.sumQuantityByProductDetailActive(d.getId());
+            Integer quanTity = d.getQuantity() - quantityReser;
+            d.setQuantity(quanTity);
         }
 
         return response;
@@ -594,7 +648,8 @@ public class ProductServiceImpl implements ProductService {
 
                     detailResponse.setDiscountPercentage((int) Math.round(detailDiscount));
                     detailResponse.setDiscountedPrice(calculateDiscountPrice(detailResponse.getSellPrice(), detailDiscount));
-
+//                    Integer quantityReserOrder = reservationOrderRepository.sumQuantityByProductDetailActive(detailId);
+//                    detailResponse.setQuantity(detailResponse.getQuantity() - quantityReserOrder);
                     if (usedProductFallback) {
                         detailResponse.setDiscountCampaignId(bestCampaignId);
                     } else {

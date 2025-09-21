@@ -39,7 +39,7 @@ public class CustomerController {
 
     // CREATE
     @PostMapping
-    public ResponseEntity<CustomerResponse> createCustomer(@RequestBody CustomerRequest request) {
+    public ResponseEntity<CustomerResponse> createCustomer(@RequestBody CustomerRequest request) throws Exception{
         System.out.println("province: "+request.getProvinceName());
         System.out.println("district: "+request.getDistrictName());
         CustomerResponse response = customerService.createCustomer(request);

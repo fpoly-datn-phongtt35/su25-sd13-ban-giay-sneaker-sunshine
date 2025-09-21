@@ -1,6 +1,8 @@
 package com.example.duantotnghiep.repository;
 
 import com.example.duantotnghiep.dto.response.InvoiceOnlineResponse;
+import com.example.duantotnghiep.dto.response.InvoiceResponse;
+import com.example.duantotnghiep.state.TrangThaiChiTiet;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.NoResultException;
 import jakarta.persistence.PersistenceContext;
@@ -8,8 +10,7 @@ import jakarta.persistence.Query;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 
 @Repository
 public class InvoiceRepository2 {
@@ -19,7 +20,7 @@ public class InvoiceRepository2 {
     private static final String BASE_SELECT = """
         SELECT
             i.id, i.invoice_code, i.customer_id, c.customer_name,
-            i.employee_id, e.employee_name,i.phone,
+            i.employee_id, e.employee_name,i.phone,i.phone_sender,
             i.total_amount, i.discount_amount, i.final_amount,
             i.description, i.status, i.status_detail,
             i.created_date, i.updated_date,
@@ -85,25 +86,26 @@ public class InvoiceRepository2 {
         }
 
         return new InvoiceOnlineResponse(
-                toLong(row[0]),   // id
-                toString(row[1]), // invoice_code
-                toLong(row[2]),   // customer_id
-                toString(row[3]), // customer_name
-                toLong(row[4]),   // employee_id
-                toString(row[5]), // employee_name
-                toString(row[6]), // phone
-                toBigDecimal(row[7]),  // total_amount
-                toBigDecimal(row[8]),  // discount_amount
-                toBigDecimal(row[9]),  // final_amount
-                toString(row[10]),     // description
-                toInt(row[11]),        // status
-                toInt(row[12]),        // status_detail
-                toDate(row[13]),       // created_date
-                toDate(row[14]),       // updated_date
-                toString(row[15]),     // delivery_address
-                toBigDecimal(row[16]), // shipping_fee
-                toDate(row[17]),        // delivered_at
-                toBoolean(row[18])
+                toLong(row[0]),    // id
+                toString(row[1]),  // invoice_code
+                toLong(row[2]),    // customer_id
+                toString(row[3]),  // customer_name
+                toLong(row[4]),    // employee_id
+                toString(row[5]),  // employee_name
+                toString(row[6]),  // phone
+                toString(row[7]),
+                toBigDecimal(row[8]),   // total_amount
+                toBigDecimal(row[9]),   // discount_amount
+                toBigDecimal(row[10]),   // final_amount
+                toString(row[11]),      // description
+                toInt(row[12]),         // status
+                toInt(row[13]),         // status_detail
+                toDate(row[14]),        // created_date
+                toDate(row[15]),        // updated_date
+                toString(row[16]),      // delivery_address
+                toBigDecimal(row[17]),  // shipping_fee
+                toDate(row[18]),        // delivered_at
+                toBoolean(row[19])      // ...
         );
     }
 
@@ -212,5 +214,7 @@ public class InvoiceRepository2 {
     private Boolean toBoolean(Object o) {
         return o != null ? Boolean.valueOf(o.toString()) : false;
     }
+
+
 
 }

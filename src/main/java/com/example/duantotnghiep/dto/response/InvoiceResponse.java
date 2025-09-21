@@ -29,12 +29,12 @@ public class InvoiceResponse {
     String updatedBy;
     private Integer request;
 
-
     private String customerName;
 
     private String employeeName;
 
     private String phone;
+    private String phoneSender;
 
     private String invoiceCode;
 
@@ -48,10 +48,21 @@ public class InvoiceResponse {
 
     private String deliveryAddress;
 
+    private Long totalHuyDon;
+    private Long totalChoXacNhan;
+    private Long totalDaXuLy;
+    private Long totalChoGiao;
+    private Long totalDangGiao;
+    private Long totalThanhCong;
+    private Long totalThatBai;
+
     private List<InvoiceDetailResponse> invoiceDetails;
 
     public InvoiceResponse(Long id, String invoiceCode, TrangThaiChiTiet status, Integer orderType,
-                           Date createdDate, String customerName, String phone, BigDecimal totalAmount,BigDecimal finalAmount) {
+                           Date createdDate, String customerName, String phone, String phoneSender,
+                           BigDecimal totalAmount, BigDecimal finalAmount,
+                           Long totalChoXacNhan, Long totalDaXuLy, Long totalChoGiao, Long totalDangGiao,
+                           Long totalThanhCong, Long totalThatBai, Long totalHuyDon) {
         this.id = id;
         this.invoiceCode = invoiceCode;
         this.statusDetail = status;
@@ -59,8 +70,19 @@ public class InvoiceResponse {
         this.createdDate = createdDate;
         this.customerName = customerName;
         this.phone = phone;
+        this.phoneSender = phoneSender;
         this.totalAmount = totalAmount;
         this.finalAmount = finalAmount;
+
+        this.totalChoXacNhan = totalChoXacNhan;
+        this.totalDaXuLy     = totalDaXuLy;
+        this.totalChoGiao    = totalChoGiao;
+        this.totalDangGiao   = totalDangGiao;
+        this.totalThanhCong  = totalThanhCong;
+        this.totalThatBai    = totalThatBai;
+        this.totalHuyDon     = totalHuyDon;
     }
+
+
 
 }

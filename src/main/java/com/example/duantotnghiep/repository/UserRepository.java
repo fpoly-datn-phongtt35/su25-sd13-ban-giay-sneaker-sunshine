@@ -50,5 +50,19 @@ public interface UserRepository extends JpaRepository<User,Long> {
 
     List<User> findAllByCustomerId(Long customerId);
 
+    @Query("""
+            select u from User u where u.username = :username and u.customer.status = 1
+            """)
+    Optional<User> findByUsernameAndStatus(@Param("username") String username);
+
+    @Query("""
+    select (count(u) > 0)
+    from User u
+    where u.username = :username
+      and u.customer.status = 1
+""")
+    boolean existsActiveByUsername(@Param("username") String username);
+
+
 }
 

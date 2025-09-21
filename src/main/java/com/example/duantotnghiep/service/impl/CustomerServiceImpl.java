@@ -19,6 +19,7 @@ import com.example.duantotnghiep.repository.CustomerRepository;
 import com.example.duantotnghiep.repository.UserRepository;
 import com.example.duantotnghiep.service.CustomerService;
 import lombok.RequiredArgsConstructor;
+import org.apache.coyote.BadRequestException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -46,9 +47,18 @@ public class CustomerServiceImpl implements CustomerService {
 
     @Transactional(rollbackFor = Throwable.class)
     @Override
-    public CustomerResponse createCustomer(CustomerRequest request) {
+    public CustomerResponse createCustomer(CustomerRequest request) throws Exception {
         // 1. Chuyển CustomerRequest thành Customer entity
         Customer customer = userMapper.toCustomerEntity(request);
+        String username = request.getUsername();
+        boolean exists = userRepository.existsActiveByUsername(username);
+
+        if (exists) {
+            // ĐÃ tồn tại user đang active với username này
+            throw new BadRequestException("Username đã tồn tại (active)");
+        }
+
+// chưa tồn tại -> tiếp tục logic tạo mới, v.v.
         customer.setCustomerCode(generateCustomerCode());
         customer.setCreatedDate(LocalDateTime.now());
         customer.setCreatedBy("admin");

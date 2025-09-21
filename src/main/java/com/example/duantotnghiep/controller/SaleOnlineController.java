@@ -22,6 +22,7 @@ import com.example.duantotnghiep.service.impl.InvoiceEmailService;
 import com.example.duantotnghiep.service.impl.InvoiceServiceImpl;
 import com.example.duantotnghiep.service.impl.OnlineSaleServiceImpl;
 import com.example.duantotnghiep.service.impl.ProductServiceImpl;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -73,7 +74,7 @@ public class SaleOnlineController {
     }
 
     @PostMapping("/checkout")
-    public ResponseEntity<?> checkout(@RequestBody InvoiceRequest request) {
+    public ResponseEntity<?> checkout(@RequestBody InvoiceRequest request, HttpServletRequest httpRequest) {
         try {
             InvoiceDisplayResponse response = invoiceService.createInvoiceShipCode(request);
 
@@ -102,9 +103,10 @@ public class SaleOnlineController {
         }
     }
 
+
     @GetMapping("/{id}")
     public ResponseEntity<ProductResponse> getProductById(@PathVariable Long id) {
-        return ResponseEntity.ok(productService.getProductById(id));
+        return ResponseEntity.ok(productService.getProductByIdV2(id));
     }
 
     @GetMapping()

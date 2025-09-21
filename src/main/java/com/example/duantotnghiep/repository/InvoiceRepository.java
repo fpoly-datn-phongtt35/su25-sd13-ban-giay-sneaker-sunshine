@@ -25,27 +25,91 @@ import java.util.Set;
 public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
 
     @Query("""
-                SELECT new com.example.duantotnghiep.dto.response.InvoiceResponse(
-                    i.id,
-                    i.invoiceCode,
-                    i.statusDetail,
-                    i.orderType,
-                    i.createdDate,
-                    i.customer.customerName,
-                    i.customer.phone,
-                    i.totalAmount,
-                    i.finalAmount
-                )
-                FROM Invoice i
-                WHERE (:status IS NULL OR i.statusDetail = :status)
-                  AND  (:isPaid IS NULL OR i.isPaid = :isPaid)
-                  AND (:orderType IS NULL OR i.orderType = :orderType)
-                  AND (:createdFrom IS NULL OR i.createdDate >= :createdFrom)
-                  AND (:createdTo IS NULL OR i.createdDate <= :createdTo)
-                  AND (:phone IS NULL OR i.customer.phone LIKE %:phone%)
-                  AND (:code IS NULL OR i.invoiceCode LIKE %:code%)
-                ORDER BY i.createdDate ASC
-            """)
+SELECT new com.example.duantotnghiep.dto.response.InvoiceResponse(
+    i.id,
+    i.invoiceCode,
+    i.statusDetail,
+    i.orderType,
+    i.createdDate,
+    i.customer.customerName,
+    i.phone,
+    i.phoneSender,
+    i.totalAmount,
+    i.finalAmount,
+
+    (SELECT COUNT(i2.id) FROM Invoice i2
+     WHERE i2.statusDetail = :statusChoXacNhan
+       AND (:createdFrom IS NULL OR i2.createdDate >= :createdFrom)
+       AND (:createdTo   IS NULL OR i2.createdDate <= :createdTo)
+       AND (:isPaid IS NULL OR i2.isPaid = :isPaid)
+       AND (:orderType IS NULL OR i2.orderType = :orderType)
+       AND (:phone IS NULL OR i2.customer.phone LIKE CONCAT('%', :phone, '%'))
+       AND (:code  IS NULL OR i2.invoiceCode LIKE CONCAT('%', :code, '%'))),
+
+    (SELECT COUNT(i2.id) FROM Invoice i2
+     WHERE i2.statusDetail = :statusDaXacNhan
+       AND (:createdFrom IS NULL OR i2.createdDate >= :createdFrom)
+       AND (:createdTo   IS NULL OR i2.createdDate <= :createdTo)
+       AND (:isPaid IS NULL OR i2.isPaid = :isPaid)
+       AND (:orderType IS NULL OR i2.orderType = :orderType)
+       AND (:phone IS NULL OR i2.customer.phone LIKE CONCAT('%', :phone, '%'))
+       AND (:code  IS NULL OR i2.invoiceCode LIKE CONCAT('%', :code, '%'))),
+
+    (SELECT COUNT(i2.id) FROM Invoice i2
+     WHERE i2.statusDetail = :statusChoGiaoHang
+       AND (:createdFrom IS NULL OR i2.createdDate >= :createdFrom)
+       AND (:createdTo   IS NULL OR i2.createdDate <= :createdTo)
+       AND (:isPaid IS NULL OR i2.isPaid = :isPaid)
+       AND (:orderType IS NULL OR i2.orderType = :orderType)
+       AND (:phone IS NULL OR i2.customer.phone LIKE CONCAT('%', :phone, '%'))
+       AND (:code  IS NULL OR i2.invoiceCode LIKE CONCAT('%', :code, '%'))),
+
+    (SELECT COUNT(i2.id) FROM Invoice i2
+     WHERE i2.statusDetail = :statusDangGiaoHang
+       AND (:createdFrom IS NULL OR i2.createdDate >= :createdFrom)
+       AND (:createdTo   IS NULL OR i2.createdDate <= :createdTo)
+       AND (:isPaid IS NULL OR i2.isPaid = :isPaid)
+       AND (:orderType IS NULL OR i2.orderType = :orderType)
+       AND (:phone IS NULL OR i2.customer.phone LIKE CONCAT('%', :phone, '%'))
+       AND (:code  IS NULL OR i2.invoiceCode LIKE CONCAT('%', :code, '%'))),
+
+    (SELECT COUNT(i2.id) FROM Invoice i2
+     WHERE i2.statusDetail = :statusGiaoThanhCong
+       AND (:createdFrom IS NULL OR i2.createdDate >= :createdFrom)
+       AND (:createdTo   IS NULL OR i2.createdDate <= :createdTo)
+       AND (:isPaid IS NULL OR i2.isPaid = :isPaid)
+       AND (:orderType IS NULL OR i2.orderType = :orderType)
+       AND (:phone IS NULL OR i2.customer.phone LIKE CONCAT('%', :phone, '%'))
+       AND (:code  IS NULL OR i2.invoiceCode LIKE CONCAT('%', :code, '%'))),
+
+    (SELECT COUNT(i2.id) FROM Invoice i2
+     WHERE i2.statusDetail = :statusGiaoThatBai
+       AND (:createdFrom IS NULL OR i2.createdDate >= :createdFrom)
+       AND (:createdTo   IS NULL OR i2.createdDate <= :createdTo)
+       AND (:isPaid IS NULL OR i2.isPaid = :isPaid)
+       AND (:orderType IS NULL OR i2.orderType = :orderType)
+       AND (:phone IS NULL OR i2.customer.phone LIKE CONCAT('%', :phone, '%'))
+       AND (:code  IS NULL OR i2.invoiceCode LIKE CONCAT('%', :code, '%'))),
+
+    (SELECT COUNT(i2.id) FROM Invoice i2
+     WHERE i2.statusDetail = :statusHuyDon
+       AND (:createdFrom IS NULL OR i2.createdDate >= :createdFrom)
+       AND (:createdTo   IS NULL OR i2.createdDate <= :createdTo)
+       AND (:isPaid IS NULL OR i2.isPaid = :isPaid)
+       AND (:orderType IS NULL OR i2.orderType = :orderType)
+       AND (:phone IS NULL OR i2.customer.phone LIKE CONCAT('%', :phone, '%'))
+       AND (:code  IS NULL OR i2.invoiceCode LIKE CONCAT('%', :code, '%')))
+)
+FROM Invoice i
+WHERE (:status IS NULL OR i.statusDetail = :status)
+  AND (:isPaid IS NULL OR i.isPaid = :isPaid)
+  AND (:orderType IS NULL OR i.orderType = :orderType)
+  AND (:createdFrom IS NULL OR i.createdDate >= :createdFrom)
+  AND (:createdTo   IS NULL OR i.createdDate <= :createdTo)
+  AND (:phone IS NULL OR i.customer.phone LIKE CONCAT('%', :phone, '%'))
+  AND (:code  IS NULL OR i.invoiceCode LIKE CONCAT('%', :code, '%'))
+ORDER BY i.createdDate ASC
+""")
     List<InvoiceResponse> searchInvoices(
             @Param("status") TrangThaiChiTiet status,
             @Param("isPaid") Boolean isPaid,
@@ -53,8 +117,16 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
             @Param("createdFrom") Date createdFrom,
             @Param("createdTo") Date createdTo,
             @Param("phone") String phone,
-            @Param("code") String code
+            @Param("code") String code,
+            @Param("statusChoXacNhan") TrangThaiChiTiet statusChoXacNhan,
+            @Param("statusDaXacNhan") TrangThaiChiTiet statusDaXacNhan,
+            @Param("statusChoGiaoHang") TrangThaiChiTiet statusChoGiaoHang,
+            @Param("statusDangGiaoHang") TrangThaiChiTiet statusDangGiaoHang,
+            @Param("statusGiaoThanhCong") TrangThaiChiTiet statusGiaoThanhCong,
+            @Param("statusGiaoThatBai") TrangThaiChiTiet statusGiaoThatBai,
+            @Param("statusHuyDon") TrangThaiChiTiet statusHuyDon
     );
+
 
 
     List<Invoice> findByStatus(int status);

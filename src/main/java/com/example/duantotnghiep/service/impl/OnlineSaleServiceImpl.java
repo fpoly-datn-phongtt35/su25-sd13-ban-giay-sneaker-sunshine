@@ -45,6 +45,7 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
     private final InvoiceEmailService invoiceEmailService;
     private final InvoiceEmailServiceStatus invoiceEmailServiceStatus;
     private final NotificationService notificationService;
+    private final ReservationOrderRepository reservationOrderRepository;
 
     @Transactional
     @Override
@@ -88,6 +89,38 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
                     (currentStatus == null ? "NULL" : currentStatus.name()) +
                     " sang " + nextStatus.name());
         }
+
+        if (currentStatus == TrangThaiChiTiet.CHO_XU_LY) {
+            // Lấy chi tiết hóa đơn với trạng thái phù hợp
+            List<InvoiceDetail> details = invoiceDetailRepository.findByInvoiceIdAndStatus(invoiceId);
+
+            for (InvoiceDetail detail : details) {
+                ProductDetail productDetail = detail.getProductDetail();
+
+                // Lấy số lượng đặt trong hóa đơn
+                int orderQuantity = detail.getQuantity();
+
+                // Lấy số lượng tồn hiện tại
+                int currentStock = productDetail.getQuantity();
+
+                // Trừ số lượng tồn
+                int newStock = currentStock - orderQuantity;
+
+                if (newStock < 0) {
+                    throw new IllegalStateException("Sản phẩm " + productDetail.getId() + " không đủ số lượng trong kho");
+                }
+
+                Integer update = reservationOrderRepository.deactivateByProductDetailAndInvoice(productDetail.getId(),invoiceId);
+                if(update <= 0 || update == null){
+                    throw new IllegalStateException("Chuyển trạng thái thất bại");
+                }
+                productDetail.setQuantity(newStock);
+
+                // Lưu lại thay đổi
+                productDetailRepository.save(productDetail);
+            }
+        }
+
 
         // 5) Gán NV phụ trách
         invoice.setEmployee(employee);
@@ -154,7 +187,7 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
                 notificationService.sendToCustomerId(customerId, payload);
             }
 
-            // ❌ BỎ hẳn broadcast để không lộ thông tin
+            //  BỎ hẳn broadcast để không lộ thông tin
             // notificationService.sendBroadcast(payload);
 
         } catch (Exception notifyEx) {
@@ -408,7 +441,7 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
         invoice.setStatusDetail(nextStatus);
 
         if (nextStatus == TrangThaiChiTiet.HUY_DON) {
-            invoice.setStatus(TrangThaiTong.DA_HUY); // hoặc HUY, DA_HUY,... tùy định nghĩa
+            invoice.setStatus(TrangThaiTong.DA_HUY);
         }
         invoice.setUpdatedDate(new Date()); // THÊM DÒNG NÀY
         invoiceRepository.save(invoice);
@@ -446,21 +479,23 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
 
         huyDonClient(invoiceId, nextKey);
 
-        List<InvoiceDetail> invoiceDetails = invoiceDetailRepository.findByInvoiceId(invoiceId);
-        for (InvoiceDetail detail : invoiceDetails) {
-            ProductDetail productDetail = detail.getProductDetail();
+        TrangThaiChiTiet statusDetail = invoice.getStatusDetail();
+        if(statusDetail == TrangThaiChiTiet.DA_XU_LY) {
+            List<InvoiceDetail> invoiceDetails = invoiceDetailRepository.findByInvoiceId(invoiceId);
+            for (InvoiceDetail detail : invoiceDetails) {
+                ProductDetail productDetail = detail.getProductDetail();
 
-            int oldDetailStock = productDetail.getQuantity();
-            productDetail.setQuantity(oldDetailStock + detail.getQuantity());
-            productDetailRepository.save(productDetail);
+                int oldDetailStock = productDetail.getQuantity();
+                productDetail.setQuantity(oldDetailStock + detail.getQuantity());
+                productDetailRepository.save(productDetail);
 
-            Product product = productDetail.getProduct();
-            int oldProductStock = product.getQuantity();
-            product.setQuantity(oldProductStock + detail.getQuantity());
-            productRepository.save(product);
+                Product product = productDetail.getProduct();
+                int oldProductStock = product.getQuantity();
+                product.setQuantity(oldProductStock + detail.getQuantity());
+                productRepository.save(product);
+            }
         }
 
-        //  Ghi nhận giao dịch hoàn tiền
         InvoiceTransaction invoiceTransaction = new InvoiceTransaction();
         invoiceTransaction.setTransactionCode("GD-" + UUID.randomUUID().toString().substring(0, 8));
         invoiceTransaction.setInvoice(invoice);
@@ -493,18 +528,71 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
         invoice.setEmployee(employee);
         huyDonEmployee(invoiceId, nextKey);
 
-        List<InvoiceDetail> invoiceDetails = invoiceDetailRepository.findByInvoiceId(invoiceId);
-        for (InvoiceDetail detail : invoiceDetails) {
-            ProductDetail productDetail = detail.getProductDetail();
+        TrangThaiChiTiet statusDetail = invoice.getStatusDetail();
+        if(statusDetail == TrangThaiChiTiet.DA_XU_LY) {
+            List<InvoiceDetail> invoiceDetails = invoiceDetailRepository.findByInvoiceId(invoiceId);
+            for (InvoiceDetail detail : invoiceDetails) {
+                ProductDetail productDetail = detail.getProductDetail();
 
-            int oldDetailStock = productDetail.getQuantity();
-            productDetail.setQuantity(oldDetailStock + detail.getQuantity());
-            productDetailRepository.save(productDetail);
+                int oldDetailStock = productDetail.getQuantity();
+                productDetail.setQuantity(oldDetailStock + detail.getQuantity());
+                productDetailRepository.save(productDetail);
 
-            Product product = productDetail.getProduct();
-            int oldProductStock = product.getQuantity();
-            product.setQuantity(oldProductStock + detail.getQuantity());
-            productRepository.save(product);
+                Product product = productDetail.getProduct();
+                int oldProductStock = product.getQuantity();
+                product.setQuantity(oldProductStock + detail.getQuantity());
+                productRepository.save(product);
+            }
+        }
+
+        InvoiceTransaction invoiceTransaction = new InvoiceTransaction();
+        invoiceTransaction.setTransactionCode("GD-" + UUID.randomUUID().toString().substring(0, 8));
+        invoiceTransaction.setInvoice(invoice);
+        invoiceTransaction.setAmount(invoice.getFinalAmount());
+        invoiceTransaction.setPaymentStatus(2);
+        invoiceTransaction.setTradeCode(tradeCode);
+        invoiceTransaction.setBankName(bankName);
+        invoiceTransaction.setPaymentMethod(paymentMenthod);
+        invoiceTransaction.setTransactionType("Hoàn tiền");
+        invoiceTransaction.setNote(note);
+        invoiceTransaction.setPaymentTime(new Date());
+        invoiceTransactionRepository.save(invoiceTransaction);
+
+        invoiceRepository.save(invoice);
+    }
+
+    @Transactional
+    public void giaoHangThatBaiEmployee(Long invoiceId, String nextKey, String note, String paymentMenthod, Boolean isPaid,String tradeCode,String bankName) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng với username: " + username));
+
+        Employee employee = user.getEmployee();
+        if (employee == null) {
+            throw new RuntimeException("Người dùng không phải là nhân viên.");
+        }
+        Invoice invoice = invoiceRepository.findPaidInvoiceById(invoiceId, isPaid)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
+
+        invoice.setEmployee(employee);
+        huyDonEmployee(invoiceId, nextKey);
+
+        TrangThaiChiTiet statusDetail = invoice.getStatusDetail();
+        if(statusDetail == TrangThaiChiTiet.DANG_GIAO_HANG) {
+            List<InvoiceDetail> invoiceDetails = invoiceDetailRepository.findByInvoiceId(invoiceId);
+            for (InvoiceDetail detail : invoiceDetails) {
+                ProductDetail productDetail = detail.getProductDetail();
+
+                int oldDetailStock = productDetail.getQuantity();
+                productDetail.setQuantity(oldDetailStock + detail.getQuantity());
+                productDetailRepository.save(productDetail);
+
+                Product product = productDetail.getProduct();
+                int oldProductStock = product.getQuantity();
+                product.setQuantity(oldProductStock + detail.getQuantity());
+                productRepository.save(product);
+            }
         }
 
         InvoiceTransaction invoiceTransaction = new InvoiceTransaction();
@@ -525,7 +613,7 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
 
     @Override
     public void giaoHangThatBaiVaHoanTien(Long invoiceId, String nextKey, String note, String paymentMenthod,Boolean isPaid,String tradeCode,String bankName) {
-        huyDonVaHoanTienEmployee(invoiceId,nextKey,note,paymentMenthod,isPaid,tradeCode,bankName);
+        giaoHangThatBaiEmployee(invoiceId,nextKey,note,paymentMenthod,isPaid,tradeCode,bankName);
     }
 
     @Override

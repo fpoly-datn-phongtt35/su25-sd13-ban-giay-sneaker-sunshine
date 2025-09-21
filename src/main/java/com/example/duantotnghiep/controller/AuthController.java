@@ -26,7 +26,7 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<CustomerResponse> registerCustomer(@RequestBody CustomerRequest request) {
+    public ResponseEntity<CustomerResponse> registerCustomer(@RequestBody CustomerRequest request) throws Exception{
         CustomerResponse response = customerService.createCustomer(request);
         return ResponseEntity.ok(response);
     }

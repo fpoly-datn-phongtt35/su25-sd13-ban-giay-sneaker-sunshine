@@ -23,6 +23,7 @@ public interface ProductService {
     void deleteProductV2(Long id);
 
     ProductResponse getProductById(Long id);
+    ProductResponse getProductByIdV2(Long id);
 
 
     Page<ProductDetailResponse> pageProductDetailsByProductId(

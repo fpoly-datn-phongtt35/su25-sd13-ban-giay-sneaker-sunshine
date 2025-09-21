@@ -894,19 +894,18 @@ const handleSubmit = async () => {
             }
 
             if (Array.isArray(data)) {
-<<<<<<< HEAD
-              const nums = data
-                .map((item) => {
-                  if (typeof item === 'number') return item
-                  if (typeof item === 'string' && item.trim() !== '') return Number(item)
-                  if (item && typeof item === 'object') {
-                    // thử lấy trường phổ biến: status, code, value, hoặc chính object nếu là số
-                    return Number(item.status ?? item.code ?? item.value ?? item)
-                  }
-                  return NaN
-                })
-                .filter((n) => Number.isFinite(n))
-=======
+              // const nums = data
+              //   .map((item) => {
+              //     if (typeof item === 'number') return item
+              //     if (typeof item === 'string' && item.trim() !== '') return Number(item)
+              //     if (item && typeof item === 'object') {
+              //       // thử lấy trường phổ biến: status, code, value, hoặc chính object nếu là số
+              //       return Number(item.status ?? item.code ?? item.value ?? item)
+              //     }
+              //     return NaN
+              //   })
+              //   .filter((n) => Number.isFinite(n))
+
               const nums = data.map(item => {
                 if (typeof item === 'number') return item
                 if (typeof item === 'string' && item.trim() !== '') return Number(item)
@@ -915,7 +914,6 @@ const handleSubmit = async () => {
                 }
                 return NaN
               }).filter(n => Number.isFinite(n))
->>>>>>> 49952d5788bab5fddc058c5cb082be34d0405ea4
 
               if (nums.includes(2)) {
                 failEarly('Đợt giảm giá không tồn tại hoặc đã xóa')

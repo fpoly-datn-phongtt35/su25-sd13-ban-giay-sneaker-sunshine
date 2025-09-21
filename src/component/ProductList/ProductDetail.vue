@@ -103,9 +103,9 @@
               class="color-swatch"
               :class="{
                 selected: selectedColor === c.name,
-                'is-light': isLightColor(getColorHex(c.name))
+                'is-light': isLightHex(c.name)
               }"
-              :style="{ backgroundColor: getColorHex(c.name) }"
+              :style="swatchStyle(c.name)"
               @click="selectColor(c)"
               :title="c.name"
             />
@@ -322,43 +322,96 @@ const isDiscountedPrice = (sell, disc) => {
 }
 
 /* =========================
- * Color helpers
+ * Color helpers (đã thay đổi như bộ sưu tập)
  * ========================= */
-const colorMap = {
-  'đen':'#000000','trắng':'#FFFFFF','đỏ':'#FF0000','xanh dương':'#0000FF','xanh lá':'#008000','xám':'#808080',
-  'bạc':'#C0C0C0','hồng':'#FFC0CB','vàng':'#FFFF00','tím':'#800080','cam':'#FFA500','nâu':'#A52A2A',
-  'xanh navy':'#000080','be':'#F5F5DC','vàng gold':'#FFD700',
-  'black':'#000000','white':'#FFFFFF','red':'#FF0000','blue':'#0000FF','green':'#008000','grey':'#808080','gray':'#808080',
-  'silver':'#C0C0C0','pink':'#FFC0CB','yellow':'#FFFF00','purple':'#800080','orange':'#FFA500','brown':'#A52A2A',
-  'navy':'#000080','beige':'#F5F5DC','gold':'#FFD700'
+const COLOR_MAP = {
+  // --- VN cơ bản ---
+  'đen':'#000000','trắng':'#FFFFFF','đỏ':'#FF0000','xanh dương':'#0066FF','xanh biển':'#0077FF',
+  'xanh nước biển':'#0077FF','xanh lam':'#1E90FF','xanh lá':'#008000','xanh lục':'#008000',
+  'xanh rêu':'#556B2F','xanh ngọc':'#00CED1','xanh mint':'#98FF98','xanh pastel':'#A7E6FF',
+  'xanh navy':'#000080','xanh coban':'#0047AB','xanh dạ quang':'#39FF14',
+  'vàng':'#FFD700','vàng gold':'#FFD700','vàng chanh':'#FFF44F','vàng nhạt':'#FFFACD',
+  'cam':'#FFA500','cam đất':'#D2691E','nâu':'#8B4513','nâu đất':'#7B3F00',
+  'tím':'#800080','tím pastel':'#C3B1E1','tím than':'#3D2B56',
+  'hồng':'#FFC0CB','hồng nhạt':'#FFDEE2','hồng đất':'#D18888','hồng cánh sen':'#FF6FAD',
+  'be':'#F5F5DC','beige':'#F5F5DC','kem':'#FFFDD0','ivory':'#FFFFF0',
+  'xám':'#808080','xám nhạt':'#D3D3D3','xám đậm':'#4B4B4B','ghi':'#9E9E9E',
+  'bạc':'#C0C0C0','bạch kim':'#E5E4E2',
+  'bordeuax':'#800020','đỏ rượu':'#800020','đỏ đô':'#8B0000',
+  'than':'#111111','than đen':'#0F0F0F',
+
+  // alias 1 từ
+  'xanh':'#0066FF',
+
+  // --- EN ---
+  'black':'#000000','white':'#FFFFFF','red':'#FF0000','blue':'#0066FF','navy':'#000080',
+  'green':'#008000','olive':'#808000','teal':'#008080','aqua':'#00FFFF','cyan':'#00FFFF',
+  'lime':'#00FF00','yellow':'#FFFF00','orange':'#FFA500','brown':'#8B4513','chocolate':'#D2691E',
+  'purple':'#800080','violet':'#8A2BE2','indigo':'#4B0082','magenta':'#FF00FF','pink':'#FFC0CB',
+  'silver':'#C0C0C0','gold':'#FFD700','grey':'#808080','gray':'#808080','lightgray':'#D3D3D3',
+  'ivory':'#FFFFF0','maroon':'#800000','burgundy':'#800020','khaki':'#C3B091','tan':'#D2B48C',
+  'coral':'#FF7F50','salmon':'#FA8072',
 }
-const getColorHex = (name) => {
-  if (!name) return '#ccc'
-  const key = String(name).trim().toLowerCase()
-  return colorMap[key] || key
+
+const isHexColor = (str) => /^#([0-9A-F]{3}){1,2}$/i.test(String(str || '').trim())
+const norm = (s) => String(s || '').trim().toLowerCase()
+const hexFromName = (name) => {
+  const k = norm(name)
+  if (!k) return '#CCCCCC'
+  if (isHexColor(k)) return k
+  return COLOR_MAP[k] || '#CCCCCC'
 }
-const isLightColor = (hexOrName) => {
-  let hex = hexOrName
-  if (!hex) return false
-  if (!hex.startsWith('#')) {
-    try {
-      const ctx = document.createElement('canvas').getContext('2d')
-      ctx.fillStyle = hexOrName
-      const rgb = ctx.fillStyle
-      const m = /^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/.exec(rgb)
-      if (m) {
-        const r = (+m[1]).toString(16).padStart(2,'0')
-        const g = (+m[2]).toString(16).padStart(2,'0')
-        const b = (+m[3]).toString(16).padStart(2,'0')
-        hex = `#${r}${g}${b}`
-      }
-    } catch { return false }
+/** Ưu tiên các bigram phổ biến (xanh dương, vàng gold, ...) rồi mới tách */
+const parseCompositeColors = (rawName) => {
+  const s = norm(rawName)
+  if (!s) return []
+  const bigrams = [
+    'xanh dương','xanh biển','xanh nước biển','xanh lam','xanh lá','xanh lục','xanh rêu',
+    'xanh navy','vàng gold','hồng nhạt','hồng đất','xám nhạt','xám đậm','đỏ rượu','đỏ đô',
+  ]
+  for (const bi of bigrams) {
+    if (s.includes(bi)) {
+      const token = bi.replace(/\s+/g, '__')
+      const replaced = s.replace(new RegExp(bi, 'g'), token)
+      return replaced
+        .split(/[\/,\-\+&]+|\s+/g)
+        .map(x => x.replace(/__/g, ' '))
+        .filter(Boolean)
+    }
   }
-  const r = parseInt(hex.slice(1,3),16)
-  const g = parseInt(hex.slice(3,5),16)
-  const b = parseInt(hex.slice(5,7),16)
-  const L = 0.2126*r + 0.7152*g + 0.0722*b
-  return L > 200
+  return s.split(/[\/,\-\+,&]+|\s+/g).filter(Boolean)
+}
+/** Tính sáng để thêm viền nếu rất nhạt */
+const isLightHex = (nameOrHex) => {
+  const parts = parseCompositeColors(nameOrHex)
+  const h = hexFromName(parts[0] || nameOrHex)
+  try {
+    const r = parseInt(h.slice(1,3),16), g = parseInt(h.slice(3,5),16), b = parseInt(h.slice(5,7),16)
+    const L = 0.2126*r + 0.7152*g + 0.0722*b
+    return L > 210
+  } catch { return false }
+}
+/** Style cho swatch: 1 màu => backgroundColor; 2+ màu => linear-gradient chia đều */
+const swatchStyle = (name) => {
+  if (!name) return { backgroundColor: '#CCCCCC' }
+  if (isHexColor(name)) return { backgroundColor: name }
+
+  const parts = parseCompositeColors(name).map(hexFromName).filter(Boolean)
+  if (parts.length <= 1) {
+    const single = parts[0] || hexFromName(name)
+    const style = { backgroundColor: single }
+    if (isLightHex(single)) style.border = '1px solid #d1d5db'
+    return style
+  }
+  const n = parts.length
+  const stops = parts.map((c, i) => {
+    const from = Math.round((100 * i) / n)
+    const to   = Math.round((100 * (i + 1)) / n)
+    return `${c} ${from}% ${to}%`
+  }).join(', ')
+  const style = { background: `linear-gradient(90deg, ${stops})` }
+  if (parts.some(isLightHex)) style.border = '1px solid #d1d5db'
+  return style
 }
 
 /* ========== Brand computed ========== */
@@ -638,7 +691,12 @@ const handleAddToCart = async () => {
     return false
   }
 
-  const price = Number(d.discountedPrice) > 0 ? d.discountedPrice : (d.sellPrice || product.value.sellPrice)
+  // ======= Lưu cả giá gốc & giá sau giảm vào giỏ (giữ trường price cũ) =======
+  const unitPriceOriginal = Number(d.sellPrice) > 0 ? Number(d.sellPrice) : Number(product.value.sellPrice) || 0
+  const hasDisc = Number(d.discountedPrice) > 0 && Number(d.discountedPrice) < unitPriceOriginal
+  const unitPriceDiscounted = hasDisc ? Number(d.discountedPrice) : null
+  const unitPriceFinal = hasDisc ? Number(d.discountedPrice) : unitPriceOriginal
+  const price = unitPriceFinal
 
   const cartItem = {
     productDetailId: d.id,
@@ -648,7 +706,12 @@ const handleAddToCart = async () => {
     image: mainImage.value,
     color: selectedColor.value,
     size: selectedSize.value,
+
+    unitPriceOriginal,
+    unitPriceDiscounted,
+    unitPriceFinal,
     price,
+
     quantity: Number(quantity.value || 1),
     discountCampaignId: d.discountCampaignId || null,
     status: d.status
@@ -659,7 +722,6 @@ const handleAddToCart = async () => {
     ElMessage.success('Đã thêm vào giỏ hàng!')
     return true
   }
-  // (hiếm) nếu utils/cart trả về không ok
   ElMessage.error('Không thể thêm vào giỏ hàng.')
   return false
 }

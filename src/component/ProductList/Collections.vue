@@ -52,7 +52,8 @@
                     :checked="selectedColorIds.includes(c.id)"
                     @change="onColorToggle(c)"
                   />
-                  <span class="swatch" :style="{ backgroundColor: c.code }"></span>
+                  <!-- CHỈ ĐỔI DÒNG NÀY: dùng swatchStyle để hỗ trợ “màu ghép” -->
+                  <span class="swatch" :style="swatchStyle(c.name)"></span>
                   <span class="filter-name">{{ c.name }}</span>
                 </label>
                 <div v-if="!isLoadingColors && filteredColors.length===0" class="filter-empty">Không tìm thấy màu</div>
@@ -142,7 +143,6 @@
             <el-col v-for="p in products" :key="p.id" :xs="24" :sm="12" :md="8" :lg="6">
               <div class="product-card">
                 <div class="product-card__image-wrapper">
-                  <!-- show discount badge from minDiscountPercentage (from productDetails) -->
                   <span v-if="p.minDiscountPercentage > 0" class="product-card__discount-badge">-{{ p.minDiscountPercentage }}%</span>
 
                   <img
@@ -172,7 +172,6 @@
                   <p class="product-card__name" @click="goToDetail(p.id)">{{ p.productName }}</p>
 
                   <div class="product-card__price-container">
-                    <!-- Use minDiscountedPrice/minSellPrice computed from productDetails -->
                     <template v-if="p.minDiscountedPrice != null && p.minSellPrice != null && p.minDiscountedPrice < p.minSellPrice">
                       <span class="discounted-price">{{ formatPrice(p.minDiscountedPrice) }}</span>
                       <del class="original-price">{{ formatPrice(p.minSellPrice) }}</del>
@@ -181,22 +180,17 @@
                       <span class="normal-price">{{ formatPrice(p.minSellPrice) }}</span>
                     </template>
                     <template v-else>
-                      <!-- fallback: use top-level sellPrice if no details -->
                       <span class="normal-price">{{ formatPrice(p.sellPrice) }}</span>
                     </template>
                   </div>
 
-                  <!-- optional: show which variant has that min price -->
-<!--                  <div class="price-note" v-if="p.minVariant">-->
-<!--                    <small>({{ p.minVariant.sizeName || 'Kích thước khác' }} • {{ p.minVariant.colorName || 'Màu khác' }})</small>-->
-<!--                  </div>-->
-
                   <div class="product-card__colors" v-if="p.variants?.length">
+                    <!-- CHỈ ĐỔI DÒNG NÀY: dùng swatchStyle theo tên màu, hỗ trợ 1–n màu -->
                     <span
                       v-for="v in p.variants"
                       :key="v.colorId"
                       class="product-card__color-dot"
-                      :style="{ backgroundColor: v.colorCode }"
+                      :style="swatchStyle(v.colorName)"
                       :title="v.colorName"
                       @mouseenter="changeProductImage(p, v.image)"
                       @mouseleave="restoreProductImage(p)"
@@ -405,9 +399,9 @@ import axios from 'axios'
 
 /* ========== Config (có thể bind từ .env hoặc API) ========== */
 const NGAY_MAX_QTY = 10 // ngưỡng chặn Mua ngay/Thêm giỏ
-const hotline = '0346771322' // TODO: thay bằng số thật
-const zaloLink = 'https://zalo.me/0346771322' // TODO
-const facebookLink = 'https://www.facebook.com/phantuananh181205/' // TODO
+const hotline = '0346771322'
+const zaloLink = 'https://zalo.me/0346771322'
+const facebookLink = 'https://www.facebook.com/phantuananh181205/'
 
 /* ========== Router & Params ========== */
 const router = useRouter()
@@ -455,21 +449,113 @@ const formatPrice = (price) => {
   if (!Number.isFinite(n)) return 'N/A'
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n)
 }
-const isHexColor = (str) => /^#([0-9A-F]{3}){1,2}$/i.test(String(str || ''))
-const colorCodeOf = (colorName) => {
-  if (!colorName) return '#CCCCCC'
-  const name = String(colorName).trim().toLowerCase()
-  if (isHexColor(name)) return name
-  const map = {
-    'đen':'#000000','trắng':'#FFFFFF','đỏ':'#FF0000','xanh dương':'#0000FF','xanh lá':'#008000','xám':'#808080',
-    'bạc':'#C0C0C0','hồng':'#FFC0CB','vàng':'#FFFF00','tím':'#800080','cam':'#FFA500','nâu':'#A52A2A',
-    'xanh navy':'#000080','be':'#F5F5DC','vàng gold':'#FFD700',
-    'black':'#000000','white':'#FFFFFF','red':'#FF0000','blue':'#0000FF','green':'#008000','grey':'#808080','gray':'#808080',
-    'silver':'#C0C0C0','pink':'#FFC0CB','yellow':'#FFFF00','purple':'#800080','orange':'#FFA500','brown':'#A52A2A',
-    'navy':'#000080','beige':'#F5F5DC','gold':'#FFD700',
-  }
-  return map[name] || '#CCCCCC'
+
+/* =========================
+ * COLOR: map & helpers
+ * ========================= */
+
+/** Bảng màu mở rộng (VN + EN + alias) */
+const COLOR_MAP = {
+  // --- Cơ bản (VN) ---
+  'đen':'#000000','trắng':'#FFFFFF','đỏ':'#FF0000','xanh dương':'#0066FF','xanh biển':'#0077FF',
+  'xanh nước biển':'#0077FF','xanh lam':'#1E90FF','xanh lá':'#008000','xanh lục':'#008000',
+  'xanh rêu':'#556B2F','xanh ngọc':'#00CED1','xanh mint':'#98FF98','xanh pastel':'#A7E6FF',
+  'xanh navy':'#000080','xanh coban':'#0047AB','xanh dạ quang':'#39FF14',
+  'vàng':'#FFD700','vàng gold':'#FFD700','vàng chanh':'#FFF44F','vàng nhạt':'#FFFACD',
+  'cam':'#FFA500','cam đất':'#D2691E','nâu':'#8B4513','nâu đất':'#7B3F00',
+  'tím':'#800080','tím pastel':'#C3B1E1','tím than':'#3D2B56',
+  'hồng':'#FFC0CB','hồng nhạt':'#FFDEE2','hồng đất':'#D18888','hồng cánh sen':'#FF6FAD',
+  'be':'#F5F5DC','beige':'#F5F5DC','kem':'#FFFDD0','ivory':'#FFFFF0',
+  'xám':'#808080','xám nhạt':'#D3D3D3','xám đậm':'#4B4B4B','ghi':'#9E9E9E',
+  'bạc':'#C0C0C0','bạch kim':'#E5E4E2',
+  'bordeuax':'#800020','đỏ rượu':'#800020','đỏ đô':'#8B0000',
+  'than':'#111111','than đen':'#0F0F0F',
+
+  // --- Alias 1 từ (VN) ---
+  'xanh':'#0066FF', // nếu muốn mặc định xanh lá: đổi '#008000'
+  'ghi sáng':'#B0B0B0','ghi đậm':'#6C6C6C',
+
+  // --- Tiếng Anh ---
+  'black':'#000000','white':'#FFFFFF','red':'#FF0000','blue':'#0066FF','navy':'#000080',
+  'green':'#008000','olive':'#808000','teal':'#008080','aqua':'#00FFFF','cyan':'#00FFFF',
+  'lime':'#00FF00','yellow':'#FFFF00','orange':'#FFA500','brown':'#8B4513','chocolate':'#D2691E',
+  'purple':'#800080','violet':'#8A2BE2','indigo':'#4B0082','magenta':'#FF00FF','pink':'#FFC0CB',
+  'silver':'#C0C0C0','gold':'#FFD700','grey':'#808080','gray':'#808080','lightgray':'#D3D3D3',
+  'beige':'#F5F5DC','ivory':'#FFFFF0','maroon':'#800000','burgundy':'#800020',
+  'khaki':'#C3B091','tan':'#D2B48C','coral':'#FF7F50','salmon':'#FA8072',
 }
+
+/** Nhận diện mã hex #RGB/#RRGGBB */
+const isHexColor = (str) => /^#([0-9A-F]{3}){1,2}$/i.test(String(str || '').trim())
+/** Chuẩn hóa khóa */
+const norm = (name) => String(name || '').trim().toLowerCase()
+/** Lấy hex từ tên (nếu là hex thì trả thẳng) */
+const hexFromName = (name) => {
+  const key = norm(name)
+  if (!key) return '#CCCCCC'
+  if (isHexColor(key)) return key
+  return COLOR_MAP[key] || '#CCCCCC'
+}
+/** Parse “màu ghép”: ưu tiên các bigram phổ biến rồi mới tách */
+const parseCompositeColors = (rawName) => {
+  const s = norm(rawName)
+  if (!s) return []
+  const bigrams = [
+    'xanh dương','xanh biển','xanh nước biển','xanh lam','xanh lá','xanh lục','xanh rêu',
+    'xanh navy','vàng gold','hồng nhạt','hồng đất','xám nhạt','xám đậm','đỏ rượu','đỏ đô',
+  ]
+  for (const bi of bigrams) {
+    if (s.includes(bi)) {
+      const token = bi.replace(/\s+/g, '__')
+      const replaced = s.replace(new RegExp(bi, 'g'), token)
+      return replaced
+        .split(/[\/,\-\+&]+|\s+/g)
+        .map(x => x.replace(/__/g, ' '))
+        .filter(Boolean)
+    }
+  }
+  return s.split(/[\/,\-\+,&]+|\s+/g).filter(Boolean)
+}
+/** Độ sáng để thêm viền với màu rất nhạt */
+const isLightHex = (hex) => {
+  try {
+    const h = hexFromName(hex)
+    const r = parseInt(h.slice(1,3),16), g = parseInt(h.slice(3,5),16), b = parseInt(h.slice(5,7),16)
+    const L = 0.2126*r + 0.7152*g + 0.0722*b
+    return L > 210
+  } catch { return false }
+}
+/** Style cho swatch: 1 màu => backgroundColor; 2+ màu => linear-gradient chia đều */
+const swatchStyle = (name) => {
+  if (!name) return { backgroundColor: '#CCCCCC' }
+  if (isHexColor(name)) return { backgroundColor: name }
+
+  const parts = parseCompositeColors(name).map(hexFromName).filter(Boolean)
+
+  if (parts.length <= 1) {
+    const single = parts[0] || hexFromName(name)
+    const style = { backgroundColor: single }
+    if (isLightHex(single)) style.border = '1px solid #d1d5db'
+    return style
+  }
+
+  const n = parts.length
+  const stops = parts.map((c, i) => {
+    const from = Math.round((100 * i) / n)
+    const to   = Math.round((100 * (i + 1)) / n)
+    return `${c} ${from}% ${to}%`
+  }).join(', ')
+  const style = { background: `linear-gradient(90deg, ${stops})` }
+  if (parts.some(isLightHex)) style.border = '1px solid #d1d5db'
+  return style
+}
+/** Lấy 1 mã hex đại diện (màu đầu tiên) — dùng lưu DB nếu cần */
+const colorCodeOf = (colorName) => {
+  const parts = parseCompositeColors(colorName)
+  return hexFromName(parts[0] || colorName)
+}
+
+/* ========== Size helpers / others (GIỮ NGUYÊN) ========== */
 const sizeComparator = (a, b) => {
   const order = { XS:0, S:1, M:2, L:3, XL:4, XXL:5, XXXL:6 }
   const A = String(a).toUpperCase()
@@ -501,7 +587,7 @@ const pageSize = computed({
   set: (val) => router.push({ query: { ...route.query, size: val, page: 1 } })
 })
 
-/* ========== Favorites ========== */
+/* ========== Favorites (GIỮ NGUYÊN) ========== */
 const customerId = localStorage.getItem('userId') || null
 const favorites = ref([])
 const loadFavorites = () => {
@@ -526,12 +612,11 @@ const toggleFavorite = (productId, name) => {
   }
 }
 
-/* ========== Normalize product (important: compute min prices from productDetails) ========= */
+/* ========== Normalize product (CHỈ GIỮ, có dùng colorCodeOf đại diện) ========= */
 const normalizeProduct = (p) => {
   const details = Array.isArray(p.productDetails) ? p.productDetails : []
   const images = Array.isArray(p.productImages) ? p.productImages : []
 
-  // build variants by color
   const seen = new Set()
   const variants = []
   for (const d of details) {
@@ -543,13 +628,12 @@ const normalizeProduct = (p) => {
     variants.push({
       colorId: cid,
       colorName: d?.colorName || 'Không rõ',
-      colorCode: colorCodeOf(d?.colorName),
+      colorCode: colorCodeOf(d?.colorName), // vẫn lưu 1 mã đại diện nếu cần
       image: img?.image ? `data:image/jpeg;base64,${img.image}` : (img?.url || null),
     })
   }
   const activeImage = variants[0]?.image || images[0]?.url || PLACEHOLDER_IMG
 
-  // compute min prices from productDetails
   let minSell = Number.POSITIVE_INFINITY
   let minDiscounted = Number.POSITIVE_INFINITY
   let minDetailForDiscount = null
@@ -563,8 +647,6 @@ const normalizeProduct = (p) => {
         minDetailForOriginal = d
       }
     }
-
-    // compute discounted price
     let dp = null
     if (d?.discountedPrice != null && d.discountedPrice !== '') {
       const v = Number(d.discountedPrice)
@@ -573,7 +655,6 @@ const normalizeProduct = (p) => {
       const pct = Number(d.discountPercentage)
       dp = Math.round(sp * (100 - pct) / 100)
     }
-
     if (dp != null && !isNaN(dp) && !isNaN(sp) && dp < sp) {
       if (dp < minDiscounted) {
         minDiscounted = dp
@@ -585,7 +666,6 @@ const normalizeProduct = (p) => {
   if (minSell === Number.POSITIVE_INFINITY) minSell = null
   if (minDiscounted === Number.POSITIVE_INFINITY) minDiscounted = null
 
-  // compute discount pct based on chosen variant
   let minDiscountPct = 0
   let chosenDetail = minDetailForDiscount || minDetailForOriginal || (details[0] ?? null)
   if (chosenDetail) {
@@ -614,7 +694,7 @@ const normalizeProduct = (p) => {
   }
 }
 
-/* ========== BRAND/COLOR/GENDER/SIZE filters ========== */
+/* ========== BRAND/COLOR/GENDER/SIZE filters (GIỮ NGUYÊN) ========== */
 const brandOpen = ref(true)
 const brandSearch = ref('')
 const brands = ref([])
@@ -796,7 +876,29 @@ const onSizeToggle = (s) => {
   router.push({ query: { ...route.query, sizeId: String(target), sizeName: s?.name || undefined, page: 1 } })
 }
 
-/* ========== Fetch products (kept same structure as original) ========== */
+/* ========== Fetch products (GIỮ NGUYÊN) ========== */
+const fetchSoldCountsForPage = async (items) => {
+  const ids = (items || []).map(x => x?.id).filter(id => Number.isFinite(Number(id)))
+  for (const id of ids) fetchSoldCount(id)
+}
+const fetchRatingsForPage = async (items) => {
+  const ids = (items || []).map(x => Number(x?.id)).filter(Number.isFinite)
+  const need = ids.filter(id => !ratingSummaries.value[id])
+  if (!need.length) return
+  try {
+    const { data } = await apiClient.get('/online-sale/ratings/products', { params: { ids: need.join(',') } })
+    const map = {}
+    for (const r of (Array.isArray(data) ? data : [])) {
+      const pid = Number(r?.productId)
+      if (!Number.isFinite(pid)) continue
+      map[pid] = { avg: Number(r?.avgRating ?? 0), count: Number(r?.totalReviews ?? 0) }
+    }
+    ratingSummaries.value = { ...ratingSummaries.value, ...map }
+    const missing = need.filter(id => !map[id])
+    for (const id of missing) await fetchRatingSingle(id)
+  } catch { for (const id of need) await fetchRatingSingle(id) }
+}
+
 const fetchProductsByCategory = async (params) => {
   const endpoints = [
     `/online-sale/categories/${categoryId.value}/products`,
@@ -938,7 +1040,7 @@ const fetchProducts = async () => {
 /* ========== Pagination ========== */
 const onPageUiChanged = () => window.scrollTo({ top: 0, behavior: 'smooth' })
 
-/* ========== Quick view ========== */
+/* ========== Quick view (GIỮ NGUYÊN) ========== */
 const quickViewVisible = ref(false)
 const selectedProduct = ref(null)
 const quickViewSelectedColorId = ref(null)
@@ -985,11 +1087,9 @@ const findSelectedProductDetail = () => {
   if (quickViewSelectedColorId.value && quickViewSelectedSize.value) {
     return sp.productDetails.find(d => d.colorId===quickViewSelectedColorId.value && d.sizeName===quickViewSelectedSize.value)
   }
-  // fallback: if only color selected, choose first detail with that color
   if (quickViewSelectedColorId.value) {
     return sp.productDetails.find(d => d.colorId===quickViewSelectedColorId.value)
   }
-  // fallback: first available
   return sp.productDetails[0] || null
 }
 const getStockForSize = (size) => {
@@ -1017,7 +1117,7 @@ const needSize = computed(() => {
 const minQty = computed(() => (selectedVariantStock.value > 0 ? 1 : 0))
 const maxQty = computed(() => (selectedVariantStock.value > 0 ? selectedVariantStock.value : 0))
 
-/* ========== Cart / Buy now (đã chặn SL lớn cho cả hai nút) ========== */
+/* ========== Cart / Buy now (GIỮ NGUYÊN) ========== */
 const requiresSizeSelection = (sp) => {
   const named = new Set((sp.productDetails || []).map(d => d.sizeName).filter(Boolean))
   return named.size > 0
@@ -1027,7 +1127,7 @@ const showBulkDialog = () => {
   ElMessage.warning(`Số lượng lớn (≥ ${NGAY_MAX_QTY} đôi). Vui lòng liên hệ nhân viên để đặt hàng.`)
 }
 
-/* Verify & Add to cart */
+/* Verify & Add to cart — GIỮ NGUYÊN */
 const handleAddToCartInModal = async () => {
   if (isAdding.value) return false
   isAdding.value = true
@@ -1093,8 +1193,29 @@ const handleAddToCartInModal = async () => {
       return false
     }
 
-    // If verified, prepare item (use detail discountedPrice if available, else sellPrice)
-    const price = Number(detail.discountedPrice) > 0 ? Number(detail.discountedPrice) : Number(detail.sellPrice)
+    // Chọn giá (giữ nguyên như bản của bạn: final price là discounted nếu hợp lệ)
+    const originalPrice = Number(detail.sellPrice) || 0
+    let discountedPrice = null
+    if (detail.discountedPrice != null && detail.discountedPrice !== '') {
+      const v = Number(detail.discountedPrice)
+      discountedPrice = Number.isFinite(v) ? v : null
+    } else if (detail.discountPercentage != null && Number.isFinite(Number(detail.discountPercentage))) {
+      const pct = Number(detail.discountPercentage)
+      discountedPrice = Math.round(originalPrice * (100 - pct) / 100)
+    }
+    const finalPrice = (Number.isFinite(discountedPrice) && discountedPrice > 0 && discountedPrice < originalPrice)
+      ? discountedPrice
+      : originalPrice
+
+    const discountPercent = finalPrice < originalPrice && originalPrice > 0
+      ? Math.round((1 - (finalPrice / originalPrice)) * 100)
+      : 0
+
+    const qty = Number(quickViewQuantity.value)
+    const lineSubtotalOriginal = originalPrice * qty
+    const lineSubtotalFinal    = finalPrice * qty
+    const lineDiscountAmount   = lineSubtotalOriginal - lineSubtotalFinal
+
     const item = {
       productDetailId: detail.id,
       productId: sp.id,
@@ -1102,12 +1223,25 @@ const handleAddToCartInModal = async () => {
       image: quickViewActiveImage.value,
       color: quickViewSelectedColor.value ? quickViewSelectedColor.value.colorName : 'N/A',
       size: quickViewSelectedSize.value || 'N/A',
-      price,
-      quantity: quickViewQuantity.value,
+
+      quantity: qty,
       maxQuantity: Number(detail.quantity || 0),
+
+      price: finalPrice, // giữ để tương thích
+
+      // bổ sung các field giá (giữ nguyên như yêu cầu trước đó của bạn)
+      unitPriceOriginal: originalPrice,
+      unitPriceDiscounted: discountedPrice,
+      unitPriceFinal: finalPrice,
+      discountPercent,
+      lineSubtotalOriginal,
+      lineSubtotalFinal,
+      lineDiscountAmount,
+
       discountCampaignId: detail.discountCampaignId || null,
       status: detail.status
     }
+
     addToCart(item)
     ElMessage.success('Đã thêm vào giỏ hàng!')
     quickViewVisible.value = false
@@ -1124,7 +1258,7 @@ const handleBuyNowInModal = async () => {
   if (ok) router.push('/cart')
 }
 
-/* ========== Minor & stats ========== */
+/* ========== Minor & stats (GIỮ NGUYÊN) ========== */
 const changeProductImage = (p, img) => { if (p && img) { p.__hoverImage = img; p.activeImage = img } }
 const restoreProductImage = (p) => { if (p) p.activeImage = p.__originalImage || p.activeImage }
 const goToDetail = (id) => router.push(`/product/${id}`)
@@ -1141,10 +1275,6 @@ const fetchSoldCount = async (productId) => {
     soldCounts.value[pid] = Number.isFinite(total) ? total : 0
   } catch { soldCounts.value[pid] = 0 } finally { loadingSet.delete(pid) }
 }
-const fetchSoldCountsForPage = async (items) => {
-  const ids = (items || []).map(x => x?.id).filter(id => Number.isFinite(Number(id)))
-  for (const id of ids) fetchSoldCount(id)
-}
 
 const ratingSummaries = ref({})
 const ratingLoading = new Set()
@@ -1157,25 +1287,8 @@ const fetchRatingSingle = async (pid) => {
     ratingSummaries.value[id] = { avg: Number(data?.avgRating ?? 0), count: Number(data?.totalReviews ?? 0) }
   } catch { ratingSummaries.value[id] = { avg: 0, count: 0 } } finally { ratingLoading.delete(id) }
 }
-const fetchRatingsForPage = async (items) => {
-  const ids = (items || []).map(x => Number(x?.id)).filter(Number.isFinite)
-  const need = ids.filter(id => !ratingSummaries.value[id])
-  if (!need.length) return
-  try {
-    const { data } = await apiClient.get('/online-sale/ratings/products', { params: { ids: need.join(',') } })
-    const map = {}
-    for (const r of (Array.isArray(data) ? data : [])) {
-      const pid = Number(r?.productId)
-      if (!Number.isFinite(pid)) continue
-      map[pid] = { avg: Number(r?.avgRating ?? 0), count: Number(r?.totalReviews ?? 0) }
-    }
-    ratingSummaries.value = { ...ratingSummaries.value, ...map }
-    const missing = need.filter(id => !map[id])
-    for (const id of missing) await fetchRatingSingle(id)
-  } catch { for (const id of need) await fetchRatingSingle(id) }
-}
 
-/* ========== Lifecycle ========== */
+/* ========== Lifecycle (GIỮ NGUYÊN) ========== */
 onMounted(async () => {
   loadFavorites()
   await Promise.all([fetchBrands(), fetchColors(), fetchGenders(), fetchSizes() ])
@@ -1199,6 +1312,19 @@ watch(() => route.fullPath, async () => {
   await fetchProducts()
 })
 watch([favorites], () => localStorage.setItem('favorites', JSON.stringify(favorites.value)), { deep: true })
+
+/* ====== Các biến dialog thêm/đặt trước để compile bình thường (GIỮ NGUYÊN) ====== */
+const preOrderDialogVisible = ref(false)
+const preOrderItem = ref(null)
+const preOrderAvailableColors = ref([])
+const preOrderAvailableSizes = ref([])
+const preOrderSelectedColorId = ref(null)
+const preOrderSelectedSize = ref(null)
+const preOrderStock = ref(0)
+const preOrderQuantity = ref(1)
+const handlePreOrderConfirm = () => { preOrderDialogVisible.value = false }
+
+const contactDialogVisible = ref(false)
 </script>
 
 <style scoped>
@@ -1224,7 +1350,7 @@ watch([favorites], () => localStorage.setItem('favorites', JSON.stringify(favori
 
   --primary: #111111;
   --accent: #0ea5e9;
-  --danger: #ff0000; /* đỏ tươi cho % giảm */
+  --danger: #ff0000;
 }
 
 /* ========= Layout ========= */

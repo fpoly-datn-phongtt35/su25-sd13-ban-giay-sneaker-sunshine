@@ -1,5 +1,6 @@
 package com.example.duantotnghiep.controller;
 
+import com.example.duantotnghiep.dto.response.TopRatedProductDTO;
 import com.example.duantotnghiep.service.RatingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -33,5 +34,12 @@ public class RatingController {
             @RequestParam("ids") List<Long> ids
     ) {
         return ResponseEntity.ok(ratingService.getRatingsOfProducts(ids));
+    }
+
+    @GetMapping("/top5")
+    public ResponseEntity<List<TopRatedProductDTO>> getTop5(
+            @RequestParam(defaultValue = "0") long minReviews
+    ) {
+        return ResponseEntity.ok(ratingService.getTop5RatedWithSales(minReviews));
     }
 }

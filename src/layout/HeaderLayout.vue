@@ -307,6 +307,34 @@ const navLinks = [
   { path: '/', label: 'DANH MỤC' }
 ]
 
+// ===== LocalStorage keys for notifications =====
+const STORAGE_NOTIFS_KEY = 'sunshine_notifications'
+const STORAGE_UNREAD_KEY = 'sunshine_unread'
+const MAX_NOTIFICATIONS = 200
+
+function loadNotificationsFromStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_NOTIFS_KEY)
+    const list = raw ? JSON.parse(raw) : []
+    return Array.isArray(list) ? list : []
+  } catch {
+    return []
+  }
+}
+function saveNotificationsToStorage(list) {
+  try {
+    const trimmed = Array.isArray(list) ? list.slice(0, MAX_NOTIFICATIONS) : []
+    localStorage.setItem(STORAGE_NOTIFS_KEY, JSON.stringify(trimmed))
+  } catch {}
+}
+function loadUnreadFromStorage() {
+  const v = Number(localStorage.getItem(STORAGE_UNREAD_KEY))
+  return Number.isFinite(v) && v >= 0 ? v : 0
+}
+function saveUnreadToStorage(v) {
+  try { localStorage.setItem(STORAGE_UNREAD_KEY, String(Math.max(0, Number(v) || 0))) } catch {}
+}
+
 // ===== Brand menu =====
 const showBrandMenu = ref(false)
 const brandLoading = ref(false)
@@ -543,17 +571,22 @@ const logout = async () => {
   favoriteCount.value = 0
   showUserOptions.value = false
 
+  // KHÔNG xoá notifications/unread ở đây => chỉ khi bấm "Xoá"
   ws.deactivate()
 
   ElMessage.success('Đăng xuất thành công!')
   router.push('/')
 }
 
-// ===== Notifications (BELL) =====
-const notifications = ref([]) // [{title,content,invoiceCode,nextStatus,at,customerId}]
-const unread = ref(0)
+// ===== Notifications (BELL) - with LocalStorage persistence =====
+// Shape: {title, content, invoiceCode, nextStatus, at, customerId}
+const notifications = ref(loadNotificationsFromStorage())
+const unread = ref(loadUnreadFromStorage())
 const showNotify = ref(false)
 const notifyContainerRef = ref(null)
+
+watch(notifications, (val) => { saveNotificationsToStorage(val) }, { deep: true })
+watch(unread, (val) => { saveUnreadToStorage(val) })
 
 function toggleNotifyDropdown(e) {
   e.stopPropagation()
@@ -566,18 +599,38 @@ function handleClickOutsideNotify(event) {
 }
 function goNotify(n) {
   if (n?.invoiceCode) router.push({ path: '/don-hang', query: { code: n.invoiceCode } })
+  // Tuỳ chọn: giảm số chưa đọc khi click
+  if (unread.value > 0) unread.value -= 1
 }
 
-const ws = new WsClient({
-  baseUrl: API_BASE,
-  endpoint: '/ws',
-  getToken,
-  onError: (err) => console.error('[WS] error', err),
-  onConnect: () => { subscribeCustomerTopic() }
-})
+function pushNotification(n) {
+  if (!n) return
+  const key = (n.invoiceCode || '') + '|' + (n.at || '') + '|' + (n.title || '')
+  const existingIdx = notifications.value.findIndex(x => ((x.invoiceCode||'') + '|' + (x.at||'') + '|' + (x.title||'')) === key)
+  if (existingIdx !== -1) {
+    const [old] = notifications.value.splice(existingIdx, 1)
+    notifications.value.unshift({ ...old, ...n })
+  } else {
+    notifications.value.unshift(n)
+    if (notifications.value.length > MAX_NOTIFICATIONS) notifications.value.length = MAX_NOTIFICATIONS
+  }
+  unread.value = (unread.value || 0) + 1
+}
 
-ws.onUserQueue((data) => { if (!allowMessageForCurrentUser(data)) return; notifications.value.unshift(data); unread.value += 1 })
-ws.onCustomerTopic((data) => { if (!allowMessageForCurrentUser(data)) return; notifications.value.unshift(data); unread.value += 1 })
+const markAllRead = () => {
+  unread.value = 0
+  saveUnreadToStorage(0)
+  try {
+    // TODO: gọi API mark-read nếu backend có
+  } catch {}
+}
+const clearNotifications = () => {
+  notifications.value = []
+  unread.value = 0
+  saveNotificationsToStorage([])
+  saveUnreadToStorage(0)
+}
+const formatTime = (iso) => { if (!iso) return ''; try { return new Date(iso).toLocaleString() } catch { return iso } }
 
 function allowMessageForCurrentUser(data) {
   const payloadCid = data?.customerId
@@ -589,14 +642,17 @@ function subscribeCustomerTopic() {
   const cid = user.value?.customerId || JSON.parse(localStorage.getItem('user') || '{}')?.customerId
   ws.subscribeCustomerTopic(cid)
 }
-const markAllRead = () => {
-  unread.value = 0
-  try {
-    // TODO: gọi API mark-read nếu backend có
-  } catch {}
-}
-const clearNotifications = () => { notifications.value = []; unread.value = 0 }
-const formatTime = (iso) => { if (!iso) return ''; try { return new Date(iso).toLocaleString() } catch { return iso } }
+
+const ws = new WsClient({
+  baseUrl: API_BASE,
+  endpoint: '/ws',
+  getToken,
+  onError: (err) => console.error('[WS] error', err),
+  onConnect: () => { subscribeCustomerTopic() }
+})
+
+ws.onUserQueue((data) => { if (!allowMessageForCurrentUser(data)) return; pushNotification(data) })
+ws.onCustomerTopic((data) => { if (!allowMessageForCurrentUser(data)) return; pushNotification(data) })
 
 // ===== Lifecycle =====
 onMounted(async () => {
@@ -606,9 +662,12 @@ onMounted(async () => {
   await updateCartCount()
   await updateFavoriteCount()
 
+  // Khôi phục notifications/unread phòng khi component mount trước khi ref init
+  notifications.value = loadNotificationsFromStorage()
+  unread.value = loadUnreadFromStorage()
+
   window.addEventListener('scroll', handleScroll)
   window.addEventListener('cart-updated', async (e) => {
-    // cartService đã phát event kèm totalQty
     cartCount.value = Number(e?.detail?.totalQty ?? (await cartService.getCartCount(currentUserId())))
   })
   window.addEventListener('cart-cleared', async () => { cartCount.value = await cartService.getCartCount(currentUserId()) })
@@ -724,7 +783,7 @@ function formatPrice(v) { if (v == null) return ''; try { return Number(v).toLoc
 .category-mega__content{max-height:420px;overflow:auto}
 .category-grid{list-style:none;margin:0;padding:0;columns:4;column-gap:24px}
 .category-grid li{break-inside:avoid}
-.category-grid li a{display:block;padding:6px 2px;color:var(--text-dark);text-decoration:none;border-radius:6px}
+.category-grid li a{display:block;padding:6px 2px;color:#var(--text-dark);text-decoration:none;border-radius:6px}
 .category-grid li a:hover{background:#f6f7f9;color:#var(--primary-color)}
 
 /* Scroll to top */

@@ -1,6 +1,7 @@
 package com.example.duantotnghiep.service;
 
 import com.example.duantotnghiep.dto.response.FavouriteResponse;
+import com.example.duantotnghiep.dto.response.TopRatedProductDTO;
 
 import java.util.Date;
 import java.util.List;
@@ -15,4 +16,7 @@ public interface RatingService {
                                                           String keyword,
                                                           Date dateFrom,
                                                           Date dateTo);
+
+
+    List<TopRatedProductDTO> getTop5RatedWithSales(long minReviews);
 }

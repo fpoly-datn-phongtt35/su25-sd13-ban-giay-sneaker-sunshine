@@ -2,8 +2,8 @@ package com.example.duantotnghiep.service.impl;
 
 import com.example.duantotnghiep.dto.response.FavouriteResponse;
 import com.example.duantotnghiep.dto.response.RatingResponse;
+import com.example.duantotnghiep.dto.response.TopRatedProductDTO;
 import com.example.duantotnghiep.model.Customer;
-import com.example.duantotnghiep.model.Employee;
 import com.example.duantotnghiep.model.ProductRatingView;
 import com.example.duantotnghiep.model.User;
 import com.example.duantotnghiep.repository.FavoriteProductRepository;
@@ -212,4 +212,13 @@ public class RatingServiceIpml implements RatingService {
         if (d == null) return 0.0;
         return Math.round(d * 10.0) / 10.0; // làm tròn 1 chữ số thập phân (vd 4.3)
     }
+
+    @Override
+    public List<TopRatedProductDTO> getTop5RatedWithSales(long minReviews) {
+        return favoriteProductRepository.findTopRatedWithSalesAndFavCount(
+                org.springframework.data.domain.PageRequest.of(0, 5),
+                Math.max(0, minReviews)
+        );
+    }
+
 }

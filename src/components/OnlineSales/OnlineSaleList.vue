@@ -145,7 +145,6 @@ const tabs = ref([
   { key: 'GIAO_THANH_CONG', label: 'Giao hàng thành công', count: 0 },
   { key: 'GIAO_THAT_BAI', label: 'Giao hàng thất bại', count: 0 },
   { key: 'HUY_DON', label: 'Đơn hàng hủy', count: 0 },
-  { key: 'YEU_CAU_HUY', label: 'Yêu cầu hủy đơn', count: 0 }
 ])
 
 const statusLabelToCode = (label) => {
@@ -161,23 +160,8 @@ const statusLabelToCode = (label) => {
     'GIAO_THAT_BAI': 5,
     'MAT_HANG': 6,
     'DA_HOAN_TIEN': 7,
-    'YEU_CAU_HUY': 9,
   }
   return map[label] ?? null
-}
-
-const fetchStatusCounts = async () => {
-  try {
-    const response = await apiClient.get('/admin/online-sales/count-by-status')
-    const data = response.data || []
-    tabs.value = tabs.value.map(tab => {
-      const found = data.find(d => d.statusDetail === tab.key)
-      return { ...tab, count: found ? found.countInvoice : 0 }
-    })
-  } catch (err) {
-    console.error('Lỗi lấy số lượng trạng thái:', err)
-    ElMessage.error('Không thể lấy số lượng trạng thái')
-  }
 }
 
 const search = async () => {
@@ -193,9 +177,28 @@ const search = async () => {
     }
 
     const res = await apiClient.post('/admin/online-sales/search', requestBody)
-    invoices.value = res.data
-    console.log('res là : ',invoices.value)
-    await fetchStatusCounts()
+    invoices.value = res.data ?? []
+
+    if (invoices.value.length > 0) {
+      const f = invoices.value[0]
+
+      const counters = {
+        CHO_XU_LY:       f.totalChoXacNhan ?? 0,
+        DA_XU_LY:        f.totalDaXuLy    ?? 0,
+        CHO_GIAO_HANG:   f.totalChoGiao   ?? 0,
+        DANG_GIAO_HANG:  f.totalDangGiao  ?? 0,
+        GIAO_THANH_CONG: f.totalThanhCong ?? 0,
+        GIAO_THAT_BAI:   f.totalThatBai   ?? 0,
+        HUY_DON:         f.totalHuyDon    ?? 0,
+      }
+
+      tabs.value = tabs.value.map(tab => ({
+        ...tab,
+        count: counters[tab.key] ?? 0
+      }))
+    } else {
+
+    }
   } catch (err) {
     console.error('Lỗi tìm kiếm:', err)
     ElMessage.error('Đã xảy ra lỗi khi tìm kiếm hóa đơn.')
@@ -203,6 +206,8 @@ const search = async () => {
     loading.value = false
   }
 }
+
+
 
 const resetFilters = () => {
   filters.value = {
@@ -227,7 +232,6 @@ const formatDateTime = (dateStr) => {
 }
 
 onMounted(() => {
-  fetchStatusCounts()
   search()
 })
 </script>

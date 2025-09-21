@@ -1,46 +1,89 @@
 <template>
-  <el-card class="box-card">
+  <el-card class="box-card" v-loading="loading">
     <template #header>
-      <span>Quản lý loại đế</span>
+      <div class="card-header">
+        <span>Quản lý loại đế</span>
+        <div class="header-actions">
+          <el-button :icon="RefreshRight" @click="fetchSoles" :disabled="loading">Tải lại</el-button>
+        </div>
+      </div>
     </template>
 
-    <!-- Form Thêm / Sửa -->
+    <!-- ===== Form Thêm / Sửa ===== -->
     <div class="form-section">
-      <el-form :model="form" :rules="rules" ref="formRef" label-width="120px">
+      <el-form
+        ref="formRef"
+        :model="form"
+        :rules="rules"
+        label-width="120px"
+        status-icon
+      >
         <el-form-item label="Tên loại đế" prop="name">
-          <el-input v-model="form.name" placeholder="Nhập tên loại đế..." />
+          <el-input
+            v-model="form.name"
+            placeholder="Nhập tên loại đế..."
+            clearable
+            @keyup.enter="handleSubmit"
+          />
         </el-form-item>
 
         <el-form-item>
-          <el-button type="primary" @click="handleSubmit">
+          <el-button
+            type="primary"
+            :loading="loading"
+            :disabled="loading"
+            @click="handleSubmit"
+          >
             {{ isEditing ? 'Cập nhật' : 'Thêm mới' }}
           </el-button>
-          <el-button @click="resetForm">Làm mới</el-button>
+          <el-button :disabled="loading" @click="resetForm">Làm mới</el-button>
         </el-form-item>
       </el-form>
     </div>
 
-    <!-- Bảng hiển thị loại đế -->
-    <el-table :data="soles" style="width: 100%; margin-top: 20px">
-      <el-table-column prop="id" label="ID" width="80" />
-      <el-table-column prop="soleCode" label="Mã loại đế" />
-      <el-table-column prop="soleName" label="Tên loại đế" />
-      <el-table-column prop="status" label="Trạng thái">
+    <!-- ===== Bảng hiển thị loại đế ===== -->
+    <el-table
+      :data="soles"
+      style="width: 100%; margin-top: 12px"
+      :empty-text="loading ? 'Đang tải...' : 'Không có dữ liệu'"
+      border
+      size="small"
+    >
+      <el-table-column type="index" label="#" width="60" />
+      <el-table-column prop="id" label="ID" width="90" />
+      <el-table-column prop="soleCode" label="Mã loại đế" min-width="140" />
+      <el-table-column prop="soleName" label="Tên loại đế" min-width="200" />
+      <el-table-column prop="status" label="Trạng thái" width="140">
         <template #default="scope">
-          <span :style="{ color: scope.row.status === 1 ? 'green' : 'red' }">
+          <el-tag :type="scope.row.status === 1 ? 'success' : 'danger'">
             {{ scope.row.status === 1 ? 'Hoạt động' : 'Không hoạt động' }}
-          </span>
+          </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="Ngày tạo">
+      <el-table-column label="Ngày tạo" min-width="180">
         <template #default="scope">
           {{ formatDateTime(scope.row.createdDate) }}
         </template>
       </el-table-column>
-      <el-table-column label="Hành động" width="200">
+      <el-table-column label="Hành động" width="220" fixed="right">
         <template #default="scope">
-          <el-button size="small" @click="editSole(scope.row)">Sửa</el-button>
-          <el-button size="small" type="danger" @click="confirmDelete(scope.row.id)">Xóa</el-button>
+          <el-button
+            size="small"
+            :icon="Edit"
+            @click="editSole(scope.row)"
+            :disabled="loading"
+          >
+            Sửa
+          </el-button>
+          <el-button
+            size="small"
+            type="danger"
+            :icon="Delete"
+            @click="confirmDelete(scope.row.id)"
+            :disabled="loading"
+          >
+            Xóa
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -51,12 +94,20 @@
 import { ref, onMounted } from 'vue'
 import apiClient from '@/utils/axiosInstance'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Edit, Delete, RefreshRight, CirclePlus } from '@element-plus/icons-vue'
+import { Edit, Delete, RefreshRight } from '@element-plus/icons-vue'
+
+/** ===== State ===== */
 const loading = ref(false)
 const soles = ref([])
-const form = ref({ id: null, name: '' }) // 'name' for the form input
+
+const form = ref({
+  id: null,
+  name: '',
+})
 const isEditing = ref(false)
 const formRef = ref(null)
+
+/** ===== Validation rules ===== */
 const rules = {
   name: [
     { required: true, message: 'Tên không được để trống', trigger: 'blur' },
@@ -64,13 +115,11 @@ const rules = {
   ],
 }
 
+/** ===== Utils ===== */
 const formatDateTime = (dateStr) => {
   if (!dateStr) return ''
   const date = new Date(dateStr)
-  // Check if date is valid before formatting
-  if (isNaN(date.getTime())) {
-    return dateStr;
-  }
+  if (isNaN(date.getTime())) return dateStr
   return date.toLocaleString('vi-VN', {
     hour12: false,
     hour: '2-digit',
@@ -82,120 +131,142 @@ const formatDateTime = (dateStr) => {
   })
 }
 
+/** ===== API ===== */
 const fetchSoles = async () => {
-  loading.value = true // Set loading state to true
+  loading.value = true
   try {
-    // Use apiClient for the GET request
-    const response = await apiClient.get('/admin/sole/hien-thi')
-    soles.value = response.data
-    ElMessage.success('Tải dữ liệu loại đế thành công.')
+    const { data } = await apiClient.get('/admin/sole/hien-thi')
+    soles.value = Array.isArray(data) ? data : []
   } catch (error) {
     console.error('Lỗi khi tải dữ liệu loại đế:', error)
     ElMessage.error('Lỗi khi tải dữ liệu loại đế.')
-    soles.value = [] // Clear data on error
+    soles.value = []
   } finally {
-    loading.value = false // Set loading state to false
+    loading.value = false
   }
 }
 
 const handleSubmit = async () => {
-  formRef.value.validate(async (valid) => {
-    if (!valid) return
-
-
-  // Optional: Check for duplicate names (case-insensitive, exclude current item if editing)
-  const nameTrimmed = form.value.name.trim().toLowerCase();
-  const existed = soles.value.some(
-    (s) => s.soleName?.trim().toLowerCase() === nameTrimmed && s.id !== form.value.id
-  );
-  if (existed) {
-    ElMessage.warning('Tên loại đế đã tồn tại');
-    return;
-  }
-
-  loading.value = true // Set loading state for submission
   try {
-    if (isEditing.value) {
-        // Thêm xác nhận trước khi cập nhật
-        await ElMessageBox.confirm('Bạn có chắc chắn muốn cập nhật loại đế này?', 'Xác nhận', {
-          confirmButtonText: 'Cập nhật',
-          cancelButtonText: 'Hủy',
-          type: 'warning',
-        })
+    // 1) Validate
+    await formRef.value.validate()
 
-      // Trường hợp cập nhật, không cần confirm
-      await axios.put(`http://localhost:8080/api/admin/sole/${form.value.id}`, null, {
+    // 2) Check duplicate (case-insensitive), bỏ qua bản ghi đang chỉnh sửa
+    const nameTrimmed = (form.value.name || '').trim().toLowerCase()
+    const existed = soles.value.some(
+      (s) => (s.soleName?.trim().toLowerCase() === nameTrimmed) && s.id !== form.value.id
+    )
+    if (existed) {
+      ElMessage.warning('Tên loại đế đã tồn tại')
+      return
+    }
+
+    // 3) Confirm
+    const actionText = isEditing.value ? 'cập nhật' : 'thêm mới'
+    await ElMessageBox.confirm(
+      `Bạn có chắc chắn muốn ${actionText} loại đế này?`,
+      'Xác nhận',
+      {
+        confirmButtonText: isEditing.value ? 'Cập nhật' : 'Thêm',
+        cancelButtonText: 'Hủy',
+        type: isEditing.value ? 'warning' : 'info',
+      }
+    )
+    // Nếu bấm Hủy/đóng, confirm sẽ ném lỗi 'cancel' hoặc 'close' và nhảy xuống catch.
+
+    loading.value = true
+
+    // 4) Call API
+    if (isEditing.value) {
+      // PUT cập nhật theo id, backend nhận name qua query param
+      await apiClient.put(`/admin/sole/${form.value.id}`, null, {
         params: { name: form.value.name },
       })
       ElMessage.success('Cập nhật thành công')
     } else {
-      // Use ElMessageBox.confirm for new entry confirmation
-      await ElMessageBox.confirm('Bạn có chắc chắn muốn thêm mới loại đế?', 'Xác nhận', {
-        confirmButtonText: 'Thêm',
-        cancelButtonText: 'Hủy',
-        type: 'info',
+      // POST thêm mới
+      await apiClient.post('/admin/sole', null, {
+        params: { name: form.value.name },
       })
-        .then(async () => {
-          await axios.post('http://localhost:8080/api/admin/sole', null, {
-            params: { name: form.value.name },
-          })
-          ElMessage.success('Thêm mới thành công')
-          await fetchSoles()
-          resetForm()
-        })
+      ElMessage.success('Thêm mới thành công')
+    }
 
-        .catch(() => {
-          // Người dùng hủy thao tác
-          ElMessage.info('Thao tác đã bị hủy')
-        })
-}
-  } catch (error) {
+    // 5) Refresh & reset
+    await fetchSoles()
+    resetForm()
+  } catch (err) {
+    // Người dùng hủy confirm hoặc đóng dialog
+    if (err === 'cancel' || err === 'close') {
+      ElMessage.info('Đã hủy thao tác')
+      return
+    }
+    console.error(err)
     ElMessage.error('Lỗi khi lưu dữ liệu')
+  } finally {
+    loading.value = false
   }
-  })
 }
 
 const editSole = (sole) => {
   form.value = {
     id: sole.id,
-    name: sole.soleName,
+    name: sole.soleName || '',
   }
   isEditing.value = true
-  ElMessage.info(`Đang chỉnh sửa: ${sole.soleName}`);
+  ElMessage.info(`Đang chỉnh sửa: ${sole.soleName}`)
 }
 
 const resetForm = () => {
   form.value = { id: null, name: '' }
   isEditing.value = false
-  formRef.value?.clearValidate() // Uncomment if you add rules and formRef to <el-form>
-  ElMessage.info('Form đã được đặt lại.');
+  formRef.value?.clearValidate()
 }
 
-const confirmDelete = (id) => {
-  ElMessageBox.confirm('Bạn có chắc chắn muốn xóa?', 'Xác nhận', {
-    confirmButtonText: 'Xóa',
-    cancelButtonText: 'Hủy',
-    type: 'warning',
-  })
-    .then(async () => {
-      await axios.delete(`http://localhost:8080/api/admin/sole/${id}`)
-      ElMessage.success('Đã xóa thành công')
-      await fetchSoles()
+const confirmDelete = async (id) => {
+  try {
+    await ElMessageBox.confirm('Bạn có chắc chắn muốn xóa?', 'Xác nhận', {
+      confirmButtonText: 'Xóa',
+      cancelButtonText: 'Hủy',
+      type: 'warning',
     })
-    .catch(() => {
+    loading.value = true
+    await apiClient.delete(`/admin/sole/${id}`)
+    ElMessage.success('Đã xóa thành công')
+    await fetchSoles()
+  } catch (err) {
+    if (err === 'cancel' || err === 'close') {
       ElMessage.info('Thao tác đã bị hủy')
-    })
+      return
+    }
+    console.error(err)
+    ElMessage.error('Lỗi khi xóa')
+  } finally {
+    loading.value = false
+  }
 }
 
+/** ===== Lifecycle ===== */
 onMounted(fetchSoles)
 </script>
 
 <style scoped>
 .box-card {
-  max-width: 800px;
-  margin: 30px auto;
+  max-width: 980px;
+  margin: 28px auto;
 }
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+
 .form-section {
-  margin-bottom: 20px;
+  margin-bottom: 12px;
 }
 </style>

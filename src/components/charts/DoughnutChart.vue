@@ -12,7 +12,6 @@ import { computed } from 'vue'
 import { Doughnut } from 'vue-chartjs'
 import { Chart as ChartJS, Title, Tooltip, Legend, ArcElement } from 'chart.js'
 
-// ... mã script y hệt như PieChart.vue
 ChartJS.register(Title, Tooltip, Legend, ArcElement)
 
 const props = defineProps({

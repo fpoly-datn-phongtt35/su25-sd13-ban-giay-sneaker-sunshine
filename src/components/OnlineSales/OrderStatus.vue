@@ -7,7 +7,7 @@
     </el-button>
 
     <el-card shadow="never" class="card">
-      <!-- Header actions -->
+      <!-- Header -->
       <div class="header">
         <h3 class="title">
           <el-icon class="title-icon"><List /></el-icon>
@@ -23,17 +23,6 @@
           >
             <el-icon><ArrowRightBold /></el-icon>
             Trạng thái tiếp theo
-          </el-button>
-
-          <el-button
-            v-if="canRevert"
-            type="warning"
-            plain
-            @click="confirmRevert"
-            :loading="loadingRevert"
-          >
-            <el-icon><Back /></el-icon>
-            Quay lại
           </el-button>
 
           <el-tooltip v-if="!canCancel" content="Đơn đã đến giai đoạn không thể hủy" placement="top">
@@ -55,7 +44,6 @@
             Giao thất bại
           </el-button>
 
-          <!-- Nút xác nhận yêu cầu hủy (hiện khi YEU_CAU_NGHI) -->
           <el-button
             v-if="invoice.statusDetail === 'YEU_CAU_HOAN'"
             type="danger"
@@ -76,7 +64,7 @@
 
       <!-- Steps -->
       <div class="mt-2">
-        <!-- Trạng thái đặc biệt -->
+        <!-- Nhánh lỗi/huỷ -->
         <el-steps
           v-if="['HUY_DON','GIAO_THAT_BAI'].includes(invoice.statusDetail)"
           :active="0"
@@ -117,7 +105,7 @@
             <el-descriptions-item label="Mã hóa đơn">{{ invoice.invoiceCode || '—' }}</el-descriptions-item>
             <el-descriptions-item label="Khách hàng">{{ invoice.customerName || '—' }}</el-descriptions-item>
 
-            <el-descriptions-item label="Số điện thoại">
+            <el-descriptions-item label="Số điện thoại người nhận">
               <div class="row-inline">
                 <span>{{ invoice.phone || '—' }}</span>
                 <el-tooltip
@@ -139,6 +127,7 @@
               </div>
             </el-descriptions-item>
 
+            <el-descriptions-item label="Số điện thoại người gửi">{{ invoice.phoneSender || '—' }}</el-descriptions-item>
             <el-descriptions-item label="Ngày tạo">{{ formatDate(invoice.createdDate) }}</el-descriptions-item>
             <el-descriptions-item label="Tổng tiền">{{ formatCurrency(invoice.totalAmount) }}</el-descriptions-item>
             <el-descriptions-item label="Giảm giá">{{ formatCurrency(invoice.discountAmount) }}</el-descriptions-item>
@@ -173,7 +162,7 @@
         </template>
       </el-skeleton>
 
-      <!-- Dialog: Xác nhận yêu cầu hủy (admin nhập phương thức hoàn tiền + mã giao dịch) -->
+      <!-- Dialog: Xác nhận yêu cầu hủy -->
       <el-dialog
         title="Xác nhận yêu cầu hủy"
         v-model="approveCancelDialogVisible"
@@ -272,12 +261,7 @@
     >
       <el-form label-position="top">
         <el-form-item label="Số điện thoại mới">
-          <el-input
-            v-model.trim="phoneForm.phone"
-            placeholder="Nhập số điện thoại"
-            maxlength="20"
-            clearable
-          />
+          <el-input v-model.trim="phoneForm.phone" placeholder="Nhập số điện thoại" maxlength="20" clearable />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -455,10 +439,18 @@
       <el-table :data="actionHistory" border stripe empty-text="Chưa có lịch sử">
         <el-table-column label="STT" width="70" type="index" />
         <el-table-column prop="oldStatus" label="Trạng thái cũ" min-width="160">
-          <template #default="{ row }">{{ getStatusLabelFromInt(row.oldStatus) }}</template>
+          <template #default="{ row }">
+            <el-tag :type="getStatusTagType(row.oldStatus)" effect="light">
+              {{ getStatusLabelFromInt(row.oldStatus) }}
+            </el-tag>
+          </template>
         </el-table-column>
         <el-table-column prop="newStatus" label="Trạng thái mới" min-width="160">
-          <template #default="{ row }">{{ getStatusLabelFromInt(row.newStatus) }}</template>
+          <template #default="{ row }">
+            <el-tag :type="getStatusTagType(row.newStatus)" effect="light">
+              {{ getStatusLabelFromInt(row.newStatus) }}
+            </el-tag>
+          </template>
         </el-table-column>
         <el-table-column prop="changedAt" label="Thời gian" width="180">
           <template #default="{ row }">{{ formatDate(row.changedAt) }}</template>
@@ -481,7 +473,7 @@ import axios from 'axios'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   ArrowLeft, List, Tickets, CreditCard, ShoppingCart, EditPen, Delete,
-  ArrowRightBold, Back, CloseBold, Clock
+  ArrowRightBold, CloseBold, Clock
 } from '@element-plus/icons-vue'
 
 /* ===== Router & base ===== */
@@ -504,7 +496,7 @@ const loadingApproveCancel = ref(false)
 const invoice = ref({})
 const isPaid = ref(false)
 
-/* ===== Steps & permissions ===== */
+/* ===== Steps & labels ===== */
 const MAIN_STEPS = [
   { key: 'CHO_XU_LY', label: 'Chờ xác nhận' },
   { key: 'DA_XU_LY', label: 'Đã xác nhận' },
@@ -515,6 +507,33 @@ const MAIN_STEPS = [
 const STEP_KEYS = MAIN_STEPS.map(s => s.key)
 const DELIVERY_PHASE = 'DANG_GIAO_HANG'
 
+// Map code int từ BE → nhãn hiển thị & tag color cho Lịch sử tác động
+const STATUS_LABELS = {
+  [-3]: 'Đang giao dịch',
+  [-2]: 'Đã hủy',
+  [-1]: 'Hủy giao dịch',
+  0 : 'Chờ xác nhận',
+  1 : 'Đã xác nhận',
+  2 : 'Chờ giao hàng',
+  3 : 'Đang giao hàng',
+  4 : 'Giao thành công',
+  5 : 'Giao thất bại',
+  6 : 'Mất hàng',
+  7 : 'Đã hoàn tiền',
+}
+const STATUS_TAG = {
+  [-2]: 'danger',
+  [-1]: 'danger',
+  0 : 'info',
+  1 : 'info',
+  2 : 'warning',
+  3 : 'warning',
+  4 : 'success',
+  5 : 'danger',
+  6 : 'danger',
+  7 : 'success',
+}
+
 const getActiveStep = (statusKey) => {
   const idx = STEP_KEYS.indexOf(statusKey)
   return idx >= 0 ? idx : 0
@@ -523,30 +542,18 @@ const getActiveStep = (statusKey) => {
 const isCanceledOrFailed = computed(() =>
   ['HUY_DON', 'GIAO_THAT_BAI'].includes(invoice.value?.statusDetail)
 )
-
-const isCancelRequested = computed(() => invoice.value?.statusDetail === 'YEU_CAU_NGHI')
-
+const isCancelRequested = computed(() => invoice.value?.statusDetail === 'YEU_CAU_HOAN')
 const isBeforeDeliveryPhase = computed(() => {
   const s = invoice.value?.statusDetail
   if (!s || !STEP_KEYS.includes(s)) return false
   return STEP_KEYS.indexOf(s) < STEP_KEYS.indexOf(DELIVERY_PHASE)
 })
-
 const canEditContactAddress = computed(() => isBeforeDeliveryPhase.value && !isCanceledOrFailed.value && !isCancelRequested.value)
-
 const canAdvance = computed(() => {
   if (isCancelRequested.value) return false
   const s = invoice.value?.statusDetail
   return STEP_KEYS.includes(s) && s !== 'GIAO_THANH_CONG' && !isCanceledOrFailed.value
 })
-
-const canRevert = computed(() => {
-  if (isCancelRequested.value) return false
-  const s = invoice.value?.statusDetail
-  const idx = STEP_KEYS.indexOf(s)
-  return idx > 0 && idx < STEP_KEYS.indexOf(DELIVERY_PHASE) && STEP_KEYS.includes(s)
-})
-
 const canCancel = computed(() => {
   if (isCancelRequested.value) return false
   const s = invoice.value?.statusDetail
@@ -570,7 +577,7 @@ const fetchInvoice = async () => {
 
 const goBack = () => router.back()
 
-/* ===== Chuyển / Lùi trạng thái ===== */
+/* ===== Chuyển trạng thái ===== */
 const confirmAdvance = async () => {
   try {
     await ElMessageBox.confirm('Bạn có chắc muốn chuyển sang trạng thái tiếp theo?', 'Xác nhận', { type: 'warning' })
@@ -594,32 +601,6 @@ const advanceStatus = async () => {
     console.error(err)
   } finally {
     loadingAdvance.value = false
-  }
-}
-
-const confirmRevert = async () => {
-  try {
-    await ElMessageBox.confirm('Bạn có chắc muốn quay lại trạng thái trước?', 'Xác nhận', { type: 'warning' })
-    await revertStatus()
-  } catch { /* cancel */ }
-}
-const revertStatus = async () => {
-  const currentKey = invoice.value?.statusDetail
-  const currentIndex = STEP_KEYS.indexOf(currentKey)
-  const prevKey = STEP_KEYS[currentIndex - 1]
-  if (!prevKey) return ElMessage.info('Không có trạng thái trước đó để quay lại.')
-  try {
-    loadingRevert.value = true
-    await apiClient.put('/admin/online-sales/chuyen-trang-thai', null, {
-      params: { invoiceId, statusDetail: prevKey }
-    })
-    ElMessage.success('Quay lại trạng thái trước thành công!')
-    fetchInvoice()
-  } catch (err) {
-    ElMessage.error('Lỗi quay lại trạng thái')
-    console.error(err)
-  } finally {
-    loadingRevert.value = false
   }
 }
 
@@ -666,7 +647,7 @@ const cancelOrder = async () => {
   }
 }
 
-/* ===== Approve cancel request (admin) ===== */
+/* ===== Xác nhận yêu cầu hủy (admin) ===== */
 const approveCancelDialogVisible = ref(false)
 const approveCancelNote = ref('')
 const approvePaymentMethod = ref('')
@@ -674,7 +655,6 @@ const approveTransactionCode = ref('')
 const approveBankName = ref('')
 
 const showApproveCancelDialog = () => {
-  // reset form
   approveCancelNote.value = ''
   approvePaymentMethod.value = ''
   approveTransactionCode.value = ''
@@ -683,13 +663,8 @@ const showApproveCancelDialog = () => {
 }
 
 const submitApproveCancel = async () => {
-  // validate: bắt nhập phương thức & mã giao dịch luôn
-  if (!approvePaymentMethod.value) {
-    return ElMessage.warning('Vui lòng chọn phương thức hoàn tiền.')
-  }
-  if (!approveTransactionCode.value || !approveTransactionCode.value.trim()) {
-    return ElMessage.warning('Vui lòng nhập mã giao dịch.')
-  }
+  if (!approvePaymentMethod.value) return ElMessage.warning('Vui lòng chọn phương thức hoàn tiền.')
+  if (!approveTransactionCode.value || !approveTransactionCode.value.trim()) return ElMessage.warning('Vui lòng nhập mã giao dịch.')
   if (approvePaymentMethod.value === 'NGAN_HANG_KHAC' && !approveBankName.value.trim()) {
     return ElMessage.warning('Vui lòng nhập tên ngân hàng.')
   }
@@ -700,10 +675,7 @@ const submitApproveCancel = async () => {
       'Xác nhận hành động',
       { type: 'warning' }
     )
-
     loadingApproveCancel.value = true
-
-    // Gọi endpoint hủy + hoàn tiền
     await apiClient.put('/admin/online-sales/huy-don-va-hoan-tien', null, {
       params: {
         invoiceId,
@@ -715,8 +687,7 @@ const submitApproveCancel = async () => {
         isPaid: Boolean(invoice.value?.isPaid)
       }
     })
-
-    ElMessage.success('Đã xác nhận yêu cầu hủy và tiến hành hoàn tiền.')
+    ElMessage.success('Đã xác nhận yêu cầu hủy và hoàn tiền.')
     approveCancelDialogVisible.value = false
     fetchInvoice()
   } catch (err) {
@@ -751,6 +722,7 @@ const markAsFailedDelivery = async () => {
         statusDetail: 'GIAO_THAT_BAI',
         note: failNote.value,
         paymentMethod: isPaid.value ? selectedPaymentMethod.value : 'UNKNOWN',
+        isPaid: isPaid.value,
       }
     })
     ElMessage.success('Cập nhật trạng thái giao hàng thất bại thành công!')
@@ -779,13 +751,8 @@ const showActionHistoryDialog = async () => {
   }
 }
 
-const getStatusLabelFromInt = (statusInt) => {
-  if (statusInt === -1) return 'Đã hủy'
-  if (typeof statusInt === 'number' && statusInt >= 0 && statusInt < MAIN_STEPS.length) {
-    return MAIN_STEPS[statusInt].label
-  }
-  return `Không xác định (${statusInt})`
-}
+const getStatusLabelFromInt = (code) => STATUS_LABELS?.[code] ?? `Không xác định (${code})`
+const getStatusTagType = (code) => STATUS_TAG?.[code] ?? 'info'
 
 /* ===== SĐT ===== */
 const phoneDialogVisible = ref(false)
@@ -811,7 +778,7 @@ const submitPhoneUpdate = async () => {
   try {
     savingPhone.value = true
     await apiClient.put('/admin/online-sales/update-phone', null, {
-      params: { invoiceId, phone: phone }
+      params: { invoiceId, phone }
     })
     ElMessage.success('Cập nhật số điện thoại thành công!')
     phoneDialogVisible.value = false
@@ -837,7 +804,7 @@ const addressForm = ref({
 })
 const shippingFee = ref(null)
 
-// Thay bằng token của bạn nếu cần
+// GHN (giữ nguyên token/const như bạn đang dùng)
 const GHN_TOKEN = '847c9bb7-6e42-11ee-a59f-a260851ba65c'
 const GHN_TOKEN_FEE = '741f1c91-4f42-11f0-8cf5-d2552bfd31d8'
 const FROM_DISTRICT_ID = 1483
@@ -918,7 +885,6 @@ const handleDistrictChangeForAddress = () => {
 const handleWardChangeForAddress = async () => {
   const sel = wards.value.find(w => w.WardCode === addressForm.value.wardCode)
   addressForm.value.wardName = sel?.WardName || ''
-  // Tính thử phí để hiển thị (có thể bỏ nếu muốn tính chỉ khi cập nhật)
   const fee = await calculateShippingFee()
   shippingFee.value = fee
 }
@@ -963,7 +929,6 @@ const openAddressDialog = async () => {
   addressDialogVisible.value = true
   shippingFee.value = null
 
-  // Reset
   addressForm.value = {
     houseNumber: '',
     provinceCode: null, provinceName: '',
@@ -996,8 +961,8 @@ const openAddressDialog = async () => {
 
         const w = wards.value.find(x => x.WardName === wardName)
         if (w) {
-          addressForm.value.wardCode = w.WardCode
-          addressForm.value.wardName = w.WardName
+          addressForm.value.wardCode = w. WardCode
+          addressForm.value.wardName = w. WardName
         }
       }
     }

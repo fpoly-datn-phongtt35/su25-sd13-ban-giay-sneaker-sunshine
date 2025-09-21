@@ -916,6 +916,7 @@ const fetchProducts = async () => {
 
     const { data } = await apiClient.get('/online-sale', { params })
     const payload = data ?? {}
+    console.log('dataa: ',payload)
     const content =
       Array.isArray(payload.content) ? payload.content :
         Array.isArray(payload.data?.content) ? payload.data.content :

@@ -84,8 +84,6 @@ const tabs = ref([
   { key: 'GIAO_THANH_CONG', label: 'Giao hàng thành công', count: 0 },
   { key: 'GIAO_THAT_BAI', label: 'Giao hàng thất bại', count: 0 },
   { key: 'HUY_DON', label: 'Đơn hàng hủy', count: 0 },
-  { key: 'YEU_CAU_HOAN', label: 'Yêu cầu hủy', count: 0 },
-
 ])
 
 // Ánh xạ tên tab -> mã trạng thái
@@ -98,7 +96,6 @@ const statusLabelToCode = (label) => {
     'GIAO_THANH_CONG': 4,
     'GIAO_THAT_BAI': 5,
     'DA_HOAN_THANH': 8,
-    'YEU_CAU_HOAN': 9,
     'HUY_DON': -2
   }
   return map[label] ?? null

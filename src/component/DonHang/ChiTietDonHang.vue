@@ -529,7 +529,7 @@ const cancelOrder = async () => {
     await apiClient.put(`/online-sale/huy-don-va-hoan-tien`, null, {
       params: {
         invoiceId,
-        statusDetail: invoice.value.isPaid ? 'YEU_CAU_HOAN' : 'HUY_DON',
+        statusDetail: 'HUY_DON',
         note: cancelNote.value,
         paymentMethod: selectedPaymentMethod.value,
         request: invoice.value.isPaid ? 1 : null,

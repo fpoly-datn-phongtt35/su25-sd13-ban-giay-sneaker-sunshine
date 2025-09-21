@@ -157,30 +157,34 @@
           size="small"
           class="rounded-xl"
           :empty-text="loading ? 'Đang tải...' : 'Không có dữ liệu yêu thích'"
+          v-loading="loading"
         >
-          <el-table-column label="Sản phẩm" min-width="300">
+          <el-table-column label="Sản phẩm" min-width="320">
             <template #default="{ row }">
               <div class="prod">
-                <img v-if="row.thumbnail" :src="row.thumbnail" alt="thumb" class="w-12 h-12 rounded-md object-cover" />
-                <div>
-                  <div class="prod-name">{{ row.productName }}</div>
+                <img
+                  v-if="row.thumbnail"
+                  :src="row.thumbnail"
+                  alt="thumb"
+                  class="w-12 h-12 rounded-md object-cover"
+                />
+                <div class="prod-info">
+                  <div class="prod-name" :title="row.productName">{{ row.productName }}</div>
                   <div class="text-xs text-gray-500" v-if="row.sku">SKU: {{ row.sku }}</div>
                 </div>
               </div>
             </template>
           </el-table-column>
 
-          <el-table-column prop="favoritesCount" label="Lượt yêu thích" width="140" align="right">
+          <el-table-column prop="favoritesCount" label="Lượt yêu thích" width="160" align="right">
             <template #default="{ row }">
-              <div>{{ row.favoritesCount ?? row.favoriteCount ?? 0 }}</div>
+              <span>{{ formatNumber(row.favoritesCount ?? row.favoriteCount ?? 0) }}</span>
             </template>
           </el-table-column>
 
-          <el-table-column prop="totalQuantitySold" label="Số lượng bán" width="140" align="right" />
-
-          <el-table-column label="Hành động" width="140">
+          <el-table-column prop="reviewCount" label="Số lượng bán" width="140" align="right">
             <template #default="{ row }">
-              <el-button type="primary" plain size="small" @click="goToProduct(row.productId)">Xem</el-button>
+              <span>{{ formatNumber(row.totalQuantitySold ?? 0) }}</span>
             </template>
           </el-table-column>
         </el-table>
@@ -222,7 +226,7 @@ const dash = ref({
   yearly: [],
   invoiceStatusStats: [],
   topProducts: [],
-  favoriteProducts: [], // <-- backend may fill this
+  favoriteProducts: [], // <-- sẽ được set ở loadTopFavorites() nếu dashboard không trả
   periodStart: null,
   periodEnd: null
 })
@@ -255,7 +259,7 @@ const pct = (cur, prev) => {
 }
 const formatPct = v => v == null ? 'N/A' : `${(v>=0?'+':'')}${v.toFixed(0)}%`
 
-/* KPI computed (same logic as before) */
+/* KPI computed (giữ nguyên logic cũ) */
 const kpis = computed(() => {
   const d = dash.value
   const today = safeNum(d.todayRevenue)
@@ -367,6 +371,26 @@ const buildDonut = () => {
 const topRows = computed(() => dash.value?.topProducts || [])
 const favoriteRows = computed(() => dash.value?.favoriteProducts || [])
 
+/* === Favorite: load top 5 by rating (CHỈ THÊM PHẦN NÀY) === */
+async function loadTopFavorites () {
+  try {
+    const { data } = await apiClient.get('/online-sale/ratings/top5', {
+      params: { minReviews: 0 } // đổi ngưỡng nếu muốn lọc theo số review tối thiểu
+    })
+    dash.value.favoriteProducts = (data ?? []).map(it => ({
+      productId: it.productId,
+      productName: it.productName,
+      sku: it.sku,
+      favoritesCount: it.favoritesCount ?? 0,     // BE nên trả; nếu không có -> 0
+      totalQuantitySold: it.totalQuantitySold ?? 0, // tuỳ BE; mặc định 0
+      thumbnail: it.thumbnail ?? null
+    }))
+  } catch (e) {
+    console.warn('Không lấy được top yêu thích:', e)
+    dash.value.favoriteProducts = []
+  }
+}
+
 /* BUILD BODY FOR API */
 const buildBody = () => {
   const body = {
@@ -396,16 +420,9 @@ const refreshAll = async () => {
     dash.value = data || {}
     lastUpdated.value = new Date()
 
-    // If backend didn't provide favoriteProducts within dashboard payload,
-    // try fallback endpoint (best-effort).
+    // Nếu dashboard KHÔNG trả favoriteProducts -> gọi API top5 theo rating
     if (!dash.value.favoriteProducts) {
-      try {
-        const favRes = await apiClient.post('/admin/statistics/favorite-products', buildBody())
-        dash.value.favoriteProducts = favRes?.data || []
-      } catch (e) {
-        // ignore fallback error — leave favoriteProducts empty
-        dash.value.favoriteProducts = dash.value.favoriteProducts || []
-      }
+      await loadTopFavorites()
     }
 
     buildBar()
@@ -454,6 +471,12 @@ const exportExcel = async () => {
   } finally {
     exporting.value = false
   }
+}
+
+/* UTILS */
+function formatNumber (n) {
+  const num = Number(n || 0)
+  return Number.isFinite(num) ? num.toLocaleString('vi-VN') : '0'
 }
 
 /* LIFECYCLE & WATCH */

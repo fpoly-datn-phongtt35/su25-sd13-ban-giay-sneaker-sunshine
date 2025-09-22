@@ -43,7 +43,7 @@ SELECT new com.example.duantotnghiep.dto.response.InvoiceResponse(
        AND (:createdTo   IS NULL OR i2.createdDate <= :createdTo)
        AND (:isPaid IS NULL OR i2.isPaid = :isPaid)
        AND (:orderType IS NULL OR i2.orderType = :orderType)
-       AND (:phone IS NULL OR i2.customer.phone LIKE CONCAT('%', :phone, '%'))
+       AND (:phone IS NULL OR i2.phoneSender LIKE CONCAT('%', :phone, '%'))
        AND (:code  IS NULL OR i2.invoiceCode LIKE CONCAT('%', :code, '%'))),
 
     (SELECT COUNT(i2.id) FROM Invoice i2
@@ -52,7 +52,7 @@ SELECT new com.example.duantotnghiep.dto.response.InvoiceResponse(
        AND (:createdTo   IS NULL OR i2.createdDate <= :createdTo)
        AND (:isPaid IS NULL OR i2.isPaid = :isPaid)
        AND (:orderType IS NULL OR i2.orderType = :orderType)
-       AND (:phone IS NULL OR i2.customer.phone LIKE CONCAT('%', :phone, '%'))
+       AND (:phone IS NULL OR i2.phoneSender LIKE CONCAT('%', :phone, '%'))
        AND (:code  IS NULL OR i2.invoiceCode LIKE CONCAT('%', :code, '%'))),
 
     (SELECT COUNT(i2.id) FROM Invoice i2
@@ -61,7 +61,7 @@ SELECT new com.example.duantotnghiep.dto.response.InvoiceResponse(
        AND (:createdTo   IS NULL OR i2.createdDate <= :createdTo)
        AND (:isPaid IS NULL OR i2.isPaid = :isPaid)
        AND (:orderType IS NULL OR i2.orderType = :orderType)
-       AND (:phone IS NULL OR i2.customer.phone LIKE CONCAT('%', :phone, '%'))
+       AND (:phone IS NULL OR i2.phoneSender LIKE CONCAT('%', :phone, '%'))
        AND (:code  IS NULL OR i2.invoiceCode LIKE CONCAT('%', :code, '%'))),
 
     (SELECT COUNT(i2.id) FROM Invoice i2
@@ -70,7 +70,7 @@ SELECT new com.example.duantotnghiep.dto.response.InvoiceResponse(
        AND (:createdTo   IS NULL OR i2.createdDate <= :createdTo)
        AND (:isPaid IS NULL OR i2.isPaid = :isPaid)
        AND (:orderType IS NULL OR i2.orderType = :orderType)
-       AND (:phone IS NULL OR i2.customer.phone LIKE CONCAT('%', :phone, '%'))
+       AND (:phone IS NULL OR i2.phoneSender LIKE CONCAT('%', :phone, '%'))
        AND (:code  IS NULL OR i2.invoiceCode LIKE CONCAT('%', :code, '%'))),
 
     (SELECT COUNT(i2.id) FROM Invoice i2
@@ -79,7 +79,7 @@ SELECT new com.example.duantotnghiep.dto.response.InvoiceResponse(
        AND (:createdTo   IS NULL OR i2.createdDate <= :createdTo)
        AND (:isPaid IS NULL OR i2.isPaid = :isPaid)
        AND (:orderType IS NULL OR i2.orderType = :orderType)
-       AND (:phone IS NULL OR i2.customer.phone LIKE CONCAT('%', :phone, '%'))
+       AND (:phone IS NULL OR i2.phoneSender LIKE CONCAT('%', :phone, '%'))
        AND (:code  IS NULL OR i2.invoiceCode LIKE CONCAT('%', :code, '%'))),
 
     (SELECT COUNT(i2.id) FROM Invoice i2
@@ -88,7 +88,7 @@ SELECT new com.example.duantotnghiep.dto.response.InvoiceResponse(
        AND (:createdTo   IS NULL OR i2.createdDate <= :createdTo)
        AND (:isPaid IS NULL OR i2.isPaid = :isPaid)
        AND (:orderType IS NULL OR i2.orderType = :orderType)
-       AND (:phone IS NULL OR i2.customer.phone LIKE CONCAT('%', :phone, '%'))
+       AND (:phone IS NULL OR i2.phoneSender LIKE CONCAT('%', :phone, '%'))
        AND (:code  IS NULL OR i2.invoiceCode LIKE CONCAT('%', :code, '%'))),
 
     (SELECT COUNT(i2.id) FROM Invoice i2
@@ -97,7 +97,7 @@ SELECT new com.example.duantotnghiep.dto.response.InvoiceResponse(
        AND (:createdTo   IS NULL OR i2.createdDate <= :createdTo)
        AND (:isPaid IS NULL OR i2.isPaid = :isPaid)
        AND (:orderType IS NULL OR i2.orderType = :orderType)
-       AND (:phone IS NULL OR i2.customer.phone LIKE CONCAT('%', :phone, '%'))
+       AND (:phone IS NULL OR i2.phoneSender LIKE CONCAT('%', :phone, '%'))
        AND (:code  IS NULL OR i2.invoiceCode LIKE CONCAT('%', :code, '%')))
 )
 FROM Invoice i
@@ -106,7 +106,7 @@ WHERE (:status IS NULL OR i.statusDetail = :status)
   AND (:orderType IS NULL OR i.orderType = :orderType)
   AND (:createdFrom IS NULL OR i.createdDate >= :createdFrom)
   AND (:createdTo   IS NULL OR i.createdDate <= :createdTo)
-  AND (:phone IS NULL OR i.customer.phone LIKE CONCAT('%', :phone, '%'))
+  AND (:phone IS NULL OR i.phoneSender LIKE CONCAT('%', :phone, '%'))
   AND (:code  IS NULL OR i.invoiceCode LIKE CONCAT('%', :code, '%'))
 ORDER BY i.createdDate ASC
 """)

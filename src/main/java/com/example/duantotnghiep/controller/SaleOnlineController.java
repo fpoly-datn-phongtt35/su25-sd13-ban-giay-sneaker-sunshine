@@ -22,8 +22,10 @@ import com.example.duantotnghiep.service.impl.InvoiceEmailService;
 import com.example.duantotnghiep.service.impl.InvoiceServiceImpl;
 import com.example.duantotnghiep.service.impl.OnlineSaleServiceImpl;
 import com.example.duantotnghiep.service.impl.ProductServiceImpl;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -43,7 +45,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-
+@Slf4j
 @RestController
 @RequestMapping("/api/online-sale")
 @RequiredArgsConstructor
@@ -66,6 +68,9 @@ public class SaleOnlineController {
     private final CustomerService customerService;
     private final VoucherService voucherService;
     private final VoucherMapper voucherMapper;
+    private final OnlineSaleVerifyService onlineSaleVerifyService;
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
 
     @GetMapping("/online-home")
     public ResponseEntity<List<ProductResponse>> hienThi(){
@@ -483,5 +488,14 @@ public class SaleOnlineController {
         Integer s = voucherService.getStatus(code);
         return ResponseEntity.ok(s);
     }
+
+    @PostMapping("/verify-prices")
+    public ResponseEntity<VerifyPricesResponse> verifyPrices(@RequestBody InvoiceRequest request) {
+        VerifyPricesResponse result = onlineSaleVerifyService.verifyPrices(request);
+        return result.isOk()
+                ? ResponseEntity.ok(result)
+                : ResponseEntity.status(HttpStatus.CONFLICT).body(result);
+    }
+
 
 }

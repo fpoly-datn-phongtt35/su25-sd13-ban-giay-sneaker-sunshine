@@ -55,15 +55,14 @@ public class VoucherSearchRepository {
             }
         }
 
-        // ===== Status (mặc định = 1 nếu không truyền) =====
+        where.append(" AND v.customer IS NULL");
         if (request.getStatus() == null) {
-            where.append(" AND v.status = 1");
+            where.append(" AND v.status IN (1, 2)");
         } else {
             where.append(" AND v.status = :status");
             params.put("status", request.getStatus());
         }
 
-        // Order type
         if (request.getOrderType() != null) {
             where.append(" AND v.orderType = :orderType");
             params.put("orderType", request.getOrderType());

@@ -30,8 +30,8 @@
 
         <el-form-item>
           <el-select v-model="searchVoucher.status" placeholder="Trạng thái" clearable class="w-48" @change="fetchVoucher(0)">
+            <el-option label="Tất cả" :value="null" />
             <el-option label="Đang diễn ra" :value="1" />
-            <el-option label="Ngừng hoạt động" :value="0" />
             <el-option label="Sắp diễn ra" :value="2" />
           </el-select>
         </el-form-item>
@@ -246,7 +246,7 @@ const router = useRouter()
 
 const searchVoucher = ref({
   keyword: null,
-  status: 1,
+  status: null,
   orderType: null,
   voucherType: null,
   categoryIds: null,

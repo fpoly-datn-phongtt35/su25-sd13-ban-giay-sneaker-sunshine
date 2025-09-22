@@ -84,7 +84,7 @@
       <el-table-column label="#" type="index" width="60" align="center" />
       <el-table-column prop="invoiceCode" label="Mã hóa đơn" width="160" />
       <el-table-column prop="customerName" label="Khách hàng" />
-      <el-table-column prop="phone" label="SĐT" width="130" />
+      <el-table-column prop="phoneSender" label="SĐT" width="130" />
       <el-table-column label="Ngày tạo" width="220">
         <template #default="scope">
           <el-tooltip
@@ -206,8 +206,6 @@ const search = async () => {
     loading.value = false
   }
 }
-
-
 
 const resetFilters = () => {
   filters.value = {

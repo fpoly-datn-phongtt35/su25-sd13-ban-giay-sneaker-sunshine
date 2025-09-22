@@ -56,8 +56,10 @@ public class DiscountCampaignServiceImpl implements DiscountCampaignService {
     @Override
     public Page<DiscountCampaignResponse> getAll(int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdDate"));
-        return repository.findAll(pageable).map(discountCampaignMapper::toResponse);
+        return repository.findActiveCampaigns(pageable)
+                .map(discountCampaignMapper::toResponse);
     }
+
 
     @Override
     @Transactional

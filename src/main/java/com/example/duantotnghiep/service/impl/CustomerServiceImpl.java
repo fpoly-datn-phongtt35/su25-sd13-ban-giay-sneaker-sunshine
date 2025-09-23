@@ -3,6 +3,7 @@ package com.example.duantotnghiep.service.impl;
 import com.example.duantotnghiep.dto.request.AddressCustomerRequest;
 import com.example.duantotnghiep.dto.request.CustomerBlacklistRequest;
 import com.example.duantotnghiep.dto.request.CustomerRequest;
+import com.example.duantotnghiep.dto.request.QuenMatKhauReq;
 import com.example.duantotnghiep.dto.response.AddressCustomerResponse;
 import com.example.duantotnghiep.dto.response.BadCustomerResponse;
 import com.example.duantotnghiep.dto.response.CustomerResponse;
@@ -17,6 +18,7 @@ import com.example.duantotnghiep.repository.AddressRepository;
 import com.example.duantotnghiep.repository.CustomerBlacklistHistoryRepository;
 import com.example.duantotnghiep.repository.CustomerRepository;
 import com.example.duantotnghiep.repository.UserRepository;
+import com.example.duantotnghiep.service.AccountEmailService;
 import com.example.duantotnghiep.service.CustomerService;
 import lombok.RequiredArgsConstructor;
 import org.apache.coyote.BadRequestException;
@@ -24,14 +26,17 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.security.SecureRandom;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -44,6 +49,9 @@ public class CustomerServiceImpl implements CustomerService {
     private final UserMapper userMapper;
     private final AddressMapper addressMapper;
     private final CustomerBlacklistHistoryRepository customerBlacklistHistoryRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final AccountEmailService accountEmailService;
+
 
     @Transactional(rollbackFor = Throwable.class)
     @Override
@@ -52,13 +60,18 @@ public class CustomerServiceImpl implements CustomerService {
         Customer customer = userMapper.toCustomerEntity(request);
         String username = request.getUsername();
         boolean exists = userRepository.existsActiveByUsername(username);
+        boolean existsPhone = userRepository.existsActiveByPhone(request.getPhone());
 
         if (exists) {
             // ĐÃ tồn tại user đang active với username này
-            throw new BadRequestException("Username đã tồn tại (active)");
+            throw new IllegalArgumentException("Username đã tồn tại (active)");
         }
 
-// chưa tồn tại -> tiếp tục logic tạo mới, v.v.
+        if (existsPhone) {
+            // ĐÃ tồn tại user đang active với username này
+            throw new IllegalArgumentException("Phone đã tồn tại ");
+        }
+
         customer.setCustomerCode(generateCustomerCode());
         customer.setCreatedDate(LocalDateTime.now());
         customer.setCreatedBy("admin");
@@ -336,7 +349,30 @@ public class CustomerServiceImpl implements CustomerService {
         return customerMapper.toBadCustomerDtoList(blacklistedCustomers);
     }
 
-    //Tìm kiếm nâng cao
+    @Override
+    public void QuenMatKhauClient(QuenMatKhauReq req) {
+        String email = req.getEmail() == null ? null  : req.getEmail().trim();
+        String phone = req.getPhone() == null ? null  : req.getPhone().trim();
+        Optional<Customer> c = customerRepository.findCustomerByPhoneAndEmail(phone, email);
+        if(!c.isPresent()) {
+            throw new IllegalArgumentException("Số điện thoại hoặc email chưa đúng");
+        }
+        Long idCustomer =  c.get().getId();
+        User u = userRepository.findByCustomerId(idCustomer).orElseThrow(() -> new IllegalArgumentException("Không tìm thấy người dùng"));
+
+        String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        SecureRandom rnd = new SecureRandom();
+        StringBuilder pw = new StringBuilder();
+        for (int i = 0; i < 6; i++) pw.append(chars.charAt(rnd.nextInt(chars.length())));
+        String rawPassword = passwordEncoder.encode(pw.toString());
+
+        u.setPassword(rawPassword);
+        userRepository.save(u);
+        String customerName = c.get().getCustomerName();
+        String username     = u.getUsername();
+        accountEmailService.sendPasswordResetEmail(email, customerName, username, rawPassword);
+
+    }
 
     @Override
     public Page<CustomerResponse> searchByNameAndPhone(String name, String phone, String phoneSuffix, Pageable pageable) {

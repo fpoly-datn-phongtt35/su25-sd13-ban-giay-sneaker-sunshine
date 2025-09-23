@@ -252,7 +252,7 @@
           <el-table-column
             prop="voucherName"
             label="Tên voucher"
-            min-width="220"
+            min-width="150"
             show-overflow-tooltip
           />
           <el-table-column label="Ưu đãi" min-width="160">
@@ -268,15 +268,15 @@
             <template #default="{ row }">{{ formatPrice(row.minOrderValue || 0) }}</template>
           </el-table-column>
           <el-table-column prop="endDate" label="Hết hạn" min-width="130" />
-          <el-table-column label="Trạng thái" min-width="110" align="center">
+          <!-- <el-table-column label="Trạng thái" min-width="110" align="center">
             <template #default="{ row }">
               <el-tag :type="row.status === 1 ? 'success' : 'danger'">{{
                 row.status === 1 ? 'Hoạt động' : 'Hết hạn'
               }}</el-tag>
             </template>
-          </el-table-column>
+          </el-table-column> -->
 
-          <el-table-column label="Thao tác" fixed="right" width="200">
+          <el-table-column label="Thao tác" fixed="right" width="150">
             <template #default="{ row }">
               <el-space v-if="isCurrentApplied(row)">
                 <el-button size="small" type="danger" @click="cancelVoucherFromDialog"
@@ -642,7 +642,12 @@ const handleSubmit = async () => {
     else ElMessage.error(msg)
     throw { __isAbort: true }
   }
-  const vndInt = (n) => toInt(n ?? 0) // chuẩn hóa VND
+  const toInt = (v) => {
+    const n = Number(String(v ?? '').replace(/[^\d.-]/g, ''))
+    return Number.isFinite(n) ? Math.trunc(n) : 0
+  }
+  const vndInt = (n) => toInt(n ?? 0)
+  const isLoggedIn = () => !!localStorage.getItem('token')
 
   // ===== Validate =====
   try {
@@ -651,10 +656,7 @@ const handleSubmit = async () => {
     ElMessage.warning('Vui lòng điền đầy đủ thông tin giao hàng.')
     return
   }
-  if (isSubmitting.value) {
-    ElMessage.warning('Không thể thanh toán')
-    return
-  }
+  if (isSubmitting.value) return ElMessage.warning('Không thể thanh toán')
   if (!cartItems.value.length) {
     ElMessage.warning('Giỏ hàng trống.')
     router.push('/')
@@ -669,49 +671,34 @@ const handleSubmit = async () => {
 
     // ===== 1) Chuẩn hóa items (snapshot giá FE) =====
     const itemsPayload = cartItems.value.map((it) => {
-      const unitPrice = vndInt(unitPriceOf(it)) // giá gốc hiển thị (tham khảo)
-      const quantity  = Math.max(1, vndInt(it.quantity || 0))
-
-      // Bắt buộc gửi sellPrice & discountedPrice
+      const unitPrice = vndInt(unitPriceOf(it))
+      const quantity  = Math.max(1, vndInt(it.quantity))
       const sellPrice = vndInt(it.sellPrice ?? it.price ?? unitPrice)
-      const discountedPrice =
-        it.discountedPrice != null ? vndInt(it.discountedPrice) : sellPrice // nếu không giảm = sell
-
-      // Tự tính lại % để nhất quán
-      const discountPercentage =
-        sellPrice > 0 ? Math.round(((sellPrice - discountedPrice) * 100) / sellPrice) : 0
-
-      // Chỉ giữ campaignId khi user thực sự chọn 1 campaign (ví dụ bạn có biến userPickedCampaignId)
+      const discountedPrice = (it.discountedPrice != null) ? vndInt(it.discountedPrice) : sellPrice
       const discountCampaignId = it.userPickedCampaignId ?? null
 
       return {
         productDetailId: it.productDetailId,
-        productName: it.productName || it.name || null,
         quantity,
-
-        // snapshot giá FE để verify-prices
         sellPrice,
         discountedPrice,
-        discountPercentage,
+        discountPercentage: sellPrice > 0 ? Math.round(((sellPrice - discountedPrice) * 100) / sellPrice) : 0,
         discountCampaignId,
+        productName: it.productName || it.name || null, // BE bỏ qua nếu không dùng
 
-        // phụ trợ
+        // chỉ dùng nội bộ FE
         unitPrice,
         lineTotal: unitPrice * quantity,
       }
     })
 
     // ===== 2) VERIFY tồn kho / status nhanh =====
-    const idsParam = itemsPayload.map((x) => x.productDetailId).join(',')
+    const idsParam = itemsPayload.map(x => x.productDetailId).filter(Boolean).join(',')
     try {
       const res = await axios.get(`http://localhost:8080/api/online-sale/verify-list-pdDetail/${idsParam}`)
       let payload = res.data
-      if (typeof payload === 'string') {
-        try { payload = JSON.parse(payload) } catch (_) {}
-      }
-      if (!Array.isArray(payload) || payload.length === 0) {
-        failEarly('Không có dữ liệu xác thực sản phẩm từ server.')
-      }
+      if (typeof payload === 'string') { try { payload = JSON.parse(payload) } catch {} }
+      if (!Array.isArray(payload) || payload.length === 0) failEarly('Không có dữ liệu xác thực sản phẩm từ server.')
 
       const getStatus = (p) => p?.status ?? p?.active ?? p?.isAvailable ?? p?.enabled
       const getAvailable = (p) => p?.quantity ?? null
@@ -733,14 +720,12 @@ const handleSubmit = async () => {
           invalid.push({ id: idStr, name, reason: 'Số lượng phải > 0' }); continue
         }
 
-        // status
         const s = getStatus(serverItem)
         const okStatus = (typeof s === 'boolean') ? s === true
           : (Number.isFinite(Number(s)) ? Number(s) === 1
           : (typeof s === 'string' && ['active','enabled','available','true','1'].includes(s.trim().toLowerCase())))
         if (!okStatus) { invalid.push({ id: idStr, name, reason: 'Sản phẩm không hợp lệ (status)' }); continue }
 
-        // qty
         const availRaw = getAvailable(serverItem)
         if (availRaw == null) { invalid.push({ id: idStr, name, reason: 'Thiếu tồn kho (quantity)' }); continue }
         const availNum = Number(availRaw)
@@ -758,13 +743,29 @@ const handleSubmit = async () => {
       failEarly('Không thể kiểm tra trạng thái sản phẩm. Vui lòng thử lại sau.')
     }
 
-    // ===== 3) Tính tổng & build payload =====
+    // ===== 3) Tính tổng =====
     const itemsSubtotal = itemsPayload.reduce((s, x) => s + (x.lineTotal ?? x.unitPrice * x.quantity), 0)
     const expectedTotal = Math.max(0, vndInt(itemsSubtotal) - vndInt(discountAmount.value) + vndInt(shippingFee.value))
     finalTotal.value = expectedTotal
     paymentAmount.value = expectedTotal
 
-    const payload = {
+    // ===== 4) Payloads =====
+    // 4a) Payload VERIFY tối giản cho /verify-prices
+    const payloadVerify = {
+      items: itemsPayload.map(x => ({
+        productDetailId: x.productDetailId,
+        quantity: x.quantity,
+        sellPrice: x.sellPrice,
+        discountedPrice: x.discountedPrice,
+        discountPercentage: x.discountPercentage,
+        discountCampaignId: x.discountCampaignId,
+        productName: x.productName ?? null
+      })),
+      voucherCode: appliedVoucher.value?.voucherCode || null
+    }
+
+    // 4b) Payload CHECKOUT đầy đủ cho /checkout & /payment/zalo/create
+    const payloadCheckout = {
       customerInfo: {
         ...form.value,
         address: {
@@ -774,7 +775,7 @@ const handleSubmit = async () => {
           wardName:     (wards.value.find(w => w.WardCode   === form.value.address.wardCode)?.WardName) || '',
         },
       },
-      items: itemsPayload, // chứa snapshot giá FE
+      items: payloadVerify.items,
       orderTotal: vndInt(orderTotal.value),
       discountAmount: vndInt(discountAmount.value),
       shippingFee: vndInt(shippingFee.value),
@@ -785,8 +786,7 @@ const handleSubmit = async () => {
         discountAmount: vndInt(discountAmount.value),
         shippingFee: vndInt(shippingFee.value),
       },
-      voucherCode: appliedVoucher.value?.voucherCode || null,
-      // CHÚ Ý: Đừng ép campaignId toàn giỏ ở đây, để null nếu không có lựa chọn cố định
+      voucherCode: payloadVerify.voucherCode,
       discountCampaignId: null,
       description: form.value.description || '',
       orderType: 1,
@@ -794,11 +794,12 @@ const handleSubmit = async () => {
       employeeId: null,
     }
 
-    // ===== 4) (Optional) verify voucher =====
-    if (payload.voucherCode) {
+    // ===== 5) (Optional) verify voucher =====
+    if (payloadVerify.voucherCode) {
       try {
         const res = await axios.get('http://localhost:8080/api/online-sale/get-code-voucher', {
-          params: { code: payload.voucherCode },
+          params: { code: payloadVerify.voucherCode },
+          headers: { 'Content-Type': 'application/json' },
         })
         if (res.data !== 1) failEarly('Voucher không tồn tại hoặc đã bị xóa')
       } catch (err) {
@@ -807,29 +808,32 @@ const handleSubmit = async () => {
       }
     }
 
-    // ===== 5) VERIFY-PRICES =====
+    // ===== 6) VERIFY-PRICES =====
     try {
-      await axios.post('http://localhost:8080/api/online-sale/verify-prices', payload)
-      // 200 OK -> khớp giá, tiếp tục
+      await axios.post('http://localhost:8080/api/online-sale/verify-prices', payloadVerify, {
+        headers: { 'Content-Type': 'application/json' }
+      })
     } catch (err) {
       const data = err?.response?.data
       if (err?.response?.status === 409) {
-        // In rõ cặp FE vs SV để biết lệch
-        if (Array.isArray(data?.diffs) && data.diffs.length) {
-          console.table(data.diffs[0]) // {feSellPrice, svSellPrice, ...}
-        }
+        if (Array.isArray(data?.diffs) && data.diffs.length) console.table(data.diffs[0])
         failEarly(data?.message || 'Giá đã được cập nhật, vui lòng làm mới giỏ hàng.', 'warning')
+      } else if (err?.response?.status === 400) {
+        const msg = data?.message && data?.detail ? `${data.message}: ${data.detail}` : (data?.message || 'Yêu cầu không hợp lệ.')
+        failEarly(msg)
       } else {
         console.error('verify-prices error:', err)
         failEarly('Không thể xác thực giá. Vui lòng thử lại.')
       }
     }
 
-    // ===== 6) PAYMENT FLOW =====
+    // ===== 7) PAYMENT FLOW =====
     if (paymentMethod.value === 1) {
       // ---- ZaloPay ----
       try {
-        const res = await axios.post('http://localhost:8080/api/payment/zalo/create', payload)
+        const res = await axios.post('http://localhost:8080/api/payment/zalo/create', payloadCheckout, {
+          headers: { 'Content-Type': 'application/json' }
+        })
         const zaloPay = res.data?.zaloPay
         const invoice = res.data?.invoiceData?.invoice || null
         const code = invoice?.invoiceCode
@@ -854,13 +858,16 @@ const handleSubmit = async () => {
         }
 
         const customerId = invoice?.customerId
-        if (customerId) localStorage.setItem('userId', String(customerId))
+        if (customerId) {
+          form.value.customerId = customerId
+          if (isLoggedIn()) localStorage.setItem('userId', String(customerId))
+        }
 
         if (zaloPay?.orderUrl && zaloPay?.appTransId) {
           const pending = {
             invoiceId: invoice?.id || null,
             appTransId: zaloPay.appTransId,
-            amount: payload.amount,
+            amount: payloadCheckout.amount,
           }
           localStorage.setItem('appTransId', zaloPay.appTransId)
           localStorage.setItem('pendingOrder', JSON.stringify(pending))
@@ -908,10 +915,15 @@ const handleSubmit = async () => {
     } else {
       // ---- COD ----
       try {
-        const res = await axios.post('http://localhost:8080/api/online-sale/checkout', payload)
+        const res = await axios.post('http://localhost:8080/api/online-sale/checkout', payloadCheckout, {
+          headers: { 'Content-Type': 'application/json' }
+        })
 
         const customerId = res.data?.invoice?.customerId
-        if (customerId) localStorage.setItem('userId', String(customerId))
+        if (customerId) {
+          form.value.customerId = customerId
+          if (isLoggedIn()) localStorage.setItem('userId', String(customerId))
+        }
 
         const invoiceCode =
           res.data?.invoice?.invoiceCode ??
@@ -950,6 +962,7 @@ const handleSubmit = async () => {
     try { if (loadingInstance) loadingInstance.close() } catch {}
   }
 }
+
 
 
 // ===== watchers

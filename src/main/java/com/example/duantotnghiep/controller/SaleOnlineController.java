@@ -100,7 +100,6 @@ public class SaleOnlineController {
             error.put("timestamp", LocalDateTime.now());
             return ResponseEntity.status(ex.getStatusCode()).body(error);
         } catch (Exception e) {
-            //  Lỗi hệ thống khác
             Map<String, Object> error = new HashMap<>();
             error.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
             error.put("message", "Lỗi thanh toán: " + e.getMessage());
@@ -108,7 +107,6 @@ public class SaleOnlineController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
     }
-
 
     @GetMapping("/{id}")
     public ResponseEntity<ProductResponse> getProductById(@PathVariable Long id) {
@@ -489,14 +487,6 @@ public class SaleOnlineController {
         Integer s = voucherService.getStatus(code);
         return ResponseEntity.ok(s);
     }
-
-//    @PostMapping("/verify-prices")
-//    public ResponseEntity<VerifyPricesResponse> verifyPrices(@RequestBody InvoiceRequest request) {
-//        VerifyPricesResponse result = onlineSaleVerifyService.verifyPrices(request);
-//        return result.isOk()
-//                ? ResponseEntity.ok(result)
-//                : ResponseEntity.status(HttpStatus.CONFLICT).body(result);
-//    }
 
     @PostMapping(
             value = "/verify-prices",

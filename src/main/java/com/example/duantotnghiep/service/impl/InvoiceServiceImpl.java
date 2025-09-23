@@ -1706,7 +1706,11 @@ public class InvoiceServiceImpl implements InvoiceService {
             invoice.setCreatedDate(new Date());
             invoice.setUpdatedDate(new Date());
             invoice.setPhone(phone);
-            invoice.setPhoneSender(phoneSender);
+            if(phoneSender != null){
+                invoice.setPhoneSender(phoneSender);
+            }else{
+                invoice.setPhoneSender(phone);
+            }
             invoice.setDescription(request.getDescription());
             invoice.setOrderType(request.getOrderType()); // Online
             invoice.setIsPaid(false);

@@ -33,6 +33,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -489,12 +490,49 @@ public class SaleOnlineController {
         return ResponseEntity.ok(s);
     }
 
-    @PostMapping("/verify-prices")
+//    @PostMapping("/verify-prices")
+//    public ResponseEntity<VerifyPricesResponse> verifyPrices(@RequestBody InvoiceRequest request) {
+//        VerifyPricesResponse result = onlineSaleVerifyService.verifyPrices(request);
+//        return result.isOk()
+//                ? ResponseEntity.ok(result)
+//                : ResponseEntity.status(HttpStatus.CONFLICT).body(result);
+//    }
+
+    @PostMapping(
+            value = "/verify-prices",
+            consumes = MediaType.APPLICATION_JSON_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE
+    )
     public ResponseEntity<VerifyPricesResponse> verifyPrices(@RequestBody InvoiceRequest request) {
-        VerifyPricesResponse result = onlineSaleVerifyService.verifyPrices(request);
-        return result.isOk()
-                ? ResponseEntity.ok(result)
-                : ResponseEntity.status(HttpStatus.CONFLICT).body(result);
+        // Log payload (an toàn: try/catch để không nổ vì vòng tham chiếu)
+        try {
+            log.info("[VERIFY-PRICES] Incoming request: {}", objectMapper.writeValueAsString(request));
+        } catch (Exception e) {
+            log.warn("[VERIFY-PRICES] Cannot serialize request body for logging: {}", e.toString());
+        }
+
+        try {
+            VerifyPricesResponse result = onlineSaleVerifyService.verifyPrices(request);
+
+            if (result.isOk()) {
+                log.info("[VERIFY-PRICES] OK. diffs={}, message={}",
+                        (result.getDiffs() == null ? 0 : result.getDiffs().size()),
+                        result.getMessage());
+                return ResponseEntity.ok(result);
+            } else {
+                log.warn("[VERIFY-PRICES] CONFLICT. message={}, diffs_first={}",
+                        result.getMessage(),
+                        (result.getDiffs() != null && !result.getDiffs().isEmpty() ? result.getDiffs().get(0) : null));
+                return ResponseEntity.status(HttpStatus.CONFLICT).body(result);
+            }
+        } catch (Exception ex) {
+            // Bắt mọi lỗi bất ngờ ở controller/service
+            log.error("[VERIFY-PRICES] Unexpected error", ex);
+            VerifyPricesResponse err = new VerifyPricesResponse();
+            err.setOk(false);
+            err.setMessage("Server error: " + (ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage()));
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(err);
+        }
     }
 
 

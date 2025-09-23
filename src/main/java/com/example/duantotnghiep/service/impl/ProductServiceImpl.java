@@ -648,8 +648,8 @@ public class ProductServiceImpl implements ProductService {
 
                     detailResponse.setDiscountPercentage((int) Math.round(detailDiscount));
                     detailResponse.setDiscountedPrice(calculateDiscountPrice(detailResponse.getSellPrice(), detailDiscount));
-//                    Integer quantityReserOrder = reservationOrderRepository.sumQuantityByProductDetailActive(detailId);
-//                    detailResponse.setQuantity(detailResponse.getQuantity() - quantityReserOrder);
+                    Integer quantityReserOrder = reservationOrderRepository.sumQuantityByProductDetailActive(detailId);
+                    detailResponse.setQuantity(detailResponse.getQuantity() - quantityReserOrder);
                     if (usedProductFallback) {
                         detailResponse.setDiscountCampaignId(bestCampaignId);
                     } else {
@@ -923,7 +923,8 @@ public class ProductServiceImpl implements ProductService {
                     if (detailDiscount <= 0) {
                         detailDiscount = productDiscount;
                     }
-
+                    Integer quantityReserOrder = reservationOrderRepository.sumQuantityByProductDetailActive(detail.getId());
+                    detail.setQuantity(detail.getQuantity() - quantityReserOrder);
                     detail.setDiscountPercentage((int) Math.round(detailDiscount));
                     detail.setDiscountedPrice(calculateDiscountPrice(detail.getSellPrice(), detailDiscount));
                 }
@@ -951,6 +952,8 @@ public class ProductServiceImpl implements ProductService {
                     if (detailDiscount <= 0) {
                         detailDiscount = productDiscount;
                     }
+                    Integer quantityReserOrder = reservationOrderRepository.sumQuantityByProductDetailActive(detailResponse.getId());
+                    detailResponse.setQuantity(detailResponse.getQuantity() - quantityReserOrder);
                     detailResponse.setDiscountPercentage((int) Math.round(detailDiscount));
                     detailResponse.setDiscountedPrice(calculateDiscountPrice(detailResponse.getSellPrice(), detailDiscount));
                 }
@@ -967,7 +970,6 @@ public class ProductServiceImpl implements ProductService {
         List<FavoriteProductResponse> responses = favoriteProductRepository.getFavoritesByProductId(productId);
         return responses;
     }
-
 
     private String generateProductCode() {
         String prefix = "P-";
@@ -1019,6 +1021,8 @@ public class ProductServiceImpl implements ProductService {
                     bestDetailCampaignId = bestCampaignId;
                 }
 
+                Integer quantityReserOrder = reservationOrderRepository.sumQuantityByProductDetailActive(detail.getId());
+                detail.setQuantity(detail.getQuantity() - quantityReserOrder);
                 detail.setDiscountPercentage((int) Math.round(detailDiscount));
                 detail.setDiscountedPrice(calculateDiscountPrice(detail.getSellPrice(), detailDiscount));
                 detail.setDiscountCampaignId(bestDetailCampaignId);
@@ -1051,6 +1055,8 @@ public class ProductServiceImpl implements ProductService {
 
                     if (detailDiscount <= 0) detailDiscount = productDiscount;
 
+                    Integer quantityReserOrder = reservationOrderRepository.sumQuantityByProductDetailActive(d.getId());
+                    d.setQuantity(d.getQuantity() - quantityReserOrder);
                     d.setDiscountPercentage((int) Math.round(detailDiscount));
                     d.setDiscountedPrice(calculateDiscountPrice(d.getSellPrice(), detailDiscount));
                     d.setDiscountCampaignId(bestDetailCampaignId);

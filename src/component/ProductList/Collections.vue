@@ -876,7 +876,6 @@ const onSizeToggle = (s) => {
   router.push({ query: { ...route.query, sizeId: String(target), sizeName: s?.name || undefined, page: 1 } })
 }
 
-/* ========== Fetch products (GIỮ NGUYÊN) ========== */
 const fetchSoldCountsForPage = async (items) => {
   const ids = (items || []).map(x => x?.id).filter(id => Number.isFinite(Number(id)))
   for (const id of ids) fetchSoldCount(id)

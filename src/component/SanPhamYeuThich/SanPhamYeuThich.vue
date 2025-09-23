@@ -278,7 +278,6 @@ const normalizeProduct = (p) => {
   return { ...p, variants, activeImage, __originalImage: activeImage }
 }
 
-/* ====== Fetch favorites ====== */
 const fetchFavoriteProducts = async () => {
   isLoading.value = true
   error.value = null

@@ -23,7 +23,7 @@ public interface UserRepository extends JpaRepository<User,Long> {
     @Query("SELECT u FROM User u WHERE u.employee.status = 1")
     Page<User> findAllByEmployeeIsNotNullAndStatusIsOne(Pageable pageable);
 
-    @Query("SELECT u FROM User u JOIN FETCH u.customer c WHERE c.id = :customerId and c.status = 1")
+    @Query("SELECT u FROM User u JOIN FETCH u.customer c WHERE u.customer.id = :customerId and c.status = 1")
     Optional<User> findByCustomerId(@Param("customerId") Long customerId);
 
     @Query("SELECT u FROM User u JOIN FETCH u.employee e WHERE e.id = :employeeId AND e.status = 1")
@@ -62,6 +62,14 @@ public interface UserRepository extends JpaRepository<User,Long> {
       and u.customer.status = 1
 """)
     boolean existsActiveByUsername(@Param("username") String username);
+
+    @Query("""
+    select (count(u) > 0)
+    from User u
+    where u.customer.phone = :phone
+      and u.customer.status = 1
+""")
+    boolean existsActiveByPhone(@Param("phone") String phone);
 
 
 }

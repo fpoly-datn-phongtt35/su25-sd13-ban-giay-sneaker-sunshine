@@ -3,6 +3,7 @@ package com.example.duantotnghiep.service;
 import com.example.duantotnghiep.dto.request.AddressCustomerRequest;
 import com.example.duantotnghiep.dto.request.CustomerBlacklistRequest;
 import com.example.duantotnghiep.dto.request.CustomerRequest;
+import com.example.duantotnghiep.dto.request.QuenMatKhauReq;
 import com.example.duantotnghiep.dto.response.AddressCustomerResponse;
 import com.example.duantotnghiep.dto.response.BadCustomerResponse;
 import com.example.duantotnghiep.dto.response.CustomerResponse;
@@ -34,6 +35,7 @@ public interface CustomerService {
     void unblacklistCustomer(Long id);
 
     List<BadCustomerResponse> getAllBlacklistedCustomers();
+    void QuenMatKhauClient(QuenMatKhauReq req);
 
     //Tìm kiếm nâng cao
 

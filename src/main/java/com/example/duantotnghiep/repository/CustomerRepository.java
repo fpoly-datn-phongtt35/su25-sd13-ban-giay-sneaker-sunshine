@@ -44,8 +44,10 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
                                         @Param("phoneSuffix") String phoneSuffix,
                                         Pageable pageable);
 
-
-
+    @Query("""
+        select c from Customer c where c.phone = :phone and c.email = :email and c.status = 1
+        """)
+    Optional<Customer> findCustomerByPhoneAndEmail(@Param("phone") String phone,@Param("email") String email);
 
     boolean existsByEmail(String email);
 

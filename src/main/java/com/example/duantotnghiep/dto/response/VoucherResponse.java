@@ -41,4 +41,5 @@ public class VoucherResponse {
     private String productId;
     private String categoryName;
     private String categoryId;
+    private BigDecimal minOrderToReceive; // ✅ đảm bảo có trường này
 }

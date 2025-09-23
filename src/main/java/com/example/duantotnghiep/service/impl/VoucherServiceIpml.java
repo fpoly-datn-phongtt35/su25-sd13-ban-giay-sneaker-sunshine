@@ -150,10 +150,78 @@ public class VoucherServiceIpml implements VoucherService {
                 .toList();
     }
 
+    private void validateRequest(VoucherRequest r, boolean isCreate) {
+        // ===== 1) Bắt buộc 1 trong 2: % giảm hoặc tiền giảm (và chỉ 1) =====
+        boolean hasPct = r.getDiscountPercentage() != null && r.getDiscountPercentage().compareTo(BigDecimal.ZERO) > 0;
+        boolean hasAmt = r.getDiscountAmount() != null && r.getDiscountAmount() > 0;
+        if (hasPct == hasAmt) { // cả 2 true hoặc cả 2 false
+            throw new IllegalArgumentException("Phải nhập đúng 1 trong 2: phần trăm giảm hoặc số tiền giảm.");
+        }
+
+        // ===== 2) Ràng buộc giá trị số =====
+        if (r.getDiscountPercentage() != null) {
+            if (r.getDiscountPercentage().compareTo(BigDecimal.ZERO) <= 0
+                    || r.getDiscountPercentage().compareTo(new BigDecimal("100")) > 0) {
+                throw new IllegalArgumentException("Phần trăm giảm phải trong (0; 100].");
+            }
+        }
+        if (r.getDiscountAmount() != null && r.getDiscountAmount() <= 0) {
+            throw new IllegalArgumentException("Số tiền giảm phải > 0.");
+        }
+
+        if (r.getMinOrderValue() == null || r.getMinOrderValue().compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Giá trị đơn tối thiểu phải ≥ 0.");
+        }
+        if (r.getMaxDiscountValue() != null && r.getMaxDiscountValue().compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Giảm tối đa phải ≥ 0.");
+        }
+        if (r.getMinOrderToReceive() != null && r.getMinOrderToReceive().compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Giá trị đơn tối thiểu để NHẬN voucher phải ≥ 0.");
+        }
+
+        // (Tùy chọn) Nếu dùng % giảm thì nên có giảm tối đa để bảo vệ doanh thu
+        // if (hasPct && r.getMaxDiscountValue() == null) {
+        //     throw new IllegalArgumentException("Vui lòng nhập 'Giảm tối đa' khi dùng phần trăm giảm.");
+        // }
+
+        // ===== 3) Thời gian áp dụng =====
+        if (r.getStartDate() == null || r.getEndDate() == null) {
+            throw new IllegalArgumentException("Ngày bắt đầu/kết thúc không được để trống.");
+        }
+        if (!r.getEndDate().isAfter(r.getStartDate())) {
+            throw new IllegalArgumentException("Ngày kết thúc phải sau ngày bắt đầu.");
+        }
+        if (isCreate && r.getStartDate().isBefore(LocalDateTime.now())) {
+            // Nếu không muốn ràng buộc này thì bỏ khối if
+            throw new IllegalArgumentException("Ngày bắt đầu phải ≥ hiện tại khi tạo mới.");
+        }
+
+        // ===== 4) Order/Voucher type =====
+        if (r.getOrderType() == null || (r.getOrderType() != 0 && r.getOrderType() != 1)) {
+            throw new IllegalArgumentException("Loại đơn hàng không hợp lệ (0: tại quầy, 1: online).");
+        }
+        if (r.getVoucherType() == null || (r.getVoucherType() != 1 && r.getVoucherType() != 2)) {
+            throw new IllegalArgumentException("Loại voucher không hợp lệ (1: công khai, 2: riêng tư).");
+        }
+        if (r.getVoucherType() == 2 && r.getCustomerId() == null) {
+            throw new IllegalArgumentException("Voucher riêng tư phải chọn khách hàng.");
+        }
+
+        // ===== 5) Phạm vi áp dụng (chỉ chọn 1 trong 2) =====
+        if (r.getProductId() != null && r.getCategoryId() != null) {
+            throw new IllegalArgumentException("Chỉ được chọn 1 trong 2: sản phẩm hoặc danh mục.");
+        }
+
+        // ===== 6) Số lượng =====
+        if (r.getQuantity() == null || r.getQuantity() < 1) {
+            throw new IllegalArgumentException("Số lượng phải ≥ 1.");
+        }
+    }
 
 
     @Override
     public VoucherResponse themMoi(VoucherRequest voucherRequest) {
+        validateRequest(voucherRequest, true); // <<<<<<<<<<
 
         Voucher voucher = voucherMapper.toEntity(voucherRequest);
 
@@ -161,24 +229,20 @@ public class VoucherServiceIpml implements VoucherService {
             voucher.setCustomer(customerRepository.findById(voucherRequest.getCustomerId())
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy khách hàng")));
         }
-
         if (voucherRequest.getEmployeeId() != null) {
             voucher.setEmployee(employeeRepository.findById(voucherRequest.getEmployeeId())
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy nhân viên")));
         }
-
         if (voucherRequest.getProductId() != null) {
             voucher.setProduct(productRepository.findById(voucherRequest.getProductId())
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm")));
         }
-
         if (voucherRequest.getCategoryId() != null) {
             voucher.setCategory(categoryRepository.findById(voucherRequest.getCategoryId())
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy danh mục")));
         }
 
         voucher.setMinOrderToReceive(voucherRequest.getMinOrderToReceive());
-
         voucher.setVoucherCode(generateVoucherCode());
         voucher.setCreatedDate(LocalDateTime.now());
         voucher.setCreatedBy("admin");
@@ -188,10 +252,12 @@ public class VoucherServiceIpml implements VoucherService {
 
     @Override
     public VoucherResponse capNhat(Long id, VoucherRequest voucherRequest) {
+        validateRequest(voucherRequest, false); // <<<<<<<<<<
+
         Voucher voucher = voucherRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Voucher không tồn tại"));
 
-        voucherMapper.updateVoucherFromDto(voucherRequest,voucher);
+        voucherMapper.updateVoucherFromDto(voucherRequest, voucher);
 
         if (voucherRequest.getCustomerId() != null) {
             voucher.setCustomer(customerRepository.findById(voucherRequest.getCustomerId())
@@ -199,21 +265,18 @@ public class VoucherServiceIpml implements VoucherService {
         } else {
             voucher.setCustomer(null);
         }
-
         if (voucherRequest.getEmployeeId() != null) {
             voucher.setEmployee(employeeRepository.findById(voucherRequest.getEmployeeId())
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy nhân viên")));
         } else {
             voucher.setEmployee(null);
         }
-
         if (voucherRequest.getProductId() != null) {
             voucher.setProduct(productRepository.findById(voucherRequest.getProductId())
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm")));
         } else {
             voucher.setProduct(null);
         }
-
         if (voucherRequest.getCategoryId() != null) {
             voucher.setCategory(categoryRepository.findById(voucherRequest.getCategoryId())
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy danh mục")));
@@ -221,10 +284,13 @@ public class VoucherServiceIpml implements VoucherService {
             voucher.setCategory(null);
         }
 
+        voucher.setMinOrderToReceive(voucherRequest.getMinOrderToReceive());
         voucher.setUpdatedDate(LocalDateTime.now());
         voucher.setUpdatedBy("admin");
+
         return voucherMapper.toDto(voucherRepository.save(voucher));
     }
+
 
     @Override
     public Optional<VoucherResponse> getOne(Long id) {

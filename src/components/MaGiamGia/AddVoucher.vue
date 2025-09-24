@@ -209,7 +209,7 @@
             </el-col>
           </el-row>
 
-          <el-row :gutter="20">
+          <!-- <el-row :gutter="20">
             <el-col :span="12">
               <el-form-item label="Chọn sản phẩm (nếu có)" prop="productId">
                 <el-select
@@ -251,7 +251,7 @@
                 </el-select>
               </el-form-item>
             </el-col>
-          </el-row>
+          </el-row> -->
 
           <el-form-item label="Số lượng" prop="quantity">
             <el-input-number

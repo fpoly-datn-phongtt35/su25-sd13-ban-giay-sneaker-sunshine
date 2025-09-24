@@ -156,14 +156,14 @@
               </el-form-item>
             </el-col>
 
-            <el-col :span="8">
+            <!-- <el-col :span="8">
               <el-form-item label="Loại voucher" prop="voucherType">
                 <el-select v-model="form.voucherType" placeholder="Chọn loại" class="w-full">
                   <el-option :value="1" label="Công khai" />
                   <el-option :value="2" label="Riêng tư" />
                 </el-select>
               </el-form-item>
-            </el-col>
+            </el-col> -->
 
             <el-col :span="8" v-if="form.voucherType === 2">
               <el-form-item label="Khách hàng áp dụng" prop="customerId">
@@ -188,7 +188,7 @@
           </el-row>
 
           <!-- Sản phẩm / Danh mục (chọn 1 trong 2) -->
-          <el-row :gutter="20">
+          <!-- <el-row :gutter="20">
             <el-col :span="12">
               <el-form-item label="Sản phẩm áp dụng (nếu có)" prop="productId">
                 <el-select
@@ -220,11 +220,11 @@
                 </el-select>
               </el-form-item>
             </el-col>
-          </el-row>
+          </el-row> -->
 
           <!-- Số lượng -->
           <el-form-item label="Số lượng" prop="quantity">
-            <el-input-number v-model="form.quantity" :min="1" class="w-full" />
+            <el-input-number v-model="form.quantity" :min="0" class="w-full" />
           </el-form-item>
 
           <!-- Actions -->
@@ -418,9 +418,22 @@ const filterCustomers = async (q) => {
 const onSubmit = async () => {
   try {
     await voucherForm.value.validate()
-    await ElMessageBox.confirm('Bạn có chắc chắn muốn cập nhật voucher này không?', 'Xác nhận', {
-      confirmButtonText: 'OK', cancelButtonText: 'Hủy', type: 'warning',
-    })
+
+    // Check số lượng
+    if (!form.quantity || form.quantity === 0) {
+      ElMessage.error('Số lượng voucher phải lớn hơn 0')
+      return
+    }
+
+    await ElMessageBox.confirm(
+      'Bạn có chắc chắn muốn cập nhật voucher này không?',
+      'Xác nhận',
+      {
+        confirmButtonText: 'OK',
+        cancelButtonText: 'Hủy',
+        type: 'warning',
+      }
+    )
 
     // chỉ giữ 1 loại giảm
     const discountPercentage = form.discountAmount ? null : form.discountPercentage
@@ -432,11 +445,8 @@ const onSubmit = async () => {
       discountAmount: (discountAmount == null || discountAmount === 0) ? null : discountAmount,
       minOrderValue: (form.minOrderValue == null || form.minOrderValue === 0) ? null : form.minOrderValue,
       maxDiscountValue: (form.maxDiscountValue == null || form.maxDiscountValue === 0) ? null : form.maxDiscountValue,
-
-      // NEW: gửi đúng field BE
       minOrderToReceive: (form.minOrderToReceive == null || form.minOrderToReceive === 0)
         ? null : form.minOrderToReceive,
-
       startDate: form.startDate,
       endDate: form.endDate,
       description: form.description,
@@ -462,6 +472,7 @@ const onSubmit = async () => {
     ElMessage.error(err?.response?.data?.message || err?.message || 'Cập nhật thất bại, vui lòng kiểm tra lại.')
   }
 }
+
 
 /** ===== Reset & Back ===== */
 const onReset = () => {

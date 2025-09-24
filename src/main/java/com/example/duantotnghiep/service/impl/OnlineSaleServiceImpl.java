@@ -507,7 +507,12 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
         invoiceTransactionRepository.save(invoiceTransaction);
 
         invoice.setRequest(request);
-        invoiceRepository.save(invoice);
+        Invoice saved = invoiceRepository.save(invoice);
+        List<ReservationOrder> reservationOrder = reservationOrderRepository.findByInvoiceId(saved.getId());
+        for(ReservationOrder order : reservationOrder) {
+            order.setStatus(0);
+        }
+        reservationOrderRepository.saveAll(reservationOrder);
     }
 
     @Override
@@ -559,7 +564,12 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
         invoiceTransaction.setPaymentTime(new Date());
         invoiceTransactionRepository.save(invoiceTransaction);
 
-        invoiceRepository.save(invoice);
+        Invoice saved = invoiceRepository.save(invoice);
+        List<ReservationOrder> reservationOrder = reservationOrderRepository.findByInvoiceId(saved.getId());
+        for(ReservationOrder order : reservationOrder) {
+            order.setStatus(0);
+        }
+        reservationOrderRepository.saveAll(reservationOrder);
     }
 
     @Transactional
@@ -609,7 +619,12 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
         invoiceTransaction.setPaymentTime(new Date());
         invoiceTransactionRepository.save(invoiceTransaction);
 
-        invoiceRepository.save(invoice);
+        Invoice saved = invoiceRepository.save(invoice);
+        List<ReservationOrder> reservationOrder = reservationOrderRepository.findByInvoiceId(saved.getId());
+        for(ReservationOrder order : reservationOrder) {
+            order.setStatus(0);
+        }
+        reservationOrderRepository.saveAll(reservationOrder);
     }
 
     @Override

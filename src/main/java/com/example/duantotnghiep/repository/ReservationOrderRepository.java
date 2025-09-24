@@ -7,6 +7,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+
 @Repository
 public interface ReservationOrderRepository extends JpaRepository<ReservationOrder, Long> {
 
@@ -27,5 +29,10 @@ public interface ReservationOrderRepository extends JpaRepository<ReservationOrd
 """)
     int deactivateByProductDetailAndInvoice(@Param("productDetailId") Long productDetailId,
                                             @Param("invoiceId") Long invoiceId);
+
+    @Query("""
+           select ro from ReservationOrder ro where ro.status = 1 and ro.invoiceId = :invoiceId
+        """)
+    List<ReservationOrder> findByInvoiceId(@Param("invoiceId") Long invoiceId);
 
 }

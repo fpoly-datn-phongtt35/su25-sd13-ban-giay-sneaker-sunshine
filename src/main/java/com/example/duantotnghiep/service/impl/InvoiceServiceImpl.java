@@ -1977,7 +1977,8 @@ public class InvoiceServiceImpl implements InvoiceService {
         customerRepository.save(customer);
     }
 
-    private void resetBlacklistState(Customer customer, LocalDateTime now) {
+    @Override
+    public void resetBlacklistState(Customer customer, LocalDateTime now) {
         List<CustomerBlacklistHistory> openHistories =
                 customerBlacklistHistoryRepository.findOpenHistoriesByCustomer(customer.getId());
         for (CustomerBlacklistHistory h : openHistories) {

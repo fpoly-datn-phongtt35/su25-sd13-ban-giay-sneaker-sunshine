@@ -61,7 +61,7 @@ public interface InvoiceService {
 
 
     void autoBlacklistIfTooManyCancellations(Customer customer);
-
+    void resetBlacklistState(Customer customer, LocalDateTime now);
     @Transactional
     InvoiceWithZaloPayResponse createInvoiceAndZaloPay(InvoiceRequest request) throws Exception;
 

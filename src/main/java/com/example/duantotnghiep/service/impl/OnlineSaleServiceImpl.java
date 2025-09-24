@@ -46,6 +46,7 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
     private final InvoiceEmailServiceStatus invoiceEmailServiceStatus;
     private final NotificationService notificationService;
     private final ReservationOrderRepository reservationOrderRepository;
+    private final CustomerRepository customerRepository;
 
     @Transactional
     @Override
@@ -137,6 +138,13 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
         // 8) Lưu hoá đơn
         Invoice saved = invoiceRepository.save(invoice);
 
+        if(saved.getCustomer() != null && saved.getStatusDetail() == TrangThaiChiTiet.GIAO_THANH_CONG){
+            LocalDateTime time = LocalDateTime.now();
+            Long customerId =  saved.getCustomer().getId();
+            Customer customer = customerRepository.findCustomerByIdAndStatus(customerId,1).orElseThrow(() -> new IllegalArgumentException("Customer not found"));
+            invoiceService.resetBlacklistState(customer,time);
+        }
+
         // 9) Ghi lịch sử
         OrderStatusHistory history = new OrderStatusHistory();
         history.setInvoice(saved);
@@ -185,6 +193,7 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
 
                 // Tuỳ chọn: topic theo KH (đã guard SUBSCRIBE nên không lộ)
                 notificationService.sendToCustomerId(customerId, payload);
+
             }
 
             //  BỎ hẳn broadcast để không lộ thông tin

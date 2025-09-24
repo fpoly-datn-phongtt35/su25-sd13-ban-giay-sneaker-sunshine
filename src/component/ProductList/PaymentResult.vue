@@ -1,20 +1,23 @@
 <script setup>
-import { onMounted, ref, computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, computed, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
-// Import icon Element Plus
+import { ElMessage } from 'element-plus'
 import { InfoFilled } from '@element-plus/icons-vue'
 
-// --- BIẾN & TRẠNG THÁI ---
+// ===== Router & Query =====
 const route = useRoute()
-const isLoading = ref(true)
-const orderStatus = ref(null)
-const appTransId = ref(route.query.app_trans_id)     // cho thanh toán online
-const invoiceCode = ref(route.query.invoiceCode)     // cho shipcode
+const router = useRouter()
+const appTransId = ref(route.query.app_trans_id) // ZaloPay online
+const invoiceCode = ref(route.query.invoiceCode) // Shipcode
 
-// --- CẤU HÌNH TRẠNG THÁI ---
+// ===== Trạng thái trang =====
+const isLoading = ref(true)
+const orderStatus = ref(null) // server trả về, ví dụ: DANG_XU_LY, THAT_BAI,...
+
+// ===== Hằng số trạng thái hiển thị =====
 const STATUS_KEYS = {
-  SUCCESS: 'DANG_XU_LY',
+  SUCCESS: 'DANG_XU_LY',            // tuỳ theo backend bạn map trường hợp "thanh toán thành công" -> đọc status service
   FAILED: 'THAT_BAI',
   ORDER_CANCELLED: 'HUY_DON',
   TRANSACTION_CANCELLED: 'HUY_GIAO_DICH',
@@ -24,22 +27,22 @@ const STATUS_KEYS = {
 const STATUS_CONFIG = {
   [STATUS_KEYS.SUCCESS]: {
     title: 'Thanh toán thành công!',
-    message: 'Cảm ơn bạn đã mua hàng. Đơn hàng của bạn đang được chuẩn bị để giao đi sớm nhất.',
+    message: 'Cảm ơn bạn đã mua hàng. Đơn hàng đang được chuẩn bị để giao đi sớm nhất.',
     icon: 'success',
   },
   [STATUS_KEYS.FAILED]: {
     title: 'Thanh toán thất bại',
-    message: 'Đã có lỗi xảy ra trong quá trình thanh toán. Vui lòng kiểm tra lại thông tin hoặc thử lại sau.',
+    message: 'Đã có lỗi trong quá trình thanh toán. Vui lòng thử lại.',
     icon: 'error',
   },
   [STATUS_KEYS.ORDER_CANCELLED]: {
     title: 'Đơn hàng đã bị hủy',
-    message: 'Đơn hàng này đã được hủy trước đó. Vui lòng liên hệ hỗ trợ nếu bạn cần giúp đỡ.',
+    message: 'Đơn hàng này đã được hủy trước đó. Liên hệ hỗ trợ nếu cần giúp đỡ.',
     icon: 'warning',
   },
   [STATUS_KEYS.TRANSACTION_CANCELLED]: {
     title: 'Giao dịch đã bị hủy',
-    message: 'Bạn đã hủy giao dịch thanh toán. Bạn có thể quay lại giỏ hàng để thực hiện lại.',
+    message: 'Bạn đã hủy giao dịch thanh toán. Có thể quay lại giỏ hàng để thực hiện lại.',
     icon: 'warning',
   },
   [STATUS_KEYS.PENDING]: {
@@ -49,22 +52,34 @@ const STATUS_CONFIG = {
   },
   defaultError: {
     title: 'Đã xảy ra lỗi',
-    message: 'Không thể kiểm tra trạng thái đơn hàng. Vui lòng liên hệ bộ phận hỗ trợ khách hàng.',
+    message: 'Không thể kiểm tra trạng thái đơn hàng. Vui lòng liên hệ CSKH.',
     icon: 'error',
   },
 }
 
-// --- HIỂN THỊ ---
+// ===== Tính thông tin hiển thị theo status =====
 const currentStatusInfo = computed(() => {
   if (isLoading.value) return {}
   return STATUS_CONFIG[orderStatus.value] || STATUS_CONFIG.defaultError
 })
 
-// --- LOGIC ---
+// ===== Helper đăng nhập =====
+const isLoggedIn = computed(() => !!localStorage.getItem('token'))
+
+const handleViewOrders = () => {
+  if (!isLoggedIn.value) {
+    ElMessage.warning('Vui lòng đăng nhập để sử dụng tính năng này.')
+    router.push({ path: '/dang-nhap', query: { redirect: '/don-hang' } })
+    return
+  }
+  router.push('/don-hang')
+}
+
+// ===== Gọi API kiểm tra kết quả thanh toán =====
 onMounted(async () => {
   try {
     if (appTransId.value) {
-      // Thanh toán online (ZaloPay)
+      // ZaloPay online
       await axios.get('http://localhost:8080/api/payment/zalo/status-check', {
         params: { appTransId: appTransId.value },
       })
@@ -73,7 +88,7 @@ onMounted(async () => {
       })
       orderStatus.value = res.data?.status
     } else if (invoiceCode.value) {
-      // ShipCode
+      // Shipcode
       const res = await axios.get('http://localhost:8080/api/payment/zalo/invoice/shipcode/status', {
         params: { invoiceCode: invoiceCode.value },
       })
@@ -81,15 +96,14 @@ onMounted(async () => {
     } else {
       orderStatus.value = 'ERROR_NO_ID'
     }
-  } catch (err) {
-    console.error('❌ Lỗi khi kiểm tra trạng thái:', err)
+  } catch (e) {
+    console.error('Lỗi khi kiểm tra trạng thái:', e)
     orderStatus.value = 'ERROR_API_CALL'
   } finally {
     isLoading.value = false
   }
 })
 </script>
-
 
 <template>
   <div class="payment-result-page">
@@ -106,47 +120,38 @@ onMounted(async () => {
         :sub-title="currentStatusInfo.message"
       >
         <template #icon>
-          <el-icon v-if="currentStatusInfo.icon === 'info'" :size="80" color="#409eff">
+          <el-icon v-if="currentStatusInfo.icon === 'info'" :size="80">
             <InfoFilled />
           </el-icon>
         </template>
 
-        <!-- <template #sub-title>
-          <p class="message">{{ currentStatusInfo.message }}</p>
-          <div v-if="appTransId" class="order-details">
-            <span>Mã giao dịch:</span>
-            <strong>{{ appTransId }}</strong>
-          </div>
-        </template> -->
-
         <template #extra>
           <div class="actions">
+            <!-- Thành công -> cho xem đơn hàng (yêu cầu đăng nhập) -->
             <template v-if="orderStatus === STATUS_KEYS.SUCCESS">
-              <RouterLink to="/don-hang">
-                <el-button type="primary" size="large">Xem đơn hàng</el-button>
-              </RouterLink>
-              <RouterLink to="/">
+              <el-button type="primary" size="large" @click="handleViewOrders">
+                Xem đơn hàng
+              </el-button>
+              <router-link to="/">
                 <el-button size="large">Tiếp tục mua sắm</el-button>
-              </RouterLink>
+              </router-link>
             </template>
 
-            <template
-              v-else-if="
-                [STATUS_KEYS.FAILED, STATUS_KEYS.TRANSACTION_CANCELLED].includes(orderStatus)
-              "
-            >
-              <RouterLink to="/gio-hang">
+            <!-- Thất bại / hủy giao dịch -->
+            <template v-else-if="[STATUS_KEYS.FAILED, STATUS_KEYS.TRANSACTION_CANCELLED].includes(orderStatus)">
+              <router-link to="/gio-hang">
                 <el-button type="primary" size="large">Thử lại thanh toán</el-button>
-              </RouterLink>
-              <RouterLink to="/">
+              </router-link>
+              <router-link to="/">
                 <el-button size="large">Quay về trang chủ</el-button>
-              </RouterLink>
+              </router-link>
             </template>
 
+            <!-- Mặc định -->
             <template v-else>
-              <RouterLink to="/">
+              <router-link to="/">
                 <el-button type="primary" size="large">Quay về trang chủ</el-button>
-              </RouterLink>
+              </router-link>
             </template>
           </div>
         </template>
@@ -156,7 +161,6 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-/* Giữ lại style cho layout chính */
 .payment-result-page {
   display: flex;
   align-items: center;
@@ -170,43 +174,14 @@ onMounted(async () => {
 .result-card {
   max-width: 550px;
   width: 100%;
-  min-height: 400px; /* Đảm bảo card có chiều cao tối thiểu khi loading */
+  min-height: 400px;
   border-radius: 16px;
-  /* ElCard đã có box-shadow, không cần custom */
 }
 
-/* Tùy chỉnh một chút cho các component của Element Plus nếu cần */
 .el-result {
   padding: 40px 20px;
 }
 
-.message {
-  font-size: 16px;
-  color: #606266;
-  line-height: 1.6;
-  margin-bottom: 24px;
-}
-
-/* Giữ lại style cho phần order-details */
-.order-details {
-  background-color: #f7f8fa;
-  border: 1px dashed #dcdfe6;
-  border-radius: 8px;
-  padding: 12px 16px;
-  margin: 0 auto 32px; /* Canh giữa và tạo khoảng cách */
-  display: inline-flex;
-  gap: 8px;
-  font-size: 16px;
-}
-.order-details span {
-  color: #909399;
-}
-.order-details strong {
-  color: #303133;
-  font-weight: 600;
-}
-
-/* Giữ lại style cho các nút actions */
 .actions {
   display: flex;
   justify-content: center;
@@ -214,17 +189,9 @@ onMounted(async () => {
   flex-wrap: wrap;
 }
 
-/* Responsive adjustments */
 @media (max-width: 600px) {
-  .result-card {
-    padding: 0;
-  }
-  .actions {
-    flex-direction: column;
-    gap: 12px;
-  }
-  .actions .el-button {
-    width: 100%;
-  }
+  .result-card { padding: 0; }
+  .actions { flex-direction: column; gap: 12px; }
+  .actions .el-button { width: 100%; }
 }
 </style>

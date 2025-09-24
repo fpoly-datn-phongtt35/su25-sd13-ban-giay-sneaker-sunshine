@@ -184,30 +184,44 @@
     </el-row>
 
     <!-- Bảng chi tiết -->
-    <el-table :data="invoiceDetails" border size="small">
-      <el-table-column prop="productName" label="Sản phẩm" />
-      <el-table-column prop="quantity" label="Số lượng" align="right" width="120" />
-      <el-table-column label="Giá bán" align="right" width="180">
-        <template #default="scope">
-          <template v-if="scope.row.discountedPrice !== null && scope.row.discountedPrice !== undefined">
-            <del class="text-gray-500 me-1">{{ formatCurrency(scope.row.sellPrice) }}</del>
-            <span class="text-danger">{{ formatCurrency(scope.row.discountedPrice) }}</span>
-          </template>
-          <template v-else>
-            {{ formatCurrency(scope.row.sellPrice) }}
-          </template>
-        </template>
-      </el-table-column>
-      <el-table-column label="Thành tiền" align="right" width="180">
-        <template #default="scope">
-          {{
-            formatCurrency(
-              ((scope.row.discountedPrice ?? scope.row.sellPrice) || 0) * (scope.row.quantity ?? 0)
-            )
-          }}
-        </template>
-      </el-table-column>
-    </el-table>
+<el-table :data="invoiceDetails" border size="small">
+  <el-table-column prop="productName" label="Sản phẩm" />
+
+  <el-table-column prop="quantity" label="Số lượng" align="right" width="120" />
+
+  <el-table-column label="Màu sắc" align="center" width="150">
+    <template #default="scope">
+      {{ scope.row.color?.colorName || '-' }}
+    </template>
+  </el-table-column>
+
+  <el-table-column label="Kích thước" align="center" width="150">
+    <template #default="scope">
+      {{ scope.row.size?.sizeName || '-' }}
+    </template>
+  </el-table-column>
+
+<el-table-column label="Giá bán" align="right" width="180">
+  <template #default="scope">
+    <template v-if="hasDiscount(scope.row)">
+      <del class="text-gray-500 me-1">{{ formatCurrency(scope.row.sellPrice) }}</del>
+      <span class="text-danger">{{ formatCurrency(scope.row.discountedPrice) }}</span>
+    </template>
+    <template v-else>
+      {{ formatCurrency(scope.row.sellPrice) }}
+    </template>
+  </template>
+</el-table-column>
+
+
+<el-table-column label="Thành tiền" align="right" width="180">
+  <template #default="scope">
+    {{ formatCurrency(unitPrice(scope.row) * (scope.row.quantity ?? 0)) }}
+  </template>
+</el-table-column>
+
+</el-table>
+
 
     <!-- Tổng kết -->
     <div class="mt-4 text-end">
@@ -256,6 +270,19 @@ let currentKeyword = ''
 let currentCounterStatusKey = null // tại quầy
 let currentOnlineStatusKey = null // online
 let currentCreatedDate = null
+
+const EPS = 0.0001 // hoặc 1 nếu giá VND là số nguyên
+const toNum = (v) => (v === null || v === undefined ? NaN : Number(v))
+
+const hasDiscount = (row) => {
+  const sell = toNum(row?.sellPrice)
+  const disc = toNum(row?.discountedPrice)
+  // chỉ coi là giảm khi discountedPrice hợp lệ và nhỏ hơn sellPrice
+  return !isNaN(sell) && !isNaN(disc) && disc > 0 && disc + EPS < sell
+}
+
+const unitPrice = (row) => hasDiscount(row) ? toNum(row.discountedPrice) : toNum(row.sellPrice)
+
 
 const handleRowSelection = (selection) => {
   selectedRows.value = selection

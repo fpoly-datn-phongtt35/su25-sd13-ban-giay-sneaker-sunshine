@@ -17,6 +17,21 @@ public interface DiscountCampaignRepository extends JpaRepository<DiscountCampai
     boolean existsByCampaignCode(@Size(max = 100) String campaignCode);
 //    @Query("SELECT c FROM DiscountCampaign c WHERE c.startDate <= :now AND c.endDate >= :now AND c.status = 1")
 //    List<DiscountCampaign> findActiveCampaigns(@Param("now") LocalDateTime now);
+
+    @Query("""
+    select dc 
+    from DiscountCampaign dc
+    where dc.status in (0,1)
+      and (:id is null or dc.id <> :id)
+      and (dc.startDate <= :endDate and dc.endDate >= :startDate)
+    """)
+    List<DiscountCampaign> findConflictCampaign(
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate,
+            @Param("id") Long id);
+
+
+
 @Query("SELECT d FROM DiscountCampaign d WHERE d.status IN (0,1)")
 Page<DiscountCampaign> findActiveCampaigns(Pageable pageable);
 

@@ -575,9 +575,12 @@ public class ProductServiceImpl implements ProductService {
             }
             d.setDiscountPercentage((int) Math.round(detailDiscount));
             d.setDiscountedPrice(calculateDiscountPrice(d.getSellPrice(), detailDiscount));
+
             Integer quantityReser = reservationOrderRepository.sumQuantityByProductDetailActive(d.getId());
-            Integer quanTity = d.getQuantity() - quantityReser;
-            d.setQuantity(quanTity);
+            int availableQuantity = d.getQuantity() - (quantityReser == null ? 0 : quantityReser);
+
+            // Nếu âm thì set = 0
+            d.setQuantity(Math.max(0, availableQuantity));
         }
 
         return response;
@@ -647,9 +650,19 @@ public class ProductServiceImpl implements ProductService {
                     }
 
                     detailResponse.setDiscountPercentage((int) Math.round(detailDiscount));
-                    detailResponse.setDiscountedPrice(calculateDiscountPrice(detailResponse.getSellPrice(), detailDiscount));
+                    detailResponse.setDiscountedPrice(
+                            calculateDiscountPrice(detailResponse.getSellPrice(), detailDiscount)
+                    );
+
                     Integer quantityReserOrder = reservationOrderRepository.sumQuantityByProductDetailActive(detailId);
-                    detailResponse.setQuantity(detailResponse.getQuantity() - quantityReserOrder);
+                    int availableQuantity = detailResponse.getQuantity() - (quantityReserOrder == null ? 0 : quantityReserOrder);
+
+                    // Nếu âm thì set = 0
+                    if (availableQuantity < 0) {
+                        availableQuantity = 0;
+                    }
+                    detailResponse.setQuantity(availableQuantity);
+
                     if (usedProductFallback) {
                         detailResponse.setDiscountCampaignId(bestCampaignId);
                     } else {
@@ -657,7 +670,6 @@ public class ProductServiceImpl implements ProductService {
                     }
                 }
             }
-
             return response;
         }).collect(Collectors.toList());
 
@@ -919,17 +931,22 @@ public class ProductServiceImpl implements ProductService {
                 for (ProductDetailResponse detail : response.getProductDetails()) {
                     double detailDiscount = getBestDiscountPercentageForProductDetail(detail.getId(), activeCampaigns);
 
-                    // Nếu không có giảm giá riêng thì dùng của sản phẩm
+                    // Nếu không có giảm giá riêng thì dùng % của sản phẩm
                     if (detailDiscount <= 0) {
                         detailDiscount = productDiscount;
                     }
-                    Integer quantityReserOrder = reservationOrderRepository.sumQuantityByProductDetailActive(detail.getId());
-                    detail.setQuantity(detail.getQuantity() - quantityReserOrder);
+
+                    Integer quantityReserOrder = reservationOrderRepository
+                            .sumQuantityByProductDetailActive(detail.getId());
+
+                    // Tính lại tồn kho, nếu âm thì = 0
+                    int availableQuantity = detail.getQuantity() - (quantityReserOrder == null ? 0 : quantityReserOrder);
+                    detail.setQuantity(Math.max(0, availableQuantity));
+
                     detail.setDiscountPercentage((int) Math.round(detailDiscount));
                     detail.setDiscountedPrice(calculateDiscountPrice(detail.getSellPrice(), detailDiscount));
                 }
             }
-
             return response;
         }).collect(Collectors.toList());
     }
@@ -949,16 +966,25 @@ public class ProductServiceImpl implements ProductService {
             if (response.getProductDetails() != null) {
                 for (ProductDetailResponse detailResponse : response.getProductDetails()) {
                     double detailDiscount = getBestDiscountPercentageForProductDetail(detailResponse.getId(), activeCampaigns);
+
                     if (detailDiscount <= 0) {
-                        detailDiscount = productDiscount;
+                        detailDiscount = productDiscount; // fallback
                     }
-                    Integer quantityReserOrder = reservationOrderRepository.sumQuantityByProductDetailActive(detailResponse.getId());
-                    detailResponse.setQuantity(detailResponse.getQuantity() - quantityReserOrder);
+
+                    Integer quantityReserOrder = reservationOrderRepository
+                            .sumQuantityByProductDetailActive(detailResponse.getId());
+
+                    // đảm bảo không âm
+                    detailResponse.setQuantity(
+                            Math.max(0, detailResponse.getQuantity() - (quantityReserOrder == null ? 0 : quantityReserOrder))
+                    );
+
                     detailResponse.setDiscountPercentage((int) Math.round(detailDiscount));
-                    detailResponse.setDiscountedPrice(calculateDiscountPrice(detailResponse.getSellPrice(), detailDiscount));
+                    detailResponse.setDiscountedPrice(
+                            calculateDiscountPrice(detailResponse.getSellPrice(), detailDiscount)
+                    );
                 }
             }
-
             return response;
         }).collect(Collectors.toList());
 
@@ -1018,11 +1044,17 @@ public class ProductServiceImpl implements ProductService {
 
                 if (detailDiscount <= 0) {
                     detailDiscount = productDiscount;
-                    bestDetailCampaignId = bestCampaignId;
+                    bestDetailCampaignId = bestCampaignId; // fallback campaign
                 }
 
-                Integer quantityReserOrder = reservationOrderRepository.sumQuantityByProductDetailActive(detail.getId());
-                detail.setQuantity(detail.getQuantity() - quantityReserOrder);
+                Integer quantityReserOrder = reservationOrderRepository
+                        .sumQuantityByProductDetailActive(detail.getId());
+
+                // Trừ số lượng đã giữ chỗ, nếu âm thì ép = 0
+                detail.setQuantity(
+                        Math.max(0, detail.getQuantity() - (quantityReserOrder == null ? 0 : quantityReserOrder))
+                );
+
                 detail.setDiscountPercentage((int) Math.round(detailDiscount));
                 detail.setDiscountedPrice(calculateDiscountPrice(detail.getSellPrice(), detailDiscount));
                 detail.setDiscountCampaignId(bestDetailCampaignId);
@@ -1049,14 +1081,23 @@ public class ProductServiceImpl implements ProductService {
             if (response.getProductDetails() != null) {
                 for (ProductDetailResponse d : response.getProductDetails()) {
                     double detailDiscount = getBestDiscountPercentageForProductDetail(d.getId(), activeCampaigns);
+
                     Long bestDetailCampaignId = detailDiscount > 0
-                            ? getBestDiscountCampaignIdForProductDetail(d.getId(), activeCampaigns) // nếu bạn có hàm này, dùng; nếu chưa, có thể gán null
+                            ? getBestDiscountCampaignIdForProductDetail(d.getId(), activeCampaigns)
                             : bestCampaignId;
 
-                    if (detailDiscount <= 0) detailDiscount = productDiscount;
+                    if (detailDiscount <= 0) {
+                        detailDiscount = productDiscount;
+                    }
 
-                    Integer quantityReserOrder = reservationOrderRepository.sumQuantityByProductDetailActive(d.getId());
-                    d.setQuantity(d.getQuantity() - quantityReserOrder);
+                    Integer quantityReserOrder = reservationOrderRepository
+                            .sumQuantityByProductDetailActive(d.getId());
+
+                    // đảm bảo số lượng không âm
+                    d.setQuantity(
+                            Math.max(0, d.getQuantity() - (quantityReserOrder == null ? 0 : quantityReserOrder))
+                    );
+
                     d.setDiscountPercentage((int) Math.round(detailDiscount));
                     d.setDiscountedPrice(calculateDiscountPrice(d.getSellPrice(), detailDiscount));
                     d.setDiscountCampaignId(bestDetailCampaignId);

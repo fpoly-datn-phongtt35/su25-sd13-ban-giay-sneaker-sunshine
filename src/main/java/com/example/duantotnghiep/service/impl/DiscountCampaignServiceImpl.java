@@ -151,7 +151,13 @@ public class DiscountCampaignServiceImpl implements DiscountCampaignService {
         // 1) Validate cơ bản & phần trăm
         validateBasic(request);
 
-        // 2) Code unique
+
+        List<DiscountCampaign> optional = discountCampaignRepository.findConflictCampaign(request.getStartDate(),request.getEndDate(),null);
+        if (!optional.isEmpty()) {
+            throw new IllegalArgumentException("Khoảng thời gian đã bị trùng với campaign khác");
+        }
+
+            // 2) Code unique
         String campaignCode = generateOrUseCampaignCode(request.getCampaignCode());
         ensureCampaignCodeUniqueOrThrow(campaignCode, null);
 
@@ -188,7 +194,7 @@ public class DiscountCampaignServiceImpl implements DiscountCampaignService {
         campaign.setUpdatedDate(now);
 
         // 6) Unique % theo ngày tạo (chỉ áp dụng global % != null, bỏ qua status=2)
-        ensureUniquePercentPerCreatedDayOrThrow(now.toLocalDate(), campaign.getDiscountPercentage(), null);
+//        ensureUniquePercentPerCreatedDayOrThrow(now.toLocalDate(), campaign.getDiscountPercentage(), null);
 
         // 7) Link products
         List<DiscountCampaignProduct> productLinks = productIds.stream().map(pid -> {
@@ -232,6 +238,10 @@ public class DiscountCampaignServiceImpl implements DiscountCampaignService {
         DiscountCampaign current = discountCampaignRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy đợt giảm giá với ID: " + id));
 
+        List<DiscountCampaign> optional = discountCampaignRepository.findConflictCampaign(request.getStartDate(),request.getEndDate(),id);
+        if (!optional.isEmpty()) {
+            throw new IllegalArgumentException("Khoảng thời gian đã bị trùng với campaign khác");
+        }
         // --- Lấy dữ liệu mới (nếu null thì giữ nguyên) ---
         String newCode = isBlank(request.getCampaignCode()) ? current.getCampaignCode() : request.getCampaignCode().trim();
         String newName = isBlank(request.getName()) ? current.getName() : request.getName().trim();
@@ -285,7 +295,7 @@ public class DiscountCampaignServiceImpl implements DiscountCampaignService {
         LocalDate createdDayOfCurrent = (current.getCreatedDate() != null)
                 ? current.getCreatedDate().toLocalDate()
                 : now.toLocalDate(); // fallback an toàn
-        ensureUniquePercentPerCreatedDayOrThrow(createdDayOfCurrent, current.getDiscountPercentage(), current.getId());
+//        ensureUniquePercentPerCreatedDayOrThrow(createdDayOfCurrent, current.getDiscountPercentage(), current.getId());
 
         // --- Products ---
         List<Long> productIds;
@@ -446,29 +456,29 @@ public class DiscountCampaignServiceImpl implements DiscountCampaignService {
     }
 
     /** Trong cùng ngày tạo, chỉ cho phép duy nhất 1 campaign có cùng % toàn chiến dịch (bỏ qua status==2). */
-    private void ensureUniquePercentPerCreatedDayOrThrow(LocalDate createdDay, BigDecimal percent, Long excludeId) {
-        if (percent == null) return; // chỉ kiểm tra cho % toàn chiến dịch
-        BigDecimal p = percent.setScale(2, RoundingMode.HALF_UP);
-
-        List<DiscountCampaign> all = discountCampaignRepository.findAll();
-        boolean duplicated = all.stream().anyMatch(c -> {
-            if (c.getStatus() != null && c.getStatus() == 2) return false; // bỏ qua đã vô hiệu hoá
-            if (c.getCreatedDate() == null) return false;
-            LocalDate d = c.getCreatedDate().toLocalDate();
-            BigDecimal cp = c.getDiscountPercentage();
-            boolean sameDay = createdDay.equals(d);
-            boolean samePercent = (cp != null && cp.setScale(2, RoundingMode.HALF_UP).compareTo(p) == 0);
-            boolean notSelf = (excludeId == null || !Objects.equals(c.getId(), excludeId));
-            return sameDay && samePercent && notSelf;
-        });
-
-        if (duplicated) {
-            throw new IllegalArgumentException(
-                    "Trong ngày " + createdDay + " đã tồn tại một đợt giảm giá với cùng phần trăm: "
-                            + p.stripTrailingZeros().toPlainString() + "%."
-            );
-        }
-    }
+//    private void ensureUniquePercentPerCreatedDayOrThrow(LocalDate createdDay, BigDecimal percent, Long excludeId) {
+//        if (percent == null) return; // chỉ kiểm tra cho % toàn chiến dịch
+//        BigDecimal p = percent.setScale(2, RoundingMode.HALF_UP);
+//
+//        List<DiscountCampaign> all = discountCampaignRepository.findAll();
+//        boolean duplicated = all.stream().anyMatch(c -> {
+//            if (c.getStatus() != null && c.getStatus() == 2) return false; // bỏ qua đã vô hiệu hoá
+//            if (c.getCreatedDate() == null) return false;
+//            LocalDate d = c.getCreatedDate().toLocalDate();
+//            BigDecimal cp = c.getDiscountPercentage();
+//            boolean sameDay = createdDay.equals(d);
+//            boolean samePercent = (cp != null && cp.setScale(2, RoundingMode.HALF_UP).compareTo(p) == 0);
+//            boolean notSelf = (excludeId == null || !Objects.equals(c.getId(), excludeId));
+//            return sameDay && samePercent && notSelf;
+//        });
+//
+//        if (duplicated) {
+//            throw new IllegalArgumentException(
+//                    "Trong ngày " + createdDay + " đã tồn tại một đợt giảm giá với cùng phần trăm: "
+//                            + p.stripTrailingZeros().toPlainString() + "%."
+//            );
+//        }
+//    }
 
 //    private void ensureDiscountModeConsistencyOrThrow(DiscountCampaignRequest req) {
 //        boolean hasGlobal = req.getDiscountPercentage() != null;

@@ -85,47 +85,52 @@
       </div>
 
       <!-- Nâng cao -->
-      <el-collapse-transition>
-        <div v-show="showAdvanced" class="advanced">
-          <el-form :model="filters" label-position="top" size="small" class="advanced-grid">
+    <el-collapse-transition>
+  <div v-show="showAdvanced" class="advanced">
+    <el-form :model="filters" label-position="top" size="small" class="advanced-grid">
 
-            <el-form-item label="Cổ giày">
-              <el-select v-model="filters.styleId" clearable filterable placeholder="Chọn">
-                <el-option v-for="s in styleList" :key="s.id" :label="s.styleName" :value="s.id" />
-              </el-select>
-            </el-form-item>
+      <!-- Cổ giày -->
+      <el-form-item label="Cổ giày" class="col-span-2">
+        <el-select v-model="filters.styleId" clearable filterable placeholder="Chọn">
+          <el-option v-for="s in styleList" :key="s.id" :label="s.styleName" :value="s.id" />
+        </el-select>
+      </el-form-item>
 
-            <el-form-item label="Dành cho" class="col-span-3">
-              <el-radio-group v-model="filters.genderId">
-                <el-radio-button :label="1">Nam</el-radio-button>
-                <el-radio-button :label="2">Nữ</el-radio-button>
-                <el-radio-button :label="3">Cả hai</el-radio-button>
-              </el-radio-group>
-            </el-form-item>
+      <!-- Dành cho -->
+      <el-form-item label="Dành cho" class="col-span-2">
+        <el-radio-group v-model="filters.genderId" class="full-center">
+          <el-radio-button :label="1">Nam</el-radio-button>
+          <el-radio-button :label="2">Nữ</el-radio-button>
+          <el-radio-button :label="3">Cả hai</el-radio-button>
+        </el-radio-group>
+      </el-form-item>
 
-            <el-form-item label="Ngày tạo (Từ - Đến)" class="col-span-3">
-              <div class="date-range">
-                <el-date-picker
-                  v-model="filters.createdFrom"
-                  type="datetime"
-                  placeholder="Từ ngày"
-                  format="YYYY-MM-DD HH:mm:ss"
-                  value-format="YYYY-MM-DDTHH:mm:ss"
-                  clearable
-                />
-                <el-date-picker
-                  v-model="filters.createdTo"
-                  type="datetime"
-                  placeholder="Đến ngày"
-                  format="YYYY-MM-DD HH:mm:ss"
-                  value-format="YYYY-MM-DDTHH:mm:ss"
-                  clearable
-                />
-              </div>
-            </el-form-item>
-          </el-form>
+      <!-- Ngày tạo -->
+      <el-form-item label="Ngày tạo (Từ - Đến)" class="col-span-2">
+        <div class="date-range">
+          <el-date-picker
+            v-model="filters.createdFrom"
+            type="datetime"
+            placeholder="Từ ngày"
+            format="YYYY-MM-DD HH:mm:ss"
+            value-format="YYYY-MM-DDTHH:mm:ss"
+            clearable
+          />
+          <el-date-picker
+            v-model="filters.createdTo"
+            type="datetime"
+            placeholder="Đến ngày"
+            format="YYYY-MM-DD HH:mm:ss"
+            value-format="YYYY-MM-DDTHH:mm:ss"
+            clearable
+          />
         </div>
-      </el-collapse-transition>
+      </el-form-item>
+
+    </el-form>
+  </div>
+</el-collapse-transition>
+
     </el-card>
 
     <div class="summary">

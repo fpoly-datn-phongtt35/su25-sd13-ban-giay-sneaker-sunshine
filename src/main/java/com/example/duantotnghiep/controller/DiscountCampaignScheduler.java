@@ -22,7 +22,7 @@ public class DiscountCampaignScheduler {
      * Mỗi phút: kích hoạt các campaign đã đến giờ chạy
      * Điều kiện: startDate <= now AND status = 0 (CHỜ BẮT ĐẦU) -> set status = 1 (ĐANG CHẠY)
      */
-    @Scheduled(cron = "0 * * * * *") // mỗi phút
+    @Scheduled(cron = "*/10 * * * * *") // mỗi 10 giây
     @Transactional
     public void autoActivateScheduledCampaigns() {
         LocalDateTime now = LocalDateTime.now();
@@ -40,7 +40,7 @@ public class DiscountCampaignScheduler {
      * Mỗi phút: vô hiệu các campaign đã hết hạn
      * Điều kiện: endDate < now AND status != 2 -> set status = 2 (VÔ HIỆU/HẾT HẠN)
      */
-    @Scheduled(cron = "0 * * * * *") // mỗi phút
+    @Scheduled(cron = "*/10 * * * * *") // mỗi 10 giây
     @Transactional
     public void autoDeactivateExpiredCampaigns() {
         LocalDateTime now = LocalDateTime.now();

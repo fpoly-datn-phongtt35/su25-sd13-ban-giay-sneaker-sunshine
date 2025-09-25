@@ -21,7 +21,7 @@ public class ScheduleClass {
         this.voucherRepository = voucherRepository;
     }
 
-    @Scheduled(initialDelay = 5_000, fixedRate = 30_000)
+    @Scheduled(initialDelay = 5_000, fixedRate = 10_000)
     @Transactional
     public void reconcileVoucherStatuses() {
         LocalDateTime now = LocalDateTime.now(ZONE);

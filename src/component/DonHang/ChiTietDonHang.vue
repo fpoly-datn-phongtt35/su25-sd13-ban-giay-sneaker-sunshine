@@ -529,7 +529,7 @@ const cancelOrder = async () => {
       }
     })
 
-    ElMessage.success('Hủy đơn hàng tiền thành công!')
+    ElMessage.success('Hủy đơn hàng thành công!')   
     cancelDialogVisible.value = false
     fetchInvoice()
   } catch (err) {

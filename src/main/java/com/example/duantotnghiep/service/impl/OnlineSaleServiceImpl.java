@@ -108,7 +108,7 @@ public class OnlineSaleServiceImpl implements OnlineSaleService {
                 int newStock = currentStock - orderQuantity;
 
                 if (newStock < 0) {
-                    throw new IllegalStateException("Sản phẩm " + productDetail.getId() + " không đủ số lượng trong kho");
+                    throw new IllegalArgumentException("Sản phẩm " + productDetail.getId() + " không đủ số lượng trong kho");
                 }
 
                 Integer update = reservationOrderRepository.deactivateByProductDetailAndInvoice(productDetail.getId(),invoiceId);

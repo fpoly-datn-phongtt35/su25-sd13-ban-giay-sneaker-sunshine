@@ -81,16 +81,17 @@
                 <el-input-number
                   v-model="form.maxDiscountValue"
                   :min="0"
+                  :disabled="isMaxDiscountDisabled"
                   :formatter="formatMoney"
                   :parser="parseMoney"
                   class="w-full"
-                  placeholder="Có thể để trống"
+                  :placeholder="isMaxDiscountDisabled ? 'Tự khóa khi giảm theo tiền' : 'Bắt buộc khi giảm theo %'"
                 />
               </el-form-item>
             </el-col>
           </el-row>
 
-          <!-- NEW: minOrderToReceive -->
+          <!-- Giá trị đơn tối thiểu để NHẬN voucher -->
           <el-form-item
             label="Giá trị đơn tối thiểu để NHẬN voucher (VNĐ) - có thể để trống"
             prop="minOrderToReceive"
@@ -105,7 +106,7 @@
             />
           </el-form-item>
 
-          <!-- Ngày -->
+          <!-- Ngày hiệu lực -->
           <el-row :gutter="20">
             <el-col :span="12">
               <el-form-item label="Ngày bắt đầu" prop="startDate">
@@ -145,7 +146,7 @@
             </el-input>
           </el-form-item>
 
-          <!-- Loại đơn, loại voucher, khách hàng -->
+          <!-- Loại đơn & khách hàng riêng tư -->
           <el-row :gutter="20">
             <el-col :span="8">
               <el-form-item label="Loại đơn hàng" prop="orderType">
@@ -156,6 +157,7 @@
               </el-form-item>
             </el-col>
 
+            <!-- Giữ nguyên voucherType để tương thích BE -->
             <!-- <el-col :span="8">
               <el-form-item label="Loại voucher" prop="voucherType">
                 <el-select v-model="form.voucherType" placeholder="Chọn loại" class="w-full">
@@ -187,44 +189,9 @@
             </el-col>
           </el-row>
 
-          <!-- Sản phẩm / Danh mục (chọn 1 trong 2) -->
-          <!-- <el-row :gutter="20">
-            <el-col :span="12">
-              <el-form-item label="Sản phẩm áp dụng (nếu có)" prop="productId">
-                <el-select
-                  v-model="form.productId"
-                  placeholder="Chọn sản phẩm"
-                  class="w-full"
-                  :disabled="!!form.categoryId"
-                  clearable
-                  filterable
-                  :filter-method="filterProducts"
-                >
-                  <el-option v-for="p in products" :key="p.id" :label="p.productName" :value="p.id" />
-                </el-select>
-              </el-form-item>
-            </el-col>
-
-            <el-col :span="12">
-              <el-form-item label="Danh mục áp dụng (nếu có)" prop="categoryId">
-                <el-select
-                  v-model="form.categoryId"
-                  placeholder="Chọn danh mục"
-                  class="w-full"
-                  :disabled="!!form.productId"
-                  clearable
-                  filterable
-                  :filter-method="filterCategories"
-                >
-                  <el-option v-for="cat in categories" :key="cat.id" :label="cat.categoryName" :value="cat.id" />
-                </el-select>
-              </el-form-item>
-            </el-col>
-          </el-row> -->
-
           <!-- Số lượng -->
           <el-form-item label="Số lượng" prop="quantity">
-            <el-input-number v-model="form.quantity" :min="0" class="w-full" />
+            <el-input-number v-model="form.quantity" :min="1" class="w-full" />
           </el-form-item>
 
           <!-- Actions -->
@@ -243,21 +210,23 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, watch } from 'vue'
+import { ref, reactive, onMounted, watch, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import apiClient from '@/utils/axiosInstance'
 import { Check, Refresh, ArrowLeft, Ticket, PriceTag, InfoFilled, Calendar, User } from '@element-plus/icons-vue'
 
+/** ===== Router & Params ===== */
 const route = useRoute()
 const router = useRouter()
 const voucherId = route.params.id
 
+/** ===== Refs & Stores ===== */
 const voucherForm = ref(null)
 const original = ref({})
-const products = ref([])
-const categories = ref([])
 const customers = ref([])
+const allCustomers = ref([]) // giữ danh sách gốc để filter
+const DISCOUNT_BUFFER = 1000
 
 /** ===== Form state ===== */
 const form = reactive({
@@ -265,74 +234,114 @@ const form = reactive({
   discountPercentage: null, // BigDecimal
   discountAmount: null,     // Integer
   minOrderValue: null,      // BigDecimal
-  maxDiscountValue: null,   // BigDecimal
-  minOrderToReceive: null,  // BigDecimal (NEW)
+  maxDiscountValue: null,   // BigDecimal (bắt buộc khi giảm theo %)
+  minOrderToReceive: null,  // BigDecimal
   startDate: null,          // 'YYYY-MM-DD HH:mm:ss'
   endDate: null,
   description: '',
   orderType: 1,
   voucherType: 1,           // 1: công khai, 2: riêng tư
   customerId: null,
-  productId: null,
-  categoryId: null,
   quantity: null,
   status: 1,
 })
 
+/** ===== Computed ===== */
+const isMaxDiscountDisabled = computed(() => !!form.discountAmount)
+
 /** ===== Format/Parser helpers ===== */
-const moneyNF = new Intl.NumberFormat('vi-VN', { style: 'decimal' })
-const formatMoney = (v) => (v == null ? '' : `${moneyNF.format(v)} VNĐ`)
+const nf = new Intl.NumberFormat('vi-VN', { style: 'decimal' })
+const formatMoney = (v) => (v == null || v === '' ? '' : `${nf.format(v)} VNĐ`)
 const parseMoney  = (v) => v ? Number(String(v).replace(/[^\d]/g, '')) : 0
-const formatPercent = (v) => (v == null ? '' : `${Number(v).toFixed(1).replace(/\.0$/, '')} %`)
+const formatPercent = (v) => (v == null || v === '' ? '' : `${Number(v).toFixed(1).replace(/\.0$/, '')} %`)
 const parsePercent  = (v) => {
   if (!v) return 0
   const num = parseFloat(String(v).replace(',', '.').replace(/[^\d.]/g, ''))
-  if (Number.isNaN(num)) return 0
-  return Math.min(Math.max(num, 0), 100)
+  return Number.isNaN(num) ? 0 : Math.min(Math.max(num, 0), 100)
 }
+const formatVndCompact = (n) => nf.format(n) + ' đ'
 
 /** ===== Validate rules ===== */
 const rules = {
   voucherName: [{ required: true, message: 'Vui lòng nhập tên voucher', trigger: 'blur' }],
+
   discountPercentage: [{
     validator: (r, val, cb) => {
-      if ((val == null || val === '') && (form.discountAmount == null || form.discountAmount === '')) {
-        cb(new Error('Vui lòng nhập phần trăm giảm hoặc số tiền giảm'))
-      } else if (val != null && val !== '' && (val < 0 || val > 100)) {
-        cb(new Error('Phần trăm giảm phải từ 0 đến 100'))
-      } else cb()
+      const hasAmount = form.discountAmount != null && form.discountAmount !== ''
+      if ((val == null || val === '') && !hasAmount) {
+        return cb(new Error('Vui lòng nhập phần trăm giảm hoặc số tiền giảm'))
+      }
+      if (val != null && val !== '' && (Number(val) < 0 || Number(val) > 100)) {
+        return cb(new Error('Phần trăm giảm phải từ 0 đến 100'))
+      }
+      return cb()
     },
     trigger: 'change',
   }],
+
   discountAmount: [{
     validator: (r, val, cb) => {
-      if ((val == null || val === '') && (form.discountPercentage == null || form.discountPercentage === '')) {
-        cb(new Error('Vui lòng nhập số tiền giảm hoặc phần trăm giảm'))
-      } else if (val != null && val < 0) {
-        cb(new Error('Số tiền giảm không thể âm'))
-      } else cb()
+      const hasPercent = form.discountPercentage != null && form.discountPercentage !== ''
+      const hasAmount  = val != null && val !== ''
+
+      // phải nhập 1 trong 2
+      if (!hasAmount && !hasPercent) {
+        return cb(new Error('Vui lòng nhập số tiền giảm hoặc phần trăm giảm'))
+      }
+      // không âm
+      if (hasAmount && Number(val) < 0) {
+        return cb(new Error('Số tiền giảm không thể âm'))
+      }
+
+      // ✅ không vượt quá (minOrderValue - 1.000)
+      const mov = form.minOrderValue
+      if (hasAmount && mov != null && mov !== '') {
+        const allowedMax = Math.max(0, Number(mov) - DISCOUNT_BUFFER)
+        if (Number(val) > allowedMax) {
+          return cb(new Error(
+            `Số tiền giảm không thể lớn hơn ${formatVndCompact(allowedMax)} (tức Giá trị đơn tối thiểu trừ 1.000đ)`
+          ))
+        }
+      }
+      return cb()
     },
     trigger: 'change',
   }],
-  minOrderValue: [{
-    validator: (r, val, cb) => {
-      if (val != null && val < 0) cb(new Error('Giá trị đơn tối thiểu không thể âm'))
-      else cb()
-    }, trigger: 'change',
-  }],
+
+  minOrderValue: [
+    { required: true, message: 'Vui lòng nhập giá trị đơn tối thiểu', trigger: 'change' },
+    {
+      validator: (r, val, cb) => {
+        if (val != null && Number(val) < 0) return cb(new Error('Giá trị đơn tối thiểu không thể âm'))
+        return cb()
+      },
+      trigger: 'change',
+    },
+  ],
+
+  // Bắt buộc khi giảm theo %, không bắt buộc khi giảm theo tiền
   maxDiscountValue: [{
     validator: (r, val, cb) => {
-      if (val != null && val < 0) cb(new Error('Số tiền giảm tối đa không thể âm'))
-      else cb()
-    }, trigger: 'change',
+      const isPercentMode = form.discountPercentage != null && form.discountPercentage !== ''
+      if (!isPercentMode) {
+        if (val != null && Number(val) < 0) return cb(new Error('Số tiền giảm tối đa không thể âm'))
+        return cb()
+      }
+      if (val == null || val === '') return cb(new Error('Vui lòng nhập Giảm tối đa khi dùng phần trăm'))
+      if (Number(val) < 0) return cb(new Error('Số tiền giảm tối đa không thể âm'))
+      return cb()
+    },
+    trigger: 'change',
   }],
+
   minOrderToReceive: [{
     validator: (r, val, cb) => {
       if (val == null || val === '') return cb()
-      if (Number(val) < 0) cb(new Error('Giá trị không thể âm'))
-      else cb()
+      if (Number(val) < 0) return cb(new Error('Giá trị không thể âm'))
+      return cb()
     }, trigger: 'change',
   }],
+
   startDate: [{ required: true, message: 'Vui lòng chọn ngày bắt đầu', trigger: 'change' }],
   endDate: [{
     validator: (r, val, cb) => {
@@ -340,27 +349,40 @@ const rules = {
       if (form.startDate && new Date(val) <= new Date(form.startDate)) {
         return cb(new Error('Ngày kết thúc phải sau ngày bắt đầu'))
       }
-      cb()
+      return cb()
     }, trigger: 'change',
   }],
+
   quantity: [
     { required: true, message: 'Vui lòng nhập số lượng voucher', trigger: 'change' },
-    { validator: (r, val, cb) => (val != null && val < 1) ? cb(new Error('Số lượng phải ≥ 1')) : cb(), trigger: 'change' },
+    {
+      validator: (r, val, cb) => {
+        if (val != null && Number(val) < 1) return cb(new Error('Số lượng phải ≥ 1'))
+        return cb()
+      }, trigger: 'change',
+    },
   ],
 }
 
-/** ===== Mutual exclusivity bằng watch (không dùng @change) ===== */
+/** ===== Mutual exclusivity bằng watch ===== */
 watch(() => form.discountPercentage, (val) => {
-  if (val != null && val !== '') form.discountAmount = null
+  if (val != null && val !== '') {
+    if (form.discountAmount != null && form.discountAmount !== '') {
+      form.discountAmount = null
+      voucherForm.value?.clearValidate('discountAmount')
+    }
+  }
 })
 watch(() => form.discountAmount, (val) => {
-  if (val != null && val !== '') form.discountPercentage = null
-})
-watch(() => form.productId, (val) => {
-  if (val) form.categoryId = null
-})
-watch(() => form.categoryId, (val) => {
-  if (val) form.productId = null
+  if (val != null && val !== '') {
+    if (form.discountPercentage != null && form.discountPercentage !== '') {
+      form.discountPercentage = null
+      voucherForm.value?.clearValidate('discountPercentage')
+    }
+    // khi chuyển sang "giảm theo tiền": clear maxDiscountValue
+    form.maxDiscountValue = null
+    voucherForm.value?.clearValidate('maxDiscountValue')
+  }
 })
 
 /** ===== Load detail ===== */
@@ -368,50 +390,45 @@ const fetchVoucher = async () => {
   const { data } = await apiClient.get(`/admin/vouchers/${voucherId}`)
   original.value = { ...(data || {}) }
 
-  form.voucherName        = data.voucherName ?? ''
-  form.discountPercentage = data.discountPercentage ?? null
-  form.discountAmount     = data.discountAmount ?? null
-  form.minOrderValue      = data.minOrderValue ?? null
-  form.maxDiscountValue   = data.maxDiscountValue ?? null
-  form.minOrderToReceive  = data.minOrderToReceive ?? null   // ✅ prefill
+  form.voucherName        = data?.voucherName ?? ''
+  form.discountPercentage = data?.discountPercentage ?? null
+  form.discountAmount     = data?.discountAmount ?? null
+  form.minOrderValue      = data?.minOrderValue ?? null
+  form.maxDiscountValue   = data?.maxDiscountValue ?? null
+  form.minOrderToReceive  = data?.minOrderToReceive ?? null
 
-  form.startDate = data.startDate ? String(data.startDate).replace('T',' ').slice(0,19) : null
-  form.endDate   = data.endDate   ? String(data.endDate).replace('T',' ').slice(0,19)   : null
+  // chuẩn hóa định dạng hiển thị
+  form.startDate = data?.startDate ? String(data.startDate).replace('T',' ').slice(0,19) : null
+  form.endDate   = data?.endDate   ? String(data.endDate).replace('T',' ').slice(0,19)   : null
 
-  form.description = data.description ?? ''
-  form.orderType   = data.orderType ?? 1
-  form.voucherType = data.voucherType ?? 1
-  form.customerId  = data.customerId ? Number(data.customerId) : null
-  form.productId   = data.productId  ? Number(data.productId)  : null
-  form.categoryId  = data.categoryId ? Number(data.categoryId) : null
-  form.quantity    = data.quantity ?? null
-  form.status      = data.status ?? 1
+  form.description = data?.description ?? ''
+  form.orderType   = data?.orderType ?? 1
+  form.voucherType = data?.voucherType ?? 1
+  form.customerId  = data?.customerId ? Number(data.customerId) : null
+  form.quantity    = data?.quantity ?? null
+  form.status      = data?.status ?? 1
 }
 
-/** ===== Options ===== */
-const fetchProducts = async () => {
-  const { data } = await apiClient.get('/admin/products/hien-thi')
-  products.value = data || []
-}
-const fetchCategories = async () => {
-  const { data } = await apiClient.get('/admin/categories/hien-thi')
-  categories.value = data || []
-}
+/** ===== Customers ===== */
 const fetchCustomers = async () => {
-  const { data } = await apiClient.get('/admin/customers')
-  customers.value = data || []
+  try {
+    const { data } = await apiClient.get('/admin/customers')
+    allCustomers.value = Array.isArray(data) ? data : []
+    customers.value = [...allCustomers.value]
+  } catch (e) {
+    console.error('Lỗi khi tải khách hàng:', e)
+    ElMessage.error('Không thể tải danh sách khách hàng!')
+  }
 }
-const filterProducts = async (q) => {
-  const { data } = await apiClient.get('/admin/products/hien-thi', { params: { search: q } })
-  products.value = data || []
-}
-const filterCategories = async (q) => {
-  const { data } = await apiClient.get('/admin/categories/hien-thi', { params: { search: q } })
-  categories.value = data || []
-}
-const filterCustomers = async (q) => {
-  const { data } = await apiClient.get('/admin/customers', { params: { search: q } })
-  customers.value = data || []
+const filterCustomers = (q) => {
+  if (!q) {
+    customers.value = [...allCustomers.value]
+    return
+  }
+  const lower = q.toLowerCase()
+  customers.value = allCustomers.value.filter((c) =>
+    (c.customerName || '').toLowerCase().includes(lower) || String(c.id).includes(q)
+  )
 }
 
 /** ===== Submit ===== */
@@ -419,42 +436,44 @@ const onSubmit = async () => {
   try {
     await voucherForm.value.validate()
 
-    // Check số lượng
-    if (!form.quantity || form.quantity === 0) {
+    if (!form.quantity || Number(form.quantity) < 1) {
       ElMessage.error('Số lượng voucher phải lớn hơn 0')
       return
+    }
+
+    // ✅ Guard: discountAmount ≤ (minOrderValue - 1.000)
+    if (form.discountAmount != null && form.discountAmount !== '' &&
+        form.minOrderValue != null && form.minOrderValue !== '') {
+      const allowedMax = Math.max(0, Number(form.minOrderValue) - DISCOUNT_BUFFER)
+      if (Number(form.discountAmount) > allowedMax) {
+        ElMessage.error(`Số tiền giảm không thể lớn hơn ${formatVndCompact(allowedMax)} (tức Giá trị đơn tối thiểu trừ 1.000đ)`)
+        return
+      }
     }
 
     await ElMessageBox.confirm(
       'Bạn có chắc chắn muốn cập nhật voucher này không?',
       'Xác nhận',
-      {
-        confirmButtonText: 'OK',
-        cancelButtonText: 'Hủy',
-        type: 'warning',
-      }
+      { confirmButtonText: 'OK', cancelButtonText: 'Hủy', type: 'warning' }
     )
 
-    // chỉ giữ 1 loại giảm
+    // Chỉ giữ 1 loại giảm trong payload
     const discountPercentage = form.discountAmount ? null : form.discountPercentage
     const discountAmount     = form.discountPercentage ? null : form.discountAmount
 
     const payload = {
       voucherName: form.voucherName,
-      discountPercentage: (discountPercentage == null || discountPercentage === 0) ? null : discountPercentage,
-      discountAmount: (discountAmount == null || discountAmount === 0) ? null : discountAmount,
-      minOrderValue: (form.minOrderValue == null || form.minOrderValue === 0) ? null : form.minOrderValue,
-      maxDiscountValue: (form.maxDiscountValue == null || form.maxDiscountValue === 0) ? null : form.maxDiscountValue,
-      minOrderToReceive: (form.minOrderToReceive == null || form.minOrderToReceive === 0)
-        ? null : form.minOrderToReceive,
+      discountPercentage: (discountPercentage == null || Number(discountPercentage) === 0) ? null : discountPercentage,
+      discountAmount: (discountAmount == null || Number(discountAmount) === 0) ? null : discountAmount,
+      minOrderValue: (form.minOrderValue == null || Number(form.minOrderValue) === 0) ? null : form.minOrderValue,
+      maxDiscountValue: (form.maxDiscountValue == null || Number(form.maxDiscountValue) === 0) ? null : form.maxDiscountValue,
+      minOrderToReceive: (form.minOrderToReceive == null || Number(form.minOrderToReceive) === 0) ? null : form.minOrderToReceive,
       startDate: form.startDate,
       endDate: form.endDate,
       description: form.description,
       orderType: form.orderType,
       voucherType: form.voucherType,
       customerId: form.voucherType === 2 ? form.customerId : null,
-      productId: form.productId,
-      categoryId: form.categoryId,
       quantity: form.quantity,
       status: form.status,
     }
@@ -473,31 +492,28 @@ const onSubmit = async () => {
   }
 }
 
-
 /** ===== Reset & Back ===== */
 const onReset = () => {
-  if (!original.value) return
-  form.voucherName        = original.value.voucherName ?? ''
-  form.discountPercentage = original.value.discountPercentage ?? null
-  form.discountAmount     = original.value.discountAmount ?? null
-  form.minOrderValue      = original.value.minOrderValue ?? null
-  form.maxDiscountValue   = original.value.maxDiscountValue ?? null
-  form.minOrderToReceive  = original.value.minOrderToReceive ?? null
-  form.startDate = original.value.startDate ? String(original.value.startDate).replace('T',' ').slice(0,19) : null
-  form.endDate   = original.value.endDate   ? String(original.value.endDate).replace('T',' ').slice(0,19)   : null
-  form.description = original.value.description ?? ''
-  form.orderType   = original.value.orderType ?? 1
-  form.voucherType = original.value.voucherType ?? 1
-  form.customerId  = original.value.customerId ? Number(original.value.customerId) : null
-  form.productId   = original.value.productId  ? Number(original.value.productId)  : null
-  form.categoryId  = original.value.categoryId ? Number(original.value.categoryId) : null
-  form.quantity    = original.value.quantity ?? null
-  form.status      = original.value.status ?? 1
+  const o = original.value || {}
+  form.voucherName        = o.voucherName ?? ''
+  form.discountPercentage = o.discountPercentage ?? null
+  form.discountAmount     = o.discountAmount ?? null
+  form.minOrderValue      = o.minOrderValue ?? null
+  form.maxDiscountValue   = o.maxDiscountValue ?? null
+  form.minOrderToReceive  = o.minOrderToReceive ?? null
+  form.startDate = o.startDate ? String(o.startDate).replace('T',' ').slice(0,19) : null
+  form.endDate   = o.endDate   ? String(o.endDate).replace('T',' ').slice(0,19)   : null
+  form.description = o.description ?? ''
+  form.orderType   = o.orderType ?? 1
+  form.voucherType = o.voucherType ?? 1
+  form.customerId  = o.customerId ? Number(o.customerId) : null
+  form.quantity    = o.quantity ?? null
+  form.status      = o.status ?? 1
 }
 const goBack = () => router.back()
 
 onMounted(async () => {
-  await Promise.all([fetchVoucher(), fetchProducts(), fetchCategories(), fetchCustomers()])
+  await Promise.all([fetchVoucher(), fetchCustomers()])
 })
 </script>
 

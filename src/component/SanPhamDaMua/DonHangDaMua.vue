@@ -103,25 +103,31 @@
             </div>
 
             <div class="actions">
-              <p class="status" :class="{ rated: item.isRated }">
-                {{ item.isRated ? 'Đã đánh giá' : 'Chưa đánh giá' }}
-              </p>
+              <!-- Chỉ hiển thị trạng thái + nút/tag cho mục ĐẦU TIÊN của mỗi productId -->
+              <template v-if="item.__firstOfProduct">
+                <p class="status" :class="{ rated: item.__isRatedProduct }">
+                  {{ item.__isRatedProduct ? 'Đã đánh giá' : 'Chưa đánh giá' }}
+                </p>
 
-              <!-- ĐÃ ĐÁNH GIÁ: chỉ hiện tag, không có nút -->
-              <el-tag v-if="item.isRated" type="success" effect="light" size="small">
-                ĐÃ ĐÁNH GIÁ
-              </el-tag>
+                <el-tag
+                  v-if="item.__isRatedProduct"
+                  type="success"
+                  effect="light"
+                  size="small"
+                >
+                  ĐÃ ĐÁNH GIÁ
+                </el-tag>
 
-              <!-- CHƯA ĐÁNH GIÁ: cho bấm mở dialog -->
-              <el-button
-                v-else
-                type="primary"
-                plain
-                size="small"
-                @click="openReviewDialog(item, order)"
-              >
-                <el-icon class="mr-1"><StarFilled /></el-icon> Đánh giá
-              </el-button>
+                <el-button
+                  v-else
+                  type="primary"
+                  plain
+                  size="small"
+                  @click="openReviewDialog(item, order)"
+                >
+                  <el-icon class="mr-1"><StarFilled /></el-icon> Đánh giá
+                </el-button>
+              </template>
             </div>
           </div>
 
@@ -220,7 +226,7 @@ const selectedProduct = ref({
   comment: '',
 })
 
-const show = ref(false)
+const show = ref(true) // bật ô tìm kiếm
 
 /* ================== HELPERS ================== */
 function formatDate(d) {
@@ -336,7 +342,7 @@ async function fetchOrders() {
 
         return {
           __uid: `${inv.invoiceId ?? inv.id ?? 'inv'}_${uid++}`,
-          ...d, // giữ gốc
+          ...d,
 
           // chuẩn hoá cho UI
           productId,
@@ -355,6 +361,26 @@ async function fetchOrders() {
           quantity:  d.quantity ?? 1,
         }
       })
+
+      // === ĐÁNH DẤU THEO PRODUCT (gộp theo productId) ===
+      const ratedMap = new Map()
+      for (const it of items) {
+        const pid = it.productId ?? null
+        if (!pid) continue
+        if (!ratedMap.has(pid)) ratedMap.set(pid, !!(it.isRated || it.rate != null))
+        else if (!ratedMap.get(pid) && (it.isRated || it.rate != null)) ratedMap.set(pid, true)
+      }
+      const seen = new Set()
+      for (const it of items) {
+        const pid = it.productId ?? null
+        if (pid && !seen.has(pid)) {
+          it.__firstOfProduct = true
+          seen.add(pid)
+        } else {
+          it.__firstOfProduct = false
+        }
+        it.__isRatedProduct = pid ? !!ratedMap.get(pid) : false
+      }
 
       return {
         ...inv,
@@ -386,7 +412,7 @@ const canSubmit = computed(() => {
 })
 
 function openReviewDialog(item, order) {
-  if (item.isRated) {
+  if (item.__isRatedProduct) {
     ElMessage.info('Sản phẩm này đã được đánh giá. Mỗi sản phẩm chỉ được đánh giá 1 lần.')
     return
   }
@@ -407,12 +433,12 @@ function openReviewDialog(item, order) {
 async function submitReview() {
   const p = selectedProduct.value
 
-  // Phòng hờ: chặn nếu đã đánh giá (tránh double submit do race condition)
-  const itemAlreadyRated = orders.value.some(o =>
+  // Chặn nếu đã đánh giá theo sản phẩm
+  const productAlreadyRated = orders.value.some(o =>
     (o.invoiceId === p.invoiceId) &&
-    o.invoiceDetail.some(it => it.productId === p.productId && (it.isRated || it.rate != null))
+    o.invoiceDetail.some(it => it.productId === p.productId && (it.__isRatedProduct || it.isRated || it.rate != null))
   )
-  if (itemAlreadyRated) {
+  if (productAlreadyRated) {
     ElMessage.info('Sản phẩm này đã được đánh giá. Mỗi sản phẩm chỉ được đánh giá 1 lần.')
     reviewDialogVisible.value = false
     return
@@ -435,17 +461,19 @@ async function submitReview() {
     ElMessage.success('Đã gửi đánh giá thành công!')
     reviewDialogVisible.value = false
 
-    // đồng bộ local state -> đánh dấu đã đánh giá
-    orders.value.forEach(o =>
+    // Đồng bộ local state: đánh dấu ĐÃ ĐÁNH GIÁ cho TẤT CẢ dòng cùng productId trong đơn
+    orders.value.forEach(o => {
+      if (o.invoiceId !== p.invoiceId) return
       o.invoiceDetail.forEach(it => {
-        if (it.productId === p.productId && it.invoiceId === p.invoiceId) {
-          it.rate = p.rating
-          it.comment = p.comment.trim()
+        if (it.productId === p.productId) {
+          it.rate = it.rate ?? p.rating
+          it.comment = it.comment ?? p.comment.trim()
           it.isRated = true
           it.rated = true
+          it.__isRatedProduct = true
         }
       })
-    )
+    })
   } catch (error) {
     console.error('[submitReview] error =', error?.response?.data || error)
     ElMessage.error('Gửi đánh giá thất bại.')

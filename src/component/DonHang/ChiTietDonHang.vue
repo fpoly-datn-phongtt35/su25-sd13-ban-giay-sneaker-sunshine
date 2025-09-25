@@ -61,14 +61,6 @@
 
       <p class="flex items-center gap-2">
         <strong>Địa chỉ giao hàng:</strong> {{ invoice.deliveryAddress }}
-        <el-button
-          v-if="canEditContact"
-          type="primary"
-          size="small"
-          class="ml-2"
-
-          @click="openAddressDialog"
-        >Cập nhật</el-button>
       </p>
 
       <el-divider />
@@ -537,7 +529,7 @@ const cancelOrder = async () => {
       }
     })
 
-    ElMessage.success('Hủy đơn hàng và hoàn tiền thành công!')
+    ElMessage.success('Hủy đơn hàng tiền thành công!')
     cancelDialogVisible.value = false
     fetchInvoice()
   } catch (err) {

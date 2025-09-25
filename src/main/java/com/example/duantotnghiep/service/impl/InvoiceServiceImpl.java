@@ -2111,7 +2111,7 @@ public class InvoiceServiceImpl implements InvoiceService {
             ProductDetail pd = productDetailRepository.findById(item.getProductDetailId())
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm chi tiết ID: " + item.getProductDetailId()));
 
-            productDetailQty.put(item.getProductDetailId(), pd.getQuantity());
+            productDetailQty.put(item.getProductDetailId(), item.getQuantity());
             Integer quantityReserOrder = reservationOrderRepository.sumQuantityByProductDetailActive(pd.getId());
 
             // Kiểm tra tồn kho (chi tiết)

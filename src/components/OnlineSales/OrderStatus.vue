@@ -455,7 +455,6 @@
         <el-table-column prop="changedAt" label="Thời gian" width="180">
           <template #default="{ row }">{{ formatDate(row.changedAt) }}</template>
         </el-table-column>
-        <el-table-column prop="note" label="Ghi chú" min-width="200" />
         <el-table-column prop="employeeName" label="Người thực hiện" min-width="160" />
       </el-table>
       <template #footer>
@@ -636,7 +635,7 @@ const cancelOrder = async () => {
         isPaid: isPaid.value
       }
     })
-    ElMessage.success('Hủy đơn hàng và hoàn tiền thành công!')
+    ElMessage.success('Hủy đơn hàng thành công!')
     cancelDialogVisible.value = false
     fetchInvoice()
   } catch (err) {

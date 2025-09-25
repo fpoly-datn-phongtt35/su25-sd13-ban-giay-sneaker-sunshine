@@ -2229,19 +2229,19 @@ public class InvoiceServiceImpl implements InvoiceService {
 
         // Lưu invoice (với cascade invoiceDetails nếu mapping đúng)
         Invoice saved = invoiceRepository.save(invoice);
-        final Long invoiceId = saved.getId();
-
-        List<ReservationOrder> orders = new ArrayList<>();
-        productDetailQty.forEach((pdId, qty) -> {
-            ReservationOrder order = new ReservationOrder();
-            order.setInvoiceId(invoiceId);
-            order.setProductDetailId(pdId);
-            order.setQuantity(qty);
-            order.setStatus(1);
-            order.setCreatedAt(new  Date());
-            orders.add(order);
-        });
-        reservationOrderRepository.saveAll(orders);
+//        final Long invoiceId = saved.getId();
+//
+//        List<ReservationOrder> orders = new ArrayList<>();
+//        productDetailQty.forEach((pdId, qty) -> {
+//            ReservationOrder order = new ReservationOrder();
+//            order.setInvoiceId(invoiceId);
+//            order.setProductDetailId(pdId);
+//            order.setQuantity(qty);
+//            order.setStatus(1);
+//            order.setCreatedAt(new  Date());
+//            orders.add(order);
+//        });
+//        reservationOrderRepository.saveAll(orders);
 
         // Tạo appTransId dựa trên id saved
         String appTransId = new SimpleDateFormat("yyMMdd").format(new Date()) + "_" + saved.getId();
@@ -2272,7 +2272,7 @@ public class InvoiceServiceImpl implements InvoiceService {
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy hóa đơn với appTransId: " + appTransId));
 
         // Idempotency: CHỈ trừ kho khi chi tiết đã ở trạng thái ĐÃ_XỬ_LÝ
-        if (invoice.getStatusDetail() != TrangThaiChiTiet.DA_XU_LY) {
+        if (invoice.getStatusDetail() != TrangThaiChiTiet.CHO_XU_LY) {
             // Không phải thời điểm trừ kho -> trả nguyên trạng
             return invoice;
         }
@@ -2290,6 +2290,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         List<ProductDetail> pdToSave = new ArrayList<>();
         List<Product> pToSave = new ArrayList<>();
 
+        Map<Long,Integer> productDetailQty = new HashMap<>();
         // Duyệt và lock từng ProductDetail / Product trước khi trừ
         for (InvoiceDetail detail : details) {
             if (detail.getProductDetail() == null || detail.getProductDetail().getId() == null) {
@@ -2301,6 +2302,8 @@ public class InvoiceServiceImpl implements InvoiceService {
             }
 
             Long pdId = detail.getProductDetail().getId();
+            Integer soLuong = detail.getQuantity();
+            productDetailQty.put(pdId, soLuong);
 
             // Lock row ProductDetail (SELECT ... FOR UPDATE)
             ProductDetail pd = productDetailRepository.findByIdForUpdate(pdId)
@@ -2319,10 +2322,8 @@ public class InvoiceServiceImpl implements InvoiceService {
                 invoiceRepository.save(invoice);
                 throw new RuntimeException("Tồn kho chi tiết không đủ cho pdId=" + pdId + " (cần " + need + ", còn " + availPd + ")");
             }
-            pd.setQuantity(availPd - need);
             pdToSave.add(pd);
 
-            // Lock & trừ kho tổng ở Product (nếu có quản lý số lượng ở Product)
             Long productId = (pd.getProduct() != null) ? pd.getProduct().getId() : null;
             if (productId == null) {
                 invoice.setStatus(TrangThaiTong.HUY_GIAO_DICH);
@@ -2335,15 +2336,6 @@ public class InvoiceServiceImpl implements InvoiceService {
             Product p = productRepository.findByIdProduct(productId)
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy Product id=" + productId));
 
-//            int availP = Optional.ofNullable(p.getQuantity()).orElse(0);
-//            if (need > availP) {
-//                invoice.setStatus(TrangThaiTong.HUY_GIAO_DICH);
-//                invoice.setStatusDetail(TrangThaiChiTiet.HUY_GIAO_DICH);
-//                invoice.setUpdatedDate(new Date());
-//                invoiceRepository.save(invoice);
-//                throw new RuntimeException("Tồn kho tổng không đủ cho productId=" + productId + " (cần " + need + ", còn " + availP + ")");
-//            }
-//            p.setQuantity(availP - need);
             pToSave.add(p);
         }
 
@@ -2357,6 +2349,19 @@ public class InvoiceServiceImpl implements InvoiceService {
         invoice.setUpdatedDate(new Date());
 
         Invoice saved = invoiceRepository.save(invoice);
+                final Long invoiceId = saved.getId();
+
+        List<ReservationOrder> orders = new ArrayList<>();
+        productDetailQty.forEach((pdId, qty) -> {
+            ReservationOrder order = new ReservationOrder();
+            order.setInvoiceId(invoiceId);
+            order.setProductDetailId(pdId);
+            order.setQuantity(qty);
+            order.setStatus(1);
+            order.setCreatedAt(new  Date());
+            orders.add(order);
+        });
+        reservationOrderRepository.saveAll(orders);
 
         // Các bước hậu xử lý (ví dụ: mark voucher used)
         LocalDateTime now = LocalDateTime.now();
